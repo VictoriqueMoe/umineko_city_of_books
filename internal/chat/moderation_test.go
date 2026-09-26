@@ -53,6 +53,29 @@ func TestBanMember_RejectsStaffTarget(t *testing.T) {
 	require.ErrorIs(t, err, ErrCannotBanStaff)
 }
 
+func TestBanMember_AFailedBanAnnouncesNothing(t *testing.T) {
+	// given a ban that the database refuses
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	target := uuid.New()
+	room := uuid.New()
+	boom := errors.New("boom")
+
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: room, ViewerID: actor}).Return(stubRoom(room), nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: actor}).Return("host", nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: target}).Return("member", nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(sampleUser(target), nil)
+	m.banRepo.EXPECT().Ban(mock.Anything, spec.NewChatRoomBan{RoomID: room, UserID: target, BannedBy: &actor, Reason: "spam"}).Return(boom)
+
+	// when
+	err := svc.BanMember(context.Background(), actor, room, target, "spam")
+
+	// then the room is never told about a ban that did not happen
+	require.ErrorIs(t, err, boom)
+	m.chatRepo.AssertNotCalled(t, "InsertSystemMessage", mock.Anything, mock.Anything)
+}
+
 func TestBanMember_Succeeds(t *testing.T) {
 	svc, m := newTestService(t)
 	actor := uuid.New()
@@ -400,6 +423,36 @@ func TestSendMessage_BannedWordKickFires(t *testing.T) {
 	assert.True(t, errors.As(err, &bw))
 	assert.Equal(t, "dogs", bw.Pattern)
 	assert.Equal(t, contentfilter.BannedWordActionKick, bw.Action)
+}
+
+func TestSendMessage_BannedWordKickThatFailsToEvictAnnouncesNothing(t *testing.T) {
+	// given a kick-action banned word whose eviction fails
+	svc, m := newTestService(t)
+	sender := uuid.New()
+	room := uuid.New()
+	boom := errors.New("boom")
+
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender}).Return(true, nil)
+	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender}).Return(false, "", false, nil)
+	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, room).Return([]model.ChatBannedWordRow{
+		{ID: uuid.New(), Pattern: "dogs", MatchMode: contentfilter.MatchModeSubstring,
+			Action: contentfilter.BannedWordActionKick, Scope: "room", RoomID: &room},
+	}, nil).Maybe()
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender}).Return("member", nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, sender).Return("", nil)
+	m.auditRepo.EXPECT().CreateSystem(mock.Anything, mock.Anything).Return(nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, sender).Return(sampleUser(sender), nil)
+	m.chatRepo.EXPECT().GetMemberNickname(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender}).Return("", nil).Maybe()
+	expectRoomKind(m, room, dto.RoomTypeGroup)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, room).Return([]uuid.UUID{sender}, nil)
+	m.chatRepo.EXPECT().RemoveMember(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender}).Return(boom)
+
+	// when the message is sent
+	_, err := svc.SendMessage(context.Background(), sender, room, dto.SendMessageRequest{Body: "I love dogs"}, nil)
+
+	// then the failure surfaces and the room is never told the sender was kicked
+	require.ErrorIs(t, err, boom)
+	m.chatRepo.AssertNotCalled(t, "InsertSystemMessage", mock.Anything, mock.Anything)
 }
 
 func TestSendMessage_BannedWordKickIsDeleteOnlyInsideAPair(t *testing.T) {

@@ -227,7 +227,12 @@ func (c *core) clearWatchPartyParticipation(ctx context.Context, roomID, userID 
 		sessionID := sessions[i].ID
 
 		participant, err := c.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: userID})
-		if err != nil || participant == nil || participant.LeftAt.Valid {
+		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("session_id", sessionID.String()).Msg("evict: watch party participant lookup failed")
+
+			continue
+		}
+		if participant == nil || participant.LeftAt.Valid {
 			continue
 		}
 
@@ -323,7 +328,10 @@ func (c *core) canModerateRoom(ctx context.Context, roomID, userID uuid.UUID) (b
 }
 
 func (c *core) evictUserFromRoom(ctx context.Context, roomID, targetID uuid.UUID, reason string) error {
-	members, _ := c.chatRepo.GetRoomMembers(ctx, roomID)
+	members, err := c.chatRepo.GetRoomMembers(ctx, roomID)
+	if err != nil {
+		return fmt.Errorf("eviction audience: %w", err)
+	}
 
 	if err := c.chatRepo.RemoveMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: targetID}); err != nil {
 		return fmt.Errorf("remove member: %w", err)
@@ -481,7 +489,10 @@ func (c *core) actionDisplayName(ctx context.Context, userID uuid.UUID, fallback
 
 func (c *core) nameAndPossessive(ctx context.Context, userID uuid.UUID) (string, string) {
 	u, err := c.userRepo.GetByID(ctx, userID)
-	if err != nil || u == nil {
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("user_id", userID.String()).Msg("action message: user lookup failed")
+	}
+	if u == nil {
 		return "", "their"
 	}
 	possessive := strings.TrimSpace(u.PronounPossessive)
@@ -499,6 +510,8 @@ func (c *core) postRoomActionMessage(ctx context.Context, roomID, actorID uuid.U
 
 	row, err := c.chatRepo.InsertSystemMessage(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: actorID, Body: actionBody})
 	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("action message not saved")
+
 		return
 	}
 
@@ -511,7 +524,13 @@ func (c *core) roomActionMessageBody(ctx context.Context, roomID, actorID uuid.U
 		return ""
 	}
 
-	if timedOut, _ := c.chatRepo.HasActiveMemberTimeout(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: actorID}); timedOut {
+	timedOut, err := c.chatRepo.HasActiveMemberTimeout(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: actorID})
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Str("user_id", actorID.String()).Msg("action message withheld: timeout lookup failed")
+
+		return ""
+	}
+	if timedOut {
 		return ""
 	}
 
@@ -523,11 +542,16 @@ func (c *core) broadcastRoomActionMessage(ctx context.Context, roomID, actorID u
 		return
 	}
 
-	vanityRows, _ := c.vanityRoleRepo.GetRolesForUser(ctx, actorID)
+	vanityRows, err := c.vanityRoleRepo.GetRolesForUser(ctx, actorID)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("user_id", actorID.String()).Msg("action message broadcast: vanity roles lookup failed")
+	}
 	msg := c.messageRowToResponse(*row, nil, nil, c.toVanityRoleResponses(vanityRows))
 
 	members, err := c.chatRepo.GetRoomMembers(ctx, roomID)
 	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("action message broadcast: member lookup failed")
+
 		return
 	}
 
@@ -535,26 +559,39 @@ func (c *core) broadcastRoomActionMessage(ctx context.Context, roomID, actorID u
 	c.hub.SendToUsers(members, event)
 }
 
-func (c *core) hydrateMessageRows(ctx context.Context, viewerID uuid.UUID, rows []model.ChatMessageRow) []dto.ChatMessageResponse {
+func (c *core) hydrateMessageRows(ctx context.Context, viewerID uuid.UUID, rows []model.ChatMessageRow) ([]dto.ChatMessageResponse, error) {
 	messageIDs := make([]uuid.UUID, len(rows))
 	senderIDs := make([]uuid.UUID, 0, len(rows))
 	seenSender := make(map[uuid.UUID]struct{})
-	for i := range rows {
-		messageIDs[i] = rows[i].ID
-		if _, ok := seenSender[rows[i].SenderID]; !ok {
-			seenSender[rows[i].SenderID] = struct{}{}
-			senderIDs = append(senderIDs, rows[i].SenderID)
+	for i, row := range rows {
+		messageIDs[i] = row.ID
+		if _, ok := seenSender[row.SenderID]; !ok {
+			seenSender[row.SenderID] = struct{}{}
+			senderIDs = append(senderIDs, row.SenderID)
 		}
 	}
-	mediaBatch, _ := c.chatRepo.GetMessageMediaBatch(ctx, messageIDs)
-	reactionBatch, _ := c.chatRepo.GetReactionsBatch(ctx, spec.ChatReactionsQuery{MessageIDs: messageIDs, ViewerID: viewerID})
-	vanityMap, _ := c.vanityRoleRepo.GetRolesForUsersBatch(ctx, senderIDs)
+
+	mediaBatch, err := c.chatRepo.GetMessageMediaBatch(ctx, messageIDs)
+	if err != nil {
+		return nil, fmt.Errorf("message media: %w", err)
+	}
+
+	reactionBatch, err := c.chatRepo.GetReactionsBatch(ctx, spec.ChatReactionsQuery{MessageIDs: messageIDs, ViewerID: viewerID})
+	if err != nil {
+		return nil, fmt.Errorf("message reactions: %w", err)
+	}
+
+	vanityMap, err := c.vanityRoleRepo.GetRolesForUsersBatch(ctx, senderIDs)
+	if err != nil {
+		return nil, fmt.Errorf("sender vanity roles: %w", err)
+	}
 
 	messages := make([]dto.ChatMessageResponse, 0, len(rows))
 	for _, row := range rows {
 		messages = append(messages, c.messageRowToResponse(row, mediaBatch[row.ID], reactionBatch[row.ID], c.toVanityRoleResponses(vanityMap[row.SenderID])))
 	}
-	return messages
+
+	return messages, nil
 }
 
 func (c *core) messageRowToResponse(row model.ChatMessageRow, media []dto.PostMediaResponse, reactions []model.ReactionGroup, vanityRoles []dto.VanityRoleResponse) dto.ChatMessageResponse {
@@ -680,11 +717,20 @@ func (c *core) assertTargetEditable(ctx context.Context, roomID, targetID uuid.U
 
 func (c *core) displayNameFor(ctx context.Context, userID, roomID uuid.UUID) string {
 	if roomID != uuid.Nil {
-		if nickname, _ := c.chatRepo.GetMemberNickname(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID}); strings.TrimSpace(nickname) != "" {
+		nickname, err := c.chatRepo.GetMemberNickname(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID})
+		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("user_id", userID.String()).Msg("display name: nickname lookup failed, using the profile name")
+		}
+		if strings.TrimSpace(nickname) != "" {
 			return nickname
 		}
 	}
-	user, _ := c.userRepo.GetByID(ctx, userID)
+
+	user, err := c.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("user_id", userID.String()).Msg("display name: user lookup failed")
+	}
+
 	return user.DisplayLabel()
 }
 
@@ -840,6 +886,8 @@ func (c *core) memberRowToMemberResponse(m model.ChatRoomMemberRow, vanityRoles 
 func (c *core) broadcastToRoomMembers(ctx context.Context, roomID uuid.UUID, msg ws.Message) {
 	members, err := c.chatRepo.GetRoomMembers(ctx, roomID)
 	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Str("event", msg.Type).Msg("room broadcast: member lookup failed")
+
 		return
 	}
 
@@ -864,8 +912,12 @@ func (c *core) checkSenderTimeout(ctx context.Context, roomID, senderID uuid.UUI
 func (c *core) notifyInvited(inviterID, roomID uuid.UUID, roomName string, invitedIDs []uuid.UUID) {
 	bgCtx := context.Background()
 
+	inviter, err := c.userRepo.GetByID(bgCtx, inviterID)
+	if err != nil {
+		logger.Ctx(bgCtx).Warn().Err(err).Str("user_id", inviterID.String()).Msg("invite notification: inviter lookup failed")
+	}
 	actorName := "Someone"
-	if inviter, err := c.userRepo.GetByID(bgCtx, inviterID); err == nil && inviter != nil {
+	if inviter != nil {
 		actorName = inviter.DisplayName
 	}
 
@@ -895,7 +947,10 @@ func (c *core) broadcastAndBuildMember(ctx context.Context, roomID, targetID uui
 	if err != nil {
 		return nil, fmt.Errorf("get members: %w", err)
 	}
-	vanityMap, _ := c.vanityRoleRepo.GetRolesForUsersBatch(ctx, []uuid.UUID{targetID})
+	vanityMap, err := c.vanityRoleRepo.GetRolesForUsersBatch(ctx, []uuid.UUID{targetID})
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("user_id", targetID.String()).Msg("member update: vanity roles lookup failed")
+	}
 
 	var resp *dto.ChatRoomMemberResponse
 	for _, m := range rows {
@@ -936,27 +991,42 @@ func (c *core) getRoomMemberResponses(ctx context.Context, roomID, viewerID uuid
 		return nil, 0, fmt.Errorf("get room members: %w", err)
 	}
 
-	hasGhost, _ := c.chatRepo.HasGhostMembers(ctx, roomID)
+	hasGhost, err := c.chatRepo.HasGhostMembers(ctx, roomID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("room ghost check: %w", err)
+	}
+
 	var viewerIsStaff bool
 	if hasGhost {
-		r, _ := c.authzSvc.GetRole(ctx, viewerID)
+		r, err := c.authzSvc.GetRole(ctx, viewerID)
+		if err != nil {
+			return nil, 0, fmt.Errorf("viewer site role: %w", err)
+		}
 		viewerIsStaff = r.IsSiteStaff()
 	}
 
 	members := make([]dto.UserResponse, 0, len(memberIDs))
 	for _, memberID := range memberIDs {
 		if hasGhost && !viewerIsStaff {
-			ghost, _ := c.chatRepo.IsGhostMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: memberID})
+			ghost, err := c.chatRepo.IsGhostMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: memberID})
+			if err != nil {
+				return nil, 0, fmt.Errorf("member ghost check: %w", err)
+			}
 			if ghost {
 				continue
 			}
 		}
+
 		user, err := c.userRepo.GetByID(ctx, memberID)
-		if err != nil || user == nil {
+		if err != nil {
+			return nil, 0, fmt.Errorf("member profile: %w", err)
+		}
+		if user == nil {
 			continue
 		}
 		members = append(members, *user.ToResponse())
 	}
+
 	return members, len(members), nil
 }
 

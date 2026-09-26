@@ -91,6 +91,42 @@ func TestGetProfile_OK(t *testing.T) {
 	assert.Equal(t, 5, got.Stats.TheoryCount)
 }
 
+func TestGetProfile_AFailedReadIsSurfacedInsteadOfShowingADefault(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name       string
+		secretsErr error
+		optInErr   error
+	}{
+		{name: "the secret badges", secretsErr: boom},
+		{name: "the character opt-in on a self view", optInErr: boom},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name+" failing to load", func(t *testing.T) {
+			// given
+			svc, userRepo, _, _, _, _ := newTestService(t)
+			userID := uuid.New()
+			userRepo.EXPECT().GetProfileByUsername(mock.Anything, "alice").Return(&model.User{ID: userID, Username: "alice"}, &model.UserStats{}, nil)
+			secretsRepo := svc.userSecretRepo.(*repository.MockUserSecretRepository)
+			secretsRepo.ExpectedCalls = nil
+			secretsRepo.EXPECT().ListForUser(mock.Anything, userID).Return(nil, tc.secretsErr)
+			if tc.secretsErr == nil {
+				users := svc.userSvc.(*userpkg.MockService)
+				users.ExpectedCalls = nil
+				users.EXPECT().IsChatbotOptedIn(mock.Anything, userID).Return(false, tc.optInErr)
+			}
+
+			// when
+			got, err := svc.GetProfile(context.Background(), "alice", userID)
+
+			// then
+			require.ErrorIs(t, err, boom)
+			assert.Nil(t, got)
+		})
+	}
+}
+
 func TestGetProfile_SelfViewIncludesPrivate(t *testing.T) {
 	// given
 	svc, userRepo, _, _, _, _ := newTestService(t)

@@ -194,12 +194,16 @@ func (s *service) Notify(ctx context.Context, params dto.NotifyParams) error {
 	willConsiderEmail := !isChatRoomNotif(params.Type) && params.EmailAction != ""
 	var emailDupe bool
 	if willConsiderEmail {
-		emailDupe, _ = s.repo.HasRecentDuplicate(ctx, spec.NotificationDuplicateCheck{
+		var err error
+		emailDupe, err = s.repo.HasRecentDuplicate(ctx, spec.NotificationDuplicateCheck{
 			UserID:      params.RecipientID,
 			Type:        params.Type,
 			ReferenceID: params.ReferenceID,
 			ActorID:     params.ActorID,
 		})
+		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("type", string(params.Type)).Str("recipient", params.RecipientID.String()).Msg("notification duplicate check failed, treating as not a duplicate")
+		}
 	}
 
 	created, err := s.repo.Create(ctx, spec.NewNotification{
@@ -211,6 +215,8 @@ func (s *service) Notify(ctx context.Context, params dto.NotifyParams) error {
 		Message:       params.Message,
 	})
 	if err != nil {
+		logger.Ctx(ctx).Error().Err(err).Str("type", string(params.Type)).Str("recipient", params.RecipientID.String()).Msg("notification not saved")
+
 		return err
 	}
 
@@ -243,7 +249,12 @@ func (s *service) HasRecentFromActor(ctx context.Context, notifType dto.Notifica
 
 func (s *service) sendEmail(ctx context.Context, params dto.NotifyParams) {
 	recipient, err := s.userRepo.GetByID(ctx, params.RecipientID)
-	if err != nil || recipient == nil || recipient.Email == "" {
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("type", string(params.Type)).Str("recipient", params.RecipientID.String()).Msg("notification email skipped, recipient lookup failed")
+
+		return
+	}
+	if recipient == nil || recipient.Email == "" {
 		return
 	}
 

@@ -451,6 +451,12 @@ export function WatchPartyModal({
                             {muteAlert}
                         </div>
                     )}
+                    {!voiceEnabled && shareControls && (
+                        <div className={styles.voiceStrip}>
+                            <div className={styles.voiceControls}>{shareControls}</div>
+                            {shareAlert}
+                        </div>
+                    )}
                     <WatchPartyParticipants
                         participants={session.participants}
                         viewerUserId={viewerUserId}

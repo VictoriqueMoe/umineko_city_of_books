@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"testing"
 	"time"
 
@@ -255,6 +257,28 @@ func (r *Request) Do() (int, []byte) {
 	data, err := io.ReadAll(resp.Body)
 	require.NoError(r.h.T, err)
 	return resp.StatusCode, data
+}
+
+func MediaForm(t *testing.T, field string, values map[string]string) (string, string) {
+	t.Helper()
+
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for name, value := range values {
+		require.NoError(t, w.WriteField(name, value))
+	}
+
+	part, err := w.CreatePart(textproto.MIMEHeader{
+		"Content-Disposition": {`form-data; name="` + field + `"; filename="pic.png"`},
+		"Content-Type":        {"image/png"},
+	})
+	require.NoError(t, err)
+
+	_, err = part.Write([]byte("payload"))
+	require.NoError(t, err)
+	require.NoError(t, w.Close())
+
+	return buf.String(), w.FormDataContentType()
 }
 
 func UnmarshalJSON[T any](t *testing.T, body []byte) T {

@@ -22,7 +22,7 @@ func TestMarkSolved_MysteryNotFound(t *testing.T) {
 	mid := uuid.New()
 	userID := uuid.New()
 	aid := uuid.New()
-	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errors.New("boom"))
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errMissingRow)
 
 	// when
 	err := svc.MarkSolved(context.Background(), mid, userID, aid)
@@ -48,38 +48,47 @@ func TestMarkSolved_NotAuthor(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotAuthor)
 }
 
-func TestMarkSolved_AttemptAuthorError(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	mid := uuid.New()
-	userID := uuid.New()
-	aid := uuid.New()
-	stubAuthor(m, mid, userID)
-	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, aid).Return(uuid.Nil, errors.New("boom"))
+func TestMarkSolved_LookupFailures(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name             string
+		attemptAuthorErr error
+		attemptMystryErr error
+		rowErr           error
+		wantErr          error
+	}{
+		{name: "a missing attempt is not found", attemptAuthorErr: errMissingRow, wantErr: ErrNotFound},
+		{name: "a failed attempt author lookup is surfaced, not reported as not found", attemptAuthorErr: boom, wantErr: boom},
+		{name: "an attempt whose mystery row has gone is not found", attemptMystryErr: errMissingRow, wantErr: ErrNotFound},
+		{name: "a failed attempt mystery lookup is surfaced, not reported as not found", attemptMystryErr: boom, wantErr: boom},
+		{name: "a failed mystery read is surfaced, not reported as not found", rowErr: boom, wantErr: boom},
+	}
 
-	// when
-	err := svc.MarkSolved(context.Background(), mid, userID, aid)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			mid := uuid.New()
+			userID := uuid.New()
+			aid := uuid.New()
+			attemptAuthor := uuid.New()
+			stubAuthor(m, mid, userID)
+			m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, aid).Return(attemptAuthor, tc.attemptAuthorErr)
+			if tc.attemptAuthorErr == nil {
+				m.repo.EXPECT().GetAttemptMysteryID(mock.Anything, aid).Return(mid, tc.attemptMystryErr)
+			}
+			if tc.attemptAuthorErr == nil && tc.attemptMystryErr == nil {
+				m.repo.EXPECT().GetByID(mock.Anything, mid).Return(nil, tc.rowErr)
+			}
 
-	// then
-	require.ErrorIs(t, err, ErrNotFound)
-}
+			// when
+			err := svc.MarkSolved(context.Background(), mid, userID, aid)
 
-func TestMarkSolved_AttemptMysteryError(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	mid := uuid.New()
-	userID := uuid.New()
-	aid := uuid.New()
-	attemptAuthor := uuid.New()
-	stubAuthor(m, mid, userID)
-	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, aid).Return(attemptAuthor, nil)
-	m.repo.EXPECT().GetAttemptMysteryID(mock.Anything, aid).Return(uuid.Nil, errors.New("boom"))
-
-	// when
-	err := svc.MarkSolved(context.Background(), mid, userID, aid)
-
-	// then
-	require.ErrorIs(t, err, ErrNotFound)
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+			m.repo.AssertNotCalled(t, "MarkSolved", mock.Anything, mock.Anything)
+		})
+	}
 }
 
 func TestMarkSolved_AttemptWrongMystery(t *testing.T) {
@@ -97,7 +106,7 @@ func TestMarkSolved_AttemptWrongMystery(t *testing.T) {
 	err := svc.MarkSolved(context.Background(), mid, userID, aid)
 
 	// then
-	require.Error(t, err)
+	require.ErrorIs(t, err, ErrAttemptNotOnMystery)
 }
 
 func TestMarkSolved_OwnAttempt(t *testing.T) {
@@ -114,7 +123,7 @@ func TestMarkSolved_OwnAttempt(t *testing.T) {
 	err := svc.MarkSolved(context.Background(), mid, userID, aid)
 
 	// then
-	require.Error(t, err)
+	require.ErrorIs(t, err, ErrOwnAttempt)
 }
 
 func TestMarkSolved_RepoError(t *testing.T) {
@@ -268,7 +277,7 @@ func TestAddClue_MysteryNotFound(t *testing.T) {
 	svc, m := newTestService(t)
 	mid := uuid.New()
 	userID := uuid.New()
-	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errors.New("boom"))
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errMissingRow)
 
 	// when
 	err := svc.AddClue(context.Background(), mid, userID, dto.CreateClueRequest{Body: "c"})
@@ -289,6 +298,23 @@ func TestAddClue_NotAuthor(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrNotAuthor)
+}
+
+func TestAddClue_AFailedClueCountIsSurfacedInsteadOfReusingSortPositionZero(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	mid := uuid.New()
+	userID := uuid.New()
+	boom := errors.New("boom")
+	stubAuthor(m, mid, userID)
+	m.repo.EXPECT().CountClues(mock.Anything, mid).Return(0, boom)
+
+	// when
+	err := svc.AddClue(context.Background(), mid, userID, dto.CreateClueRequest{Body: "c"})
+
+	// then
+	require.ErrorIs(t, err, boom)
+	m.repo.AssertNotCalled(t, "AddClue", mock.Anything, mock.Anything)
 }
 
 func TestAddClue_RepoError(t *testing.T) {

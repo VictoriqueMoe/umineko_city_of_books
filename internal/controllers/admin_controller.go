@@ -101,7 +101,7 @@ func (s *Service) adminUsernameAvailable(ctx fiber.Ctx) error {
 
 	err := s.UserService.CheckUsernameAvailable(ctx.Context(), username)
 	if err != nil && !errors.Is(err, usersvc.ErrUsernameTaken) {
-		return utils.InternalError(ctx, "failed to check username")
+		return utils.InternalError(ctx, "failed to check username", err)
 	}
 
 	return ctx.JSON(dto.UsernameAvailabilityResponse{
@@ -535,7 +535,7 @@ func (s *Service) adminUploadOGImage(ctx fiber.Ctx) error {
 	filename := fmt.Sprintf("og_default_%d.jpg", time.Now().UnixMilli())
 	url, err := s.UploadService.SaveFile("branding", filename, wrapped)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to save image")
+		return utils.InternalError(ctx, "failed to save image", err)
 	}
 
 	return ctx.JSON(fiber.Map{"image_url": url})
@@ -589,9 +589,13 @@ func (s *Service) handleScoreUpdate(ctx fiber.Ctx, getRaw scoreReader, setAdjust
 	if err := ctx.Bind().JSON(&req); err != nil {
 		return utils.BadRequest(ctx, "invalid request")
 	}
-	rawScore, _ := getRaw(ctx.Context(), targetID)
+	rawScore, err := getRaw(ctx.Context(), targetID)
+	if err != nil {
+		return utils.InternalError(ctx, "failed to read the current score", err)
+	}
+
 	if err := setAdjustment(ctx.Context(), utils.UserID(ctx), targetID, req.DesiredScore-rawScore); err != nil {
-		return utils.InternalError(ctx, "failed to update")
+		return utils.InternalError(ctx, "failed to update", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -692,7 +696,7 @@ func handleAdminError(ctx fiber.Ctx, err error) error {
 	if errors.Is(err, auth.ErrUserNotFound) {
 		return utils.NotFound(ctx, "user not found")
 	}
-	return utils.InternalError(ctx, err.Error())
+	return utils.InternalError(ctx, "admin action failed", err)
 }
 
 func (s *Service) setupAdminGetPermissions(r fiber.Router) {

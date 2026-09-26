@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/follow"
 	postsvc "umineko_city_of_books/internal/post"
@@ -135,7 +136,7 @@ func (s *Service) setupGetFollowing(r fiber.Router) {
 func (s *Service) getCornerCounts(ctx fiber.Ctx) error {
 	counts, err := s.PostService.GetCornerCounts(ctx.Context())
 	if err != nil {
-		return utils.InternalError(ctx, "failed to get counts")
+		return utils.InternalError(ctx, "failed to get counts", err)
 	}
 	return ctx.JSON(counts)
 }
@@ -153,7 +154,7 @@ func (s *Service) listPostFeed(ctx fiber.Ctx) error {
 
 	result, err := s.PostService.ListFeed(ctx.Context(), tab, viewerID, corner, search, sort, seed, page, resolvedFilter)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to list posts")
+		return utils.InternalError(ctx, "failed to list posts", err)
 	}
 	return ctx.JSON(result)
 }
@@ -176,7 +177,7 @@ func (s *Service) createPost(ctx fiber.Ctx) error {
 		if errors.Is(err, postsvc.ErrRateLimited) {
 			return ctx.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": err.Error()})
 		}
-		return utils.InternalError(ctx, "failed to create post")
+		return utils.InternalError(ctx, "failed to create post", err)
 	}
 	corner := req.Corner
 	if corner == "" {
@@ -205,7 +206,10 @@ func (s *Service) updatePost(ctx fiber.Ctx) error {
 		if errors.Is(err, postsvc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to update post")
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot update this post")
+		}
+		return utils.InternalError(ctx, "failed to update post", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -222,7 +226,7 @@ func (s *Service) getPost(ctx fiber.Ctx) error {
 		if errors.Is(err, postsvc.ErrNotFound) {
 			return utils.NotFound(ctx, "post not found")
 		}
-		return utils.InternalError(ctx, "failed to get post")
+		return utils.InternalError(ctx, "failed to get post", err)
 	}
 	return ctx.JSON(result)
 }
@@ -257,13 +261,13 @@ func (s *Service) uploadPostMedia(ctx fiber.Ctx) error {
 
 	reader, err := file.Open()
 	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
+		return utils.InternalError(ctx, "failed to read file", err)
 	}
 	defer reader.Close()
 
 	result, err := s.PostService.UploadPostMedia(ctx.Context(), postID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader, isSpoilerUpload(ctx))
 	if err != nil {
-		return utils.BadRequest(ctx, err.Error())
+		return uploadMediaError(ctx, err, postsvc.ErrNotAuthor)
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(result)
 }
@@ -284,7 +288,13 @@ func (s *Service) deletePostMedia(ctx fiber.Ctx) error {
 
 	userID := utils.UserID(ctx)
 	if err := s.PostService.DeletePostMedia(ctx.Context(), postID, mediaID, userID); err != nil {
-		return utils.InternalError(ctx, "failed to delete media")
+		if errors.Is(err, postsvc.ErrNotFound) {
+			return utils.NotFound(ctx, "post not found")
+		}
+		if errors.Is(err, postsvc.ErrNotAuthor) {
+			return utils.Forbidden(ctx, "not the post author")
+		}
+		return utils.InternalError(ctx, "failed to delete media", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -300,7 +310,7 @@ func (s *Service) likePost(ctx fiber.Ctx) error {
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return utils.InternalError(ctx, "failed to like post")
+		return utils.InternalError(ctx, "failed to like post", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -313,7 +323,7 @@ func (s *Service) unlikePost(ctx fiber.Ctx) error {
 
 	userID := utils.UserID(ctx)
 	if err := s.PostService.UnlikePost(ctx.Context(), userID, postID); err != nil {
-		return utils.InternalError(ctx, "failed to unlike post")
+		return utils.InternalError(ctx, "failed to unlike post", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -341,7 +351,7 @@ func (s *Service) createComment(ctx fiber.Ctx) error {
 		if errors.Is(err, postsvc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to create comment")
+		return utils.InternalError(ctx, "failed to create comment", err)
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
@@ -369,7 +379,7 @@ func (s *Service) updateComment(ctx fiber.Ctx) error {
 		if errors.Is(err, postsvc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to update comment")
+		return utils.InternalError(ctx, "failed to update comment", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -397,7 +407,7 @@ func (s *Service) listUserPosts(ctx fiber.Ctx) error {
 
 	result, err := s.PostService.ListUserPosts(ctx.Context(), userID, viewerID, page)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to list user posts")
+		return utils.InternalError(ctx, "failed to list user posts", err)
 	}
 	return ctx.JSON(result)
 }
@@ -416,7 +426,7 @@ func (s *Service) followUser(ctx fiber.Ctx) error {
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return utils.InternalError(ctx, "failed to follow user")
+		return utils.InternalError(ctx, "failed to follow user", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -429,7 +439,7 @@ func (s *Service) unfollowUser(ctx fiber.Ctx) error {
 
 	userID := utils.UserID(ctx)
 	if err := s.FollowService.Unfollow(ctx.Context(), userID, targetID); err != nil {
-		return utils.InternalError(ctx, "failed to unfollow user")
+		return utils.InternalError(ctx, "failed to unfollow user", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -443,7 +453,7 @@ func (s *Service) getFollowStats(ctx fiber.Ctx) error {
 	viewerID := utils.UserID(ctx)
 	stats, err := s.FollowService.GetFollowStats(ctx.Context(), userID, viewerID)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to get follow stats")
+		return utils.InternalError(ctx, "failed to get follow stats", err)
 	}
 	return ctx.JSON(stats)
 }
@@ -458,7 +468,7 @@ func (s *Service) getFollowers(ctx fiber.Ctx) error {
 
 	users, total, err := s.FollowService.GetFollowers(ctx.Context(), userID, page)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to get followers")
+		return utils.InternalError(ctx, "failed to get followers", err)
 	}
 	return ctx.JSON(fiber.Map{"users": users, "total": total})
 }
@@ -473,7 +483,7 @@ func (s *Service) getFollowing(ctx fiber.Ctx) error {
 
 	users, total, err := s.FollowService.GetFollowing(ctx.Context(), userID, page)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to get following")
+		return utils.InternalError(ctx, "failed to get following", err)
 	}
 	return ctx.JSON(fiber.Map{"users": users, "total": total})
 }
@@ -511,7 +521,7 @@ func (s *Service) votePoll(ctx fiber.Ctx) error {
 		if errors.Is(err, postsvc.ErrInvalidOption) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to vote")
+		return utils.InternalError(ctx, "failed to vote", err)
 	}
 	return ctx.JSON(poll)
 }
@@ -540,9 +550,17 @@ func (s *Service) resolveSuggestion(ctx fiber.Ctx) error {
 	}
 
 	if err := s.PostService.ResolveSuggestion(ctx.Context(), postID, userID, body.Status); err != nil {
-		return utils.Forbidden(ctx, err.Error())
+		return suggestionError(ctx, err)
 	}
 	return utils.OK(ctx)
+}
+
+func suggestionError(ctx fiber.Ctx, err error) error {
+	if errors.Is(err, postsvc.ErrNotAuthorised) {
+		return utils.Forbidden(ctx, "not authorised")
+	}
+
+	return utils.InternalError(ctx, "failed to update the suggestion", err)
 }
 
 func (s *Service) unresolveSuggestion(ctx fiber.Ctx) error {
@@ -553,7 +571,7 @@ func (s *Service) unresolveSuggestion(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
 	if err := s.PostService.UnresolveSuggestion(ctx.Context(), postID, userID); err != nil {
-		return utils.Forbidden(ctx, err.Error())
+		return suggestionError(ctx, err)
 	}
 	return utils.OK(ctx)
 }
@@ -565,6 +583,9 @@ func (s *Service) setupGetShareCount(r fiber.Router) {
 func (s *Service) getShareCount(ctx fiber.Ctx) error {
 	contentType := ctx.Params("type")
 	contentID := ctx.Params("id")
-	count, _ := s.PostService.GetShareCount(ctx.Context(), contentID, contentType)
+	count, err := s.PostService.GetShareCount(ctx.Context(), contentID, contentType)
+	if err != nil {
+		return utils.InternalError(ctx, "failed to get share count", err)
+	}
 	return ctx.JSON(fiber.Map{"share_count": count})
 }

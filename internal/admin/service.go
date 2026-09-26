@@ -370,10 +370,16 @@ func (s *service) GetUser(ctx context.Context, targetID uuid.UUID) (*dto.AdminUs
 	resp.MysteryScoreAdjustment = u.MysteryScoreAdjustment
 	resp.GMScoreAdjustment = u.GMScoreAdjustment
 
-	detectiveRaw, _ := s.userRepo.GetDetectiveRawScore(ctx, targetID)
+	detectiveRaw, err := s.userRepo.GetDetectiveRawScore(ctx, targetID)
+	if err != nil {
+		return nil, fmt.Errorf("detective score: %w", err)
+	}
 	resp.DetectiveScore = detectiveRaw + u.MysteryScoreAdjustment
 
-	gmRaw, _ := s.userRepo.GetGMRawScore(ctx, targetID)
+	gmRaw, err := s.userRepo.GetGMRawScore(ctx, targetID)
+	if err != nil {
+		return nil, fmt.Errorf("game master score: %w", err)
+	}
 	resp.GMScore = gmRaw + u.GMScoreAdjustment
 
 	return resp, nil

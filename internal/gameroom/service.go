@@ -153,8 +153,11 @@ func (s *service) loadRoomForActor(ctx context.Context, roomID, userID uuid.UUID
 		return nil, 0, statusErr
 	}
 	slot, err := s.repo.GetPlayerSlot(ctx, spec.GameRoomPlayerRef{RoomID: roomID, UserID: userID})
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return nil, 0, ErrNotParticipant
+	}
+	if err != nil {
+		return nil, 0, err
 	}
 	return row, slot, nil
 }

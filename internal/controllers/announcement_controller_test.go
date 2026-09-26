@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -10,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -366,6 +368,64 @@ func TestDeleteAnnouncement_InternalError(t *testing.T) {
 	assert.Contains(t, string(body), "failed to delete announcement")
 }
 
+func TestAnnouncementAdminWrites_AMissingAnnouncementIsNotFound(t *testing.T) {
+	cases := []struct {
+		name   string
+		method string
+		suffix string
+		body   any
+		expect func(deps announcementDeps, userID, annID uuid.UUID)
+	}{
+		{
+			name:   "update",
+			method: "PUT",
+			body:   map[string]string{"title": "t", "body": "b"},
+			expect: func(deps announcementDeps, userID, annID uuid.UUID) {
+				deps.svc.EXPECT().Update(mock.Anything, userID, annID, "t", "b").Return(announcementsvc.ErrNotFound)
+			},
+		},
+		{
+			name:   "delete",
+			method: "DELETE",
+			expect: func(deps announcementDeps, userID, annID uuid.UUID) {
+				deps.svc.EXPECT().Delete(mock.Anything, userID, annID).Return(announcementsvc.ErrNotFound)
+			},
+		},
+		{
+			name:   "pin",
+			method: "POST",
+			suffix: "/pin",
+			body:   map[string]bool{"pinned": true},
+			expect: func(deps announcementDeps, userID, annID uuid.UUID) {
+				deps.svc.EXPECT().SetPinned(mock.Anything, userID, annID, true).Return(announcementsvc.ErrNotFound)
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, deps := newAnnouncementHarness(t)
+			userID := uuid.New()
+			annID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			h.ExpectHasPermission(userID, authz.PermManageSettings, true)
+			tc.expect(deps, userID, annID)
+
+			req := h.NewRequest(tc.method, "/admin/announcements/"+annID.String()+tc.suffix).WithCookie("valid-cookie")
+			if tc.body != nil {
+				req = req.WithJSONBody(tc.body)
+			}
+
+			// when
+			status, body := req.Do()
+
+			// then
+			require.Equal(t, http.StatusNotFound, status)
+			assert.Contains(t, string(body), "announcement not found")
+		})
+	}
+}
+
 func TestPinAnnouncement_PermissionFailures(t *testing.T) {
 	testutil.RunPermissionFailureSuite(t, newAnnouncementHarness, "POST", "/admin/announcements/"+uuid.NewString()+"/pin",
 		map[string]bool{"pinned": true}, authz.PermManageSettings)
@@ -502,6 +562,7 @@ func TestUpdateAnnouncementComment_ServiceErrors(t *testing.T) {
 	}{
 		{"empty", announcementsvc.ErrEmptyBody, http.StatusBadRequest, "body is required"},
 		{"forbidden", announcementsvc.ErrForbidden, http.StatusForbidden, "cannot update this comment"},
+		{"missing comment", announcementsvc.ErrCommentNotFound, http.StatusNotFound, "comment not found"},
 		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to update comment"},
 	}
 	for _, tc := range cases {
@@ -546,21 +607,35 @@ func TestDeleteAnnouncementComment_OK(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, status)
 }
 
-func TestDeleteAnnouncementComment_Forbidden(t *testing.T) {
-	// given
-	h, deps := newAnnouncementHarness(t)
-	userID := uuid.New()
-	commentID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	deps.svc.EXPECT().DeleteComment(mock.Anything, commentID, userID).Return(announcementsvc.ErrForbidden)
+func TestDeleteAnnouncementComment_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"forbidden", announcementsvc.ErrForbidden, http.StatusForbidden, "cannot delete this comment"},
+		{"missing comment", announcementsvc.ErrCommentNotFound, http.StatusNotFound, "comment not found"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to delete comment"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, deps := newAnnouncementHarness(t)
+			userID := uuid.New()
+			commentID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			deps.svc.EXPECT().DeleteComment(mock.Anything, commentID, userID).Return(tc.err)
 
-	// when
-	status, body := h.NewRequest("DELETE", "/announcement-comments/"+commentID.String()).
-		WithCookie("valid-cookie").Do()
+			// when
+			status, body := h.NewRequest("DELETE", "/announcement-comments/"+commentID.String()).
+				WithCookie("valid-cookie").Do()
 
-	// then
-	require.Equal(t, http.StatusForbidden, status)
-	assert.Contains(t, string(body), "cannot delete this comment")
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
 }
 
 func TestLikeAnnouncementComment_AuthFailures(t *testing.T) {
@@ -670,4 +745,39 @@ func TestUploadAnnouncementCommentMedia_MissingFile(t *testing.T) {
 	// then
 	require.Equal(t, http.StatusBadRequest, status)
 	assert.Contains(t, string(body), "no media file provided")
+}
+
+func TestUploadAnnouncementCommentMedia_ServiceOutcomes(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"missing comment", announcementsvc.ErrCommentNotFound, http.StatusNotFound, "comment not found"},
+		{"not the author", announcementsvc.ErrForbidden, http.StatusForbidden, "not the comment author"},
+		{"too large", fmt.Errorf("%w: file size 9MB exceeds maximum 5MB", upload.ErrFileTooLarge), http.StatusBadRequest, "exceeds maximum 5MB"},
+		{"a server failure is not echoed back as a bad request", errors.New("pq: connection refused"), http.StatusInternalServerError, `{"error":"failed to upload media"}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, deps := newAnnouncementHarness(t)
+			userID := uuid.New()
+			commentID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			form, contentType := testutil.MediaForm(t, "media", nil)
+			deps.svc.EXPECT().UploadCommentMedia(mock.Anything, commentID, userID, "image/png", "pic.png", mock.AnythingOfType("int64"), mock.Anything, false).Return(nil, tc.err)
+
+			// when
+			status, body := h.NewRequest("POST", "/announcement-comments/"+commentID.String()+"/media").
+				WithCookie("valid-cookie").
+				WithRawBody(form, contentType).
+				Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
 }

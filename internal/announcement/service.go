@@ -10,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -162,20 +163,30 @@ func (s *service) GetDetail(ctx context.Context, id, viewerID uuid.UUID) (*dto.A
 		return nil, ErrNotFound
 	}
 
-	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	commentRows, _, _ := s.repo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
+	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("blocked users: %w", err)
+	}
+
+	commentRows, _, err := s.repo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
 		TargetID:       id,
 		ViewerID:       viewerID,
 		Limit:          500,
 		Offset:         0,
 		ExcludeUserIDs: blockedIDs,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("announcement comments: %w", err)
+	}
 
 	commentIDs := make([]uuid.UUID, len(commentRows))
 	for i, c := range commentRows {
 		commentIDs[i] = c.ID
 	}
-	mediaMap, _ := s.repo.GetCommentMediaBatch(ctx, commentIDs)
+	mediaMap, err := s.repo.GetCommentMediaBatch(ctx, commentIDs)
+	if err != nil {
+		return nil, fmt.Errorf("announcement comment media: %w", err)
+	}
 
 	flat := make([]dto.AnnouncementCommentResponse, len(commentRows))
 	for i, c := range commentRows {
@@ -320,10 +331,18 @@ func (s *service) CreateComment(ctx context.Context, announcementID, userID uuid
 	}
 
 	ann, err := s.repo.GetByID(ctx, announcementID)
-	if err != nil || ann == nil {
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if ann == nil {
 		return uuid.Nil, ErrNotFound
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, ann.AuthorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, ann.AuthorID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return uuid.Nil, ErrBlocked
 	}
 
@@ -355,7 +374,12 @@ func (s *service) notifyCommentCreated(ann *model.AnnouncementRow, announcementI
 
 	bgCtx := context.Background()
 	actor, err := s.userRepo.GetByID(bgCtx, actorID)
-	if err != nil || actor == nil {
+	if err != nil {
+		logger.Ctx(bgCtx).Warn().Err(err).Str("user_id", actorID.String()).Msg("announcement comment notification skipped, actor lookup failed")
+
+		return
+	}
+	if actor == nil {
 		return
 	}
 	_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
@@ -372,7 +396,12 @@ func (s *service) notifyCommentCreated(ann *model.AnnouncementRow, announcementI
 
 	if parentID != nil {
 		parentAuthor, err := s.repo.GetCommentAuthorID(bgCtx, *parentID)
-		if err == nil && parentAuthor != ann.AuthorID {
+		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", parentID.String()).Msg("announcement reply notification skipped, parent lookup failed")
+
+			return
+		}
+		if parentAuthor != ann.AuthorID {
 			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 				RecipientID:   parentAuthor,
 				Type:          dto.NotifAnnouncementCommentReply,
@@ -403,14 +432,21 @@ func (s *service) UpdateComment(ctx context.Context, id, userID uuid.UUID, body 
 	}
 
 	if err := s.repo.UpdateCommentBody(ctx, update); err != nil {
-		if asAdmin {
-			return err
-		}
-
-		return ErrForbidden
+		return commentWriteError(err, asAdmin)
 	}
 
 	return nil
+}
+
+func commentWriteError(err error, asAdmin bool) error {
+	if !errors.Is(err, dao.ErrNotFound) {
+		return err
+	}
+	if asAdmin {
+		return ErrCommentNotFound
+	}
+
+	return ErrForbidden
 }
 
 func (s *service) DeleteComment(ctx context.Context, id, userID uuid.UUID) error {
@@ -424,11 +460,7 @@ func (s *service) DeleteComment(ctx context.Context, id, userID uuid.UUID) error
 
 	paths, err := s.repo.DeleteCommentWithAudit(ctx, deletion)
 	if err != nil {
-		if asAdmin {
-			return err
-		}
-
-		return ErrForbidden
+		return commentWriteError(err, asAdmin)
 	}
 
 	s.uploadSvc.Delete(paths...)
@@ -438,10 +470,18 @@ func (s *service) DeleteComment(ctx context.Context, id, userID uuid.UUID) error
 
 func (s *service) LikeComment(ctx context.Context, userID, commentID uuid.UUID) error {
 	commentAuthorID, err := s.repo.GetCommentAuthorID(ctx, commentID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return ErrCommentNotFound
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
+	if err != nil {
+		return err
+	}
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return ErrBlocked
 	}
 	if err := s.repo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID}); err != nil {
@@ -460,10 +500,17 @@ func (s *service) notifyCommentLiked(commentID, recipientID, actorID uuid.UUID) 
 	bgCtx := context.Background()
 	announcementID, err := s.repo.GetCommentEntityID(bgCtx, commentID)
 	if err != nil {
+		logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", commentID.String()).Msg("announcement like notification skipped, announcement lookup failed")
+
 		return
 	}
 	actor, err := s.userRepo.GetByID(bgCtx, actorID)
-	if err != nil || actor == nil {
+	if err != nil {
+		logger.Ctx(bgCtx).Warn().Err(err).Str("user_id", actorID.String()).Msg("announcement like notification skipped, actor lookup failed")
+
+		return
+	}
+	if actor == nil {
 		return
 	}
 	_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
@@ -484,8 +531,11 @@ func (s *service) UnlikeComment(ctx context.Context, userID, commentID uuid.UUID
 
 func (s *service) UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
 	authorID, err := s.repo.GetCommentAuthorID(ctx, commentID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return nil, ErrCommentNotFound
+	}
+	if err != nil {
+		return nil, err
 	}
 	if authorID != userID {
 		return nil, ErrForbidden

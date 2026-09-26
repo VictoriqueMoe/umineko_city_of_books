@@ -125,7 +125,13 @@ func (s *voiceService) reapplySessionForceMute(ctx context.Context, roomName, ra
 	}
 
 	session, err := s.watchPartyRepo.GetByID(ctx, sessionID)
-	if err != nil || session == nil {
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("session_id", sessionID.String()).Msg("rejoin: session lookup failed, re-applying any force mute without screen share")
+		s.reapplyForceMute(ctx, sessionID, roomName, userID, false)
+
+		return
+	}
+	if session == nil {
 		return
 	}
 
@@ -328,6 +334,8 @@ func (s *voiceService) broadcastVoicePresence(ctx context.Context, roomID uuid.U
 
 	members, err := s.chatRepo.GetRoomMembers(ctx, roomID)
 	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("voice presence broadcast: member lookup failed")
+
 		return
 	}
 

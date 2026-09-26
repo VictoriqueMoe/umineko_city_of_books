@@ -2,11 +2,13 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	theorysvc "umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/theory/params"
@@ -15,6 +17,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	errTheoryCtlNotOwned = fmt.Errorf("theory not found or not owned by user: %w", dao.ErrNotFound)
 )
 
 func newTheoryHarness(t *testing.T) (*testutil.Harness, *theorysvc.MockService) {
@@ -332,24 +338,38 @@ func TestUpdateTheory_OK(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 }
 
-func TestUpdateTheory_Forbidden(t *testing.T) {
-	// given
-	h, ts := newTheoryHarness(t)
-	userID := uuid.New()
-	theoryID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	req := dto.CreateTheoryRequest{Title: "Updated", Body: "body"}
-	ts.EXPECT().UpdateTheory(mock.Anything, theoryID, userID, req).Return(errors.New("not owner"))
+func TestUpdateTheory_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		svcErr   error
+		wantCode int
+		wantBody string
+	}{
+		{"not owned", errTheoryCtlNotOwned, http.StatusForbidden, "cannot update this theory"},
+		{"missing theory", theorysvc.ErrTheoryNotFound, http.StatusNotFound, "theory not found"},
+		{"server failure", errors.New("boom"), http.StatusInternalServerError, `{"error":"failed to update theory"}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, ts := newTheoryHarness(t)
+			userID := uuid.New()
+			theoryID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			req := dto.CreateTheoryRequest{Title: "Updated", Body: "body"}
+			ts.EXPECT().UpdateTheory(mock.Anything, theoryID, userID, req).Return(tc.svcErr)
 
-	// when
-	status, body := h.NewRequest("PUT", "/theories/"+theoryID.String()).
-		WithCookie("valid-cookie").
-		WithJSONBody(req).
-		Do()
+			// when
+			status, body := h.NewRequest("PUT", "/theories/"+theoryID.String()).
+				WithCookie("valid-cookie").
+				WithJSONBody(req).
+				Do()
 
-	// then
-	require.Equal(t, http.StatusForbidden, status)
-	assert.Contains(t, string(body), "cannot update this theory")
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
 }
 
 func TestDeleteTheory_AuthFailures(t *testing.T) {
@@ -388,22 +408,36 @@ func TestDeleteTheory_OK(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 }
 
-func TestDeleteTheory_Forbidden(t *testing.T) {
-	// given
-	h, ts := newTheoryHarness(t)
-	userID := uuid.New()
-	theoryID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	ts.EXPECT().DeleteTheory(mock.Anything, theoryID, userID).Return(errors.New("not owner"))
+func TestDeleteTheory_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		svcErr   error
+		wantCode int
+		wantBody string
+	}{
+		{"not owned", errTheoryCtlNotOwned, http.StatusForbidden, "cannot delete this theory"},
+		{"missing theory", theorysvc.ErrTheoryNotFound, http.StatusNotFound, "theory not found"},
+		{"server failure", errors.New("boom"), http.StatusInternalServerError, `{"error":"failed to delete theory"}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, ts := newTheoryHarness(t)
+			userID := uuid.New()
+			theoryID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			ts.EXPECT().DeleteTheory(mock.Anything, theoryID, userID).Return(tc.svcErr)
 
-	// when
-	status, body := h.NewRequest("DELETE", "/theories/"+theoryID.String()).
-		WithCookie("valid-cookie").
-		Do()
+			// when
+			status, body := h.NewRequest("DELETE", "/theories/"+theoryID.String()).
+				WithCookie("valid-cookie").
+				Do()
 
-	// then
-	require.Equal(t, http.StatusForbidden, status)
-	assert.Contains(t, string(body), "cannot delete this theory")
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
 }
 
 func TestVoteTheory_AuthFailures(t *testing.T) {
@@ -483,6 +517,7 @@ func TestVoteTheory_ServiceErrors(t *testing.T) {
 		wantBody string
 	}{
 		{"blocked", block.ErrUserBlocked, http.StatusForbidden, "user is blocked"},
+		{"missing theory", theorysvc.ErrTheoryNotFound, http.StatusNotFound, "theory not found"},
 		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to vote"},
 	}
 	for _, tc := range cases {
@@ -606,6 +641,7 @@ func TestCreateResponse_ServiceErrors(t *testing.T) {
 		{"blocked", block.ErrUserBlocked, http.StatusForbidden, "user is blocked"},
 		{"own theory", theorysvc.ErrCannotRespondToOwnTheory, http.StatusForbidden, theorysvc.ErrCannotRespondToOwnTheory.Error()},
 		{"rate limited", theorysvc.ErrRateLimited, http.StatusTooManyRequests, "daily response limit reached"},
+		{"missing theory", theorysvc.ErrTheoryNotFound, http.StatusNotFound, "theory not found"},
 		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to create response"},
 	}
 	for _, tc := range cases {
@@ -667,22 +703,36 @@ func TestDeleteResponse_OK(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 }
 
-func TestDeleteResponse_Forbidden(t *testing.T) {
-	// given
-	h, ts := newTheoryHarness(t)
-	userID := uuid.New()
-	responseID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	ts.EXPECT().DeleteResponse(mock.Anything, responseID, userID).Return(errors.New("not owner"))
+func TestDeleteResponse_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		svcErr   error
+		wantCode int
+		wantBody string
+	}{
+		{"not owned", errTheoryCtlNotOwned, http.StatusForbidden, "cannot delete this response"},
+		{"missing response", theorysvc.ErrResponseNotFound, http.StatusNotFound, "response not found"},
+		{"server failure", errors.New("boom"), http.StatusInternalServerError, `{"error":"failed to delete response"}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, ts := newTheoryHarness(t)
+			userID := uuid.New()
+			responseID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			ts.EXPECT().DeleteResponse(mock.Anything, responseID, userID).Return(tc.svcErr)
 
-	// when
-	status, body := h.NewRequest("DELETE", "/responses/"+responseID.String()).
-		WithCookie("valid-cookie").
-		Do()
+			// when
+			status, body := h.NewRequest("DELETE", "/responses/"+responseID.String()).
+				WithCookie("valid-cookie").
+				Do()
 
-	// then
-	require.Equal(t, http.StatusForbidden, status)
-	assert.Contains(t, string(body), "cannot delete this response")
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
 }
 
 func TestVoteResponse_AuthFailures(t *testing.T) {
@@ -762,6 +812,7 @@ func TestVoteResponse_ServiceErrors(t *testing.T) {
 		wantBody string
 	}{
 		{"blocked", block.ErrUserBlocked, http.StatusForbidden, "user is blocked"},
+		{"missing response", theorysvc.ErrResponseNotFound, http.StatusNotFound, "response not found"},
 		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to vote"},
 	}
 	for _, tc := range cases {

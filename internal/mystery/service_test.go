@@ -93,6 +93,69 @@ func validCreateReq() dto.CreateMysteryRequest {
 	}
 }
 
+func TestAFailedMysteryAuthorLookupIsSurfacedNotReportedAsNotFound(t *testing.T) {
+	ctx := context.Background()
+	mid := uuid.New()
+	userID := uuid.New()
+	cases := []struct {
+		name string
+		call func(*service) error
+	}{
+		{name: "mark solved", call: func(s *service) error { return s.MarkSolved(ctx, mid, userID, uuid.New()) }},
+		{name: "close for good", call: func(s *service) error { return s.MarkPermanentlySolved(ctx, mid, userID) }},
+		{name: "add a clue", call: func(s *service) error { return s.AddClue(ctx, mid, userID, dto.CreateClueRequest{Body: "c"}) }},
+		{name: "pause", call: func(s *service) error { return s.SetPaused(ctx, mid, userID, true) }},
+		{name: "mark the gm away", call: func(s *service) error { return s.SetGmAway(ctx, mid, userID, true) }},
+		{name: "delete media", call: func(s *service) error { return s.DeleteMedia(ctx, 1, mid, userID) }},
+		{name: "delete an attachment", call: func(s *service) error { return s.DeleteAttachment(ctx, 1, mid, userID) }},
+		{
+			name: "upload an attachment",
+			call: func(s *service) error {
+				_, err := s.UploadAttachment(ctx, mid, userID, "f.txt", 10, strings.NewReader("x"))
+				return err
+			},
+		},
+		{
+			name: "upload media",
+			call: func(s *service) error {
+				_, err := s.UploadMedia(ctx, mid, userID, "image/png", "p.png", 10, strings.NewReader("x"), false)
+				return err
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			boom := errors.New("boom")
+			m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, boom)
+
+			// when
+			err := tc.call(svc)
+
+			// then
+			require.ErrorIs(t, err, boom)
+		})
+	}
+}
+
+func TestListMysteries_AFailedBlockLookupIsSurfacedInsteadOfListingBlockedAuthors(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	viewer := uuid.New()
+	boom := errors.New("boom")
+	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, boom)
+
+	// when
+	got, err := svc.ListMysteries(context.Background(), "new", nil, viewer, bounds.NewPage(10, 0))
+
+	// then
+	require.ErrorIs(t, err, boom)
+	assert.Nil(t, got)
+	m.repo.AssertNotCalled(t, "List", mock.Anything, mock.Anything)
+}
+
 func TestListMysteries_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -407,7 +470,7 @@ func TestUpdateMystery_NotAuthorised(t *testing.T) {
 	err := svc.UpdateMystery(context.Background(), id, userID, validCreateReq())
 
 	// then
-	require.Error(t, err)
+	require.ErrorIs(t, err, ErrNotAuthor)
 }
 
 func TestUpdateMystery_NotFound(t *testing.T) {
@@ -534,19 +597,75 @@ func TestUpdateMystery_KnoxContract(t *testing.T) {
 	}
 }
 
-func TestUpdateMystery_GetByIDError(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	id := uuid.New()
-	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
-	m.repo.EXPECT().GetByID(mock.Anything, id).Return(nil, errors.New("boom"))
+func TestUpdateMystery_AFailedReadIsSurfacedNotReportedAsNotFound(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name     string
+		rowErr   error
+		cluesErr error
+	}{
+		{name: "the mystery", rowErr: boom},
+		{name: "the clues the audit compares against", cluesErr: boom},
+	}
 
-	// when
-	err := svc.UpdateMystery(context.Background(), id, userID, validCreateReq())
+	for _, tc := range cases {
+		t.Run(tc.name+" failing to load", func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			id := uuid.New()
+			userID := uuid.New()
+			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
+			m.repo.EXPECT().GetByID(mock.Anything, id).Return(&model.MysteryRow{ID: id, UserID: uuid.New()}, tc.rowErr)
+			if tc.rowErr == nil {
+				m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, tc.cluesErr)
+			}
 
-	// then
-	require.ErrorIs(t, err, ErrNotFound)
+			// when
+			err := svc.UpdateMystery(context.Background(), id, userID, validCreateReq())
+
+			// then
+			require.ErrorIs(t, err, boom)
+			m.repo.AssertNotCalled(t, "UpdateWithClues", mock.Anything, mock.Anything)
+		})
+	}
+}
+
+func TestGetMystery_AFailedReadIsSurfacedInsteadOfRenderingAnEmptySection(t *testing.T) {
+	steps := []string{"clues", "attempts", "viewer role", "blocked users", "comments", "comment media", "attachments", "media", "viewer solved"}
+
+	for _, failAt := range steps {
+		t.Run("the "+failAt+" read failing", func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			id := uuid.New()
+			viewer := uuid.New()
+			boom := errors.New("boom")
+			errAt := func(step string) error {
+				if step == failAt {
+					return boom
+				}
+
+				return nil
+			}
+			m.repo.EXPECT().GetByID(mock.Anything, id).Return(&model.MysteryRow{ID: id, UserID: uuid.New(), Solved: true}, nil)
+			m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, errAt("clues")).Maybe()
+			m.repo.EXPECT().GetAttempts(mock.Anything, mock.Anything).Return(nil, errAt("attempts")).Maybe()
+			m.authz.EXPECT().GetRole(mock.Anything, viewer).Return("", errAt("viewer role")).Maybe()
+			m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, errAt("blocked users")).Maybe()
+			m.repo.EXPECT().GetComments(mock.Anything, mock.Anything).Return([]model.CommentRow{{ID: uuid.New()}}, 1, errAt("comments")).Maybe()
+			m.repo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, errAt("comment media")).Maybe()
+			m.repo.EXPECT().GetAttachments(mock.Anything, id).Return(nil, errAt("attachments")).Maybe()
+			m.repo.EXPECT().GetMedia(mock.Anything, id).Return(nil, errAt("media")).Maybe()
+			m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mock.Anything).Return(false, errAt("viewer solved")).Maybe()
+
+			// when
+			got, err := svc.GetMystery(context.Background(), id, viewer)
+
+			// then
+			require.ErrorIs(t, err, boom)
+			assert.Nil(t, got)
+		})
+	}
 }
 
 func TestUpdateMystery_UpdateWithCluesError(t *testing.T) {

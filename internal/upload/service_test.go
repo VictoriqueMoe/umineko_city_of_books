@@ -218,8 +218,8 @@ func TestSaveImage_TooLarge(t *testing.T) {
 	// when
 	_, err := svc.SaveImage(context.Background(), "images", id, 200, 100, bytes.NewReader(pngMagic))
 
-	// then
-	require.Error(t, err)
+	// then the controllers can tell an oversized file from a server failure
+	require.ErrorIs(t, err, ErrFileTooLarge)
 	assert.Contains(t, err.Error(), "exceeds maximum")
 }
 
@@ -313,8 +313,19 @@ func TestSaveVideo_TooLarge(t *testing.T) {
 	_, err := svc.SaveVideo(context.Background(), "videos", id, 200, 100, bytes.NewReader(mp4Magic))
 
 	// then
-	require.Error(t, err)
+	require.ErrorIs(t, err, ErrFileTooLarge)
 	assert.Contains(t, err.Error(), "exceeds maximum")
+}
+
+func TestSaveAttachment_TooLarge(t *testing.T) {
+	// given
+	svc, _, _ := newTestService(t)
+
+	// when
+	_, err := svc.SaveAttachment(context.Background(), "attachments", 200, 100, bytes.NewReader([]byte("x")))
+
+	// then
+	require.ErrorIs(t, err, ErrFileTooLarge)
 }
 
 func TestSaveVideo_InvalidType(t *testing.T) {

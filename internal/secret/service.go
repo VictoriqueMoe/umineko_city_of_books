@@ -10,7 +10,9 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
@@ -28,9 +30,9 @@ import (
 )
 
 var (
-	ErrNotFound    = errors.New("secret not found")
+	ErrNotFound    = fmt.Errorf("secret not found: %w", dao.ErrNotFound)
 	ErrEmptyBody   = errors.New("comment body cannot be empty")
-	ErrNotOwner    = errors.New("not the comment author")
+	ErrNotOwner    = authz.ErrNotCommentAuthor
 	ErrUserBlocked = block.ErrUserBlocked
 )
 
@@ -107,7 +109,10 @@ func (s *service) List(ctx context.Context, viewerID uuid.UUID) (*dto.SecretList
 		ids[i] = string(listed[i].ID)
 	}
 
-	commentCounts, _ := s.secretRepo.CountCommentsBySecret(ctx, ids)
+	commentCounts, err := s.secretRepo.CountCommentsBySecret(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("secret comment counts: %w", err)
+	}
 
 	result := make([]dto.SecretSummary, 0, len(listed))
 	for i := range listed {
@@ -118,7 +123,10 @@ func (s *service) List(ctx context.Context, viewerID uuid.UUID) (*dto.SecretList
 		result = append(result, summary)
 	}
 
-	solverRows, _ := s.secretRepo.GetSolversLeaderboard(ctx, ids)
+	solverRows, err := s.secretRepo.GetSolversLeaderboard(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("secret solvers leaderboard: %w", err)
+	}
 	solvers := make([]dto.SecretSolverEntry, len(solverRows))
 	for i := range solverRows {
 		r := solverRows[i]
@@ -165,7 +173,10 @@ func (s *service) buildSummary(ctx context.Context, secretSpec secrets.Spec, vie
 	}
 
 	if viewerID != uuid.Nil && len(pieceIDs) > 0 {
-		count, _ := s.secretRepo.GetPieceCountForUser(ctx, spec.SecretPieceCount{UserID: viewerID, PieceIDs: pieceIDs})
+		count, err := s.secretRepo.GetPieceCountForUser(ctx, spec.SecretPieceCount{UserID: viewerID, PieceIDs: pieceIDs})
+		if err != nil {
+			return summary, fmt.Errorf("viewer progress: %w", err)
+		}
 		summary.ViewerProgress = count
 	}
 	return summary, nil
@@ -177,7 +188,11 @@ func (s *service) Get(ctx context.Context, id string, viewerID uuid.UUID) (*dto.
 		return nil, ErrNotFound
 	}
 
-	commentCounts, _ := s.secretRepo.CountCommentsBySecret(ctx, []string{id})
+	commentCounts, err := s.secretRepo.CountCommentsBySecret(ctx, []string{id})
+	if err != nil {
+		return nil, fmt.Errorf("secret comment counts: %w", err)
+	}
+
 	summary, err := s.buildSummary(ctx, secretSpec, viewerID, commentCounts[id])
 	if err != nil {
 		return nil, err
@@ -190,7 +205,10 @@ func (s *service) Get(ctx context.Context, id string, viewerID uuid.UUID) (*dto.
 		if err != nil {
 			return nil, err
 		}
-		solvedUsers, _ := s.solvedUserSet(ctx, id)
+		solvedUsers, err := s.solvedUserSet(ctx, id)
+		if err != nil {
+			return nil, fmt.Errorf("secret solvers: %w", err)
+		}
 		for _, r := range rows {
 			leaderboard = append(leaderboard, dto.SecretLeaderboardEntry{
 				User: dto.UserResponse{
@@ -209,21 +227,32 @@ func (s *service) Get(ctx context.Context, id string, viewerID uuid.UUID) (*dto.
 		leaderboard = []dto.SecretLeaderboardEntry{}
 	}
 
-	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	commentRows, _, _ := s.secretRepo.GetComments(ctx, spec.CommentQuery[string]{
+	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("blocked users: %w", err)
+	}
+
+	commentRows, _, err := s.secretRepo.GetComments(ctx, spec.CommentQuery[string]{
 		TargetID:       id,
 		ViewerID:       viewerID,
 		Limit:          500,
 		Offset:         0,
 		ExcludeUserIDs: blockedIDs,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("secret comments: %w", err)
+	}
+
 	var comments []dto.SecretCommentResponse
 	if len(commentRows) > 0 {
 		commentIDs := make([]uuid.UUID, len(commentRows))
 		for i := range commentRows {
 			commentIDs[i] = commentRows[i].ID
 		}
-		mediaBatch, _ := s.secretRepo.GetCommentMediaBatch(ctx, commentIDs)
+		mediaBatch, err := s.secretRepo.GetCommentMediaBatch(ctx, commentIDs)
+		if err != nil {
+			return nil, fmt.Errorf("secret comment media: %w", err)
+		}
 		flat := make([]dto.SecretCommentResponse, len(commentRows))
 		for i := range commentRows {
 			flat[i] = secretCommentToResponse(commentRows[i], mediaBatch[commentRows[i].ID])
@@ -244,6 +273,18 @@ func (s *service) Get(ctx context.Context, id string, viewerID uuid.UUID) (*dto.
 		Leaderboard:   leaderboard,
 		Comments:      comments,
 	}, nil
+}
+
+func (s *service) commentAuthor(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
+	authorID, err := s.secretRepo.GetCommentAuthorID(ctx, commentID)
+	if errors.Is(err, dao.ErrNotFound) {
+		return uuid.Nil, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return authorID, nil
 }
 
 func (s *service) solvedUserSet(ctx context.Context, parentID string) (map[uuid.UUID]bool, error) {
@@ -285,12 +326,21 @@ func (s *service) CreateComment(ctx context.Context, secretID string, userID uui
 	go func() {
 		bgCtx := context.Background()
 		actor, err := s.userRepo.GetByID(bgCtx, userID)
-		if err != nil || actor == nil {
+		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("user_id", userID.String()).Msg("secret comment notifications skipped, actor lookup failed")
+
+			return
+		}
+		if actor == nil {
 			return
 		}
 		var parentAuthor uuid.UUID
 		if req.ParentID != nil {
-			if parent, err := s.secretRepo.GetCommentAuthorID(bgCtx, *req.ParentID); err == nil && parent != userID {
+			parent, err := s.secretRepo.GetCommentAuthorID(bgCtx, *req.ParentID)
+			if err != nil {
+				logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", req.ParentID.String()).Msg("secret reply notification skipped, parent lookup failed")
+			}
+			if err == nil && parent != userID {
 				parentAuthor = parent
 				_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 					RecipientID:   parentAuthor,
@@ -306,6 +356,8 @@ func (s *service) CreateComment(ctx context.Context, secretID string, userID uui
 
 		commenters, err := s.secretRepo.GetCommenterIDs(bgCtx, secretID)
 		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("secret_id", secretID).Msg("secret comment fan-out skipped, commenter lookup failed")
+
 			return
 		}
 		for _, rid := range commenters {
@@ -364,11 +416,16 @@ func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.U
 }
 
 func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	commentAuthorID, err := s.secretRepo.GetCommentAuthorID(ctx, commentID)
+	commentAuthorID, err := s.commentAuthor(ctx, commentID)
 	if err != nil {
 		return err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return ErrUserBlocked
 	}
 	if err := s.secretRepo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID}); err != nil {
@@ -381,11 +438,21 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 			return
 		}
 		secretID, err := s.secretRepo.GetCommentEntityID(bgCtx, commentID)
-		if err != nil || secretID == "" {
+		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", commentID.String()).Msg("secret comment like notification skipped, secret lookup failed")
+
+			return
+		}
+		if secretID == "" {
 			return
 		}
 		actor, err := s.userRepo.GetByID(bgCtx, userID)
-		if err != nil || actor == nil {
+		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("user_id", userID.String()).Msg("secret comment like notification skipped, actor lookup failed")
+
+			return
+		}
+		if actor == nil {
 			return
 		}
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
@@ -416,15 +483,18 @@ func (s *service) UploadCommentMedia(
 	reader io.Reader,
 	isSpoiler bool,
 ) (*dto.PostMediaResponse, error) {
-	authorID, err := s.secretRepo.GetCommentAuthorID(ctx, commentID)
+	authorID, err := s.commentAuthor(ctx, commentID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, err
 	}
 	if authorID != userID {
 		return nil, ErrNotOwner
 	}
 
-	existing, _ := s.secretRepo.GetCommentMedia(ctx, commentID)
+	existing, err := s.secretRepo.GetCommentMedia(ctx, commentID)
+	if err != nil {
+		return nil, fmt.Errorf("existing comment media: %w", err)
+	}
 	sortOrder := len(existing)
 
 	resp, err := s.uploader.SaveAndRecord(ctx, "secrets", contentType, filename, fileSize, reader, isSpoiler,
@@ -455,7 +525,12 @@ func (s *service) BroadcastProgress(ctx context.Context, parentID string, actor 
 	}
 	pieceIDs := secrets.PieceIDStrings(secretSpec)
 	summary, err := s.secretRepo.GetUserProgressSummary(ctx, spec.SecretPieceCount{UserID: actor, PieceIDs: pieceIDs})
-	if err != nil || summary == nil {
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("secret_id", parentID).Msg("secret progress broadcast skipped, summary lookup failed")
+
+		return
+	}
+	if summary == nil {
 		return
 	}
 	event := dto.SecretProgressEvent{
@@ -475,7 +550,12 @@ func (s *service) BroadcastProgress(ctx context.Context, parentID string, actor 
 
 func (s *service) BroadcastSolved(ctx context.Context, parentID string, actor uuid.UUID, solvedAt string) {
 	user, err := s.userRepo.GetByID(ctx, actor)
-	if err != nil || user == nil {
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("secret_id", parentID).Msg("secret solved broadcast skipped, solver lookup failed")
+
+		return
+	}
+	if user == nil {
 		return
 	}
 	secretSpec, specOK := secrets.Lookup(parentID)
@@ -503,6 +583,9 @@ func (s *service) BroadcastSolved(ctx context.Context, parentID string, actor uu
 	if specOK && secretSpec.Title != "" {
 		pieceIDs := secrets.PieceIDStrings(secretSpec)
 		participants, err := s.userSecretSvc.GetUserIDsWithAnyPiece(ctx, pieceIDs)
+		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("secret_id", parentID).Msg("secret closed notices skipped, participant lookup failed")
+		}
 		if err == nil {
 			closedData := map[string]any{
 				"secret_id":    parentID,

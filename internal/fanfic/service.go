@@ -2,6 +2,7 @@ package fanfic
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -14,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
 	"umineko_city_of_books/internal/logger"
@@ -286,7 +288,7 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 		Characters: req.Characters,
 	}
 
-	body := strings.TrimSpace(req.Body)
+	body := strings.TrimSpace(htmlPolicy().Sanitize(req.Body))
 	if body != "" {
 		newFanfic.FirstChapter = &spec.NewChapter{Number: 1, Body: body, WordCount: countWords(body)}
 	}
@@ -313,7 +315,10 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 	}
 
 	if viewerHash != "" {
-		isNew, _ := s.fanficRepo.RecordView(ctx, spec.ViewRecord{TargetID: id, ViewerHash: viewerHash})
+		isNew, err := s.fanficRepo.RecordView(ctx, spec.ViewRecord{TargetID: id, ViewerHash: viewerHash})
+		if err != nil {
+			logger.Ctx(ctx).Error().Err(err).Str("fanfic_id", id.String()).Msg("record fanfic view failed")
+		}
 		if isNew {
 			row.ViewCount++
 		}
@@ -323,11 +328,26 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 		return nil, ErrNotFound
 	}
 
-	genres, _ := s.fanficRepo.GetGenres(ctx, id)
-	tags, _ := s.fanficRepo.GetTags(ctx, id)
-	characters, _ := s.fanficRepo.GetCharacters(ctx, id)
+	genres, err := s.fanficRepo.GetGenres(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("fanfic genres: %w", err)
+	}
 
-	chapterRows, _ := s.fanficRepo.ListChapters(ctx, id)
+	tags, err := s.fanficRepo.GetTags(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("fanfic tags: %w", err)
+	}
+
+	characters, err := s.fanficRepo.GetCharacters(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("fanfic characters: %w", err)
+	}
+
+	chapterRows, err := s.fanficRepo.ListChapters(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("fanfic chapters: %w", err)
+	}
+
 	chapters := make([]dto.FanficChapterSummary, len(chapterRows))
 	for i, ch := range chapterRows {
 		chapters[i] = dto.FanficChapterSummary{
@@ -338,14 +358,21 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 		}
 	}
 
-	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	comments, _, _ := s.fanficRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
+	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("blocked users: %w", err)
+	}
+
+	comments, _, err := s.fanficRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
 		TargetID:       id,
 		ViewerID:       viewerID,
 		Limit:          500,
 		Offset:         0,
 		ExcludeUserIDs: blockedIDs,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("fanfic comments: %w", err)
+	}
 
 	var threaded []dto.FanficCommentResponse
 	if len(comments) > 0 {
@@ -353,7 +380,10 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 		for i, c := range comments {
 			commentIDs[i] = c.ID
 		}
-		commentMediaMap, _ := s.fanficRepo.GetCommentMediaBatch(ctx, commentIDs)
+		commentMediaMap, err := s.fanficRepo.GetCommentMediaBatch(ctx, commentIDs)
+		if err != nil {
+			return nil, fmt.Errorf("comment media: %w", err)
+		}
 
 		flatComments := make([]dto.FanficCommentResponse, len(comments))
 		for i, c := range comments {
@@ -368,10 +398,16 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 
 	viewerBlocked := false
 	if viewerID != uuid.Nil {
-		viewerBlocked, _ = s.blockSvc.IsBlockedEither(ctx, viewerID, row.UserID)
+		viewerBlocked, err = s.blockSvc.IsBlockedEither(ctx, viewerID, row.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("block check: %w", err)
+		}
 	}
 
-	readingProgress, _ := s.fanficRepo.GetReadingProgress(ctx, spec.FanficUserRef{UserID: viewerID, FanficID: id})
+	readingProgress, err := s.fanficRepo.GetReadingProgress(ctx, spec.FanficUserRef{UserID: viewerID, FanficID: id})
+	if err != nil {
+		return nil, fmt.Errorf("reading progress: %w", err)
+	}
 
 	return &dto.FanficDetailResponse{
 		FanficResponse:  row.ToResponse(genres, tags, characters),
@@ -384,8 +420,11 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 
 func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dto.UpdateFanficRequest) error {
 	authorID, err := s.fanficRepo.GetAuthorID(ctx, id)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return ErrNotFound
+	}
+	if err != nil {
+		return err
 	}
 
 	asAdmin := authorID != userID
@@ -428,7 +467,10 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 
 	var before *model.FanficRow
 	if asAdmin {
-		before, _ = s.fanficRepo.GetByID(ctx, spec.FanficLookup{ID: id, ViewerID: userID})
+		before, err = s.fanficRepo.GetByID(ctx, spec.FanficLookup{ID: id, ViewerID: userID})
+		if err != nil {
+			return fmt.Errorf("fanfic before admin edit: %w", err)
+		}
 	}
 
 	if err := s.fanficRepo.UpdateWithDetails(ctx, update); err != nil {
@@ -451,8 +493,11 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 
 func (s *service) DeleteFanfic(ctx context.Context, id, userID uuid.UUID) error {
 	authorID, err := s.fanficRepo.GetAuthorID(ctx, id)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return ErrNotFound
+	}
+	if err != nil {
+		return err
 	}
 
 	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
@@ -491,12 +536,16 @@ func (s *service) DeleteFanfic(ctx context.Context, id, userID uuid.UUID) error 
 }
 
 func (s *service) ListFanfics(ctx context.Context, viewerID uuid.UUID, params fanficparams.ListParams) (*dto.FanficListResponse, error) {
-	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("blocked users: %w", err)
+	}
 
 	rows, total, err := s.fanficRepo.List(ctx, spec.FanficListFilter{ViewerID: viewerID, Params: params, ExcludeUserIDs: blockedIDs})
 	if err != nil {
 		return nil, err
 	}
+
 	return s.buildFanficList(ctx, rows, total, params.Limit, params.Offset)
 }
 
@@ -505,9 +554,21 @@ func (s *service) buildFanficList(ctx context.Context, rows []model.FanficRow, t
 	for i, r := range rows {
 		fanficIDs[i] = r.ID
 	}
-	genresMap, _ := s.fanficRepo.GetGenresBatch(ctx, fanficIDs)
-	tagsMap, _ := s.fanficRepo.GetTagsBatch(ctx, fanficIDs)
-	charactersMap, _ := s.fanficRepo.GetCharactersBatch(ctx, fanficIDs)
+
+	genresMap, err := s.fanficRepo.GetGenresBatch(ctx, fanficIDs)
+	if err != nil {
+		return nil, fmt.Errorf("fanfic genres: %w", err)
+	}
+
+	tagsMap, err := s.fanficRepo.GetTagsBatch(ctx, fanficIDs)
+	if err != nil {
+		return nil, fmt.Errorf("fanfic tags: %w", err)
+	}
+
+	charactersMap, err := s.fanficRepo.GetCharactersBatch(ctx, fanficIDs)
+	if err != nil {
+		return nil, fmt.Errorf("fanfic characters: %w", err)
+	}
 
 	fanfics := make([]dto.FanficResponse, len(rows))
 	for i, r := range rows {
@@ -554,8 +615,11 @@ func (s *service) ListFavourites(ctx context.Context, userID, viewerID uuid.UUID
 
 func (s *service) UploadCoverImage(ctx context.Context, fanficID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error) {
 	authorID, err := s.fanficRepo.GetAuthorID(ctx, fanficID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", err
 	}
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
 		return "", fmt.Errorf("not the fanfic author")
@@ -588,8 +652,11 @@ func (s *service) RemoveCoverImage(ctx context.Context, fanficID, userID uuid.UU
 
 func (s *service) CreateChapter(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateChapterRequest) (uuid.UUID, error) {
 	authorID, err := s.fanficRepo.GetAuthorID(ctx, fanficID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return uuid.Nil, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, err
 	}
 	if authorID != userID {
 		return uuid.Nil, ErrNotAuthor
@@ -673,8 +740,11 @@ func (s *service) GetChapter(ctx context.Context, fanficID uuid.UUID, chapterNum
 
 func (s *service) UpdateChapter(ctx context.Context, chapterID, userID uuid.UUID, req dto.UpdateChapterRequest) error {
 	authorID, err := s.fanficRepo.GetChapterAuthorID(ctx, chapterID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return ErrNotFound
+	}
+	if err != nil {
+		return err
 	}
 
 	asAdmin := authorID != userID
@@ -717,8 +787,11 @@ func (s *service) UpdateChapter(ctx context.Context, chapterID, userID uuid.UUID
 
 func (s *service) DeleteChapter(ctx context.Context, chapterID, userID uuid.UUID) error {
 	authorID, err := s.fanficRepo.GetChapterAuthorID(ctx, chapterID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return ErrNotFound
+	}
+	if err != nil {
+		return err
 	}
 
 	asAdmin := authorID != userID
@@ -756,7 +829,11 @@ func (s *service) Favourite(ctx context.Context, userID, fanficID uuid.UUID) err
 	}
 
 	authorID := fanfic.UserID
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return block.ErrUserBlocked
 	}
 
@@ -770,7 +847,11 @@ func (s *service) Favourite(ctx context.Context, userID, fanficID uuid.UUID) err
 		}
 		bgCtx := context.Background()
 		actor, err := s.userRepo.GetByID(bgCtx, userID)
-		if err != nil || actor == nil {
+		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("fanfic_id", fanficID.String()).Msg("favourite notification skipped, actor lookup failed")
+			return
+		}
+		if actor == nil {
 			return
 		}
 		_ = s.notifSvc.Notify(bgCtx, dto.NotifyParams{
@@ -781,7 +862,7 @@ func (s *service) Favourite(ctx context.Context, userID, fanficID uuid.UUID) err
 			ActorID:       userID,
 			EmailActor:    actor.DisplayName,
 			EmailAction:   "favourited your fanfic",
-			EmailLink:     fmt.Sprintf("/fanfics/%s", fanficID),
+			EmailLink:     fmt.Sprintf("/fanfiction/%s", fanficID),
 		})
 	}()
 
@@ -822,7 +903,11 @@ func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID,
 	}
 
 	authorID := fanfic.UserID
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
@@ -840,7 +925,11 @@ func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID,
 	go func() {
 		bgCtx := context.Background()
 		actor, err := s.userRepo.GetByID(bgCtx, userID)
-		if err != nil || actor == nil {
+		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("fanfic_id", fanficID.String()).Msg("comment notifications skipped, actor lookup failed")
+			return
+		}
+		if actor == nil {
 			return
 		}
 		_ = s.notifSvc.Notify(bgCtx, dto.NotifyParams{
@@ -851,12 +940,16 @@ func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID,
 			ActorID:       userID,
 			EmailActor:    actor.DisplayName,
 			EmailAction:   "commented on your fanfic",
-			EmailLink:     fmt.Sprintf("/fanfics/%s#comment-%s", fanficID, id),
+			EmailLink:     fmt.Sprintf("/fanfiction/%s#comment-%s", fanficID, id),
 		})
 
 		if req.ParentID != nil {
 			parentAuthor, err := s.fanficRepo.GetCommentAuthorID(bgCtx, *req.ParentID)
-			if err == nil && parentAuthor != authorID {
+			if err != nil {
+				logger.Ctx(bgCtx).Warn().Err(err).Str("fanfic_id", fanficID.String()).Msg("reply notification skipped, parent author lookup failed")
+				return
+			}
+			if parentAuthor != authorID {
 				_ = s.notifSvc.Notify(bgCtx, dto.NotifyParams{
 					RecipientID:   parentAuthor,
 					Type:          dto.NotifFanficCommentReply,
@@ -865,7 +958,7 @@ func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID,
 					ActorID:       userID,
 					EmailActor:    actor.DisplayName,
 					EmailAction:   "replied to your comment",
-					EmailLink:     fmt.Sprintf("/fanfics/%s#comment-%s", fanficID, id),
+					EmailLink:     fmt.Sprintf("/fanfiction/%s#comment-%s", fanficID, id),
 				})
 			}
 		}
@@ -884,8 +977,11 @@ func (s *service) UpdateComment(ctx context.Context, id, userID uuid.UUID, req d
 	}
 
 	authorID, err := s.fanficRepo.GetCommentAuthorID(ctx, id)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return ErrNotFound
+	}
+	if err != nil {
+		return err
 	}
 
 	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermEditAnyComment)
@@ -957,9 +1053,15 @@ func (s *service) LikeComment(ctx context.Context, userID, commentID uuid.UUID) 
 	if err != nil {
 		return err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return block.ErrUserBlocked
 	}
+
 	if err := s.fanficRepo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID}); err != nil {
 		return err
 	}
@@ -971,6 +1073,7 @@ func (s *service) LikeComment(ctx context.Context, userID, commentID uuid.UUID) 
 		bgCtx := context.Background()
 		fanficID, err := s.fanficRepo.GetCommentEntityID(bgCtx, commentID)
 		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", commentID.String()).Msg("comment like notification skipped, fanfic lookup failed")
 			return
 		}
 		_ = s.notifSvc.Notify(bgCtx, dto.NotifyParams{
@@ -981,7 +1084,7 @@ func (s *service) LikeComment(ctx context.Context, userID, commentID uuid.UUID) 
 			ActorID:       userID,
 			EmailActor:    "Someone",
 			EmailAction:   "liked your comment",
-			EmailLink:     fmt.Sprintf("/fanfics/%s#comment-%s", fanficID, commentID),
+			EmailLink:     fmt.Sprintf("/fanfiction/%s#comment-%s", fanficID, commentID),
 		})
 	}()
 
@@ -1003,11 +1106,14 @@ func (s *service) UploadCommentMedia(
 	isSpoiler bool,
 ) (*dto.PostMediaResponse, error) {
 	authorID, err := s.fanficRepo.GetCommentAuthorID(ctx, commentID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return nil, ErrNotFound
 	}
+	if err != nil {
+		return nil, err
+	}
 	if authorID != userID {
-		return nil, fmt.Errorf("not the comment author")
+		return nil, authz.ErrNotCommentAuthor
 	}
 
 	return s.uploader.SaveAndRecord(ctx, "fanfics", contentType, filename, fileSize, reader, isSpoiler,

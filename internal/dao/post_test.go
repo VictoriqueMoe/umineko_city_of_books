@@ -2,10 +2,12 @@ package dao_test
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
 	"umineko_city_of_books/internal/audit"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
@@ -17,10 +19,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	postPollExpiresAt = time.Now().Add(24 * time.Hour).UTC().Format("2006-01-02 15:04:05")
+)
+
 func createPost(t *testing.T, repos *repository.Repositories, userID uuid.UUID, corner, body string) uuid.UUID {
 	t.Helper()
 	created, err := repos.Post.Create(context.Background(), spec.NewPost{UserID: userID, Corner: corner, Body: body})
 	require.NoError(t, err)
+
 	return created.ID
 }
 
@@ -28,7 +35,64 @@ func createComment(t *testing.T, repos *repository.Repositories, postID, userID 
 	t.Helper()
 	created, err := repos.Comments.ByID[string(mention.KindPostComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: postID, ParentID: parentID, UserID: userID, Body: body})
 	require.NoError(t, err)
+
 	return created.ID
+}
+
+func postAttachMedia(t *testing.T, add func(context.Context, spec.NewMedia, ...*sql.Tx) (int64, error), targetID uuid.UUID, mediaURL, thumbnailURL string) int64 {
+	t.Helper()
+	id, err := add(context.Background(), spec.NewMedia{TargetID: targetID, MediaURL: mediaURL, MediaType: "image", ThumbnailURL: thumbnailURL})
+	require.NoError(t, err)
+
+	return id
+}
+
+func postGet(t *testing.T, repos *repository.Repositories, postID, viewerID uuid.UUID) *model.PostRow {
+	t.Helper()
+	row, err := repos.Post.GetByID(context.Background(), spec.PostLookup{ID: postID, ViewerID: viewerID})
+	require.NoError(t, err)
+
+	return row
+}
+
+func postComments(t *testing.T, repos *repository.Repositories, postID, viewerID uuid.UUID) ([]model.CommentRow, int) {
+	t.Helper()
+	rows, total, err := repos.Post.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: postID, ViewerID: viewerID, Limit: 10})
+	require.NoError(t, err)
+
+	return rows, total
+}
+
+func postCreatePoll(t *testing.T, repos *repository.Repositories, postID uuid.UUID, options ...string) (uuid.UUID, []model.PollOptionRow) {
+	t.Helper()
+	ctx := context.Background()
+
+	poll, err := repos.Post.CreatePollWithOptions(ctx, spec.NewPoll{PostID: postID, DurationSeconds: 86400, ExpiresAt: postPollExpiresAt, Options: options})
+	require.NoError(t, err)
+
+	_, opts, _, err := repos.Post.GetPollByPostID(ctx, spec.PostPollQuery{PostID: postID})
+	require.NoError(t, err)
+	require.Len(t, opts, len(options))
+
+	return uuid.MustParse(poll.ID), opts
+}
+
+func postRowIDs(rows []model.PostRow) []uuid.UUID {
+	var ids []uuid.UUID
+	for _, row := range rows {
+		ids = append(ids, row.ID)
+	}
+
+	return ids
+}
+
+func postCommentIDs(rows []model.CommentRow) []uuid.UUID {
+	var ids []uuid.UUID
+	for _, row := range rows {
+		ids = append(ids, row.ID)
+	}
+
+	return ids
 }
 
 func TestPostDAO_CreateAndGetByID(t *testing.T) {
@@ -40,728 +104,641 @@ func TestPostDAO_CreateAndGetByID(t *testing.T) {
 	id := createPost(t, repos, user.ID, "general", "hello world")
 
 	// then
-	row, err := repos.Post.GetByID(context.Background(), spec.PostLookup{ID: id, ViewerID: user.ID})
-	require.NoError(t, err)
+	row := postGet(t, repos, id, user.ID)
 	require.NotNil(t, row)
 	assert.Equal(t, "hello world", row.Body)
 	assert.Equal(t, "general", row.Corner)
 	assert.Equal(t, user.ID, row.UserID)
 	assert.Equal(t, "Poster", row.AuthorDisplayName)
+	assert.Nil(t, postGet(t, repos, uuid.New(), user.ID))
 }
 
-func TestPostDAO_Create_WithSharedContent(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
+func TestPostDAO_GetSharedContentFields(t *testing.T) {
+	tests := []struct {
+		name     string
+		shared   *model.SharedContentRef
+		missing  bool
+		wantID   *string
+		wantType *string
+	}{
+		{name: "a post created with shared content reports its id and type", shared: &model.SharedContentRef{ID: "abc123", Type: "theory"}, wantID: new("abc123"), wantType: new("theory")},
+		{name: "a post without shared content reports neither"},
+		{name: "a missing post reports neither rather than an error", missing: true},
+	}
 
-	// when
-	created, err := repos.Post.Create(context.Background(), spec.NewPost{
-		UserID:        user.ID,
-		Corner:        "general",
-		Body:          "shared",
-		SharedContent: &model.SharedContentRef{ID: "abc123", Type: "theory"},
-	})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			ctx := context.Background()
+			user := daotest.CreateUser(t, repos)
 
-	// then
-	require.NoError(t, err)
-	cid, ctype, err := repos.Post.GetSharedContentFields(context.Background(), created.ID)
-	require.NoError(t, err)
-	require.NotNil(t, cid)
-	require.NotNil(t, ctype)
-	assert.Equal(t, "abc123", *cid)
-	assert.Equal(t, "theory", *ctype)
-}
+			created, err := repos.Post.Create(ctx, spec.NewPost{UserID: user.ID, Corner: "general", Body: "shared", SharedContent: tc.shared})
+			require.NoError(t, err)
 
-func TestPostDAO_GetByID_NotFound(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
+			postID := created.ID
+			if tc.missing {
+				postID = uuid.New()
+			}
 
-	// when
-	row, err := repos.Post.GetByID(context.Background(), spec.PostLookup{ID: uuid.New(), ViewerID: user.ID})
+			// when
+			contentID, contentType, err := repos.Post.GetSharedContentFields(ctx, postID)
 
-	// then
-	require.NoError(t, err)
-	assert.Nil(t, row)
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantID, contentID)
+			assert.Equal(t, tc.wantType, contentType)
+		})
+	}
 }
 
 func TestPostDAO_UpdatePost(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	id := createPost(t, repos, user.ID, "general", "original")
+	tests := []struct {
+		name     string
+		byOther  bool
+		asAdmin  bool
+		missing  bool
+		wantErr  bool
+		wantBody string
+	}{
+		{name: "the owner edits their own post", wantBody: "edited"},
+		{name: "another user cannot edit the post", byOther: true, wantErr: true, wantBody: "original"},
+		{name: "an admin edits any post", byOther: true, asAdmin: true, wantBody: "edited"},
+		{name: "an admin edit of a missing post fails", byOther: true, asAdmin: true, missing: true, wantErr: true, wantBody: "original"},
+	}
 
-	// when
-	err := repos.Post.UpdatePost(context.Background(), spec.PostUpdate{ID: id, UserID: user.ID, Body: "updated"})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			owner := daotest.CreateUser(t, repos)
+			other := daotest.CreateUser(t, repos)
+			postID := createPost(t, repos, owner.ID, "general", "original")
 
-	// then
-	require.NoError(t, err)
-	row, err := repos.Post.GetByID(context.Background(), spec.PostLookup{ID: id, ViewerID: user.ID})
-	require.NoError(t, err)
-	assert.Equal(t, "updated", row.Body)
+			editorID := owner.ID
+			if tc.byOther {
+				editorID = other.ID
+			}
+
+			targetID := postID
+			if tc.missing {
+				targetID = uuid.New()
+			}
+
+			// when
+			err := repos.Post.UpdatePost(context.Background(), spec.PostUpdate{ID: targetID, UserID: editorID, Body: "edited", AsAdmin: tc.asAdmin})
+
+			// then
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			assert.Equal(t, tc.wantBody, postGet(t, repos, postID, owner.ID).Body)
+		})
+	}
 }
 
-func TestPostDAO_UpdatePost_NotOwner(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	owner := daotest.CreateUser(t, repos)
-	other := daotest.CreateUser(t, repos)
-	id := createPost(t, repos, owner.ID, "general", "body")
+func TestPostDAO_DeleteWithSharedContent(t *testing.T) {
+	everyPath := []string{
+		"/uploads/posts/a.webp",
+		"/uploads/posts/a_thumb.webp",
+		"/uploads/posts/b.webp",
+		"/uploads/posts/c.webp",
+		"/uploads/posts/c_thumb.webp",
+		"/uploads/posts/d.webp",
+	}
 
-	// when
-	err := repos.Post.UpdatePost(context.Background(), spec.PostUpdate{ID: id, UserID: other.ID, Body: "hacked"})
+	tests := []struct {
+		name      string
+		byOther   bool
+		asAdmin   bool
+		action    audit.Action
+		withMedia bool
+		wantErr   bool
+		wantPaths []string
+	}{
+		{name: "an owner delete returns every uploaded path of the post and its comment tree", action: audit.ActionPostDelete, withMedia: true, wantPaths: everyPath},
+		{name: "an admin delete returns every uploaded path of the post and its comment tree", byOther: true, asAdmin: true, action: audit.ActionPostDeleteAdmin, withMedia: true, wantPaths: everyPath},
+		{name: "an owner delete of a post with no media returns no paths", action: audit.ActionPostDelete},
+		{name: "a failed delete by a stranger returns no paths and keeps the media", byOther: true, action: audit.ActionPostDeleteAdmin, withMedia: true, wantErr: true},
+	}
 
-	// then
-	require.Error(t, err)
-}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			ctx := context.Background()
+			owner := daotest.CreateUser(t, repos)
+			other := daotest.CreateUser(t, repos)
+			postID := createPost(t, repos, owner.ID, "general", "body")
+			survivorID := createPost(t, repos, owner.ID, "general", "survivor")
+			survivorCommentID := createComment(t, repos, survivorID, owner.ID, nil, "untouched")
+			postAttachMedia(t, repos.Post.AddCommentMedia, survivorCommentID, "/uploads/posts/keep.webp", "")
 
-func TestPostDAO_UpdatePostAsAdmin(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	owner := daotest.CreateUser(t, repos)
-	id := createPost(t, repos, owner.ID, "general", "body")
+			if tc.withMedia {
+				postAttachMedia(t, repos.Post.AddMedia, postID, "/uploads/posts/a.webp", "/uploads/posts/a_thumb.webp")
+				postAttachMedia(t, repos.Post.AddMedia, postID, "/uploads/posts/b.webp", "")
+				commentID := createComment(t, repos, postID, owner.ID, nil, "comment")
+				replyID := createComment(t, repos, postID, owner.ID, &commentID, "reply")
+				postAttachMedia(t, repos.Post.AddCommentMedia, commentID, "/uploads/posts/c.webp", "/uploads/posts/c_thumb.webp")
+				postAttachMedia(t, repos.Post.AddCommentMedia, replyID, "/uploads/posts/d.webp", "")
+			}
 
-	// when
-	err := repos.Post.UpdatePost(context.Background(), spec.PostUpdate{ID: id, Body: "admin edited", AsAdmin: true})
+			actorID := owner.ID
+			if tc.byOther {
+				actorID = other.ID
+			}
 
-	// then
-	require.NoError(t, err)
-	row, err := repos.Post.GetByID(context.Background(), spec.PostLookup{ID: id, ViewerID: owner.ID})
-	require.NoError(t, err)
-	assert.Equal(t, "admin edited", row.Body)
-}
+			// when
+			shared, paths, err := repos.Post.DeleteWithSharedContent(ctx, spec.PostDelete{
+				ID:      postID,
+				UserID:  actorID,
+				AsAdmin: tc.asAdmin,
+				Audit: audit.NewEntry{
+					ActorID:    actorID,
+					Action:     tc.action,
+					TargetType: audit.TargetPost,
+					TargetID:   postID.String(),
+					SubjectID:  owner.ID,
+				},
+			})
 
-func TestPostDAO_UpdatePostAsAdmin_NotFound(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
+			// then
+			assert.Nil(t, shared)
 
-	// when
-	err := repos.Post.UpdatePost(context.Background(), spec.PostUpdate{ID: uuid.New(), Body: "x", AsAdmin: true})
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Nil(t, paths)
+				assert.NotNil(t, postGet(t, repos, postID, owner.ID))
 
-	// then
-	require.Error(t, err)
-}
-
-func TestPostDAO_Delete(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	id := createPost(t, repos, user.ID, "general", "body")
-
-	// when
-	err := repos.Post.Delete(context.Background(), spec.OwnedDeletion{ID: id, UserID: user.ID})
-
-	// then
-	require.NoError(t, err)
-	row, err := repos.Post.GetByID(context.Background(), spec.PostLookup{ID: id, ViewerID: user.ID})
-	require.NoError(t, err)
-	assert.Nil(t, row)
-}
-
-func TestPostDAO_Delete_NotOwner(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	owner := daotest.CreateUser(t, repos)
-	other := daotest.CreateUser(t, repos)
-	id := createPost(t, repos, owner.ID, "general", "body")
-
-	// when
-	err := repos.Post.Delete(context.Background(), spec.OwnedDeletion{ID: id, UserID: other.ID})
-
-	// then
-	require.Error(t, err)
-}
-
-func TestPostDAO_DeleteAsAdmin(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	owner := daotest.CreateUser(t, repos)
-	id := createPost(t, repos, owner.ID, "general", "body")
-
-	// when
-	err := repos.Post.DeleteAsAdmin(context.Background(), id)
-
-	// then
-	require.NoError(t, err)
-	row, err := repos.Post.GetByID(context.Background(), spec.PostLookup{ID: id, ViewerID: owner.ID})
-	require.NoError(t, err)
-	assert.Nil(t, row)
+				media, err := repos.Post.GetMedia(ctx, postID)
+				require.NoError(t, err)
+				assert.Len(t, media, 2)
+			} else {
+				require.NoError(t, err)
+				assert.ElementsMatch(t, tc.wantPaths, paths)
+				assert.Nil(t, postGet(t, repos, postID, owner.ID))
+			}
+		})
+	}
 }
 
 func TestPostDAO_ListAll(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	createPost(t, repos, user.ID, "general", "post one")
-	createPost(t, repos, user.ID, "general", "post two")
-	createPost(t, repos, user.ID, "suggestions", "different corner")
-
-	// when
-	posts, total, err := repos.Post.ListAll(context.Background(), spec.PostFeedQuery{ViewerID: user.ID, Corner: "general", Sort: "new", Limit: 10})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 2, total)
-	assert.Len(t, posts, 2)
-}
-
-func TestPostDAO_ListAll_Search(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	createPost(t, repos, user.ID, "general", "apple pie")
-	createPost(t, repos, user.ID, "general", "banana bread")
-
-	// when
-	posts, total, err := repos.Post.ListAll(context.Background(), spec.PostFeedQuery{ViewerID: user.ID, Corner: "general", Search: "apple", Sort: "new", Limit: 10})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 1, total)
-	require.Len(t, posts, 1)
-	assert.Contains(t, posts[0].Body, "apple")
-}
-
-func TestPostDAO_ListAll_SortLikes(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	liker := daotest.CreateUser(t, repos)
-	postA := createPost(t, repos, user.ID, "general", "a")
-	postB := createPost(t, repos, user.ID, "general", "b")
-	require.NoError(t, repos.Post.Like(context.Background(), spec.Like{UserID: liker.ID, TargetID: postB}))
-
-	// when
-	posts, _, err := repos.Post.ListAll(context.Background(), spec.PostFeedQuery{ViewerID: user.ID, Corner: "general", Sort: "likes", Limit: 10})
-
-	// then
-	require.NoError(t, err)
-	require.Len(t, posts, 2)
-	assert.Equal(t, postB, posts[0].ID)
-	assert.Equal(t, postA, posts[1].ID)
-}
-
-func TestPostDAO_ListAll_SortComments(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postA := createPost(t, repos, user.ID, "general", "a")
-	postB := createPost(t, repos, user.ID, "general", "b")
-	createComment(t, repos, postB, user.ID, nil, "c1")
-
-	// when
-	posts, _, err := repos.Post.ListAll(context.Background(), spec.PostFeedQuery{ViewerID: user.ID, Corner: "general", Sort: "comments", Limit: 10})
-
-	// then
-	require.NoError(t, err)
-	require.Len(t, posts, 2)
-	assert.Equal(t, postB, posts[0].ID)
-	assert.Equal(t, postA, posts[1].ID)
-}
-
-func TestPostDAO_ListAll_SortViews(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postA := createPost(t, repos, user.ID, "general", "a")
-	postB := createPost(t, repos, user.ID, "general", "b")
-	_, _ = repos.Post.RecordView(context.Background(), spec.ViewRecord{TargetID: postB, ViewerHash: "hash1"})
-
-	// when
-	posts, _, err := repos.Post.ListAll(context.Background(), spec.PostFeedQuery{ViewerID: user.ID, Corner: "general", Sort: "views", Limit: 10})
-
-	// then
-	require.NoError(t, err)
-	require.Len(t, posts, 2)
-	assert.Equal(t, postB, posts[0].ID)
-	assert.Equal(t, postA, posts[1].ID)
-}
-
-func TestPostDAO_ListAll_SortRelevance(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	createPost(t, repos, user.ID, "general", "a")
-	createPost(t, repos, user.ID, "general", "b")
-
-	// when
-	posts, _, err := repos.Post.ListAll(context.Background(), spec.PostFeedQuery{ViewerID: user.ID, Corner: "general", Seed: 42, Limit: 10})
-
-	// then
-	require.NoError(t, err)
-	assert.Len(t, posts, 2)
-}
-
-func TestPostDAO_ListAll_Pagination(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	for range 5 {
-		createPost(t, repos, user.ID, "general", "p")
-	}
-
-	// when
-	page1, total, err := repos.Post.ListAll(context.Background(), spec.PostFeedQuery{ViewerID: user.ID, Corner: "general", Sort: "new", Limit: 2})
-	page2, _, err2 := repos.Post.ListAll(context.Background(), spec.PostFeedQuery{ViewerID: user.ID, Corner: "general", Sort: "new", Limit: 2, Offset: 2})
-
-	// then
-	require.NoError(t, err)
-	require.NoError(t, err2)
-	assert.Equal(t, 5, total)
-	assert.Len(t, page1, 2)
-	assert.Len(t, page2, 2)
-}
-
-func TestPostDAO_ListAll_ExcludeUsers(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
+	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 	blocked := daotest.CreateUser(t, repos)
-	createPost(t, repos, user.ID, "general", "mine")
-	createPost(t, repos, blocked.ID, "general", "blocked")
-
-	// when
-	posts, total, err := repos.Post.ListAll(context.Background(), spec.PostFeedQuery{ViewerID: user.ID, Corner: "general", Sort: "new", Limit: 10, ExcludeUserIDs: []uuid.UUID{blocked.ID}})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 1, total)
-	require.Len(t, posts, 1)
-	assert.Equal(t, user.ID, posts[0].UserID)
-}
-
-func TestPostDAO_ListAll_ResolvedFilterOpen(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
+	apple := createPost(t, repos, user.ID, "general", "apple pie")
+	banana := createPost(t, repos, user.ID, "general", "banana bread")
+	blockedPost := createPost(t, repos, blocked.ID, "general", "blocked")
 	open := createPost(t, repos, user.ID, "suggestions", "open suggestion")
 	done := createPost(t, repos, user.ID, "suggestions", "done suggestion")
-	require.NoError(t, repos.Post.ResolveSuggestion(context.Background(), spec.SuggestionResolution{PostID: done, ResolvedBy: user.ID, Status: "done"}))
+	archived := createPost(t, repos, user.ID, "suggestions", "archived suggestion")
+	require.NoError(t, repos.Post.ResolveSuggestion(ctx, spec.SuggestionResolution{PostID: done, ResolvedBy: user.ID, Status: "done"}))
+	require.NoError(t, repos.Post.ResolveSuggestion(ctx, spec.SuggestionResolution{PostID: archived, ResolvedBy: user.ID, Status: "archived"}))
 
-	// when
-	posts, total, err := repos.Post.ListAll(context.Background(), spec.PostFeedQuery{ViewerID: user.ID, Corner: "suggestions", Sort: "new", Limit: 10, ResolvedFilter: "open"})
-
-	// then
+	generalFeed, _, err := repos.Post.ListAll(ctx, spec.PostFeedQuery{ViewerID: user.ID, Corner: "general", Sort: "new", Limit: 10})
 	require.NoError(t, err)
-	assert.Equal(t, 1, total)
-	require.Len(t, posts, 1)
-	assert.Equal(t, open, posts[0].ID)
+
+	generalOrder := postRowIDs(generalFeed)
+	require.Len(t, generalOrder, 3)
+
+	tests := []struct {
+		name      string
+		query     spec.PostFeedQuery
+		wantTotal int
+		want      []uuid.UUID
+	}{
+		{name: "a corner lists only its own posts", query: spec.PostFeedQuery{Corner: "general", Sort: "new", Limit: 10}, wantTotal: 3, want: []uuid.UUID{apple, banana, blockedPost}},
+		{name: "no sort falls back to seeded relevance over the same posts", query: spec.PostFeedQuery{Corner: "general", Seed: 42, Limit: 10}, wantTotal: 3, want: []uuid.UUID{apple, banana, blockedPost}},
+		{name: "search matches the body", query: spec.PostFeedQuery{Corner: "general", Search: "apple", Sort: "new", Limit: 10}, wantTotal: 1, want: []uuid.UUID{apple}},
+		{name: "excluded users' posts are hidden from the page and the total", query: spec.PostFeedQuery{Corner: "general", Sort: "new", Limit: 10, ExcludeUserIDs: []uuid.UUID{blocked.ID}}, wantTotal: 2, want: []uuid.UUID{apple, banana}},
+		{name: "the open filter hides resolved suggestions", query: spec.PostFeedQuery{Corner: "suggestions", Sort: "new", Limit: 10, ResolvedFilter: "open"}, wantTotal: 1, want: []uuid.UUID{open}},
+		{name: "the done filter lists only done suggestions", query: spec.PostFeedQuery{Corner: "suggestions", Sort: "new", Limit: 10, ResolvedFilter: "done"}, wantTotal: 1, want: []uuid.UUID{done}},
+		{name: "the archived filter lists only archived suggestions", query: spec.PostFeedQuery{Corner: "suggestions", Sort: "new", Limit: 10, ResolvedFilter: "archived"}, wantTotal: 1, want: []uuid.UUID{archived}},
+		{name: "a limit caps the page while the total counts every match", query: spec.PostFeedQuery{Corner: "general", Sort: "new", Limit: 2}, wantTotal: 3, want: generalOrder[:2]},
+		{name: "an offset skips exactly the posts the previous page returned", query: spec.PostFeedQuery{Corner: "general", Sort: "new", Limit: 2, Offset: 2}, wantTotal: 3, want: generalOrder[2:]},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			tc.query.ViewerID = user.ID
+			posts, total, err := repos.Post.ListAll(ctx, tc.query)
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantTotal, total)
+			assert.ElementsMatch(t, tc.want, postRowIDs(posts))
+		})
+	}
 }
 
-func TestPostDAO_ListAll_ResolvedFilterDone(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	createPost(t, repos, user.ID, "suggestions", "open")
-	done := createPost(t, repos, user.ID, "suggestions", "done one")
-	require.NoError(t, repos.Post.ResolveSuggestion(context.Background(), spec.SuggestionResolution{PostID: done, ResolvedBy: user.ID, Status: "done"}))
+func TestPostDAO_ListAll_Sort(t *testing.T) {
+	tests := []struct {
+		name string
+		sort string
+	}{
+		{name: "likes puts the most liked post first", sort: "likes"},
+		{name: "comments puts the most commented post first", sort: "comments"},
+		{name: "views puts the most viewed post first", sort: "views"},
+	}
 
-	// when
-	posts, total, err := repos.Post.ListAll(context.Background(), spec.PostFeedQuery{ViewerID: user.ID, Corner: "suggestions", Sort: "new", Limit: 10, ResolvedFilter: "done"})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			ctx := context.Background()
+			user := daotest.CreateUser(t, repos)
+			boosted := createPost(t, repos, user.ID, "general", "boosted")
+			other := createPost(t, repos, user.ID, "general", "plain")
 
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 1, total)
-	require.Len(t, posts, 1)
-	assert.Equal(t, done, posts[0].ID)
-}
+			switch tc.sort {
+			case "likes":
+				require.NoError(t, repos.Post.Like(ctx, spec.Like{UserID: user.ID, TargetID: boosted}))
+			case "comments":
+				createComment(t, repos, boosted, user.ID, nil, "c1")
+			case "views":
+				_, err := repos.Post.RecordView(ctx, spec.ViewRecord{TargetID: boosted, ViewerHash: "hash1"})
+				require.NoError(t, err)
+			}
 
-func TestPostDAO_ListAll_ResolvedFilterArchived(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	archived := createPost(t, repos, user.ID, "suggestions", "archived one")
-	require.NoError(t, repos.Post.ResolveSuggestion(context.Background(), spec.SuggestionResolution{PostID: archived, ResolvedBy: user.ID, Status: "archived"}))
+			// when
+			posts, _, err := repos.Post.ListAll(ctx, spec.PostFeedQuery{ViewerID: user.ID, Corner: "general", Sort: tc.sort, Limit: 10})
 
-	// when
-	posts, total, err := repos.Post.ListAll(context.Background(), spec.PostFeedQuery{ViewerID: user.ID, Corner: "suggestions", Sort: "new", Limit: 10, ResolvedFilter: "archived"})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 1, total)
-	require.Len(t, posts, 1)
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, []uuid.UUID{boosted, other}, postRowIDs(posts))
+		})
+	}
 }
 
 func TestPostDAO_ListByFollowing(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
+	ctx := context.Background()
 	viewer := daotest.CreateUser(t, repos)
 	followed := daotest.CreateUser(t, repos)
-	other := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: viewer.ID, FollowingID: followed.ID}))
-	createPost(t, repos, viewer.ID, "general", "self")
-	createPost(t, repos, followed.ID, "general", "followed")
-	createPost(t, repos, other.ID, "general", "other")
+	stranger := daotest.CreateUser(t, repos)
+	require.NoError(t, repos.Follow.Follow(ctx, spec.FollowSpec{FollowerID: viewer.ID, FollowingID: followed.ID}))
+	own := createPost(t, repos, viewer.ID, "general", "self")
+	followedPost := createPost(t, repos, followed.ID, "general", "followed")
+	createPost(t, repos, stranger.ID, "general", "stranger")
 
-	// when
-	posts, total, err := repos.Post.ListByFollowing(context.Background(), spec.PostFollowingFeedQuery{UserID: viewer.ID, Corner: "general", Sort: "new", Limit: 10})
+	tests := []struct {
+		name  string
+		query spec.PostFollowingFeedQuery
+		want  []uuid.UUID
+	}{
+		{name: "the viewer's own and followed users' posts are listed", query: spec.PostFollowingFeedQuery{Sort: "new"}, want: []uuid.UUID{own, followedPost}},
+		{name: "no sort falls back to seeded relevance over the same posts", query: spec.PostFollowingFeedQuery{Seed: 7}, want: []uuid.UUID{own, followedPost}},
+		{name: "excluded users' posts are hidden from the page and the total", query: spec.PostFollowingFeedQuery{Sort: "new", ExcludeUserIDs: []uuid.UUID{followed.ID}}, want: []uuid.UUID{own}},
+	}
 
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 2, total)
-	assert.Len(t, posts, 2)
-}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			tc.query.UserID = viewer.ID
+			tc.query.Corner = "general"
+			tc.query.Limit = 10
+			posts, total, err := repos.Post.ListByFollowing(ctx, tc.query)
 
-func TestPostDAO_ListByFollowing_RelevanceSort(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	viewer := daotest.CreateUser(t, repos)
-	followed := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: viewer.ID, FollowingID: followed.ID}))
-	createPost(t, repos, followed.ID, "general", "a")
-
-	// when
-	posts, _, err := repos.Post.ListByFollowing(context.Background(), spec.PostFollowingFeedQuery{UserID: viewer.ID, Corner: "general", Seed: 7, Limit: 10})
-
-	// then
-	require.NoError(t, err)
-	assert.Len(t, posts, 1)
-}
-
-func TestPostDAO_ListByFollowing_ExcludeUsers(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	viewer := daotest.CreateUser(t, repos)
-	followed := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: viewer.ID, FollowingID: followed.ID}))
-	createPost(t, repos, followed.ID, "general", "f")
-
-	// when
-	posts, total, err := repos.Post.ListByFollowing(context.Background(), spec.PostFollowingFeedQuery{UserID: viewer.ID, Corner: "general", Sort: "new", Limit: 10, ExcludeUserIDs: []uuid.UUID{followed.ID}})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 0, total)
-	assert.Len(t, posts, 0)
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, len(tc.want), total)
+			assert.ElementsMatch(t, tc.want, postRowIDs(posts))
+		})
+	}
 }
 
 func TestPostDAO_ListByUser(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
+	ctx := context.Background()
 	target := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
-	createPost(t, repos, target.ID, "general", "mine1")
-	createPost(t, repos, target.ID, "general", "mine2")
-	createPost(t, repos, other.ID, "general", "not mine")
 
-	// when
-	posts, total, err := repos.Post.ListByUser(context.Background(), spec.PostUserPage{UserID: target.ID, ViewerID: target.ID, Limit: 10})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 2, total)
-	assert.Len(t, posts, 2)
-}
-
-func TestPostDAO_ListByUser_Pagination(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	target := daotest.CreateUser(t, repos)
+	var own []uuid.UUID
 	for range 4 {
-		createPost(t, repos, target.ID, "general", "p")
+		own = append(own, createPost(t, repos, target.ID, "general", "mine"))
 	}
 
-	// when
-	posts, total, err := repos.Post.ListByUser(context.Background(), spec.PostUserPage{UserID: target.ID, ViewerID: target.ID, Limit: 2, Offset: 1})
+	createPost(t, repos, other.ID, "general", "not mine")
 
-	// then
+	everyPost, _, err := repos.Post.ListByUser(ctx, spec.PostUserPage{UserID: target.ID, ViewerID: target.ID, Limit: 10})
 	require.NoError(t, err)
-	assert.Equal(t, 4, total)
-	assert.Len(t, posts, 2)
+
+	order := postRowIDs(everyPost)
+	require.Len(t, order, 4)
+
+	tests := []struct {
+		name   string
+		limit  int
+		offset int
+		want   []uuid.UUID
+	}{
+		{name: "only the user's posts are listed", limit: 10, want: own},
+		{name: "a limit caps the page while the total counts every post", limit: 2, offset: 1, want: order[1:3]},
+		{name: "an offset near the end returns only the remaining posts", limit: 2, offset: 3, want: order[3:]},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			posts, total, err := repos.Post.ListByUser(ctx, spec.PostUserPage{UserID: target.ID, ViewerID: target.ID, Limit: tc.limit, Offset: tc.offset})
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, 4, total)
+			assert.ElementsMatch(t, tc.want, postRowIDs(posts))
+		})
+	}
 }
 
-func TestPostDAO_AddMedia_GetMedia(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "body")
+func TestPostDAO_Media(t *testing.T) {
+	tests := []struct {
+		name         string
+		onComments   bool
+		add          func(repository.PostRepository, context.Context, spec.NewMedia, ...*sql.Tx) (int64, error)
+		get          func(repository.PostRepository, context.Context, uuid.UUID, ...*sql.Tx) ([]model.PostMediaRow, error)
+		setURL       func(repository.PostRepository, context.Context, spec.MediaURLUpdate, ...*sql.Tx) error
+		setThumbnail func(repository.PostRepository, context.Context, spec.MediaURLUpdate, ...*sql.Tx) error
+		batch        func(repository.PostRepository, context.Context, []uuid.UUID, ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)
+	}{
+		{
+			name:         "post media is added, read, updated and batched",
+			add:          repository.PostRepository.AddMedia,
+			get:          repository.PostRepository.GetMedia,
+			setURL:       repository.PostRepository.UpdateMediaURL,
+			setThumbnail: repository.PostRepository.UpdateMediaThumbnail,
+			batch:        repository.PostRepository.GetMediaBatch,
+		},
+		{
+			name:         "comment media is added, read, updated and batched",
+			onComments:   true,
+			add:          repository.PostRepository.AddCommentMedia,
+			get:          repository.PostRepository.GetCommentMedia,
+			setURL:       repository.PostRepository.UpdateCommentMediaURL,
+			setThumbnail: repository.PostRepository.UpdateCommentMediaThumbnail,
+			batch:        repository.PostRepository.GetCommentMediaBatch,
+		},
+	}
 
-	// when
-	id, err := repos.Post.AddMedia(context.Background(), spec.NewMedia{TargetID: postID, MediaURL: "/m.jpg", MediaType: "image", ThumbnailURL: "/t.jpg", SortOrder: 0})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			ctx := context.Background()
+			user := daotest.CreateUser(t, repos)
+			first := createPost(t, repos, user.ID, "general", "a")
+			second := createPost(t, repos, user.ID, "general", "b")
 
-	// then
-	require.NoError(t, err)
-	assert.Greater(t, id, int64(0))
-	media, err := repos.Post.GetMedia(context.Background(), postID)
-	require.NoError(t, err)
-	require.Len(t, media, 1)
-	assert.Equal(t, "/m.jpg", media[0].MediaURL)
-	assert.Equal(t, "image", media[0].MediaType)
+			if tc.onComments {
+				first = createComment(t, repos, first, user.ID, nil, "a")
+				second = createComment(t, repos, second, user.ID, nil, "b")
+			}
+
+			// when
+			firstMediaID, err := tc.add(repos.Post, ctx, spec.NewMedia{TargetID: first, MediaURL: "/m.jpg", MediaType: "image", ThumbnailURL: "/t.jpg"})
+			require.NoError(t, err)
+
+			_, err = tc.add(repos.Post, ctx, spec.NewMedia{TargetID: second, MediaURL: "/b.jpg", MediaType: "image"})
+			require.NoError(t, err)
+
+			require.NoError(t, tc.setURL(repos.Post, ctx, spec.MediaURLUpdate{ID: firstMediaID, URL: "/new.jpg"}))
+			require.NoError(t, tc.setThumbnail(repos.Post, ctx, spec.MediaURLUpdate{ID: firstMediaID, URL: "/thumb.jpg"}))
+
+			// then
+			assert.Greater(t, firstMediaID, int64(0))
+
+			untouched, err := tc.get(repos.Post, ctx, second)
+			require.NoError(t, err)
+			require.Len(t, untouched, 1)
+			assert.Equal(t, "/b.jpg", untouched[0].MediaURL)
+			assert.Equal(t, "image", untouched[0].MediaType)
+
+			updated, err := tc.get(repos.Post, ctx, first)
+			require.NoError(t, err)
+			require.Len(t, updated, 1)
+			assert.Equal(t, "/new.jpg", updated[0].MediaURL)
+			assert.Equal(t, "/thumb.jpg", updated[0].ThumbnailURL)
+
+			batch, err := tc.batch(repos.Post, ctx, []uuid.UUID{first, second})
+			require.NoError(t, err)
+			assert.Len(t, batch[first], 1)
+			assert.Len(t, batch[second], 1)
+
+			none, err := tc.batch(repos.Post, ctx, nil)
+			require.NoError(t, err)
+			assert.Nil(t, none)
+		})
+	}
 }
 
 func TestPostDAO_DeleteMedia(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
+	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
-	id, err := repos.Post.AddMedia(context.Background(), spec.NewMedia{TargetID: postID, MediaURL: "/m.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
-	require.NoError(t, err)
+	mediaID := postAttachMedia(t, repos.Post.AddMedia, postID, "/m.jpg", "")
 
 	// when
-	url, err := repos.Post.DeleteMedia(context.Background(), spec.MediaDeletion{ID: id, TargetID: postID})
+	_, missingErr := repos.Post.DeleteMedia(ctx, spec.MediaDeletion{ID: 99999, TargetID: postID})
+	url, err := repos.Post.DeleteMedia(ctx, spec.MediaDeletion{ID: mediaID, TargetID: postID})
 
 	// then
+	require.Error(t, missingErr)
 	require.NoError(t, err)
 	assert.Equal(t, "/m.jpg", url)
-	media, _ := repos.Post.GetMedia(context.Background(), postID)
-	assert.Len(t, media, 0)
-}
 
-func TestPostDAO_DeleteMedia_NotFound(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-
-	// when
-	_, err := repos.Post.DeleteMedia(context.Background(), spec.MediaDeletion{ID: 99999, TargetID: postID})
-
-	// then
-	require.Error(t, err)
-}
-
-func TestPostDAO_UpdateMediaURL(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	id, _ := repos.Post.AddMedia(context.Background(), spec.NewMedia{TargetID: postID, MediaURL: "/old.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
-
-	// when
-	err := repos.Post.UpdateMediaURL(context.Background(), spec.MediaURLUpdate{ID: id, URL: "/new.jpg"})
-
-	// then
+	media, err := repos.Post.GetMedia(ctx, postID)
 	require.NoError(t, err)
-	media, _ := repos.Post.GetMedia(context.Background(), postID)
-	require.Len(t, media, 1)
-	assert.Equal(t, "/new.jpg", media[0].MediaURL)
-}
-
-func TestPostDAO_UpdateMediaThumbnail(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	id, _ := repos.Post.AddMedia(context.Background(), spec.NewMedia{TargetID: postID, MediaURL: "/m.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
-
-	// when
-	err := repos.Post.UpdateMediaThumbnail(context.Background(), spec.MediaURLUpdate{ID: id, URL: "/thumb.jpg"})
-
-	// then
-	require.NoError(t, err)
-	media, _ := repos.Post.GetMedia(context.Background(), postID)
-	require.Len(t, media, 1)
-	assert.Equal(t, "/thumb.jpg", media[0].ThumbnailURL)
-}
-
-func TestPostDAO_GetMediaBatch(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	p1 := createPost(t, repos, user.ID, "general", "a")
-	p2 := createPost(t, repos, user.ID, "general", "b")
-	_, _ = repos.Post.AddMedia(context.Background(), spec.NewMedia{TargetID: p1, MediaURL: "/a.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
-	_, _ = repos.Post.AddMedia(context.Background(), spec.NewMedia{TargetID: p2, MediaURL: "/b.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
-
-	// when
-	result, err := repos.Post.GetMediaBatch(context.Background(), []uuid.UUID{p1, p2})
-
-	// then
-	require.NoError(t, err)
-	assert.Len(t, result[p1], 1)
-	assert.Len(t, result[p2], 1)
-}
-
-func TestPostDAO_GetMediaBatch_Empty(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	result, err := repos.Post.GetMediaBatch(context.Background(), nil)
-
-	// then
-	require.NoError(t, err)
-	assert.Nil(t, result)
+	assert.Empty(t, media)
 }
 
 func TestPostDAO_Like(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	liker := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
+	ctx := context.Background()
+	author := daotest.CreateUser(t, repos)
+	liker := daotest.CreateUser(t, repos, daotest.WithDisplayName("Liker"))
+	otherLiker := daotest.CreateUser(t, repos)
+	postID := createPost(t, repos, author.ID, "general", "b")
+	require.NoError(t, repos.Post.Like(ctx, spec.Like{UserID: liker.ID, TargetID: postID}))
+	require.NoError(t, repos.Post.Like(ctx, spec.Like{UserID: otherLiker.ID, TargetID: postID}))
 
 	// when
-	err := repos.Post.Like(context.Background(), spec.Like{UserID: liker.ID, TargetID: postID})
+	err := repos.Post.Like(ctx, spec.Like{UserID: liker.ID, TargetID: postID})
 
 	// then
 	require.NoError(t, err)
-	row, _ := repos.Post.GetByID(context.Background(), spec.PostLookup{ID: postID, ViewerID: liker.ID})
-	assert.Equal(t, 1, row.LikeCount)
+
+	row := postGet(t, repos, postID, liker.ID)
+	assert.Equal(t, 2, row.LikeCount)
 	assert.True(t, row.UserLiked)
-}
 
-func TestPostDAO_Like_Idempotent(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	liker := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	require.NoError(t, repos.Post.Like(context.Background(), spec.Like{UserID: liker.ID, TargetID: postID}))
-
-	// when
-	err := repos.Post.Like(context.Background(), spec.Like{UserID: liker.ID, TargetID: postID})
-
-	// then
+	everyone, err := repos.Post.GetLikedBy(ctx, spec.LikedByQuery{TargetID: postID})
 	require.NoError(t, err)
-	row, _ := repos.Post.GetByID(context.Background(), spec.PostLookup{ID: postID, ViewerID: liker.ID})
-	assert.Equal(t, 1, row.LikeCount)
+	require.Len(t, everyone, 2)
+	assert.ElementsMatch(t, []uuid.UUID{liker.ID, otherLiker.ID}, []uuid.UUID{everyone[0].ID, everyone[1].ID})
+
+	filtered, err := repos.Post.GetLikedBy(ctx, spec.LikedByQuery{TargetID: postID, ExcludeUserIDs: []uuid.UUID{otherLiker.ID}})
+	require.NoError(t, err)
+	require.Len(t, filtered, 1)
+	assert.Equal(t, liker.ID, filtered[0].ID)
+	assert.Equal(t, "Liker", filtered[0].DisplayName)
 }
 
 func TestPostDAO_Unlike(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
+	ctx := context.Background()
+	author := daotest.CreateUser(t, repos)
 	liker := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	require.NoError(t, repos.Post.Like(context.Background(), spec.Like{UserID: liker.ID, TargetID: postID}))
+	postID := createPost(t, repos, author.ID, "general", "b")
+	require.NoError(t, repos.Post.Like(ctx, spec.Like{UserID: liker.ID, TargetID: postID}))
 
 	// when
-	err := repos.Post.Unlike(context.Background(), spec.Like{UserID: liker.ID, TargetID: postID})
+	err := repos.Post.Unlike(ctx, spec.Like{UserID: liker.ID, TargetID: postID})
 
 	// then
 	require.NoError(t, err)
-	row, _ := repos.Post.GetByID(context.Background(), spec.PostLookup{ID: postID, ViewerID: liker.ID})
+
+	row := postGet(t, repos, postID, liker.ID)
 	assert.Equal(t, 0, row.LikeCount)
 	assert.False(t, row.UserLiked)
-}
-
-func TestPostDAO_GetLikedBy(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	liker := daotest.CreateUser(t, repos, daotest.WithDisplayName("Liker"))
-	postID := createPost(t, repos, user.ID, "general", "b")
-	require.NoError(t, repos.Post.Like(context.Background(), spec.Like{UserID: liker.ID, TargetID: postID}))
-
-	// when
-	users, err := repos.Post.GetLikedBy(context.Background(), spec.LikedByQuery{TargetID: postID})
-
-	// then
-	require.NoError(t, err)
-	require.Len(t, users, 1)
-	assert.Equal(t, liker.ID, users[0].ID)
-	assert.Equal(t, "Liker", users[0].DisplayName)
-}
-
-func TestPostDAO_GetLikedBy_ExcludeUsers(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	liker1 := daotest.CreateUser(t, repos)
-	liker2 := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	require.NoError(t, repos.Post.Like(context.Background(), spec.Like{UserID: liker1.ID, TargetID: postID}))
-	require.NoError(t, repos.Post.Like(context.Background(), spec.Like{UserID: liker2.ID, TargetID: postID}))
-
-	// when
-	users, err := repos.Post.GetLikedBy(context.Background(), spec.LikedByQuery{TargetID: postID, ExcludeUserIDs: []uuid.UUID{liker2.ID}})
-
-	// then
-	require.NoError(t, err)
-	require.Len(t, users, 1)
-	assert.Equal(t, liker1.ID, users[0].ID)
 }
 
 func TestPostDAO_RecordView_NewAndDuplicate(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
+	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
 
 	// when
-	first, err := repos.Post.RecordView(context.Background(), spec.ViewRecord{TargetID: postID, ViewerHash: "hash1"})
-	second, err2 := repos.Post.RecordView(context.Background(), spec.ViewRecord{TargetID: postID, ViewerHash: "hash1"})
+	first, err := repos.Post.RecordView(ctx, spec.ViewRecord{TargetID: postID, ViewerHash: "hash1"})
+	second, err2 := repos.Post.RecordView(ctx, spec.ViewRecord{TargetID: postID, ViewerHash: "hash1"})
 
 	// then
 	require.NoError(t, err)
 	require.NoError(t, err2)
 	assert.True(t, first)
 	assert.False(t, second)
-	row, _ := repos.Post.GetByID(context.Background(), spec.PostLookup{ID: postID, ViewerID: user.ID})
-	assert.Equal(t, 1, row.ViewCount)
+	assert.Equal(t, 1, postGet(t, repos, postID, user.ID).ViewCount)
 }
 
-func TestPostDAO_GetPostAuthorID(t *testing.T) {
+func TestPostDAO_AuthorAndEntityLookups(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
+	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
+	commentID := createComment(t, repos, postID, user.ID, nil, "c")
 
-	// when
-	authorID, err := repos.Post.GetPostAuthorID(context.Background(), postID)
+	tests := []struct {
+		name    string
+		lookup  func(repository.PostRepository, context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, error)
+		id      uuid.UUID
+		want    uuid.UUID
+		wantErr bool
+	}{
+		{name: "a post's author", lookup: repository.PostRepository.GetPostAuthorID, id: postID, want: user.ID},
+		{name: "a missing post's author is an error", lookup: repository.PostRepository.GetPostAuthorID, id: uuid.New(), wantErr: true},
+		{name: "a comment's post", lookup: repository.PostRepository.GetCommentEntityID, id: commentID, want: postID},
+		{name: "a missing comment's post is an error", lookup: repository.PostRepository.GetCommentEntityID, id: uuid.New(), wantErr: true},
+		{name: "a comment's author", lookup: repository.PostRepository.GetCommentAuthorID, id: commentID, want: user.ID},
+	}
 
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, user.ID, authorID)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			got, err := tc.lookup(repos.Post, ctx, tc.id)
+
+			// then
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			assert.Equal(t, tc.want, got)
+		})
+	}
 }
 
-func TestPostDAO_GetPostAuthorID_NotFound(t *testing.T) {
+func TestPostDAO_GetSharedContentAuthor(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	user := daotest.CreateUser(t, repos)
+	postID := createPost(t, repos, user.ID, "general", "body")
 
-	// when
-	_, err := repos.Post.GetPostAuthorID(context.Background(), uuid.New())
+	tests := []struct {
+		name    string
+		ref     model.SharedContentRef
+		want    uuid.UUID
+		wantErr bool
+	}{
+		{name: "a shared post resolves to its author", ref: model.SharedContentRef{ID: postID.String(), Type: "post"}, want: user.ID},
+		{name: "shared content of an unknown type is an error", ref: model.SharedContentRef{ID: uuid.New().String(), Type: "nonsense"}, wantErr: true},
+		{name: "a missing shared post is an error", ref: model.SharedContentRef{ID: uuid.New().String(), Type: "post"}, wantErr: true},
+	}
 
-	// then
-	require.Error(t, err)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			got, err := repos.Post.GetSharedContentAuthor(ctx, tc.ref)
+
+			// then
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			assert.Equal(t, tc.want, got)
+		})
+	}
 }
 
 func TestPostDAO_ResolveSuggestion(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "suggestions", "idea")
+	tests := []struct {
+		name      string
+		statuses  []string
+		unresolve bool
+		want      string
+	}{
+		{name: "resolving records the status", statuses: []string{"done"}, want: "done"},
+		{name: "resolving again replaces the status", statuses: []string{"done", "archived"}, want: "archived"},
+		{name: "unresolving clears the status", statuses: []string{"done"}, unresolve: true, want: ""},
+	}
 
-	// when
-	err := repos.Post.ResolveSuggestion(context.Background(), spec.SuggestionResolution{PostID: postID, ResolvedBy: user.ID, Status: "done"})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			ctx := context.Background()
+			user := daotest.CreateUser(t, repos)
+			postID := createPost(t, repos, user.ID, "suggestions", "idea")
 
-	// then
-	require.NoError(t, err)
-	row, _ := repos.Post.GetByID(context.Background(), spec.PostLookup{ID: postID, ViewerID: user.ID})
-	assert.Equal(t, "done", row.ResolvedStatus)
-}
+			// when
+			for _, status := range tc.statuses {
+				require.NoError(t, repos.Post.ResolveSuggestion(ctx, spec.SuggestionResolution{PostID: postID, ResolvedBy: user.ID, Status: status}))
+			}
 
-func TestPostDAO_ResolveSuggestion_UpdateStatus(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "suggestions", "idea")
-	require.NoError(t, repos.Post.ResolveSuggestion(context.Background(), spec.SuggestionResolution{PostID: postID, ResolvedBy: user.ID, Status: "done"}))
+			if tc.unresolve {
+				require.NoError(t, repos.Post.UnresolveSuggestion(ctx, postID))
+			}
 
-	// when
-	err := repos.Post.ResolveSuggestion(context.Background(), spec.SuggestionResolution{PostID: postID, ResolvedBy: user.ID, Status: "archived"})
-
-	// then
-	require.NoError(t, err)
-	row, _ := repos.Post.GetByID(context.Background(), spec.PostLookup{ID: postID, ViewerID: user.ID})
-	assert.Equal(t, "archived", row.ResolvedStatus)
-}
-
-func TestPostDAO_UnresolveSuggestion(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "suggestions", "idea")
-	require.NoError(t, repos.Post.ResolveSuggestion(context.Background(), spec.SuggestionResolution{PostID: postID, ResolvedBy: user.ID, Status: "done"}))
-
-	// when
-	err := repos.Post.UnresolveSuggestion(context.Background(), postID)
-
-	// then
-	require.NoError(t, err)
-	row, _ := repos.Post.GetByID(context.Background(), spec.PostLookup{ID: postID, ViewerID: user.ID})
-	assert.Equal(t, "", row.ResolvedStatus)
+			// then
+			assert.Equal(t, tc.want, postGet(t, repos, postID, user.ID).ResolvedStatus)
+		})
+	}
 }
 
 func TestPostDAO_CreateComment(t *testing.T) {
@@ -771,779 +748,466 @@ func TestPostDAO_CreateComment(t *testing.T) {
 	postID := createPost(t, repos, user.ID, "general", "b")
 
 	// when
-	id := createComment(t, repos, postID, user.ID, nil, "reply")
+	parentID := createComment(t, repos, postID, user.ID, nil, "parent")
+	childID := createComment(t, repos, postID, user.ID, &parentID, "child")
 
 	// then
-	comments, total, err := repos.Post.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: postID, ViewerID: user.ID, Limit: 10})
-	require.NoError(t, err)
-	assert.Equal(t, 1, total)
-	require.Len(t, comments, 1)
-	assert.Equal(t, id, comments[0].ID)
-	assert.Equal(t, "reply", comments[0].Body)
-}
-
-func TestPostDAO_CreateComment_Threaded(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	parent := createComment(t, repos, postID, user.ID, nil, "parent")
-
-	// when
-	child := createComment(t, repos, postID, user.ID, &parent, "child")
-
-	// then
-	comments, _, err := repos.Post.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: postID, ViewerID: user.ID, Limit: 10})
-	require.NoError(t, err)
+	comments, total := postComments(t, repos, postID, user.ID)
+	assert.Equal(t, 2, total)
 	require.Len(t, comments, 2)
-	var childRow *uuid.UUID
-	for _, c := range comments {
-		if c.ID == child {
-			childRow = c.ParentID
-		}
+
+	byID := map[uuid.UUID]model.CommentRow{}
+	for _, comment := range comments {
+		byID[comment.ID] = comment
 	}
-	require.NotNil(t, childRow)
-	assert.Equal(t, parent, *childRow)
+
+	assert.Equal(t, "parent", byID[parentID].Body)
+	assert.Nil(t, byID[parentID].ParentID)
+	assert.Equal(t, "child", byID[childID].Body)
+	require.NotNil(t, byID[childID].ParentID)
+	assert.Equal(t, parentID, *byID[childID].ParentID)
 }
 
 func TestPostDAO_UpdateComment(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	id := createComment(t, repos, postID, user.ID, nil, "original")
-
-	// when
-	err := repos.Post.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: id, UserID: user.ID, Body: "updated"})
-
-	// then
-	require.NoError(t, err)
-	comments, _, _ := repos.Post.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: postID, ViewerID: user.ID, Limit: 10})
-	assert.Equal(t, "updated", comments[0].Body)
-}
-
-func TestPostDAO_UpdateComment_NotOwner(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	owner := daotest.CreateUser(t, repos)
-	other := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, owner.ID, "general", "b")
-	id := createComment(t, repos, postID, owner.ID, nil, "c")
-
-	// when
-	err := repos.Post.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: id, UserID: other.ID, Body: "hack"})
-
-	// then
-	require.Error(t, err)
-}
-
-func TestPostDAO_UpdateCommentAsAdmin(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	id := createComment(t, repos, postID, user.ID, nil, "orig")
-
-	// when
-	err := repos.Post.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: id, Body: "admin edit", AsAdmin: true})
-
-	// then
-	require.NoError(t, err)
-	comments, _, _ := repos.Post.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: postID, ViewerID: user.ID, Limit: 10})
-	assert.Equal(t, "admin edit", comments[0].Body)
-}
-
-func TestPostDAO_UpdateCommentAsAdmin_NotFound(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	err := repos.Post.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: uuid.New(), Body: "x", AsAdmin: true})
-
-	// then
-	require.Error(t, err)
-}
-
-func TestPostDAO_DeleteComment(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	id := createComment(t, repos, postID, user.ID, nil, "c")
-
-	// when
-	err := repos.Post.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: id, UserID: user.ID})
-
-	// then
-	require.NoError(t, err)
-	_, total, _ := repos.Post.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: postID, ViewerID: user.ID, Limit: 10})
-	assert.Equal(t, 0, total)
-}
-
-func TestPostDAO_DeleteComment_NotOwner(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	owner := daotest.CreateUser(t, repos)
-	other := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, owner.ID, "general", "b")
-	id := createComment(t, repos, postID, owner.ID, nil, "c")
-
-	// when
-	err := repos.Post.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: id, UserID: other.ID})
-
-	// then
-	require.Error(t, err)
-}
-
-func TestPostDAO_DeleteCommentAsAdmin(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	id := createComment(t, repos, postID, user.ID, nil, "c")
-
-	// when
-	err := repos.Post.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: id, AsAdmin: true})
-
-	// then
-	require.NoError(t, err)
-	_, total, _ := repos.Post.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: postID, ViewerID: user.ID, Limit: 10})
-	assert.Equal(t, 0, total)
-}
-
-func TestPostDAO_GetComments_Pagination(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	for range 3 {
-		createComment(t, repos, postID, user.ID, nil, "c")
+	tests := []struct {
+		name     string
+		byOther  bool
+		asAdmin  bool
+		missing  bool
+		wantErr  bool
+		wantBody string
+	}{
+		{name: "the owner edits their own comment", wantBody: "edited"},
+		{name: "another user cannot edit the comment", byOther: true, wantErr: true, wantBody: "original"},
+		{name: "an admin edits any comment", byOther: true, asAdmin: true, wantBody: "edited"},
+		{name: "an admin edit of a missing comment fails", byOther: true, asAdmin: true, missing: true, wantErr: true, wantBody: "original"},
 	}
 
-	// when
-	comments, total, err := repos.Post.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: postID, ViewerID: user.ID, Limit: 2, Offset: 1})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			owner := daotest.CreateUser(t, repos)
+			other := daotest.CreateUser(t, repos)
+			postID := createPost(t, repos, owner.ID, "general", "b")
+			commentID := createComment(t, repos, postID, owner.ID, nil, "original")
 
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 3, total)
-	assert.Len(t, comments, 2)
+			editorID := owner.ID
+			if tc.byOther {
+				editorID = other.ID
+			}
+
+			targetID := commentID
+			if tc.missing {
+				targetID = uuid.New()
+			}
+
+			// when
+			err := repos.Post.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: targetID, UserID: editorID, Body: "edited", AsAdmin: tc.asAdmin})
+
+			// then
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			comments, _ := postComments(t, repos, postID, owner.ID)
+			require.Len(t, comments, 1)
+			assert.Equal(t, tc.wantBody, comments[0].Body)
+		})
+	}
 }
 
-func TestPostDAO_GetComments_ExcludeUsers(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	blocked := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	createComment(t, repos, postID, user.ID, nil, "ok")
-	createComment(t, repos, postID, blocked.ID, nil, "blocked")
+func TestPostDAO_DeleteCommentWithAudit(t *testing.T) {
+	commentTreePaths := []string{
+		"/uploads/posts/c.webp",
+		"/uploads/posts/c_thumb.webp",
+		"/uploads/posts/r.webp",
+	}
 
-	// when
-	comments, total, err := repos.Post.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: postID, ViewerID: user.ID, Limit: 10, ExcludeUserIDs: []uuid.UUID{blocked.ID}})
+	tests := []struct {
+		name      string
+		byOther   bool
+		asAdmin   bool
+		action    audit.Action
+		wantErr   bool
+		wantPaths []string
+	}{
+		{name: "an owner delete returns the comment's and its replies' uploaded paths", action: audit.ActionPostCommentDelete, wantPaths: commentTreePaths},
+		{name: "an admin delete of another user's comment returns the same paths", byOther: true, asAdmin: true, action: audit.ActionPostCommentDeleteAdmin, wantPaths: commentTreePaths},
+		{name: "a delete of a comment the user does not own returns no paths and keeps the media", byOther: true, action: audit.ActionPostCommentDelete, wantErr: true},
+	}
 
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 1, total)
-	assert.Len(t, comments, 1)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			ctx := context.Background()
+			owner := daotest.CreateUser(t, repos)
+			other := daotest.CreateUser(t, repos)
+			postID := createPost(t, repos, owner.ID, "general", "body")
+			commentID := createComment(t, repos, postID, owner.ID, nil, "comment")
+			replyID := createComment(t, repos, postID, owner.ID, &commentID, "reply")
+			siblingID := createComment(t, repos, postID, owner.ID, nil, "sibling")
+			postAttachMedia(t, repos.Post.AddCommentMedia, commentID, "/uploads/posts/c.webp", "/uploads/posts/c_thumb.webp")
+			postAttachMedia(t, repos.Post.AddCommentMedia, replyID, "/uploads/posts/r.webp", "")
+			postAttachMedia(t, repos.Post.AddCommentMedia, siblingID, "/uploads/posts/keep.webp", "")
+
+			actorID := owner.ID
+			if tc.byOther {
+				actorID = other.ID
+			}
+
+			// when
+			paths, err := repos.Post.DeleteCommentWithAudit(ctx, spec.PostCommentDelete{
+				CommentDeletion: spec.CommentDeletion{
+					CommentID: commentID,
+					UserID:    actorID,
+					AsAdmin:   tc.asAdmin,
+				},
+				Audit: audit.NewEntry{
+					ActorID:    actorID,
+					Action:     tc.action,
+					TargetType: audit.TargetPostComment,
+					TargetID:   commentID.String(),
+				},
+			})
+
+			// then
+			remaining, total := postComments(t, repos, postID, owner.ID)
+
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Nil(t, paths)
+				assert.Equal(t, 3, total)
+
+				media, err := repos.Post.GetCommentMedia(ctx, commentID)
+				require.NoError(t, err)
+				assert.Len(t, media, 1)
+			} else {
+				require.NoError(t, err)
+				assert.ElementsMatch(t, tc.wantPaths, paths)
+				assert.Equal(t, 1, total)
+				require.Len(t, remaining, 1)
+				assert.Equal(t, siblingID, remaining[0].ID)
+			}
+		})
+	}
 }
 
-func TestPostDAO_GetComments_AuthorBanned(t *testing.T) {
+func TestPostDAO_GetComments(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
+	ctx := context.Background()
 	mod := daotest.CreateUser(t, repos)
-	bannedUser := daotest.CreateUser(t, repos)
-	activeUser := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, activeUser.ID, "general", "b")
-	bannedCommentID := createComment(t, repos, postID, bannedUser.ID, nil, "banned author")
-	activeCommentID := createComment(t, repos, postID, activeUser.ID, nil, "active author")
-	require.NoError(t, repos.User.BanUser(context.Background(), spec.UserBan{UserID: bannedUser.ID, BannedBy: mod.ID, Reason: "spam"}))
+	author := daotest.CreateUser(t, repos)
+	banned := daotest.CreateUser(t, repos)
+	postID := createPost(t, repos, author.ID, "general", "b")
+	first := createComment(t, repos, postID, author.ID, nil, "first")
+	second := createComment(t, repos, postID, author.ID, nil, "second")
+	bannedComment := createComment(t, repos, postID, banned.ID, nil, "banned author")
+	require.NoError(t, repos.User.BanUser(ctx, spec.UserBan{UserID: banned.ID, BannedBy: mod.ID, Reason: "spam"}))
 
-	// when
-	comments, _, err := repos.Post.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: postID, ViewerID: activeUser.ID, Limit: 10})
+	everyComment, _ := postComments(t, repos, postID, author.ID)
+	order := postCommentIDs(everyComment)
+	require.Len(t, order, 3)
 
-	// then
-	require.NoError(t, err)
-	require.Len(t, comments, 2)
-	byID := map[uuid.UUID]bool{}
-	for i := range comments {
-		byID[comments[i].ID] = comments[i].AuthorBanned
+	tests := []struct {
+		name      string
+		query     spec.CommentQuery[uuid.UUID]
+		wantTotal int
+		want      []uuid.UUID
+	}{
+		{name: "every comment is listed and a banned author's comment is flagged", query: spec.CommentQuery[uuid.UUID]{Limit: 10}, wantTotal: 3, want: []uuid.UUID{first, second, bannedComment}},
+		{name: "a limit caps the page while the total counts every comment", query: spec.CommentQuery[uuid.UUID]{Limit: 2}, wantTotal: 3, want: order[:2]},
+		{name: "an offset skips exactly the comments the previous page returned", query: spec.CommentQuery[uuid.UUID]{Limit: 2, Offset: 2}, wantTotal: 3, want: order[2:]},
+		{name: "excluded users' comments are hidden from the page and the total", query: spec.CommentQuery[uuid.UUID]{Limit: 10, ExcludeUserIDs: []uuid.UUID{banned.ID}}, wantTotal: 2, want: []uuid.UUID{first, second}},
 	}
-	assert.True(t, byID[bannedCommentID], "expected banned author comment to report AuthorBanned=true")
-	assert.False(t, byID[activeCommentID], "expected active author comment to report AuthorBanned=false")
-}
 
-func TestPostDAO_GetCommentEntityID(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	commentID := createComment(t, repos, postID, user.ID, nil, "c")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			tc.query.TargetID = postID
+			tc.query.ViewerID = author.ID
+			comments, total, err := repos.Post.GetComments(ctx, tc.query)
 
-	// when
-	got, err := repos.Post.GetCommentEntityID(context.Background(), commentID)
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantTotal, total)
+			assert.ElementsMatch(t, tc.want, postCommentIDs(comments))
 
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, postID, got)
-}
-
-func TestPostDAO_GetCommentEntityID_NotFound(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	_, err := repos.Post.GetCommentEntityID(context.Background(), uuid.New())
-
-	// then
-	require.Error(t, err)
-}
-
-func TestPostDAO_GetCommentAuthorID(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	commentID := createComment(t, repos, postID, user.ID, nil, "c")
-
-	// when
-	got, err := repos.Post.GetCommentAuthorID(context.Background(), commentID)
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, user.ID, got)
+			for _, comment := range comments {
+				assert.Equal(t, comment.ID == bannedComment, comment.AuthorBanned, "AuthorBanned on %q", comment.Body)
+			}
+		})
+	}
 }
 
 func TestPostDAO_LikeComment(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
+	ctx := context.Background()
+	author := daotest.CreateUser(t, repos)
 	liker := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	commentID := createComment(t, repos, postID, user.ID, nil, "c")
+	postID := createPost(t, repos, author.ID, "general", "b")
+	commentID := createComment(t, repos, postID, author.ID, nil, "c")
+	require.NoError(t, repos.Post.LikeComment(ctx, spec.CommentLike{UserID: liker.ID, CommentID: commentID}))
 
 	// when
-	err := repos.Post.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: commentID})
+	err := repos.Post.LikeComment(ctx, spec.CommentLike{UserID: liker.ID, CommentID: commentID})
 
 	// then
 	require.NoError(t, err)
-	comments, _, _ := repos.Post.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: postID, ViewerID: liker.ID, Limit: 10})
+
+	comments, _ := postComments(t, repos, postID, liker.ID)
 	require.Len(t, comments, 1)
 	assert.Equal(t, 1, comments[0].LikeCount)
 	assert.True(t, comments[0].UserLiked)
 }
 
-func TestPostDAO_LikeComment_Idempotent(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	liker := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	commentID := createComment(t, repos, postID, user.ID, nil, "c")
-	require.NoError(t, repos.Post.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: commentID}))
-
-	// when
-	err := repos.Post.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: commentID})
-
-	// then
-	require.NoError(t, err)
-	comments, _, _ := repos.Post.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: postID, ViewerID: liker.ID, Limit: 10})
-	assert.Equal(t, 1, comments[0].LikeCount)
-}
-
 func TestPostDAO_UnlikeComment(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
+	ctx := context.Background()
+	author := daotest.CreateUser(t, repos)
 	liker := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	commentID := createComment(t, repos, postID, user.ID, nil, "c")
-	require.NoError(t, repos.Post.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: commentID}))
+	postID := createPost(t, repos, author.ID, "general", "b")
+	commentID := createComment(t, repos, postID, author.ID, nil, "c")
+	require.NoError(t, repos.Post.LikeComment(ctx, spec.CommentLike{UserID: liker.ID, CommentID: commentID}))
 
 	// when
-	err := repos.Post.UnlikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: commentID})
+	err := repos.Post.UnlikeComment(ctx, spec.CommentLike{UserID: liker.ID, CommentID: commentID})
 
 	// then
 	require.NoError(t, err)
-	comments, _, _ := repos.Post.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: postID, ViewerID: liker.ID, Limit: 10})
+
+	comments, _ := postComments(t, repos, postID, liker.ID)
+	require.Len(t, comments, 1)
 	assert.Equal(t, 0, comments[0].LikeCount)
+	assert.False(t, comments[0].UserLiked)
 }
 
-func TestPostDAO_AddCommentMedia_GetCommentMedia(t *testing.T) {
+func TestPostDAO_CountUserPostsTodayAndCornerCounts(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	commentID := createComment(t, repos, postID, user.ID, nil, "c")
+	ctx := context.Background()
+	poster := daotest.CreateUser(t, repos)
+	lurker := daotest.CreateUser(t, repos)
+	createPost(t, repos, poster.ID, "general", "a")
+	createPost(t, repos, poster.ID, "general", "b")
+	createPost(t, repos, poster.ID, "suggestions", "c")
 
 	// when
-	id, err := repos.Post.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/m.jpg", MediaType: "image", ThumbnailURL: "/t.jpg", SortOrder: 0})
+	posterToday, err := repos.Post.CountUserPostsToday(ctx, poster.ID)
+	require.NoError(t, err)
+
+	lurkerToday, err := repos.Post.CountUserPostsToday(ctx, lurker.ID)
+	require.NoError(t, err)
+
+	corners, err := repos.Post.GetCornerCounts(ctx)
+	require.NoError(t, err)
 
 	// then
-	require.NoError(t, err)
-	assert.Greater(t, id, int64(0))
-	media, err := repos.Post.GetCommentMedia(context.Background(), commentID)
-	require.NoError(t, err)
-	require.Len(t, media, 1)
-	assert.Equal(t, "/m.jpg", media[0].MediaURL)
+	assert.Equal(t, 3, posterToday)
+	assert.Equal(t, 0, lurkerToday)
+	assert.Equal(t, map[string]int{"general": 2, "suggestions": 1}, corners)
 }
 
-func TestPostDAO_UpdateCommentMediaURL(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	commentID := createComment(t, repos, postID, user.ID, nil, "c")
-	id, _ := repos.Post.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/old.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
+func TestPostDAO_ShareCount(t *testing.T) {
+	tests := []struct {
+		name   string
+		deltas []int
+		want   int
+	}{
+		{name: "content never shared counts zero", want: 0},
+		{name: "an increment starts the count at one", deltas: []int{1}, want: 1},
+		{name: "increments accumulate", deltas: []int{1, 1}, want: 2},
+		{name: "a decrement subtracts one", deltas: []int{1, 1, -1}, want: 1},
+		{name: "decrements clamp at zero", deltas: []int{1, -1, -1}, want: 0},
+	}
 
-	// when
-	err := repos.Post.UpdateCommentMediaURL(context.Background(), spec.MediaURLUpdate{ID: id, URL: "/new.jpg"})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			ctx := context.Background()
+			ref := model.SharedContentRef{ID: "abc", Type: "post"}
 
-	// then
-	require.NoError(t, err)
-	media, _ := repos.Post.GetCommentMedia(context.Background(), commentID)
-	require.Len(t, media, 1)
-	assert.Equal(t, "/new.jpg", media[0].MediaURL)
-}
+			// when
+			for _, delta := range tc.deltas {
+				if delta > 0 {
+					require.NoError(t, repos.Post.IncrementShareCount(ctx, ref))
+				} else {
+					require.NoError(t, repos.Post.DecrementShareCount(ctx, ref))
+				}
+			}
 
-func TestPostDAO_UpdateCommentMediaThumbnail(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	commentID := createComment(t, repos, postID, user.ID, nil, "c")
-	id, _ := repos.Post.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/m.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
+			count, err := repos.Post.GetShareCount(ctx, ref)
 
-	// when
-	err := repos.Post.UpdateCommentMediaThumbnail(context.Background(), spec.MediaURLUpdate{ID: id, URL: "/t.jpg"})
-
-	// then
-	require.NoError(t, err)
-	media, _ := repos.Post.GetCommentMedia(context.Background(), commentID)
-	require.Len(t, media, 1)
-	assert.Equal(t, "/t.jpg", media[0].ThumbnailURL)
-}
-
-func TestPostDAO_GetCommentMediaBatch(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	c1 := createComment(t, repos, postID, user.ID, nil, "c1")
-	c2 := createComment(t, repos, postID, user.ID, nil, "c2")
-	_, _ = repos.Post.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: c1, MediaURL: "/1.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
-	_, _ = repos.Post.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: c2, MediaURL: "/2.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
-
-	// when
-	result, err := repos.Post.GetCommentMediaBatch(context.Background(), []uuid.UUID{c1, c2})
-
-	// then
-	require.NoError(t, err)
-	assert.Len(t, result[c1], 1)
-	assert.Len(t, result[c2], 1)
-}
-
-func TestPostDAO_GetCommentMediaBatch_Empty(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	result, err := repos.Post.GetCommentMediaBatch(context.Background(), nil)
-
-	// then
-	require.NoError(t, err)
-	assert.Nil(t, result)
-}
-
-func TestPostDAO_CountUserPostsToday(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	createPost(t, repos, user.ID, "general", "a")
-	createPost(t, repos, user.ID, "general", "b")
-
-	// when
-	count, err := repos.Post.CountUserPostsToday(context.Background(), user.ID)
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 2, count)
-}
-
-func TestPostDAO_CountUserPostsToday_None(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-
-	// when
-	count, err := repos.Post.CountUserPostsToday(context.Background(), user.ID)
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 0, count)
-}
-
-func TestPostDAO_GetCornerCounts(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	createPost(t, repos, user.ID, "general", "a")
-	createPost(t, repos, user.ID, "general", "b")
-	createPost(t, repos, user.ID, "suggestions", "c")
-
-	// when
-	counts, err := repos.Post.GetCornerCounts(context.Background())
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 2, counts["general"])
-	assert.Equal(t, 1, counts["suggestions"])
-}
-
-func TestPostDAO_IncrementShareCount(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	err := repos.Post.IncrementShareCount(context.Background(), model.SharedContentRef{ID: "abc", Type: "post"})
-
-	// then
-	require.NoError(t, err)
-	count, err := repos.Post.GetShareCount(context.Background(), model.SharedContentRef{ID: "abc", Type: "post"})
-	require.NoError(t, err)
-	assert.Equal(t, 1, count)
-}
-
-func TestPostDAO_IncrementShareCount_Multiple(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	require.NoError(t, repos.Post.IncrementShareCount(context.Background(), model.SharedContentRef{ID: "abc", Type: "post"}))
-
-	// when
-	err := repos.Post.IncrementShareCount(context.Background(), model.SharedContentRef{ID: "abc", Type: "post"})
-
-	// then
-	require.NoError(t, err)
-	count, _ := repos.Post.GetShareCount(context.Background(), model.SharedContentRef{ID: "abc", Type: "post"})
-	assert.Equal(t, 2, count)
-}
-
-func TestPostDAO_DecrementShareCount(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	require.NoError(t, repos.Post.IncrementShareCount(context.Background(), model.SharedContentRef{ID: "abc", Type: "post"}))
-	require.NoError(t, repos.Post.IncrementShareCount(context.Background(), model.SharedContentRef{ID: "abc", Type: "post"}))
-
-	// when
-	err := repos.Post.DecrementShareCount(context.Background(), model.SharedContentRef{ID: "abc", Type: "post"})
-
-	// then
-	require.NoError(t, err)
-	count, _ := repos.Post.GetShareCount(context.Background(), model.SharedContentRef{ID: "abc", Type: "post"})
-	assert.Equal(t, 1, count)
-}
-
-func TestPostDAO_DecrementShareCount_ClampsToZero(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	require.NoError(t, repos.Post.IncrementShareCount(context.Background(), model.SharedContentRef{ID: "abc", Type: "post"}))
-
-	// when
-	err := repos.Post.DecrementShareCount(context.Background(), model.SharedContentRef{ID: "abc", Type: "post"})
-	err2 := repos.Post.DecrementShareCount(context.Background(), model.SharedContentRef{ID: "abc", Type: "post"})
-
-	// then
-	require.NoError(t, err)
-	require.NoError(t, err2)
-	count, _ := repos.Post.GetShareCount(context.Background(), model.SharedContentRef{ID: "abc", Type: "post"})
-	assert.Equal(t, 0, count)
-}
-
-func TestPostDAO_GetSharedContentAuthor_Post(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "body")
-
-	// when
-	authorID, err := repos.Post.GetSharedContentAuthor(context.Background(), model.SharedContentRef{ID: postID.String(), Type: "post"})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, user.ID, authorID)
-}
-
-func TestPostDAO_GetSharedContentAuthor_UnknownType(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	_, err := repos.Post.GetSharedContentAuthor(context.Background(), model.SharedContentRef{ID: uuid.New().String(), Type: "nonsense"})
-
-	// then
-	require.Error(t, err)
-}
-
-func TestPostDAO_GetSharedContentAuthor_NotFound(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	_, err := repos.Post.GetSharedContentAuthor(context.Background(), model.SharedContentRef{ID: uuid.New().String(), Type: "post"})
-
-	// then
-	require.Error(t, err)
-}
-
-func TestPostDAO_GetShareCount_NotFound(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	count, err := repos.Post.GetShareCount(context.Background(), model.SharedContentRef{ID: "missing", Type: "post"})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 0, count)
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, count)
+		})
+	}
 }
 
 func TestPostDAO_GetShareCountsBatch(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	require.NoError(t, repos.Post.IncrementShareCount(context.Background(), model.SharedContentRef{ID: "a", Type: "post"}))
-	require.NoError(t, repos.Post.IncrementShareCount(context.Background(), model.SharedContentRef{ID: "b", Type: "post"}))
-	require.NoError(t, repos.Post.IncrementShareCount(context.Background(), model.SharedContentRef{ID: "b", Type: "post"}))
+	ctx := context.Background()
+
+	for _, id := range []string{"a", "b", "b"} {
+		require.NoError(t, repos.Post.IncrementShareCount(ctx, model.SharedContentRef{ID: id, Type: "post"}))
+	}
 
 	// when
-	result, err := repos.Post.GetShareCountsBatch(context.Background(), spec.SharedContentBatchRef{ContentIDs: []string{"a", "b", "c"}, ContentType: "post"})
+	counts, err := repos.Post.GetShareCountsBatch(ctx, spec.SharedContentBatchRef{ContentIDs: []string{"a", "b", "c"}, ContentType: "post"})
+	require.NoError(t, err)
+
+	none, err := repos.Post.GetShareCountsBatch(ctx, spec.SharedContentBatchRef{ContentType: "post"})
+	require.NoError(t, err)
 
 	// then
-	require.NoError(t, err)
-	assert.Equal(t, 1, result["a"])
-	assert.Equal(t, 2, result["b"])
-	_, hasC := result["c"]
-	assert.False(t, hasC)
-}
-
-func TestPostDAO_GetShareCountsBatch_Empty(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	result, err := repos.Post.GetShareCountsBatch(context.Background(), spec.SharedContentBatchRef{ContentType: "post"})
-
-	// then
-	require.NoError(t, err)
-	assert.Nil(t, result)
-}
-
-func TestPostDAO_GetSharedContentFields_None(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "body")
-
-	// when
-	cid, ctype, err := repos.Post.GetSharedContentFields(context.Background(), postID)
-
-	// then
-	require.NoError(t, err)
-	assert.Nil(t, cid)
-	assert.Nil(t, ctype)
-}
-
-func TestPostDAO_GetSharedContentFields_NotFound(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	cid, ctype, err := repos.Post.GetSharedContentFields(context.Background(), uuid.New())
-
-	// then
-	require.NoError(t, err)
-	assert.Nil(t, cid)
-	assert.Nil(t, ctype)
+	assert.Equal(t, map[string]int{"a": 1, "b": 2}, counts)
+	assert.Nil(t, none)
 }
 
 func TestPostDAO_CreatePollWithOptions_GetPollByPostID(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
+	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "body")
-	expires := time.Now().Add(24 * time.Hour).UTC().Format("2006-01-02 15:04:05")
+	noPollPost := createPost(t, repos, user.ID, "general", "no poll")
 
 	// when
-	created, err := repos.Post.CreatePollWithOptions(context.Background(), spec.NewPoll{PostID: postID, DurationSeconds: 86400, ExpiresAt: expires, Options: []string{"yes", "no"}})
+	created, err := repos.Post.CreatePollWithOptions(ctx, spec.NewPoll{PostID: postID, DurationSeconds: 86400, ExpiresAt: postPollExpiresAt, Options: []string{"yes", "no"}})
 
 	// then
 	require.NoError(t, err)
-	poll, opts, voted, err := repos.Post.GetPollByPostID(context.Background(), spec.PostPollQuery{PostID: postID, ViewerID: user.ID})
+
+	poll, opts, voted, err := repos.Post.GetPollByPostID(ctx, spec.PostPollQuery{PostID: postID, ViewerID: user.ID})
 	require.NoError(t, err)
 	require.NotNil(t, poll)
 	assert.Equal(t, created.ID, poll.ID)
 	assert.Len(t, opts, 2)
 	assert.Nil(t, voted)
-}
 
-func TestPostDAO_GetPollByPostID_NoPoll(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-
-	// when
-	poll, opts, voted, err := repos.Post.GetPollByPostID(context.Background(), spec.PostPollQuery{PostID: postID, ViewerID: user.ID})
-
-	// then
+	poll, opts, voted, err = repos.Post.GetPollByPostID(ctx, spec.PostPollQuery{PostID: noPollPost, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Nil(t, poll)
 	assert.Nil(t, opts)
 	assert.Nil(t, voted)
+
+	// when the viewer's own vote cannot be read
+	_, err = repos.DB().ExecContext(ctx, `ALTER TABLE post_poll_votes RENAME COLUMN user_id TO user_id_gone`)
+	require.NoError(t, err)
+	_, _, _, err = repos.Post.GetPollByPostID(ctx, spec.PostPollQuery{PostID: postID, ViewerID: user.ID})
+
+	// then the failure surfaces instead of reading as "not voted"
+	require.Error(t, err)
 }
 
 func TestPostDAO_VotePoll(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
+	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
-	expires := time.Now().Add(24 * time.Hour).UTC().Format("2006-01-02 15:04:05")
-	poll, err := repos.Post.CreatePollWithOptions(context.Background(), spec.NewPoll{PostID: postID, DurationSeconds: 86400, ExpiresAt: expires, Options: []string{"yes", "no"}})
-	require.NoError(t, err)
-	pollID := uuid.MustParse(poll.ID)
-	_, opts, _, _ := repos.Post.GetPollByPostID(context.Background(), spec.PostPollQuery{PostID: postID, ViewerID: user.ID})
-	require.Len(t, opts, 2)
+	pollID, opts := postCreatePoll(t, repos, postID, "yes", "no")
 
 	// when
-	err = repos.Post.VotePoll(context.Background(), spec.PostPollVote{PollID: pollID, UserID: user.ID, OptionID: opts[0].ID})
+	err := repos.Post.VotePoll(ctx, spec.PostPollVote{PollID: pollID, UserID: user.ID, OptionID: opts[0].ID})
+	duplicateErr := repos.Post.VotePoll(ctx, spec.PostPollVote{PollID: pollID, UserID: user.ID, OptionID: opts[1].ID})
 
 	// then
 	require.NoError(t, err)
-	_, opts2, voted, err := repos.Post.GetPollByPostID(context.Background(), spec.PostPollQuery{PostID: postID, ViewerID: user.ID})
+	require.ErrorIs(t, duplicateErr, dao.ErrAlreadyVoted)
+
+	_, counted, voted, err := repos.Post.GetPollByPostID(ctx, spec.PostPollQuery{PostID: postID, ViewerID: user.ID})
 	require.NoError(t, err)
 	require.NotNil(t, voted)
 	assert.Equal(t, opts[0].ID, *voted)
-	var total int
-	for _, o := range opts2 {
-		total += o.VoteCount
+
+	total := 0
+	for _, option := range counted {
+		total += option.VoteCount
 	}
+
 	assert.Equal(t, 1, total)
-}
-
-func TestPostDAO_VotePoll_DuplicateRejected(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "b")
-	expires := time.Now().Add(24 * time.Hour).UTC().Format("2006-01-02 15:04:05")
-	poll, err := repos.Post.CreatePollWithOptions(context.Background(), spec.NewPoll{PostID: postID, DurationSeconds: 86400, ExpiresAt: expires, Options: []string{"yes", "no"}})
-	require.NoError(t, err)
-	pollID := uuid.MustParse(poll.ID)
-	_, opts, _, _ := repos.Post.GetPollByPostID(context.Background(), spec.PostPollQuery{PostID: postID, ViewerID: user.ID})
-	require.NoError(t, repos.Post.VotePoll(context.Background(), spec.PostPollVote{PollID: pollID, UserID: user.ID, OptionID: opts[0].ID}))
-
-	// when
-	err = repos.Post.VotePoll(context.Background(), spec.PostPollVote{PollID: pollID, UserID: user.ID, OptionID: opts[1].ID})
-
-	// then
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "already voted")
 }
 
 func TestPostDAO_GetPollsByPostIDs(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
+	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	p1 := createPost(t, repos, user.ID, "general", "a")
-	p2 := createPost(t, repos, user.ID, "general", "b")
-	expires := time.Now().Add(24 * time.Hour).UTC().Format("2006-01-02 15:04:05")
-	_, err := repos.Post.CreatePollWithOptions(context.Background(), spec.NewPoll{PostID: p1, DurationSeconds: 86400, ExpiresAt: expires, Options: []string{"a", "b"}})
-	require.NoError(t, err)
-	_, err = repos.Post.CreatePollWithOptions(context.Background(), spec.NewPoll{PostID: p2, DurationSeconds: 86400, ExpiresAt: expires, Options: []string{"c", "d"}})
-	require.NoError(t, err)
+	voted := createPost(t, repos, user.ID, "general", "a")
+	unvoted := createPost(t, repos, user.ID, "general", "b")
+	pollID, opts := postCreatePoll(t, repos, voted, "a", "b")
+	postCreatePoll(t, repos, unvoted, "c", "d")
+	require.NoError(t, repos.Post.VotePoll(ctx, spec.PostPollVote{PollID: pollID, UserID: user.ID, OptionID: opts[1].ID}))
 
 	// when
-	polls, opts, votes, err := repos.Post.GetPollsByPostIDs(context.Background(), spec.PostPollBatchQuery{PostIDs: []uuid.UUID{p1, p2}, ViewerID: user.ID})
+	polls, options, votes, err := repos.Post.GetPollsByPostIDs(ctx, spec.PostPollBatchQuery{PostIDs: []uuid.UUID{voted, unvoted}, ViewerID: user.ID})
+	require.NoError(t, err)
+
+	nonePolls, noneOptions, noneVotes, err := repos.Post.GetPollsByPostIDs(ctx, spec.PostPollBatchQuery{ViewerID: user.ID})
+	require.NoError(t, err)
 
 	// then
-	require.NoError(t, err)
 	assert.Len(t, polls, 2)
-	assert.Len(t, opts[p1], 2)
-	assert.Len(t, opts[p2], 2)
-	assert.Len(t, votes, 0)
+	assert.Len(t, options[voted], 2)
+	assert.Len(t, options[unvoted], 2)
+	require.Len(t, votes, 1)
+	require.NotNil(t, votes[voted])
+	assert.Equal(t, opts[1].ID, *votes[voted])
+
+	assert.Nil(t, nonePolls)
+	assert.Nil(t, noneOptions)
+	assert.Nil(t, noneVotes)
 }
 
-func TestPostDAO_GetPollsByPostIDs_WithVote(t *testing.T) {
+func TestGetSharedContentPreviews_ResolvesPostsAndFlagsMissingOrUnknownRefsDeleted(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "a")
-	expires := time.Now().Add(24 * time.Hour).UTC().Format("2006-01-02 15:04:05")
-	poll, err := repos.Post.CreatePollWithOptions(context.Background(), spec.NewPoll{PostID: postID, DurationSeconds: 86400, ExpiresAt: expires, Options: []string{"a", "b"}})
-	require.NoError(t, err)
-	pollID := uuid.MustParse(poll.ID)
-	_, opts, _, _ := repos.Post.GetPollByPostID(context.Background(), spec.PostPollQuery{PostID: postID, ViewerID: user.ID})
-	require.NoError(t, repos.Post.VotePoll(context.Background(), spec.PostPollVote{PollID: pollID, UserID: user.ID, OptionID: opts[1].ID}))
-
-	// when
-	_, _, votes, err := repos.Post.GetPollsByPostIDs(context.Background(), spec.PostPollBatchQuery{PostIDs: []uuid.UUID{postID}, ViewerID: user.ID})
-
-	// then
-	require.NoError(t, err)
-	require.NotNil(t, votes[postID])
-	assert.Equal(t, opts[1].ID, *votes[postID])
-}
-
-func TestPostDAO_GetPollsByPostIDs_Empty(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-
-	// when
-	polls, opts, votes, err := repos.Post.GetPollsByPostIDs(context.Background(), spec.PostPollBatchQuery{ViewerID: user.ID})
-
-	// then
-	require.NoError(t, err)
-	assert.Nil(t, polls)
-	assert.Nil(t, opts)
-	assert.Nil(t, votes)
-}
-
-func TestGetSharedContentPreviews_Post(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos, daotest.WithDisplayName("Sharer"))
 	postID := createPost(t, repos, user.ID, "general", "shared body")
-	_, _ = repos.Post.AddMedia(context.Background(), spec.NewMedia{TargetID: postID, MediaURL: "/m.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
-
-	// when
-	result := repos.Post.GetSharedContentPreviews([]model.SharedContentRef{
-		{ID: postID.String(), Type: "post"},
-	})
-
-	// then
-	key := "post:" + postID.String()
-	preview := result[key]
-	require.NotNil(t, preview)
-	assert.Equal(t, "post", preview.ContentType)
-	assert.Equal(t, "shared body", preview.Body)
-	assert.False(t, preview.Deleted)
-	assert.Len(t, preview.Media, 1)
-}
-
-func TestGetSharedContentPreviews_MissingContentFlaggedDeleted(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
+	postAttachMedia(t, repos.Post.AddMedia, postID, "/m.jpg", "")
 	missingID := uuid.New().String()
 
 	// when
-	result := repos.Post.GetSharedContentPreviews([]model.SharedContentRef{
+	result, err := repos.Post.GetSharedContentPreviews(context.Background(), []model.SharedContentRef{
+		{ID: postID.String(), Type: "post"},
 		{ID: missingID, Type: "post"},
+		{ID: "xyz", Type: "nonsense"},
 	})
+	require.NoError(t, err)
+	empty, err := repos.Post.GetSharedContentPreviews(context.Background(), nil)
+	require.NoError(t, err)
 
 	// then
-	preview := result["post:"+missingID]
-	require.NotNil(t, preview)
-	assert.True(t, preview.Deleted)
-	assert.Equal(t, "/game-board/"+missingID, preview.URL)
+	assert.Len(t, result, 3)
+
+	post := result["post:"+postID.String()]
+	require.NotNil(t, post)
+	assert.Equal(t, "post", post.ContentType)
+	assert.Equal(t, "shared body", post.Body)
+	assert.False(t, post.Deleted)
+	assert.Len(t, post.Media, 1)
+
+	missing := result["post:"+missingID]
+	require.NotNil(t, missing)
+	assert.True(t, missing.Deleted)
+	assert.Equal(t, "/game-board/"+missingID, missing.URL)
+
+	unknown := result["nonsense:xyz"]
+	require.NotNil(t, unknown)
+	assert.True(t, unknown.Deleted)
+	assert.Equal(t, "/", unknown.URL)
+
+	assert.Empty(t, empty)
 }
 
 func TestGetSharedContentPreviews_DraftFanficFlaggedDeleted(t *testing.T) {
@@ -1564,11 +1228,12 @@ func TestGetSharedContentPreviews_DraftFanficFlaggedDeleted(t *testing.T) {
 	require.NoError(t, err)
 
 	// when
-	result := repos.Post.GetSharedContentPreviews([]model.SharedContentRef{
+	result, err := repos.Post.GetSharedContentPreviews(context.Background(), []model.SharedContentRef{
 		{ID: created.ID.String(), Type: "fanfic"},
 	})
 
 	// then
+	require.NoError(t, err)
 	preview := result["fanfic:"+created.ID.String()]
 	require.NotNil(t, preview)
 	assert.True(t, preview.Deleted)
@@ -1576,251 +1241,34 @@ func TestGetSharedContentPreviews_DraftFanficFlaggedDeleted(t *testing.T) {
 	assert.NotEqual(t, "Secret Draft", preview.Title)
 }
 
-func TestGetSharedContentPreviews_EmptyRefs(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
+func TestGetSharedContentPreviews_SurfacesAFailedLookupInsteadOfCallingTheContentDeleted(t *testing.T) {
+	cases := []struct {
+		name        string
+		contentType string
+		sabotage    string
+	}{
+		{name: "post", contentType: "post", sabotage: `DROP TABLE posts CASCADE`},
+		{name: "post media", contentType: "post", sabotage: `DROP TABLE post_media CASCADE`},
+		{name: "art", contentType: "art", sabotage: `DROP TABLE art CASCADE`},
+		{name: "ship", contentType: "ship", sabotage: `DROP TABLE ships CASCADE`},
+		{name: "mystery", contentType: "mystery", sabotage: `DROP TABLE mysteries CASCADE`},
+		{name: "theory", contentType: "theory", sabotage: `DROP TABLE theories CASCADE`},
+		{name: "fanfic", contentType: "fanfic", sabotage: `DROP TABLE fanfics CASCADE`},
+	}
 
-	// when
-	result := repos.Post.GetSharedContentPreviews(nil)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			ctx := context.Background()
+			_, err := repos.DB().ExecContext(ctx, tc.sabotage)
+			require.NoError(t, err)
 
-	// then
-	assert.Empty(t, result)
-}
+			// when
+			_, err = repos.Post.GetSharedContentPreviews(ctx, []model.SharedContentRef{{ID: uuid.New().String(), Type: tc.contentType}})
 
-func TestGetSharedContentPreviews_UnknownType(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	result := repos.Post.GetSharedContentPreviews([]model.SharedContentRef{
-		{ID: "xyz", Type: "nonsense"},
-	})
-
-	// then
-	preview := result["nonsense:xyz"]
-	require.NotNil(t, preview)
-	assert.True(t, preview.Deleted)
-	assert.Equal(t, "/", preview.URL)
-}
-
-func TestPostDAO_DeleteWithSharedContent_ReturnsAllUploadedPaths(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "body")
-	survivorID := createPost(t, repos, user.ID, "general", "survivor")
-
-	_, err := repos.Post.AddMedia(context.Background(), spec.NewMedia{TargetID: postID, MediaURL: "/uploads/posts/a.webp", MediaType: "image", ThumbnailURL: "/uploads/posts/a_thumb.webp", SortOrder: 0})
-	require.NoError(t, err)
-	_, err = repos.Post.AddMedia(context.Background(), spec.NewMedia{TargetID: postID, MediaURL: "/uploads/posts/b.webp", MediaType: "image", ThumbnailURL: "", SortOrder: 1})
-	require.NoError(t, err)
-
-	commentID := createComment(t, repos, postID, user.ID, nil, "comment")
-	replyID := createComment(t, repos, postID, user.ID, &commentID, "reply")
-	_, err = repos.Post.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/uploads/posts/c.webp", MediaType: "image", ThumbnailURL: "/uploads/posts/c_thumb.webp", SortOrder: 0})
-	require.NoError(t, err)
-	_, err = repos.Post.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: replyID, MediaURL: "/uploads/posts/d.webp", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
-	require.NoError(t, err)
-
-	survivorCommentID := createComment(t, repos, survivorID, user.ID, nil, "untouched")
-	_, err = repos.Post.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: survivorCommentID, MediaURL: "/uploads/posts/keep.webp", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
-	require.NoError(t, err)
-
-	// when
-	shared, paths, err := repos.Post.DeleteWithSharedContent(context.Background(), spec.PostDelete{
-		ID:     postID,
-		UserID: user.ID,
-		Audit: audit.NewEntry{
-			ActorID:    user.ID,
-			Action:     audit.ActionPostDelete,
-			TargetType: audit.TargetPost,
-			TargetID:   postID.String(),
-			SubjectID:  user.ID,
-		},
-	})
-
-	// then
-	require.NoError(t, err)
-	assert.Nil(t, shared)
-	assert.ElementsMatch(t, []string{
-		"/uploads/posts/a.webp",
-		"/uploads/posts/a_thumb.webp",
-		"/uploads/posts/b.webp",
-		"/uploads/posts/c.webp",
-		"/uploads/posts/c_thumb.webp",
-		"/uploads/posts/d.webp",
-	}, paths)
-	assert.NotContains(t, paths, "/uploads/posts/keep.webp")
-	row, err := repos.Post.GetByID(context.Background(), spec.PostLookup{ID: postID, ViewerID: user.ID})
-	require.NoError(t, err)
-	assert.Nil(t, row)
-}
-
-func TestPostDAO_DeleteWithSharedContent_AsAdminReturnsAllUploadedPaths(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	owner := daotest.CreateUser(t, repos)
-	admin := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, owner.ID, "general", "body")
-
-	_, err := repos.Post.AddMedia(context.Background(), spec.NewMedia{TargetID: postID, MediaURL: "/uploads/posts/a.webp", MediaType: "image", ThumbnailURL: "/uploads/posts/a_thumb.webp", SortOrder: 0})
-	require.NoError(t, err)
-
-	commentID := createComment(t, repos, postID, owner.ID, nil, "comment")
-	_, err = repos.Post.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/uploads/posts/c.webp", MediaType: "image", ThumbnailURL: "/uploads/posts/c_thumb.webp", SortOrder: 0})
-	require.NoError(t, err)
-
-	// when
-	_, paths, err := repos.Post.DeleteWithSharedContent(context.Background(), spec.PostDelete{
-		ID:      postID,
-		UserID:  admin.ID,
-		AsAdmin: true,
-		Audit: audit.NewEntry{
-			ActorID:    admin.ID,
-			Action:     audit.ActionPostDeleteAdmin,
-			TargetType: audit.TargetPost,
-			TargetID:   postID.String(),
-			SubjectID:  owner.ID,
-		},
-	})
-
-	// then
-	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{
-		"/uploads/posts/a.webp",
-		"/uploads/posts/a_thumb.webp",
-		"/uploads/posts/c.webp",
-		"/uploads/posts/c_thumb.webp",
-	}, paths)
-}
-
-func TestPostDAO_DeleteWithSharedContent_NoMediaReturnsNoPaths(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "body")
-
-	// when
-	_, paths, err := repos.Post.DeleteWithSharedContent(context.Background(), spec.PostDelete{
-		ID:     postID,
-		UserID: user.ID,
-		Audit: audit.NewEntry{
-			ActorID:    user.ID,
-			Action:     audit.ActionPostDelete,
-			TargetType: audit.TargetPost,
-			TargetID:   postID.String(),
-			SubjectID:  user.ID,
-		},
-	})
-
-	// then
-	require.NoError(t, err)
-	assert.Empty(t, paths)
-}
-
-func TestPostDAO_DeleteWithSharedContent_FailedDeleteReturnsNoPaths(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	stranger := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "body")
-	_, err := repos.Post.AddMedia(context.Background(), spec.NewMedia{TargetID: postID, MediaURL: "/uploads/posts/a.webp", MediaType: "image", ThumbnailURL: "/uploads/posts/a_thumb.webp", SortOrder: 0})
-	require.NoError(t, err)
-
-	// when
-	_, paths, err := repos.Post.DeleteWithSharedContent(context.Background(), spec.PostDelete{
-		ID:     postID,
-		UserID: stranger.ID,
-		Audit: audit.NewEntry{
-			ActorID:    stranger.ID,
-			Action:     audit.ActionPostDeleteAdmin,
-			TargetType: audit.TargetPost,
-			TargetID:   postID.String(),
-			SubjectID:  user.ID,
-		},
-	})
-
-	// then
-	require.Error(t, err)
-	assert.Nil(t, paths)
-	media, err := repos.Post.GetMedia(context.Background(), postID)
-	require.NoError(t, err)
-	require.Len(t, media, 1)
-}
-
-func TestPostDAO_DeleteCommentWithAudit_ReturnsCommentAndReplyPaths(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "body")
-	commentID := createComment(t, repos, postID, user.ID, nil, "comment")
-	replyID := createComment(t, repos, postID, user.ID, &commentID, "reply")
-	siblingID := createComment(t, repos, postID, user.ID, nil, "sibling")
-
-	_, err := repos.Post.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/uploads/posts/c.webp", MediaType: "image", ThumbnailURL: "/uploads/posts/c_thumb.webp", SortOrder: 0})
-	require.NoError(t, err)
-	_, err = repos.Post.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: replyID, MediaURL: "/uploads/posts/r.webp", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
-	require.NoError(t, err)
-	_, err = repos.Post.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: siblingID, MediaURL: "/uploads/posts/keep.webp", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
-	require.NoError(t, err)
-
-	// when
-	paths, err := repos.Post.DeleteCommentWithAudit(context.Background(), spec.PostCommentDelete{
-		CommentDeletion: spec.CommentDeletion{
-			CommentID: commentID,
-			UserID:    user.ID,
-		},
-		Audit: audit.NewEntry{
-			ActorID:    user.ID,
-			Action:     audit.ActionPostCommentDelete,
-			TargetType: audit.TargetPostComment,
-			TargetID:   commentID.String(),
-		},
-	})
-
-	// then
-	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{
-		"/uploads/posts/c.webp",
-		"/uploads/posts/c_thumb.webp",
-		"/uploads/posts/r.webp",
-	}, paths)
-	assert.NotContains(t, paths, "/uploads/posts/keep.webp")
-	remaining, total, err := repos.Post.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: postID, ViewerID: user.ID, Limit: 10})
-	require.NoError(t, err)
-	assert.Equal(t, 1, total)
-	require.Len(t, remaining, 1)
-	assert.Equal(t, siblingID, remaining[0].ID)
-}
-
-func TestPostDAO_DeleteCommentWithAudit_NotOwnedReturnsNoPaths(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	stranger := daotest.CreateUser(t, repos)
-	postID := createPost(t, repos, user.ID, "general", "body")
-	commentID := createComment(t, repos, postID, user.ID, nil, "comment")
-	_, err := repos.Post.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/uploads/posts/c.webp", MediaType: "image", ThumbnailURL: "/uploads/posts/c_thumb.webp", SortOrder: 0})
-	require.NoError(t, err)
-
-	// when
-	paths, err := repos.Post.DeleteCommentWithAudit(context.Background(), spec.PostCommentDelete{
-		CommentDeletion: spec.CommentDeletion{
-			CommentID: commentID,
-			UserID:    stranger.ID,
-		},
-		Audit: audit.NewEntry{
-			ActorID:    stranger.ID,
-			Action:     audit.ActionPostCommentDelete,
-			TargetType: audit.TargetPostComment,
-			TargetID:   commentID.String(),
-		},
-	})
-
-	// then
-	require.Error(t, err)
-	assert.Nil(t, paths)
-	media, err := repos.Post.GetCommentMedia(context.Background(), commentID)
-	require.NoError(t, err)
-	require.Len(t, media, 1)
+			// then
+			require.Error(t, err, "a failed lookup must not be shown to users as deleted content")
+		})
+	}
 }

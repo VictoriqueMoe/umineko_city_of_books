@@ -3,6 +3,7 @@ package siteinfo
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -19,12 +20,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	errBoom = errors.New("boom")
+)
+
 func newTestService(
 	t *testing.T,
 	stringValues map[config.SiteSettingKey]string,
 	intValues map[config.SiteSettingKey]int,
+	failAt string,
 ) Service {
 	t.Helper()
+
+	errAt := func(step string) error {
+		if step == failAt {
+			return errBoom
+		}
+
+		return nil
+	}
 
 	settingsSvc := settings.NewMockService(t)
 	mysterySvc := mystery.NewMockService(t)
@@ -47,13 +61,13 @@ func newTestService(
 		Maybe()
 	settingsSvc.EXPECT().GetBool(mock.Anything, mock.Anything).Return(false).Maybe()
 
-	mysterySvc.EXPECT().GetTopDetectiveIDs(mock.Anything).Return(nil, nil).Maybe()
-	mysterySvc.EXPECT().GetTopGMIDs(mock.Anything).Return(nil, nil).Maybe()
-	gameRoomSvc.EXPECT().GetTopWinnerIDs(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
-	vanityRoleSvc.EXPECT().List(mock.Anything).Return(nil, nil).Maybe()
-	vanityRoleSvc.EXPECT().GetAllAssignments(mock.Anything).Return(nil, nil).Maybe()
-	userSecretSvc.EXPECT().GetUserIDsWithSecret(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
-	userSecretSvc.EXPECT().IsSolvedByAnyone(mock.Anything, mock.Anything).Return(false, nil).Maybe()
+	mysterySvc.EXPECT().GetTopDetectiveIDs(mock.Anything).Return(nil, errAt("top detectives")).Maybe()
+	mysterySvc.EXPECT().GetTopGMIDs(mock.Anything).Return(nil, errAt("top game masters")).Maybe()
+	gameRoomSvc.EXPECT().GetTopWinnerIDs(mock.Anything, mock.Anything).Return(nil, errAt("top game winners")).Maybe()
+	vanityRoleSvc.EXPECT().List(mock.Anything).Return(nil, errAt("vanity roles")).Maybe()
+	vanityRoleSvc.EXPECT().GetAllAssignments(mock.Anything).Return(nil, errAt("vanity assignments")).Maybe()
+	userSecretSvc.EXPECT().GetUserIDsWithSecret(mock.Anything, mock.Anything).Return(nil, errAt("secret holders")).Maybe()
+	userSecretSvc.EXPECT().IsSolvedByAnyone(mock.Anything, mock.Anything).Return(false, errAt("secret solved")).Maybe()
 	authSvc.EXPECT().EmailEnabled(mock.Anything).Return(false).Maybe()
 
 	return NewService(settingsSvc, mysterySvc, gameRoomSvc, vanityRoleSvc, userSecretSvc, authSvc)
@@ -78,12 +92,13 @@ func TestGet_ChatbotMemorySettingsAreExposed(t *testing.T) {
 			svc := newTestService(t, nil, map[config.SiteSettingKey]int{
 				config.SettingChatbotContextMessages.Key: tc.contextMessages,
 				config.SettingChatbotMaxReplyChain.Key:   tc.maxReplyChain,
-			})
+			}, "")
 
 			// when
-			got := svc.Get(t.Context())
+			got, err := svc.Get(t.Context())
 
 			// then
+			require.NoError(t, err)
 			assert.Equal(t, tc.wantContextMsgs, got.ChatbotContextMsgs)
 			assert.Equal(t, tc.wantMaxReplyChain, got.ChatbotMaxReplyChain)
 		})
@@ -95,10 +110,13 @@ func TestGet_SerialisesBothChatbotMemoryKeys(t *testing.T) {
 	svc := newTestService(t, nil, map[config.SiteSettingKey]int{
 		config.SettingChatbotContextMessages.Key: 20,
 		config.SettingChatbotMaxReplyChain.Key:   25,
-	})
+	}, "")
 
 	// when
-	raw, err := json.Marshal(svc.Get(t.Context()))
+	info, err := svc.Get(t.Context())
+	require.NoError(t, err)
+
+	raw, err := json.Marshal(info)
 	require.NoError(t, err)
 
 	payload := make(map[string]any)
@@ -107,6 +125,23 @@ func TestGet_SerialisesBothChatbotMemoryKeys(t *testing.T) {
 	// then
 	assert.Equal(t, float64(20), payload["chatbot_context_messages"])
 	assert.Equal(t, float64(25), payload["chatbot_max_reply_chain"])
+}
+
+func TestGet_AFailedBadgeReadIsSurfacedInsteadOfDroppingTheBadges(t *testing.T) {
+	steps := []string{"top detectives", "top game masters", "top game winners", "vanity roles", "vanity assignments", "secret holders", "secret solved"}
+
+	for _, failAt := range steps {
+		t.Run("the "+failAt+" read failing", func(t *testing.T) {
+			// given
+			svc := newTestService(t, nil, nil, failAt)
+
+			// when
+			_, err := svc.Get(t.Context())
+
+			// then
+			require.ErrorIs(t, err, errBoom)
+		})
+	}
 }
 
 func TestGet_LeaksNoSecretSetting(t *testing.T) {
@@ -123,10 +158,13 @@ func TestGet_LeaksNoSecretSetting(t *testing.T) {
 	svc := newTestService(t, sentinels, map[config.SiteSettingKey]int{
 		config.SettingChatbotContextMessages.Key: 20,
 		config.SettingChatbotMaxReplyChain.Key:   25,
-	})
+	}, "")
 
 	// when
-	raw, err := json.Marshal(svc.Get(t.Context()))
+	info, err := svc.Get(t.Context())
+	require.NoError(t, err)
+
+	raw, err := json.Marshal(info)
 	require.NoError(t, err)
 
 	// then

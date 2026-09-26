@@ -20,9 +20,27 @@ func watchPartyEffectiveRank(siteRole role.Role, isOwner bool) int {
 	return rank
 }
 
-func (s *watchPartyService) watchPartyRankOf(ctx context.Context, session *model.ChatWatchPartySessionRow, userID uuid.UUID) int {
-	siteRole, _ := s.roleRepo.GetRole(ctx, userID)
-	return watchPartyEffectiveRank(siteRole, session.StartedBy == userID)
+func (s *watchPartyService) watchPartyRankOf(ctx context.Context, session *model.ChatWatchPartySessionRow, userID uuid.UUID) (int, error) {
+	siteRole, err := s.roleRepo.GetRole(ctx, userID)
+	if err != nil {
+		return 0, fmt.Errorf("watch party rank of %s: %w", userID, err)
+	}
+
+	return watchPartyEffectiveRank(siteRole, session.StartedBy == userID), nil
+}
+
+func (s *watchPartyService) watchPartyRanks(ctx context.Context, session *model.ChatWatchPartySessionRow, callerID, otherID uuid.UUID) (int, int, error) {
+	callerRank, err := s.watchPartyRankOf(ctx, session, callerID)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	otherRank, err := s.watchPartyRankOf(ctx, session, otherID)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return callerRank, otherRank, nil
 }
 
 func (s *watchPartyService) postControlChangeSystemMessage(ctx context.Context, roomID, sessionID, callerID, targetID uuid.UUID, reason string) {

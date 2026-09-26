@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/secrets"
 
 	"github.com/google/uuid"
@@ -27,6 +28,49 @@ func newCachedUserRepo(t *testing.T) (UserRepository, *dao.MockUserDAO, *valkeym
 	userDAO := dao.NewMockUserDAO(t)
 
 	return NewUserRepo(nil, userDAO, cache.NewManager(engines.NewValkeyWithClient(client)), nil, nil, nil, nil, nil, nil), userDAO, client
+}
+
+func TestUserRepository_ScoreAdjustmentsSurviveAFailedLeaderboardInvalidation(t *testing.T) {
+	userID := uuid.New()
+	cases := []struct {
+		name   string
+		expect func(userDAO *dao.MockUserDAO)
+		call   func(repo UserRepository) error
+	}{
+		{
+			name: "a detective score adjustment",
+			expect: func(userDAO *dao.MockUserDAO) {
+				userDAO.EXPECT().UpdateMysteryScoreAdjustment(mock.Anything, spec.UserMysteryScoreUpdate{UserID: userID, Adjustment: 5}).Return(nil)
+			},
+			call: func(repo UserRepository) error {
+				return repo.UpdateMysteryScoreAdjustment(context.Background(), spec.UserMysteryScoreUpdate{UserID: userID, Adjustment: 5})
+			},
+		},
+		{
+			name: "a game master score adjustment",
+			expect: func(userDAO *dao.MockUserDAO) {
+				userDAO.EXPECT().UpdateGMScoreAdjustment(mock.Anything, spec.UserGMScoreUpdate{UserID: userID, Adjustment: -2}).Return(nil)
+			},
+			call: func(repo UserRepository) error {
+				return repo.UpdateGMScoreAdjustment(context.Background(), spec.UserGMScoreUpdate{UserID: userID, Adjustment: -2})
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given an adjustment that commits while the cache is unreachable
+			repo, userDAO, client := newCachedUserRepo(t)
+			tc.expect(userDAO)
+			client.EXPECT().Do(gomock.Any(), gomock.Any()).Return(valkeymock.ErrorResult(errors.New("valkey down"))).Times(1)
+
+			// when
+			err := tc.call(repo)
+
+			// then the committed adjustment is not reported as failed
+			require.NoError(t, err)
+		})
+	}
 }
 
 func captureDel(client *valkeymock.Client, commands *[]string) {

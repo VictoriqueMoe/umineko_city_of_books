@@ -21,6 +21,7 @@ packages:
   umineko_city_of_books/internal/chatbot:
     interfaces:
       Service:
+      AdminService:
   umineko_city_of_books/internal/profile:
     interfaces:
       Service:

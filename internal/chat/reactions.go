@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/ws"
 
@@ -115,7 +116,11 @@ func (r *reactionsService) ListPinnedMessages(ctx context.Context, roomID, viewe
 		return nil, fmt.Errorf("list pinned messages: %w", err)
 	}
 
-	messages := r.hydrateMessageRows(ctx, viewerID, rows)
+	messages, err := r.hydrateMessageRows(ctx, viewerID, rows)
+	if err != nil {
+		return nil, err
+	}
+
 	return &dto.ChatMessageListResponse{
 		Messages: messages,
 		Total:    len(messages),
@@ -124,18 +129,28 @@ func (r *reactionsService) ListPinnedMessages(ctx context.Context, roomID, viewe
 
 func (r *reactionsService) resolveMemberDisplayName(ctx context.Context, roomID, userID uuid.UUID) string {
 	user, err := r.userRepo.GetByID(ctx, userID)
-	if err != nil || user == nil {
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("user_id", userID.String()).Msg("reaction display name lookup failed")
+
 		return ""
 	}
+	if user == nil {
+		return ""
+	}
+
 	name := user.DisplayName
 	if name == "" {
 		name = user.Username
 	}
 
-	nickname, _ := r.chatRepo.GetMemberNickname(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID})
+	nickname, err := r.chatRepo.GetMemberNickname(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID})
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("user_id", userID.String()).Msg("reaction nickname lookup failed, using the profile name")
+	}
 	if nickname != "" {
 		name = nickname
 	}
+
 	return name
 }
 
@@ -169,7 +184,10 @@ func (r *reactionsService) AddReaction(ctx context.Context, messageID, userID uu
 	}
 
 	displayName := r.resolveMemberDisplayName(ctx, msg.RoomID, userID)
-	count, _ := r.chatRepo.CountReactions(ctx, spec.ChatReactionCount{MessageID: messageID, Emoji: emoji})
+	count, err := r.chatRepo.CountReactions(ctx, spec.ChatReactionCount{MessageID: messageID, Emoji: emoji})
+	if err != nil {
+		return fmt.Errorf("count reactions: %w", err)
+	}
 
 	r.broadcastToRoomMembers(ctx, msg.RoomID, ws.Message{
 		Type: "chat_reaction_added",
@@ -211,7 +229,10 @@ func (r *reactionsService) RemoveReaction(ctx context.Context, messageID, userID
 	}
 
 	displayName := r.resolveMemberDisplayName(ctx, msg.RoomID, userID)
-	count, _ := r.chatRepo.CountReactions(ctx, spec.ChatReactionCount{MessageID: messageID, Emoji: emoji})
+	count, err := r.chatRepo.CountReactions(ctx, spec.ChatReactionCount{MessageID: messageID, Emoji: emoji})
+	if err != nil {
+		return fmt.Errorf("count reactions: %w", err)
+	}
 
 	r.broadcastToRoomMembers(ctx, msg.RoomID, ws.Message{
 		Type: "chat_reaction_removed",

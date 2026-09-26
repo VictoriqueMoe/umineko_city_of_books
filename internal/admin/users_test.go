@@ -99,6 +99,39 @@ func TestGetUser_OK(t *testing.T) {
 	assert.Equal(t, 53, got.GMScore)
 }
 
+func TestGetUser_AFailedScoreReadIsSurfacedInsteadOfShowingTheAdjustmentAlone(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name         string
+		detectiveErr error
+		gmErr        error
+	}{
+		{name: "the detective score", detectiveErr: boom},
+		{name: "the game master score", gmErr: boom},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name+" failing to load", func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			uid := uuid.New()
+			m.userRepo.EXPECT().GetProfileByID(mock.Anything, uid).Return(&model.User{ID: uid, Username: "a"}, nil, nil)
+			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingNewAccountHours).Return(24).Maybe()
+			m.userRepo.EXPECT().GetDetectiveRawScore(mock.Anything, uid).Return(0, tc.detectiveErr)
+			if tc.detectiveErr == nil {
+				m.userRepo.EXPECT().GetGMRawScore(mock.Anything, uid).Return(0, tc.gmErr)
+			}
+
+			// when
+			got, err := svc.GetUser(context.Background(), uid)
+
+			// then
+			require.ErrorIs(t, err, boom)
+			assert.Nil(t, got)
+		})
+	}
+}
+
 func TestGetUser_NotFound(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -836,22 +869,20 @@ func TestDeleteUser_BotAccountIsProtected(t *testing.T) {
 	m.userRepo.AssertNotCalled(t, "AdminDeleteAccount", mock.Anything, mock.Anything)
 }
 
-func TestDeleteUser_UserLookupFailsStillDeletes(t *testing.T) {
+func TestDeleteUser_AFailedUserLookupRefusesTheDeleteInsteadOfSkippingTheBotGuard(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	actor := uuid.New()
 	target := uuid.New()
-	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(nil, errors.New("not found"))
-	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
-	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
-	m.userRepo.EXPECT().AdminDeleteAccount(mock.Anything, target).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionDeleteUser, TargetType: audit.TargetUser, TargetID: target.String(), Details: ""}).Return(nil)
+	boom := errors.New("boom")
+	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(nil, boom)
 
 	// when
 	err := svc.DeleteUser(context.Background(), actor, target)
 
 	// then
-	require.NoError(t, err)
+	require.ErrorIs(t, err, boom)
+	m.userRepo.AssertNotCalled(t, "AdminDeleteAccount", mock.Anything, mock.Anything)
 }
 
 func TestDeleteUser_Protected(t *testing.T) {

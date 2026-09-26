@@ -235,7 +235,7 @@ func (r *mysteryDAO) Update(ctx context.Context, s spec.MysteryOwnerUpdate, tx .
 	}
 
 	if n == 0 {
-		return fmt.Errorf("mystery not found or not owned")
+		return fmt.Errorf("mystery not found or not owned: %w", ErrNotFound)
 	}
 
 	return nil
@@ -404,7 +404,7 @@ func (r *mysteryDAO) DeleteAttempt(ctx context.Context, s spec.MysteryAttemptDel
 	}
 
 	if n == 0 {
-		return fmt.Errorf("attempt not found or not owned")
+		return fmt.Errorf("attempt not found or not owned: %w", ErrNotFound)
 	}
 
 	return nil
@@ -437,6 +437,9 @@ func (r *mysteryDAO) GetAttempts(ctx context.Context, s spec.MysteryAttemptQuery
 
 func (r *mysteryDAO) GetAttemptAuthorID(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	authorID, err := genQueries(r.db, tx).GetMysteryAttemptAuthorID(ctx, attemptID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return uuid.Nil, fmt.Errorf("get attempt author: %w", ErrNotFound)
+	}
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get attempt author: %w", err)
 	}
@@ -446,6 +449,9 @@ func (r *mysteryDAO) GetAttemptAuthorID(ctx context.Context, attemptID uuid.UUID
 
 func (r *mysteryDAO) GetAttemptMysteryID(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	mysteryID, err := genQueries(r.db, tx).GetMysteryAttemptMysteryID(ctx, attemptID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return uuid.Nil, fmt.Errorf("get attempt mystery: %w", ErrNotFound)
+	}
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get attempt mystery: %w", err)
 	}
@@ -522,6 +528,9 @@ func (r *mysteryDAO) GetSolverIDs(ctx context.Context, mysteryID uuid.UUID, tx .
 
 func (r *mysteryDAO) IsSolved(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (bool, error) {
 	solved, err := genQueries(r.db, tx).IsMysterySolved(ctx, mysteryID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, fmt.Errorf("check mystery solved: %w", ErrNotFound)
+	}
 	if err != nil {
 		return false, fmt.Errorf("check mystery solved: %w", err)
 	}
@@ -531,6 +540,9 @@ func (r *mysteryDAO) IsSolved(ctx context.Context, mysteryID uuid.UUID, tx ...*s
 
 func (r *mysteryDAO) IsPaused(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (bool, error) {
 	paused, err := genQueries(r.db, tx).IsMysteryPaused(ctx, mysteryID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, fmt.Errorf("check mystery paused: %w", ErrNotFound)
+	}
 	if err != nil {
 		return false, fmt.Errorf("check mystery paused: %w", err)
 	}

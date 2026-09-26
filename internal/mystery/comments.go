@@ -2,6 +2,7 @@ package mystery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -9,7 +10,9 @@ import (
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -28,18 +31,26 @@ func (s *service) CreateComment(ctx context.Context, mysteryID uuid.UUID, userID
 	}
 
 	solved, err := s.mysteryRepo.IsSolved(ctx, mysteryID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return uuid.Nil, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, err
 	}
 	if !solved {
 		return uuid.Nil, ErrNotSolved
 	}
 
-	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	authorID, err := s.mysteryAuthor(ctx, mysteryID)
 	if err != nil {
-		return uuid.Nil, ErrNotFound
+		return uuid.Nil, err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
@@ -57,14 +68,24 @@ func (s *service) CreateComment(ctx context.Context, mysteryID uuid.UUID, userID
 	go func() {
 		bgCtx := context.Background()
 		actor, err := s.userRepo.GetByID(bgCtx, userID)
-		if err != nil || actor == nil {
+		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("user_id", userID.String()).Msg("mystery comment notification skipped, actor lookup failed")
+
+			return
+		}
+		if actor == nil {
 			return
 		}
 		linkPath := fmt.Sprintf("/mystery/%s#comment-%s", mysteryID, id)
 
 		if req.ParentID != nil {
 			parentAuthor, err := s.mysteryRepo.GetCommentAuthorID(bgCtx, *req.ParentID)
-			if err != nil || parentAuthor == userID {
+			if err != nil {
+				logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", req.ParentID.String()).Msg("mystery comment reply notification skipped, parent lookup failed")
+
+				return
+			}
+			if parentAuthor == userID {
 				return
 			}
 			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
@@ -107,8 +128,11 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 
 	authorID, err := s.mysteryRepo.GetCommentAuthorID(ctx, id)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return ErrNotFound
+	}
+	if err != nil {
+		return err
 	}
 
 	if err := s.mysteryRepo.UpdateComment(ctx, spec.CommentUpdate{CommentID: id, UserID: userID, Body: body, AsAdmin: true}); err != nil {
@@ -147,12 +171,21 @@ func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.U
 
 func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
 	commentAuthorID, err := s.mysteryRepo.GetCommentAuthorID(ctx, commentID)
+	if errors.Is(err, dao.ErrNotFound) {
+		return ErrNotFound
+	}
 	if err != nil {
 		return err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return block.ErrUserBlocked
 	}
+
 	return s.mysteryRepo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID})
 }
 
@@ -171,14 +204,20 @@ func (s *service) UploadCommentMedia(
 	isSpoiler bool,
 ) (*dto.PostMediaResponse, error) {
 	authorID, err := s.mysteryRepo.GetCommentAuthorID(ctx, commentID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return nil, ErrNotFound
 	}
+	if err != nil {
+		return nil, err
+	}
 	if authorID != userID {
-		return nil, fmt.Errorf("not the comment author")
+		return nil, authz.ErrNotCommentAuthor
 	}
 
-	existing, _ := s.mysteryRepo.GetCommentMedia(ctx, commentID)
+	existing, err := s.mysteryRepo.GetCommentMedia(ctx, commentID)
+	if err != nil {
+		return nil, fmt.Errorf("existing comment media: %w", err)
+	}
 	sortOrder := len(existing)
 
 	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, filename, fileSize, reader, isSpoiler,

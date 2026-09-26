@@ -2,6 +2,7 @@ package ship
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -191,22 +193,35 @@ func (s *service) GetShip(ctx context.Context, id uuid.UUID, viewerID uuid.UUID)
 		return nil, ErrNotFound
 	}
 
-	characters, _ := s.shipRepo.GetCharacters(ctx, id)
-	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	characters, err := s.shipRepo.GetCharacters(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("ship characters: %w", err)
+	}
 
-	comments, _, _ := s.shipRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
+	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("blocked users: %w", err)
+	}
+
+	comments, _, err := s.shipRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
 		TargetID:       id,
 		ViewerID:       viewerID,
 		Limit:          500,
 		Offset:         0,
 		ExcludeUserIDs: blockedIDs,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("ship comments: %w", err)
+	}
 
 	commentIDs := make([]uuid.UUID, len(comments))
 	for i, c := range comments {
 		commentIDs[i] = c.ID
 	}
-	commentMediaMap, _ := s.shipRepo.GetCommentMediaBatch(ctx, commentIDs)
+	commentMediaMap, err := s.shipRepo.GetCommentMediaBatch(ctx, commentIDs)
+	if err != nil {
+		return nil, fmt.Errorf("comment media: %w", err)
+	}
 
 	flatComments := make([]dto.ShipCommentResponse, len(comments))
 	for i, c := range comments {
@@ -220,7 +235,10 @@ func (s *service) GetShip(ctx context.Context, id uuid.UUID, viewerID uuid.UUID)
 
 	viewerBlocked := false
 	if viewerID != uuid.Nil {
-		viewerBlocked, _ = s.blockSvc.IsBlockedEither(ctx, viewerID, row.UserID)
+		viewerBlocked, err = s.blockSvc.IsBlockedEither(ctx, viewerID, row.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("block check: %w", err)
+		}
 	}
 
 	return &dto.ShipDetailResponse{
@@ -243,8 +261,11 @@ func (s *service) UpdateShip(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	}
 
 	authorID, err := s.shipRepo.GetAuthorID(ctx, id)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return ErrNotFound
+	}
+	if err != nil {
+		return err
 	}
 
 	description := strings.TrimSpace(req.Description)
@@ -327,7 +348,10 @@ func (s *service) ListShips(
 	characterID string,
 	page bounds.Page,
 ) (*dto.ShipListResponse, error) {
-	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("blocked users: %w", err)
+	}
 
 	rows, total, err := s.shipRepo.List(ctx, spec.ShipListing{
 		ViewerID:       viewerID,
@@ -343,7 +367,7 @@ func (s *service) ListShips(
 		return nil, err
 	}
 
-	return s.buildShipList(ctx, rows, total, page.Limit(), page.Offset()), nil
+	return s.buildShipList(ctx, rows, total, page.Limit(), page.Offset())
 }
 
 func (s *service) ListShipsByUser(
@@ -362,15 +386,19 @@ func (s *service) ListShipsByUser(
 		return nil, err
 	}
 
-	return s.buildShipList(ctx, rows, total, page.Limit(), page.Offset()), nil
+	return s.buildShipList(ctx, rows, total, page.Limit(), page.Offset())
 }
 
-func (s *service) buildShipList(ctx context.Context, rows []model.ShipRow, total, limit, offset int) *dto.ShipListResponse {
+func (s *service) buildShipList(ctx context.Context, rows []model.ShipRow, total, limit, offset int) (*dto.ShipListResponse, error) {
 	shipIDs := make([]uuid.UUID, len(rows))
 	for i, r := range rows {
 		shipIDs[i] = r.ID
 	}
-	charactersMap, _ := s.shipRepo.GetCharactersBatch(ctx, shipIDs)
+
+	charactersMap, err := s.shipRepo.GetCharactersBatch(ctx, shipIDs)
+	if err != nil {
+		return nil, fmt.Errorf("ship characters: %w", err)
+	}
 
 	ships := make([]dto.ShipResponse, len(rows))
 	for i, r := range rows {
@@ -382,13 +410,16 @@ func (s *service) buildShipList(ctx context.Context, rows []model.ShipRow, total
 		Total:  total,
 		Limit:  limit,
 		Offset: offset,
-	}
+	}, nil
 }
 
 func (s *service) UploadShipImage(ctx context.Context, shipID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error) {
 	authorID, err := s.shipRepo.GetAuthorID(ctx, shipID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", err
 	}
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
 		return "", fmt.Errorf("not the ship author")
@@ -414,10 +445,18 @@ func (s *service) UploadShipImage(ctx context.Context, shipID uuid.UUID, userID 
 
 func (s *service) Vote(ctx context.Context, userID uuid.UUID, shipID uuid.UUID, value int) error {
 	authorID, err := s.shipRepo.GetAuthorID(ctx, shipID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return ErrNotFound
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+	if err != nil {
+		return err
+	}
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return block.ErrUserBlocked
 	}
 
@@ -434,10 +473,18 @@ func (s *service) CreateComment(ctx context.Context, shipID uuid.UUID, userID uu
 	}
 
 	authorID, err := s.shipRepo.GetAuthorID(ctx, shipID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return uuid.Nil, ErrNotFound
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
@@ -455,7 +502,11 @@ func (s *service) CreateComment(ctx context.Context, shipID uuid.UUID, userID uu
 	go func() {
 		bgCtx := context.Background()
 		actor, err := s.userRepo.GetByID(bgCtx, userID)
-		if err != nil || actor == nil {
+		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("ship_id", shipID.String()).Msg("comment notifications skipped, actor lookup failed")
+			return
+		}
+		if actor == nil {
 			return
 		}
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
@@ -471,7 +522,11 @@ func (s *service) CreateComment(ctx context.Context, shipID uuid.UUID, userID uu
 
 		if req.ParentID != nil {
 			parentAuthor, err := s.shipRepo.GetCommentAuthorID(bgCtx, *req.ParentID)
-			if err == nil && parentAuthor != authorID {
+			if err != nil {
+				logger.Ctx(bgCtx).Warn().Err(err).Str("ship_id", shipID.String()).Msg("reply notification skipped, parent author lookup failed")
+				return
+			}
+			if parentAuthor != authorID {
 				_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 					RecipientID:   parentAuthor,
 					Type:          dto.NotifShipCommentReply,
@@ -530,7 +585,12 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 	if err != nil {
 		return err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return block.ErrUserBlocked
 	}
 	if err := s.shipRepo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID}); err != nil {
@@ -544,6 +604,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 		bgCtx := context.Background()
 		shipID, err := s.shipRepo.GetCommentEntityID(bgCtx, commentID)
 		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", commentID.String()).Msg("comment like notification skipped, ship lookup failed")
 			return
 		}
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
@@ -576,11 +637,14 @@ func (s *service) UploadCommentMedia(
 	isSpoiler bool,
 ) (*dto.PostMediaResponse, error) {
 	authorID, err := s.shipRepo.GetCommentAuthorID(ctx, commentID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return nil, ErrNotFound
 	}
+	if err != nil {
+		return nil, err
+	}
 	if authorID != userID {
-		return nil, fmt.Errorf("not the comment author")
+		return nil, authz.ErrNotCommentAuthor
 	}
 
 	return s.uploader.SaveAndRecord(ctx, "ships", contentType, filename, fileSize, reader, isSpoiler,

@@ -157,6 +157,9 @@ func (s *Service) updateAnnouncement(ctx fiber.Ctx) error {
 		if errors.Is(err, announcementsvc.ErrEmptyTitleOrBody) {
 			return ctrlutils.BadRequest(ctx, "title and body are required")
 		}
+		if errors.Is(err, announcementsvc.ErrNotFound) {
+			return ctrlutils.NotFound(ctx, "announcement not found")
+		}
 		return ctrlutils.InternalError(ctx, "failed to update announcement", err)
 	}
 
@@ -170,6 +173,9 @@ func (s *Service) deleteAnnouncement(ctx fiber.Ctx) error {
 	}
 
 	if err := s.AnnouncementService.Delete(ctx.Context(), ctrlutils.UserID(ctx), id); err != nil {
+		if errors.Is(err, announcementsvc.ErrNotFound) {
+			return ctrlutils.NotFound(ctx, "announcement not found")
+		}
 		return ctrlutils.InternalError(ctx, "failed to delete announcement", err)
 	}
 
@@ -190,6 +196,9 @@ func (s *Service) pinAnnouncement(ctx fiber.Ctx) error {
 	}
 
 	if err := s.AnnouncementService.SetPinned(ctx.Context(), ctrlutils.UserID(ctx), id, req.Pinned); err != nil {
+		if errors.Is(err, announcementsvc.ErrNotFound) {
+			return ctrlutils.NotFound(ctx, "announcement not found")
+		}
 		return ctrlutils.InternalError(ctx, "failed to pin announcement", err)
 	}
 
@@ -242,6 +251,8 @@ func (s *Service) updateAnnouncementComment(ctx fiber.Ctx) error {
 			return ctrlutils.BadRequest(ctx, "body is required")
 		case errors.Is(err, announcementsvc.ErrForbidden):
 			return ctrlutils.Forbidden(ctx, "cannot update this comment")
+		case errors.Is(err, announcementsvc.ErrCommentNotFound):
+			return ctrlutils.NotFound(ctx, "comment not found")
 		}
 		return ctrlutils.InternalError(ctx, "failed to update comment", err)
 	}
@@ -259,6 +270,9 @@ func (s *Service) deleteAnnouncementComment(ctx fiber.Ctx) error {
 	if err := s.AnnouncementService.DeleteComment(ctx.Context(), id, userID); err != nil {
 		if errors.Is(err, announcementsvc.ErrForbidden) {
 			return ctrlutils.Forbidden(ctx, "cannot delete this comment")
+		}
+		if errors.Is(err, announcementsvc.ErrCommentNotFound) {
+			return ctrlutils.NotFound(ctx, "comment not found")
 		}
 		return ctrlutils.InternalError(ctx, "failed to delete comment", err)
 	}
@@ -322,8 +336,10 @@ func (s *Service) uploadAnnouncementCommentMedia(ctx fiber.Ctx) error {
 			return ctrlutils.NotFound(ctx, "comment not found")
 		case errors.Is(err, announcementsvc.ErrForbidden):
 			return ctrlutils.Forbidden(ctx, "not the comment author")
+		case ctrlutils.IsUploadRejection(err):
+			return ctrlutils.BadRequest(ctx, err.Error())
 		}
-		return ctrlutils.BadRequest(ctx, err.Error())
+		return ctrlutils.InternalError(ctx, "failed to upload media", err)
 	}
 
 	return ctx.Status(fiber.StatusCreated).JSON(resp)

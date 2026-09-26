@@ -189,7 +189,10 @@ func (s *service) broadcastLockChange(userID uuid.UUID, locked bool, reason stri
 }
 
 func (s *service) DeleteUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error {
-	user, _ := s.userRepo.GetByID(ctx, targetID)
+	user, err := s.userRepo.GetByID(ctx, targetID)
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
 
 	return s.guardedAction(ctx, actorID, targetID, func() error {
 		if user != nil && user.IsBot {

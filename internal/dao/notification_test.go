@@ -7,74 +7,93 @@ import (
 
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestNotificationDAO_Create(t *testing.T) {
+type (
+	notificationSummary struct {
+		Type        dto.NotificationType
+		ReferenceID uuid.UUID
+		Count       int
+		Message     string
+		Read        bool
+	}
+)
+
+func notificationMention(userID, actorID uuid.UUID) spec.NewNotification {
+	return spec.NewNotification{UserID: userID, Type: dto.NotifMention, ReferenceID: uuid.New(), ReferenceType: "theory", ActorID: actorID, Message: "msg"}
+}
+
+func notificationSeed(t *testing.T, repos *repository.Repositories, count int, s spec.NewNotification) []int {
+	t.Helper()
+	ids := make([]int, 0, count)
+	for range count {
+		created, err := repos.Notification.Create(context.Background(), s)
+		require.NoError(t, err)
+		ids = append(ids, created.ID)
+	}
+
+	return ids
+}
+
+func notificationBackdate(t *testing.T, repos *repository.Repositories, id int, createdAt string) {
+	t.Helper()
+	_, err := repos.DB().ExecContext(context.Background(), `UPDATE notifications SET created_at = $1 WHERE id = $2`, createdAt, id)
+	require.NoError(t, err)
+}
+
+func notificationList(t *testing.T, repos *repository.Repositories, userID uuid.UUID) ([]model.NotificationRow, int) {
+	t.Helper()
+	rows, total, err := repos.Notification.ListByUser(context.Background(), spec.NotificationListing{UserID: userID, Limit: 10, Offset: 0})
+	require.NoError(t, err)
+
+	return rows, total
+}
+
+func notificationUnread(t *testing.T, repos *repository.Repositories, userID uuid.UUID) int {
+	t.Helper()
+	count, err := repos.Notification.UnreadCount(context.Background(), userID)
+	require.NoError(t, err)
+
+	return count
+}
+
+func notificationSummaries(rows []model.NotificationRow) []notificationSummary {
+	out := make([]notificationSummary, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, notificationSummary{Type: r.Type, ReferenceID: r.ReferenceID, Count: r.Count, Message: r.Message, Read: r.Read})
+	}
+
+	return out
+}
+
+func TestNotificationDAO_CreateAndListByUser(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
+	other := daotest.CreateUser(t, repos)
+	actor := daotest.CreateUser(t, repos, daotest.WithUsername("actor_user"), daotest.WithDisplayName("Actor"))
 	refID := uuid.New()
+	notificationSeed(t, repos, 1, notificationMention(other.ID, actor.ID))
 
 	// when
-	created, err := repos.Notification.Create(context.Background(), spec.NewNotification{
-		UserID:        user.ID,
-		Type:          dto.NotifTheoryUpvote,
-		ReferenceID:   refID,
-		ReferenceType: "theory",
-		ActorID:       actor.ID,
-		Message:       "Liked your theory",
-	})
+	created, err := repos.Notification.Create(context.Background(), spec.NewNotification{UserID: user.ID, Type: dto.NotifMention, ReferenceID: refID, ReferenceType: "theory", ActorID: actor.ID, Message: "Mentioned you"})
 
 	// then
 	require.NoError(t, err)
 	assert.Greater(t, created.ID, 0)
-}
 
-func TestNotificationDAO_ListByUser_Empty(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-
-	// when
-	rows, total, err := repos.Notification.ListByUser(context.Background(), spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 0, total)
-	assert.Empty(t, rows)
-}
-
-func TestNotificationDAO_ListByUser(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos, daotest.WithUsername("actor_user"), daotest.WithDisplayName("Actor"))
-	refID := uuid.New()
-	ctx := context.Background()
-	_, err := repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        user.ID,
-		Type:          dto.NotifMention,
-		ReferenceID:   refID,
-		ReferenceType: "theory",
-		ActorID:       actor.ID,
-		Message:       "Mentioned you",
-	})
-	require.NoError(t, err)
-
-	// when
-	rows, total, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 1, total)
+	rows, total := notificationList(t, repos, user.ID)
+	assert.Equal(t, 1, total, "another user's notification is never listed")
 	require.Len(t, rows, 1)
 	row := rows[0]
+	assert.Equal(t, created.ID, row.ID)
 	assert.Equal(t, user.ID, row.UserID)
 	assert.Equal(t, dto.NotifMention, row.Type)
 	assert.Equal(t, refID, row.ReferenceID)
@@ -87,1007 +106,227 @@ func TestNotificationDAO_ListByUser(t *testing.T) {
 	assert.NotEmpty(t, row.CreatedAt)
 }
 
-func TestNotificationDAO_ListByUser_FiltersByUser(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	other := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	ctx := context.Background()
-	_, err := repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        user.ID,
-		Type:          dto.NotifMention,
-		ReferenceID:   uuid.New(),
-		ReferenceType: "theory",
-		ActorID:       actor.ID,
-		Message:       "for user",
-	})
-	require.NoError(t, err)
-	_, err = repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        other.ID,
-		Type:          dto.NotifMention,
-		ReferenceID:   uuid.New(),
-		ReferenceType: "theory",
-		ActorID:       actor.ID,
-		Message:       "for other",
-	})
-	require.NoError(t, err)
-
-	// when
-	rows, total, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 1, total)
-	require.Len(t, rows, 1)
-	assert.Equal(t, "for user", rows[0].Message)
-}
-
-func TestNotificationDAO_ListByUser_OrderedDesc(t *testing.T) {
+func TestNotificationDAO_ListByUser_NewestFirstAcrossPages(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	actor := daotest.CreateUser(t, repos)
-	ctx := context.Background()
-	ids := make([]int, 3)
-	for i := range 3 {
-		created, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          dto.NotifMention,
-			ReferenceID:   uuid.New(),
-			ReferenceType: "theory",
-			ActorID:       actor.ID,
-			Message:       "msg",
+	ids := notificationSeed(t, repos, 5, notificationMention(user.ID, actor.ID))
+	createdAts := []string{"2026-01-04", "2026-01-02", "2026-01-05", "2026-01-01", "2026-01-03"}
+	for i, id := range ids {
+		notificationBackdate(t, repos, id, createdAts[i])
+	}
+
+	pages := []struct {
+		name   string
+		offset int
+		want   []int
+	}{
+		{name: "the first page holds the two newest", offset: 0, want: []int{ids[2], ids[0]}},
+		{name: "the second page continues without overlap", offset: 2, want: []int{ids[4], ids[1]}},
+		{name: "the last page holds the remainder", offset: 4, want: []int{ids[3]}},
+	}
+
+	for _, page := range pages {
+		t.Run(page.name, func(t *testing.T) {
+			// when
+			rows, total, err := repos.Notification.ListByUser(context.Background(), spec.NotificationListing{UserID: user.ID, Limit: 2, Offset: page.offset})
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, 5, total)
+
+			got := make([]int, 0, len(rows))
+			for _, r := range rows {
+				got = append(got, r.ID)
+			}
+			assert.Equal(t, page.want, got)
 		})
-		require.NoError(t, err)
-		ids[i] = created.ID
-	}
-
-	// when
-	rows, _, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
-
-	// then
-	require.NoError(t, err)
-	require.Len(t, rows, 3)
-	gotIDs := []int{rows[0].ID, rows[1].ID, rows[2].ID}
-	assert.Contains(t, gotIDs, int(ids[0]))
-	assert.Contains(t, gotIDs, int(ids[1]))
-	assert.Contains(t, gotIDs, int(ids[2]))
-	for i := 0; i < len(rows)-1; i++ {
-		assert.GreaterOrEqual(t, rows[i].CreatedAt, rows[i+1].CreatedAt)
 	}
 }
 
-func TestNotificationDAO_ListByUser_Pagination(t *testing.T) {
+func TestNotificationDAO_ListByUser_CollapsesUnreadChatGroups(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	ctx := context.Background()
-	for range 5 {
-		_, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          dto.NotifMention,
-			ReferenceID:   uuid.New(),
-			ReferenceType: "theory",
-			ActorID:       actor.ID,
-			Message:       "msg",
-		})
-		require.NoError(t, err)
-	}
-
-	// when
-	page1, total, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 2, Offset: 0})
-	require.NoError(t, err)
-	page2, _, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 2, Offset: 2})
-	require.NoError(t, err)
-	page3, _, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 2, Offset: 4})
-	require.NoError(t, err)
-
-	// then
-	assert.Equal(t, 5, total)
-	assert.Len(t, page1, 2)
-	assert.Len(t, page2, 2)
-	assert.Len(t, page3, 1)
-	seen := map[int]bool{}
-	for _, r := range append(append(page1, page2...), page3...) {
-		assert.False(t, seen[r.ID])
-		seen[r.ID] = true
-	}
-}
-
-func TestNotificationDAO_MarkRead(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	ctx := context.Background()
-	created, err := repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        user.ID,
-		Type:          dto.NotifMention,
-		ReferenceID:   uuid.New(),
-		ReferenceType: "theory",
-		ActorID:       actor.ID,
-		Message:       "msg",
-	})
-	require.NoError(t, err)
-	id := created.ID
-
-	// when
-	err = repos.Notification.MarkRead(ctx, spec.NotificationLookup{ID: int(id), UserID: user.ID})
-
-	// then
-	require.NoError(t, err)
-	rows, _, listErr := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
-	require.NoError(t, listErr)
-	require.Len(t, rows, 1)
-	assert.True(t, rows[0].Read)
-}
-
-func TestNotificationDAO_MarkRead_OnlyOwner(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	other := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	ctx := context.Background()
-	created, err := repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        user.ID,
-		Type:          dto.NotifMention,
-		ReferenceID:   uuid.New(),
-		ReferenceType: "theory",
-		ActorID:       actor.ID,
-		Message:       "msg",
-	})
-	require.NoError(t, err)
-	id := created.ID
-
-	// when
-	err = repos.Notification.MarkRead(ctx, spec.NotificationLookup{ID: int(id), UserID: other.ID})
-
-	// then
-	require.NoError(t, err)
-	rows, _, listErr := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
-	require.NoError(t, listErr)
-	require.Len(t, rows, 1)
-	assert.False(t, rows[0].Read)
-}
-
-func TestNotificationDAO_DeleteOlderThanBatch_DeletesOnlyOlder(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	ctx := context.Background()
-	for range 3 {
-		_, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          dto.NotifMention,
-			ReferenceID:   uuid.New(),
-			ReferenceType: "theory",
-			ActorID:       actor.ID,
-			Message:       "m",
-		})
-		require.NoError(t, err)
-	}
-
-	// when: a cutoff in the past leaves the fresh rows untouched
-	deleted, err := repos.Notification.DeleteOlderThanBatch(ctx, spec.NotificationPruneBatch{Cutoff: time.Now().Add(-time.Hour), Limit: 100})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, int64(0), deleted)
-	remaining, err := repos.Notification.UnreadCount(ctx, user.ID)
-	require.NoError(t, err)
-	assert.Equal(t, 3, remaining)
-
-	// when: a cutoff in the future treats every row as old
-	deleted, err = repos.Notification.DeleteOlderThanBatch(ctx, spec.NotificationPruneBatch{Cutoff: time.Now().Add(time.Hour), Limit: 100})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, int64(3), deleted)
-	remaining, err = repos.Notification.UnreadCount(ctx, user.ID)
-	require.NoError(t, err)
-	assert.Equal(t, 0, remaining)
-}
-
-func TestNotificationDAO_DeleteOlderThanBatch_RespectsLimit(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	ctx := context.Background()
-	for range 5 {
-		_, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          dto.NotifMention,
-			ReferenceID:   uuid.New(),
-			ReferenceType: "theory",
-			ActorID:       actor.ID,
-			Message:       "m",
-		})
-		require.NoError(t, err)
-	}
-	future := time.Now().Add(time.Hour)
-
-	// when: a limit smaller than the backlog deletes only up to the limit
-	deleted, err := repos.Notification.DeleteOlderThanBatch(ctx, spec.NotificationPruneBatch{Cutoff: future, Limit: 2})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, int64(2), deleted)
-
-	// when: repeated batches drain the remainder, the last one short of the limit
-	deleted, err = repos.Notification.DeleteOlderThanBatch(ctx, spec.NotificationPruneBatch{Cutoff: future, Limit: 2})
-	require.NoError(t, err)
-	assert.Equal(t, int64(2), deleted)
-
-	deleted, err = repos.Notification.DeleteOlderThanBatch(ctx, spec.NotificationPruneBatch{Cutoff: future, Limit: 2})
-	require.NoError(t, err)
-	assert.Equal(t, int64(1), deleted)
-
-	// then: nothing remains
-	remaining, err := repos.Notification.UnreadCount(ctx, user.ID)
-	require.NoError(t, err)
-	assert.Equal(t, 0, remaining)
-}
-
-func TestNotificationDAO_MarkAllRead(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	other := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	ctx := context.Background()
-	for range 3 {
-		_, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          dto.NotifMention,
-			ReferenceID:   uuid.New(),
-			ReferenceType: "theory",
-			ActorID:       actor.ID,
-			Message:       "u",
-		})
-		require.NoError(t, err)
-	}
-	_, err := repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        other.ID,
-		Type:          dto.NotifMention,
-		ReferenceID:   uuid.New(),
-		ReferenceType: "theory",
-		ActorID:       actor.ID,
-		Message:       "o",
-	})
-	require.NoError(t, err)
-
-	// when
-	err = repos.Notification.MarkAllRead(ctx, user.ID)
-
-	// then
-	require.NoError(t, err)
-	userUnread, err := repos.Notification.UnreadCount(ctx, user.ID)
-	require.NoError(t, err)
-	assert.Equal(t, 0, userUnread)
-	otherUnread, err := repos.Notification.UnreadCount(ctx, other.ID)
-	require.NoError(t, err)
-	assert.Equal(t, 1, otherUnread)
-}
-
-func TestNotificationDAO_UnreadCount(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	ctx := context.Background()
-	id1Row, err := repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        user.ID,
-		Type:          dto.NotifMention,
-		ReferenceID:   uuid.New(),
-		ReferenceType: "theory",
-		ActorID:       actor.ID,
-		Message:       "a",
-	})
-	require.NoError(t, err)
-	id1 := id1Row.ID
-	_, err = repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        user.ID,
-		Type:          dto.NotifMention,
-		ReferenceID:   uuid.New(),
-		ReferenceType: "theory",
-		ActorID:       actor.ID,
-		Message:       "b",
-	})
-	require.NoError(t, err)
-	_, err = repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        user.ID,
-		Type:          dto.NotifMention,
-		ReferenceID:   uuid.New(),
-		ReferenceType: "theory",
-		ActorID:       actor.ID,
-		Message:       "c",
-	})
-	require.NoError(t, err)
-	require.NoError(t, repos.Notification.MarkRead(ctx, spec.NotificationLookup{ID: int(id1), UserID: user.ID}))
-
-	// when
-	count, err := repos.Notification.UnreadCount(ctx, user.ID)
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 2, count)
-}
-
-func TestNotificationDAO_UnreadCount_Empty(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-
-	// when
-	count, err := repos.Notification.UnreadCount(context.Background(), user.ID)
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 0, count)
-}
-
-func TestNotificationDAO_HasRecentDuplicate_True(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	refID := uuid.New()
-	ctx := context.Background()
-	_, err := repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        user.ID,
-		Type:          dto.NotifMention,
-		ReferenceID:   refID,
-		ReferenceType: "theory",
-		ActorID:       actor.ID,
-		Message:       "msg",
-	})
-	require.NoError(t, err)
-
-	// when
-	exists, err := repos.Notification.HasRecentDuplicate(ctx, spec.NotificationDuplicateCheck{
-		UserID:      user.ID,
-		Type:        dto.NotifMention,
-		ReferenceID: refID,
-		ActorID:     actor.ID,
-	})
-
-	// then
-	require.NoError(t, err)
-	assert.True(t, exists)
-}
-
-func TestNotificationDAO_HasRecentDuplicate_False(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	ctx := context.Background()
-
-	// when
-	exists, err := repos.Notification.HasRecentDuplicate(ctx, spec.NotificationDuplicateCheck{
-		UserID:      user.ID,
-		Type:        dto.NotifMention,
-		ReferenceID: uuid.New(),
-		ActorID:     actor.ID,
-	})
-
-	// then
-	require.NoError(t, err)
-	assert.False(t, exists)
-}
-
-func TestNotificationDAO_HasRecentDuplicate_DifferentTypeNotMatched(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	refID := uuid.New()
-	ctx := context.Background()
-	_, err := repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        user.ID,
-		Type:          dto.NotifMention,
-		ReferenceID:   refID,
-		ReferenceType: "theory",
-		ActorID:       actor.ID,
-		Message:       "msg",
-	})
-	require.NoError(t, err)
-
-	// when
-	exists, err := repos.Notification.HasRecentDuplicate(ctx, spec.NotificationDuplicateCheck{
-		UserID:      user.ID,
-		Type:        dto.NotifPostLiked,
-		ReferenceID: refID,
-		ActorID:     actor.ID,
-	})
-
-	// then
-	require.NoError(t, err)
-	assert.False(t, exists)
-}
-
-func TestNotificationDAO_HasRecentDuplicate_DifferentActorNotMatched(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	otherActor := daotest.CreateUser(t, repos)
-	refID := uuid.New()
-	ctx := context.Background()
-	_, err := repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        user.ID,
-		Type:          dto.NotifMention,
-		ReferenceID:   refID,
-		ReferenceType: "theory",
-		ActorID:       actor.ID,
-		Message:       "msg",
-	})
-	require.NoError(t, err)
-
-	// when
-	exists, err := repos.Notification.HasRecentDuplicate(ctx, spec.NotificationDuplicateCheck{
-		UserID:      user.ID,
-		Type:        dto.NotifMention,
-		ReferenceID: refID,
-		ActorID:     otherActor.ID,
-	})
-
-	// then
-	require.NoError(t, err)
-	assert.False(t, exists)
-}
-
-func TestNotificationDAO_ListByUser_GroupsUnreadChatRoomMessages(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	alice := daotest.CreateUser(t, repos, daotest.WithUsername("alice"), daotest.WithDisplayName("Alice"))
 	bob := daotest.CreateUser(t, repos, daotest.WithUsername("bob"), daotest.WithDisplayName("Bob"))
-	roomID := uuid.New()
-	ctx := context.Background()
+	generalRoom := uuid.New()
+	sharedRef := uuid.New()
+	bobDM := uuid.New()
+	aliceLoneDM := uuid.New()
+	mentionRef := uuid.New()
+	likeRef := uuid.New()
 
-	for i := range 5 {
-		actor := alice.ID
-		if i%2 == 1 {
-			actor = bob.ID
-		}
-		_, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          dto.NotifChatRoomMessage,
-			ReferenceID:   roomID,
-			ReferenceType: "chat_message:x",
-			ActorID:       actor,
-			Message:       "sent a message in General Chat",
-		})
-		require.NoError(t, err)
+	for _, actorID := range []uuid.UUID{alice.ID, bob.ID, alice.ID, bob.ID, alice.ID} {
+		notificationSeed(t, repos, 1, spec.NewNotification{UserID: user.ID, Type: dto.NotifChatRoomMessage, ReferenceID: generalRoom, ReferenceType: "chat_message:x", ActorID: actorID, Message: "sent a message in General Chat"})
 	}
-
-	rows, total, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
-	require.NoError(t, err)
-
-	assert.Equal(t, 1, total, "5 chat messages for one room should collapse to 1 row")
-	require.Len(t, rows, 1)
-	assert.Equal(t, dto.NotifChatRoomMessage, rows[0].Type)
-	assert.Equal(t, 5, rows[0].Count)
-	assert.Equal(t, "5 messages sent in General Chat", rows[0].Message)
-}
-
-func TestNotificationDAO_ListByUser_DifferentRoomsNotCollapsed(t *testing.T) {
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	roomA := uuid.New()
-	roomB := uuid.New()
-	ctx := context.Background()
-
-	for range 3 {
-		_, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          dto.NotifChatRoomMessage,
-			ReferenceID:   roomA,
-			ReferenceType: "chat_message:x",
-			ActorID:       actor.ID,
-			Message:       "sent a message in Room A",
-		})
-		require.NoError(t, err)
-	}
-	for range 2 {
-		_, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          dto.NotifChatRoomMessage,
-			ReferenceID:   roomB,
-			ReferenceType: "chat_message:x",
-			ActorID:       actor.ID,
-			Message:       "sent a message in Room B",
-		})
-		require.NoError(t, err)
-	}
-
-	rows, total, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
-	require.NoError(t, err)
-
-	assert.Equal(t, 2, total)
-	require.Len(t, rows, 2)
-	byRoom := map[uuid.UUID]int{}
-	for _, r := range rows {
-		byRoom[r.ReferenceID] = r.Count
-	}
-	assert.Equal(t, 3, byRoom[roomA])
-	assert.Equal(t, 2, byRoom[roomB])
-}
-
-func TestNotificationDAO_ListByUser_ReadChatMessagesNotGrouped(t *testing.T) {
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	roomID := uuid.New()
-	ctx := context.Background()
-
-	ids := make([]int, 3)
-	for i := range 3 {
-		created, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          dto.NotifChatRoomMessage,
-			ReferenceID:   roomID,
-			ReferenceType: "chat_message:x",
-			ActorID:       actor.ID,
-			Message:       "sent a message in General",
-		})
-		require.NoError(t, err)
-		ids[i] = created.ID
-	}
-
-	require.NoError(t, repos.Notification.MarkAllRead(ctx, user.ID))
-
-	rows, total, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
-	require.NoError(t, err)
-
-	assert.Equal(t, 3, total, "read chat_room_message rows should be shown individually")
-	assert.Len(t, rows, 3)
-	for _, r := range rows {
-		assert.Equal(t, 1, r.Count)
-		assert.True(t, r.Read)
-	}
-}
-
-func TestNotificationDAO_ListByUser_MixedTypesPreservesNonChat(t *testing.T) {
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	roomID := uuid.New()
-	ctx := context.Background()
-
-	for range 3 {
-		_, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          dto.NotifChatRoomMessage,
-			ReferenceID:   roomID,
-			ReferenceType: "chat_message:x",
-			ActorID:       actor.ID,
-			Message:       "sent a message in General",
-		})
-		require.NoError(t, err)
-	}
-	_, err := repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        user.ID,
-		Type:          dto.NotifMention,
-		ReferenceID:   uuid.New(),
-		ReferenceType: "theory",
-		ActorID:       actor.ID,
-		Message:       "Mentioned you",
-	})
-	require.NoError(t, err)
-	_, err = repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        user.ID,
-		Type:          dto.NotifPostLiked,
-		ReferenceID:   uuid.New(),
-		ReferenceType: "post",
-		ActorID:       actor.ID,
-		Message:       "",
-	})
-	require.NoError(t, err)
-
-	rows, total, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
-	require.NoError(t, err)
-
-	assert.Equal(t, 3, total, "1 grouped chat + 2 individual = 3 rows")
-	require.Len(t, rows, 3)
-
-	typeCount := map[dto.NotificationType]int{}
-	for _, r := range rows {
-		typeCount[r.Type]++
-	}
-	assert.Equal(t, 1, typeCount[dto.NotifChatRoomMessage])
-	assert.Equal(t, 1, typeCount[dto.NotifMention])
-	assert.Equal(t, 1, typeCount[dto.NotifPostLiked])
-}
-
-func TestNotificationDAO_UnreadCount_SumsRawRowsNotGroups(t *testing.T) {
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	roomID := uuid.New()
-	ctx := context.Background()
-
-	for range 50 {
-		_, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          dto.NotifChatRoomMessage,
-			ReferenceID:   roomID,
-			ReferenceType: "chat_message:x",
-			ActorID:       actor.ID,
-			Message:       "sent a message in General",
-		})
-		require.NoError(t, err)
-	}
-
-	count, err := repos.Notification.UnreadCount(ctx, user.ID)
-	require.NoError(t, err)
-	assert.Equal(t, 50, count, "badge counter must reflect raw row count, not grouped count")
-}
-
-func TestNotificationDAO_MarkRead_ChatRoomMessageMarksEntireGroup(t *testing.T) {
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	roomID := uuid.New()
-	ctx := context.Background()
-
-	ids := make([]int, 4)
-	for i := range 4 {
-		created, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          dto.NotifChatRoomMessage,
-			ReferenceID:   roomID,
-			ReferenceType: "chat_message:x",
-			ActorID:       actor.ID,
-			Message:       "sent a message in General",
-		})
-		require.NoError(t, err)
-		ids[i] = created.ID
-	}
-
-	rows, _, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
-	require.NoError(t, err)
-	require.Len(t, rows, 1)
-	representative := rows[0].ID
-
-	require.NoError(t, repos.Notification.MarkRead(ctx, spec.NotificationLookup{ID: representative, UserID: user.ID}))
-
-	remaining, err := repos.Notification.UnreadCount(ctx, user.ID)
-	require.NoError(t, err)
-	assert.Equal(t, 0, remaining, "marking the grouped row should mark all 4 underlying rows")
-}
-
-func TestNotificationDAO_MarkRead_DifferentRoomUnaffected(t *testing.T) {
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	roomA := uuid.New()
-	roomB := uuid.New()
-	ctx := context.Background()
-
-	for range 3 {
-		_, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          dto.NotifChatRoomMessage,
-			ReferenceID:   roomA,
-			ReferenceType: "chat_message:x",
-			ActorID:       actor.ID,
-			Message:       "sent a message in A",
-		})
-		require.NoError(t, err)
-	}
-	for range 2 {
-		_, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          dto.NotifChatRoomMessage,
-			ReferenceID:   roomB,
-			ReferenceType: "chat_message:x",
-			ActorID:       actor.ID,
-			Message:       "sent a message in B",
-		})
-		require.NoError(t, err)
-	}
-
-	rows, _, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
-	require.NoError(t, err)
-	require.Len(t, rows, 2)
-
-	var roomARowID int
-	for _, r := range rows {
-		if r.ReferenceID == roomA {
-			roomARowID = r.ID
-		}
-	}
-	require.NotZero(t, roomARowID)
-
-	require.NoError(t, repos.Notification.MarkRead(ctx, spec.NotificationLookup{ID: roomARowID, UserID: user.ID}))
-
-	remaining, err := repos.Notification.UnreadCount(ctx, user.ID)
-	require.NoError(t, err)
-	assert.Equal(t, 2, remaining, "only room A should be marked read, room B's 2 messages remain unread")
-}
-
-func TestNotificationDAO_ListByUser_CollapsesUnreadDirectMessages(t *testing.T) {
-	tests := []struct {
-		name        string
-		messages    int
-		wantCount   int
-		wantMessage string
-	}{
-		{name: "two unread dms collapse", messages: 2, wantCount: 2, wantMessage: "has sent you 2 messages"},
-		{name: "seven unread dms collapse", messages: 7, wantCount: 7, wantMessage: "has sent you 7 messages"},
-		{name: "a lone dm keeps its stored message", messages: 1, wantCount: 1, wantMessage: ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// given
-			repos := daotest.NewRepos(t)
-			user := daotest.CreateUser(t, repos)
-			alice := daotest.CreateUser(t, repos, daotest.WithUsername("alice"), daotest.WithDisplayName("Alice"))
-			dmRoom := uuid.New()
-			ctx := context.Background()
-
-			for range tt.messages {
-				_, err := repos.Notification.Create(ctx, spec.NewNotification{
-					UserID:        user.ID,
-					Type:          dto.NotifChatMessage,
-					ReferenceID:   dmRoom,
-					ReferenceType: "chat",
-					ActorID:       alice.ID,
-					Message:       "",
-				})
-				require.NoError(t, err)
-			}
-
-			// when
-			rows, total, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
-
-			// then
-			require.NoError(t, err)
-			assert.Equal(t, 1, total, "one conversation is one row")
-			require.Len(t, rows, 1)
-			assert.Equal(t, dto.NotifChatMessage, rows[0].Type)
-			assert.Equal(t, dmRoom, rows[0].ReferenceID)
-			assert.Equal(t, tt.wantCount, rows[0].Count)
-			assert.Equal(t, tt.wantMessage, rows[0].Message)
-			assert.Equal(t, alice.ID, rows[0].ActorID, "the collapsed row keeps the latest sender as its actor")
-			assert.Equal(t, "Alice", rows[0].ActorDisplayName)
-		})
-	}
-}
-
-func TestNotificationDAO_ListByUser_DirectMessagesCollapsePerConversation(t *testing.T) {
-	tests := []struct {
-		name         string
-		otherType    dto.NotificationType
-		otherMessage string
-		sameRoom     bool
-		wantMessages []string
-	}{
-		{
-			name:         "a second sender is a separate conversation",
-			otherType:    dto.NotifChatMessage,
-			otherMessage: "",
-			sameRoom:     false,
-			wantMessages: []string{"has sent you 2 messages", "has sent you 3 messages"},
-		},
-		{
-			name:         "the same reference under the room type is a separate group",
-			otherType:    dto.NotifChatRoomMessage,
-			otherMessage: "sent a message in General Chat",
-			sameRoom:     true,
-			wantMessages: []string{"has sent you 2 messages", "3 messages sent in General Chat"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// given
-			repos := daotest.NewRepos(t)
-			user := daotest.CreateUser(t, repos)
-			alice := daotest.CreateUser(t, repos, daotest.WithUsername("alice"), daotest.WithDisplayName("Alice"))
-			bob := daotest.CreateUser(t, repos, daotest.WithUsername("bob"), daotest.WithDisplayName("Bob"))
-			dmRoom := uuid.New()
-			otherRoom := uuid.New()
-			if tt.sameRoom {
-				otherRoom = dmRoom
-			}
-			ctx := context.Background()
-
-			for range 2 {
-				_, err := repos.Notification.Create(ctx, spec.NewNotification{
-					UserID:        user.ID,
-					Type:          dto.NotifChatMessage,
-					ReferenceID:   dmRoom,
-					ReferenceType: "chat",
-					ActorID:       alice.ID,
-					Message:       "",
-				})
-				require.NoError(t, err)
-			}
-			for range 3 {
-				_, err := repos.Notification.Create(ctx, spec.NewNotification{
-					UserID:        user.ID,
-					Type:          tt.otherType,
-					ReferenceID:   otherRoom,
-					ReferenceType: "chat",
-					ActorID:       bob.ID,
-					Message:       tt.otherMessage,
-				})
-				require.NoError(t, err)
-			}
-
-			// when
-			rows, total, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
-
-			// then
-			require.NoError(t, err)
-			assert.Equal(t, 2, total, "the two groups must not merge into one row")
-			require.Len(t, rows, 2)
-			gotMessages := make([]string, 0, len(rows))
-			for _, r := range rows {
-				gotMessages = append(gotMessages, r.Message)
-			}
-			assert.ElementsMatch(t, tt.wantMessages, gotMessages)
-		})
-	}
-}
-
-func TestNotificationDAO_ListByUser_ReadDirectMessagesNotGrouped(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	alice := daotest.CreateUser(t, repos, daotest.WithUsername("alice"), daotest.WithDisplayName("Alice"))
-	dmRoom := uuid.New()
-	ctx := context.Background()
-
-	for range 3 {
-		_, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          dto.NotifChatMessage,
-			ReferenceID:   dmRoom,
-			ReferenceType: "chat",
-			ActorID:       alice.ID,
-			Message:       "",
-		})
-		require.NoError(t, err)
-	}
-	require.NoError(t, repos.Notification.MarkAllRead(ctx, user.ID))
-
-	for range 2 {
-		_, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          dto.NotifChatMessage,
-			ReferenceID:   dmRoom,
-			ReferenceType: "chat",
-			ActorID:       alice.ID,
-			Message:       "",
-		})
-		require.NoError(t, err)
-	}
+	notificationSeed(t, repos, 2, spec.NewNotification{UserID: user.ID, Type: dto.NotifChatRoomMessage, ReferenceID: sharedRef, ReferenceType: "chat_message:x", ActorID: bob.ID, Message: "sent a message in Room B"})
+	notificationSeed(t, repos, 2, spec.NewNotification{UserID: user.ID, Type: dto.NotifChatMessage, ReferenceID: sharedRef, ReferenceType: "chat", ActorID: alice.ID})
+	notificationSeed(t, repos, 7, spec.NewNotification{UserID: user.ID, Type: dto.NotifChatMessage, ReferenceID: bobDM, ReferenceType: "chat", ActorID: bob.ID})
+	notificationSeed(t, repos, 1, spec.NewNotification{UserID: user.ID, Type: dto.NotifChatMessage, ReferenceID: aliceLoneDM, ReferenceType: "chat", ActorID: alice.ID})
+	notificationSeed(t, repos, 1, spec.NewNotification{UserID: user.ID, Type: dto.NotifMention, ReferenceID: mentionRef, ReferenceType: "theory", ActorID: alice.ID, Message: "Mentioned you"})
+	notificationSeed(t, repos, 1, spec.NewNotification{UserID: user.ID, Type: dto.NotifPostLiked, ReferenceID: likeRef, ReferenceType: "post", ActorID: alice.ID})
 
 	// when
-	rows, total, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
+	rows, total := notificationList(t, repos, user.ID)
 
 	// then
-	require.NoError(t, err)
-	assert.Equal(t, 4, total, "3 read rows stay individual, the 2 unread ones collapse to 1")
-	require.Len(t, rows, 4)
+	assert.Equal(t, 7, total, "each unread chat group collapses to one row and every other notification stays individual")
+	require.ElementsMatch(t, []notificationSummary{
+		{Type: dto.NotifChatRoomMessage, ReferenceID: generalRoom, Count: 5, Message: "5 messages sent in General Chat"},
+		{Type: dto.NotifChatRoomMessage, ReferenceID: sharedRef, Count: 2, Message: "2 messages sent in Room B"},
+		{Type: dto.NotifChatMessage, ReferenceID: sharedRef, Count: 2, Message: "has sent you 2 messages"},
+		{Type: dto.NotifChatMessage, ReferenceID: bobDM, Count: 7, Message: "has sent you 7 messages"},
+		{Type: dto.NotifChatMessage, ReferenceID: aliceLoneDM, Count: 1, Message: ""},
+		{Type: dto.NotifMention, ReferenceID: mentionRef, Count: 1, Message: "Mentioned you"},
+		{Type: dto.NotifPostLiked, ReferenceID: likeRef, Count: 1, Message: ""},
+	}, notificationSummaries(rows))
 
-	var readRows, unreadRows int
+	dmSenders := map[uuid.UUID]*model.User{sharedRef: alice, bobDM: bob, aliceLoneDM: alice}
 	for _, r := range rows {
-		if r.Read {
-			readRows++
-			assert.Equal(t, 1, r.Count)
-			assert.Empty(t, r.Message, "a read dm row keeps its stored message")
+		if r.Type != dto.NotifChatMessage {
 			continue
 		}
-		unreadRows++
-		assert.Equal(t, 2, r.Count)
-		assert.Equal(t, "has sent you 2 messages", r.Message)
+		sender := dmSenders[r.ReferenceID]
+		assert.Equal(t, sender.ID, r.ActorID, "the collapsed row keeps the latest sender as its actor")
+		assert.Equal(t, sender.DisplayName, r.ActorDisplayName)
 	}
-	assert.Equal(t, 3, readRows)
-	assert.Equal(t, 1, unreadRows)
+
+	assert.Equal(t, 19, notificationUnread(t, repos, user.ID), "badge counter must reflect raw row count, not grouped count")
 }
 
-func TestNotificationDAO_MarkRead_DirectMessageMarksEntireConversation(t *testing.T) {
+func TestNotificationDAO_ListByUser_ReadChatRowsNotGrouped(t *testing.T) {
 	tests := []struct {
-		name         string
-		otherType    dto.NotificationType
-		otherMessage string
-		sameRoom     bool
+		name        string
+		notifType   dto.NotificationType
+		message     string
+		wantGrouped string
 	}{
-		{
-			name:         "another conversation is untouched",
-			otherType:    dto.NotifChatMessage,
-			otherMessage: "",
-			sameRoom:     false,
-		},
-		{
-			name:         "the same reference under the room type is untouched",
-			otherType:    dto.NotifChatRoomMessage,
-			otherMessage: "sent a message in General Chat",
-			sameRoom:     true,
-		},
+		{name: "read chat room messages are listed individually beside the unread group", notifType: dto.NotifChatRoomMessage, message: "sent a message in General", wantGrouped: "2 messages sent in General"},
+		{name: "read direct messages keep their stored message beside the unread group", notifType: dto.NotifChatMessage, message: "", wantGrouped: "has sent you 2 messages"},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 			// given
 			repos := daotest.NewRepos(t)
 			user := daotest.CreateUser(t, repos)
-			alice := daotest.CreateUser(t, repos, daotest.WithUsername("alice"), daotest.WithDisplayName("Alice"))
-			bob := daotest.CreateUser(t, repos, daotest.WithUsername("bob"), daotest.WithDisplayName("Bob"))
-			dmRoom := uuid.New()
-			otherRoom := uuid.New()
-			if tt.sameRoom {
-				otherRoom = dmRoom
-			}
-			ctx := context.Background()
-
-			for range 4 {
-				_, err := repos.Notification.Create(ctx, spec.NewNotification{
-					UserID:        user.ID,
-					Type:          dto.NotifChatMessage,
-					ReferenceID:   dmRoom,
-					ReferenceType: "chat",
-					ActorID:       alice.ID,
-					Message:       "",
-				})
-				require.NoError(t, err)
-			}
-			for range 3 {
-				_, err := repos.Notification.Create(ctx, spec.NewNotification{
-					UserID:        user.ID,
-					Type:          tt.otherType,
-					ReferenceID:   otherRoom,
-					ReferenceType: "chat",
-					ActorID:       bob.ID,
-					Message:       tt.otherMessage,
-				})
-				require.NoError(t, err)
-			}
-
-			rows, _, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
-			require.NoError(t, err)
-			require.Len(t, rows, 2)
-
-			var dmRowID int
-			for _, r := range rows {
-				if r.Type == dto.NotifChatMessage && r.ReferenceID == dmRoom {
-					dmRowID = r.ID
-				}
-			}
-			require.NotZero(t, dmRowID)
+			actor := daotest.CreateUser(t, repos)
+			refID := uuid.New()
+			seed := spec.NewNotification{UserID: user.ID, Type: tc.notifType, ReferenceID: refID, ReferenceType: "chat", ActorID: actor.ID, Message: tc.message}
+			notificationSeed(t, repos, 3, seed)
+			require.NoError(t, repos.Notification.MarkAllRead(context.Background(), user.ID))
+			notificationSeed(t, repos, 2, seed)
 
 			// when
-			require.NoError(t, repos.Notification.MarkRead(ctx, spec.NotificationLookup{ID: dmRowID, UserID: user.ID}))
+			rows, total := notificationList(t, repos, user.ID)
 
 			// then
-			remaining, err := repos.Notification.UnreadCount(ctx, user.ID)
-			require.NoError(t, err)
-			assert.Equal(t, 3, remaining, "one click clears all 4 dms and leaves the other group alone")
+			read := notificationSummary{Type: tc.notifType, ReferenceID: refID, Count: 1, Message: tc.message, Read: true}
+			unread := notificationSummary{Type: tc.notifType, ReferenceID: refID, Count: 2, Message: tc.wantGrouped, Read: false}
+			assert.Equal(t, 4, total, "3 read rows stay individual, the 2 unread ones collapse to 1")
+			assert.ElementsMatch(t, []notificationSummary{read, read, read, unread}, notificationSummaries(rows))
+		})
+	}
+}
 
-			after, total, err := repos.Notification.ListByUser(ctx, spec.NotificationListing{UserID: user.ID, Limit: 10, Offset: 0})
+func TestNotificationDAO_MarkRead(t *testing.T) {
+	tests := []struct {
+		name       string
+		byOwner    bool
+		wantUnread int
+	}{
+		{name: "the owner marks only that notification read", byOwner: true, wantUnread: 2},
+		{name: "another user cannot mark someone else's notification read", byOwner: false, wantUnread: 3},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			user := daotest.CreateUser(t, repos)
+			other := daotest.CreateUser(t, repos)
+			ids := notificationSeed(t, repos, 3, notificationMention(user.ID, other.ID))
+
+			caller := other.ID
+			if tc.byOwner {
+				caller = user.ID
+			}
+
+			// when
+			err := repos.Notification.MarkRead(context.Background(), spec.NotificationLookup{ID: ids[0], UserID: caller})
+
+			// then
 			require.NoError(t, err)
-			assert.Equal(t, 5, total, "4 read dm rows plus 1 grouped unread row")
+
+			rows, _ := notificationList(t, repos, user.ID)
+			require.Len(t, rows, 3)
+			for _, r := range rows {
+				assert.Equal(t, tc.byOwner && r.ID == ids[0], r.Read)
+			}
+			assert.Equal(t, tc.wantUnread, notificationUnread(t, repos, user.ID))
+		})
+	}
+}
+
+func TestNotificationDAO_MarkRead_GroupedRowMarksEntireGroup(t *testing.T) {
+	tests := []struct {
+		name      string
+		markType  dto.NotificationType
+		otherType dto.NotificationType
+		sameRef   bool
+	}{
+		{name: "a chat room group clears as a whole and another room is untouched", markType: dto.NotifChatRoomMessage, otherType: dto.NotifChatRoomMessage, sameRef: false},
+		{name: "a dm conversation clears as a whole and another conversation is untouched", markType: dto.NotifChatMessage, otherType: dto.NotifChatMessage, sameRef: false},
+		{name: "a dm conversation clears as a whole and the same reference under the room type is untouched", markType: dto.NotifChatMessage, otherType: dto.NotifChatRoomMessage, sameRef: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			user := daotest.CreateUser(t, repos)
+			alice := daotest.CreateUser(t, repos)
+			bob := daotest.CreateUser(t, repos)
+			markRef := uuid.New()
+			otherRef := uuid.New()
+			if tc.sameRef {
+				otherRef = markRef
+			}
+
+			notificationSeed(t, repos, 4, spec.NewNotification{UserID: user.ID, Type: tc.markType, ReferenceID: markRef, ReferenceType: "chat", ActorID: alice.ID})
+			notificationSeed(t, repos, 3, spec.NewNotification{UserID: user.ID, Type: tc.otherType, ReferenceID: otherRef, ReferenceType: "chat", ActorID: bob.ID})
+
+			rows, _ := notificationList(t, repos, user.ID)
+			require.Len(t, rows, 2)
+			var groupRowID int
+			for _, r := range rows {
+				if r.Type == tc.markType && r.ReferenceID == markRef {
+					groupRowID = r.ID
+				}
+			}
+			require.NotZero(t, groupRowID)
+
+			// when
+			err := repos.Notification.MarkRead(context.Background(), spec.NotificationLookup{ID: groupRowID, UserID: user.ID})
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, 3, notificationUnread(t, repos, user.ID), "one click clears all 4 and leaves the other group alone")
+
+			after, total := notificationList(t, repos, user.ID)
+			assert.Equal(t, 5, total, "4 read rows plus 1 grouped unread row")
 			require.Len(t, after, 5)
 
 			var survivors int
 			for _, r := range after {
 				if r.Read {
-					assert.Equal(t, dto.NotifChatMessage, r.Type)
+					assert.Equal(t, tc.markType, r.Type)
 					continue
 				}
 				survivors++
-				assert.Equal(t, tt.otherType, r.Type)
+				assert.Equal(t, tc.otherType, r.Type)
 				assert.Equal(t, 3, r.Count)
 			}
 			assert.Equal(t, 1, survivors)
@@ -1095,92 +334,132 @@ func TestNotificationDAO_MarkRead_DirectMessageMarksEntireConversation(t *testin
 	}
 }
 
-func TestNotificationDAO_MarkReadByReference(t *testing.T) {
-	// given one thread's four chat notification types, an invite for the same thread and a mention from another thread
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	ctx := context.Background()
-	roomID := uuid.New()
-	otherRoomID := uuid.New()
-
-	chatTypes := []dto.NotificationType{dto.NotifChatMessage, dto.NotifChatRoomMessage, dto.NotifChatMention, dto.NotifChatReply}
-	for _, notifType := range chatTypes {
-		_, err := repos.Notification.Create(ctx, spec.NewNotification{
-			UserID:        user.ID,
-			Type:          notifType,
-			ReferenceID:   roomID,
-			ReferenceType: "chat_message:x",
-			ActorID:       actor.ID,
-			Message:       "",
-		})
-		require.NoError(t, err)
-	}
-	_, err := repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        user.ID,
-		Type:          dto.NotifChatRoomInvite,
-		ReferenceID:   roomID,
-		ReferenceType: "chat_room",
-		ActorID:       actor.ID,
-		Message:       "",
-	})
-	require.NoError(t, err)
-	_, err = repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        user.ID,
-		Type:          dto.NotifChatMention,
-		ReferenceID:   otherRoomID,
-		ReferenceType: "chat_message:y",
-		ActorID:       actor.ID,
-		Message:       "",
-	})
-	require.NoError(t, err)
-
-	// when the thread is marked read
-	err = repos.Notification.MarkReadByReference(ctx, spec.NotificationReferenceRead{UserID: user.ID, ReferenceID: roomID, Types: chatTypes})
-
-	// then only that thread's message notifications clear, and the invite and the other thread survive
-	require.NoError(t, err)
-	unread, err := repos.Notification.UnreadCount(ctx, user.ID)
-	require.NoError(t, err)
-	assert.Equal(t, 2, unread)
-}
-
-func TestNotificationDAO_MarkReadByReference_OnlyOwnerAndNeverEmptyTypes(t *testing.T) {
-	// given two people each holding a chat notification for the same thread
+func TestNotificationDAO_MarkAllRead(t *testing.T) {
+	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
-	actor := daotest.CreateUser(t, repos)
-	ctx := context.Background()
-	roomID := uuid.New()
-	_, err := repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        user.ID,
-		Type:          dto.NotifChatMessage,
-		ReferenceID:   roomID,
-		ReferenceType: "chat_message:x",
-		ActorID:       actor.ID,
-		Message:       "",
-	})
-	require.NoError(t, err)
-	_, err = repos.Notification.Create(ctx, spec.NewNotification{
-		UserID:        other.ID,
-		Type:          dto.NotifChatMessage,
-		ReferenceID:   roomID,
-		ReferenceType: "chat_message:x",
-		ActorID:       actor.ID,
-		Message:       "",
-	})
-	require.NoError(t, err)
+	notificationSeed(t, repos, 3, notificationMention(user.ID, other.ID))
+	notificationSeed(t, repos, 1, notificationMention(other.ID, user.ID))
 
-	// when one of them marks the thread read, and when the type list is empty
-	require.NoError(t, repos.Notification.MarkReadByReference(ctx, spec.NotificationReferenceRead{UserID: user.ID, ReferenceID: roomID, Types: []dto.NotificationType{dto.NotifChatMessage}}))
+	// when
+	err := repos.Notification.MarkAllRead(context.Background(), user.ID)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 0, notificationUnread(t, repos, user.ID))
+	assert.Equal(t, 1, notificationUnread(t, repos, other.ID))
+}
+
+func TestNotificationDAO_MarkReadByReference(t *testing.T) {
+	// given one thread's four chat notification types, an invite for the same thread and a mention from another thread, and a second person holding a chat notification for the same thread
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	user := daotest.CreateUser(t, repos)
+	other := daotest.CreateUser(t, repos)
+	actor := daotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	chatTypes := []dto.NotificationType{dto.NotifChatMessage, dto.NotifChatRoomMessage, dto.NotifChatMention, dto.NotifChatReply}
+
+	for _, notifType := range chatTypes {
+		notificationSeed(t, repos, 1, spec.NewNotification{UserID: user.ID, Type: notifType, ReferenceID: roomID, ReferenceType: "chat_message:x", ActorID: actor.ID})
+	}
+	notificationSeed(t, repos, 1, spec.NewNotification{UserID: user.ID, Type: dto.NotifChatRoomInvite, ReferenceID: roomID, ReferenceType: "chat_room", ActorID: actor.ID})
+	notificationSeed(t, repos, 1, spec.NewNotification{UserID: user.ID, Type: dto.NotifChatMention, ReferenceID: uuid.New(), ReferenceType: "chat_message:y", ActorID: actor.ID})
+	notificationSeed(t, repos, 1, spec.NewNotification{UserID: other.ID, Type: dto.NotifChatMessage, ReferenceID: roomID, ReferenceType: "chat_message:x", ActorID: actor.ID})
+
+	// when the thread is marked read, and when the second person marks it read with an empty type list
+	require.NoError(t, repos.Notification.MarkReadByReference(ctx, spec.NotificationReferenceRead{UserID: user.ID, ReferenceID: roomID, Types: chatTypes}))
 	require.NoError(t, repos.Notification.MarkReadByReference(ctx, spec.NotificationReferenceRead{UserID: other.ID, ReferenceID: roomID, Types: nil}))
 
-	// then only the caller's row clears and an empty type list is a no-op rather than a wildcard
-	mine, err := repos.Notification.UnreadCount(ctx, user.ID)
+	// then only the caller's message notifications for that thread clear, the invite and the other thread survive, and an empty type list is a no-op rather than a wildcard
+	assert.Equal(t, 2, notificationUnread(t, repos, user.ID))
+	assert.Equal(t, 1, notificationUnread(t, repos, other.ID))
+}
+
+func TestNotificationDAO_DeleteOlderThanBatch(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	user := daotest.CreateUser(t, repos)
+	actor := daotest.CreateUser(t, repos)
+	ids := notificationSeed(t, repos, 7, notificationMention(user.ID, actor.ID))
+	for _, id := range ids[:5] {
+		notificationBackdate(t, repos, id, "2020-01-01")
+	}
+	past := time.Now().Add(-time.Hour)
+
+	// when: a limit smaller than the backlog deletes only up to the limit
+	deleted, err := repos.Notification.DeleteOlderThanBatch(ctx, spec.NotificationPruneBatch{Cutoff: past, Limit: 2})
+
+	// then
 	require.NoError(t, err)
-	assert.Equal(t, 0, mine)
-	theirs, err := repos.Notification.UnreadCount(ctx, other.ID)
+	assert.Equal(t, int64(2), deleted)
+
+	// when: repeated batches drain the remainder, the last one short of the limit
+	deleted, err = repos.Notification.DeleteOlderThanBatch(ctx, spec.NotificationPruneBatch{Cutoff: past, Limit: 2})
 	require.NoError(t, err)
-	assert.Equal(t, 1, theirs)
+	assert.Equal(t, int64(2), deleted)
+
+	deleted, err = repos.Notification.DeleteOlderThanBatch(ctx, spec.NotificationPruneBatch{Cutoff: past, Limit: 2})
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), deleted)
+
+	// when: a cutoff in the past leaves the fresh rows untouched
+	deleted, err = repos.Notification.DeleteOlderThanBatch(ctx, spec.NotificationPruneBatch{Cutoff: past, Limit: 100})
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), deleted)
+	assert.Equal(t, 2, notificationUnread(t, repos, user.ID))
+
+	// when: a cutoff in the future treats every row as old
+	deleted, err = repos.Notification.DeleteOlderThanBatch(ctx, spec.NotificationPruneBatch{Cutoff: time.Now().Add(time.Hour), Limit: 100})
+
+	// then: nothing remains
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), deleted)
+	assert.Equal(t, 0, notificationUnread(t, repos, user.ID))
+}
+
+func TestNotificationDAO_HasRecentDuplicate(t *testing.T) {
+	tests := []struct {
+		name       string
+		notifType  dto.NotificationType
+		otherRef   bool
+		otherActor bool
+		want       bool
+	}{
+		{name: "the same recipient, type, reference and actor within the hour is a duplicate", notifType: dto.NotifMention, otherRef: false, otherActor: false, want: true},
+		{name: "a different reference is not a duplicate", notifType: dto.NotifMention, otherRef: true, otherActor: false, want: false},
+		{name: "a different type is not a duplicate", notifType: dto.NotifPostLiked, otherRef: false, otherActor: false, want: false},
+		{name: "a different actor is not a duplicate", notifType: dto.NotifMention, otherRef: false, otherActor: true, want: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			user := daotest.CreateUser(t, repos)
+			actor := daotest.CreateUser(t, repos)
+			otherActor := daotest.CreateUser(t, repos)
+			seeded := notificationMention(user.ID, actor.ID)
+			notificationSeed(t, repos, 1, seeded)
+
+			check := spec.NotificationDuplicateCheck{UserID: user.ID, Type: tc.notifType, ReferenceID: seeded.ReferenceID, ActorID: actor.ID}
+			if tc.otherRef {
+				check.ReferenceID = uuid.New()
+			}
+			if tc.otherActor {
+				check.ActorID = otherActor.ID
+			}
+
+			// when
+			exists, err := repos.Notification.HasRecentDuplicate(context.Background(), check)
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, exists)
+		})
+	}
 }

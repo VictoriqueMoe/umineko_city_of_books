@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 
@@ -317,6 +318,120 @@ func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
 	assert.Equal(t, uuid.Nil, mentioned.ReferenceID)
 	assert.Equal(t, "secret_comment:witchHunter:"+commentID.String(), mentioned.ReferenceType)
 	assert.Equal(t, "/secrets/witchHunter#comment-"+commentID.String(), mentioned.EmailLink)
+}
+
+func TestList_AFailedReadIsSurfacedInsteadOfShowingZeroes(t *testing.T) {
+	steps := []string{"comment counts", "viewer progress", "solvers leaderboard"}
+
+	for _, failAt := range steps {
+		t.Run("the "+failAt+" read failing", func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			viewer := uuid.New()
+			boom := errors.New("boom")
+			errAt := func(step string) error {
+				if step == failAt {
+					return boom
+				}
+
+				return nil
+			}
+			m.secretRepo.EXPECT().CountCommentsBySecret(mock.Anything, mock.Anything).Return(map[string]int{}, errAt("comment counts")).Maybe()
+			m.secretRepo.EXPECT().GetFirstSolver(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+			m.secretRepo.EXPECT().GetPieceCountForUser(mock.Anything, mock.Anything).Return(0, errAt("viewer progress")).Maybe()
+			m.secretRepo.EXPECT().GetSolversLeaderboard(mock.Anything, mock.Anything).Return(nil, errAt("solvers leaderboard")).Maybe()
+
+			// when
+			got, err := svc.List(context.Background(), viewer)
+
+			// then
+			require.ErrorIs(t, err, boom)
+			assert.Nil(t, got)
+		})
+	}
+}
+
+func TestGet_AFailedReadIsSurfacedInsteadOfRenderingAnEmptySection(t *testing.T) {
+	steps := []string{"comment counts", "viewer progress", "solved users", "blocked users", "comments", "comment media"}
+
+	for _, failAt := range steps {
+		t.Run("the "+failAt+" read failing", func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			viewer := uuid.New()
+			boom := errors.New("boom")
+			errAt := func(step string) error {
+				if step == failAt {
+					return boom
+				}
+
+				return nil
+			}
+			m.secretRepo.EXPECT().CountCommentsBySecret(mock.Anything, mock.Anything).Return(map[string]int{}, errAt("comment counts")).Maybe()
+			m.secretRepo.EXPECT().GetFirstSolver(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+			m.secretRepo.EXPECT().GetPieceCountForUser(mock.Anything, mock.Anything).Return(0, errAt("viewer progress")).Maybe()
+			m.secretRepo.EXPECT().GetProgressLeaderboard(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+			m.userSecretRepo.EXPECT().GetUserIDsWithSecret(mock.Anything, "witchHunter").Return(nil, errAt("solved users")).Maybe()
+			m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, errAt("blocked users")).Maybe()
+			m.secretRepo.EXPECT().GetComments(mock.Anything, mock.Anything).Return([]model.CommentRow{{ID: uuid.New()}}, 1, errAt("comments")).Maybe()
+			m.secretRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, errAt("comment media")).Maybe()
+
+			// when
+			got, err := svc.Get(context.Background(), "witchHunter", viewer)
+
+			// then
+			require.ErrorIs(t, err, boom)
+			assert.Nil(t, got)
+		})
+	}
+}
+
+func TestSecretCommentLookupFailures(t *testing.T) {
+	boom := errors.New("boom")
+	missing := errors.Join(errors.New("no row"), dao.ErrNotFound)
+	cases := []struct {
+		name        string
+		lookupErr   error
+		blockErr    error
+		existingErr error
+		call        func(s *service, commentID, userID uuid.UUID) error
+		wantErr     error
+	}{
+		{name: "liking a missing comment is not found", lookupErr: missing, call: secretLike, wantErr: ErrNotFound},
+		{name: "a failed lookup before a like is surfaced", lookupErr: boom, call: secretLike, wantErr: boom},
+		{name: "a failed block check refuses the like", blockErr: boom, call: secretLike, wantErr: boom},
+		{name: "attaching media to a missing comment is not found", lookupErr: missing, call: secretAttach, wantErr: ErrNotFound},
+		{name: "a failed lookup before an attachment is surfaced, not reported as not found", lookupErr: boom, call: secretAttach, wantErr: boom},
+		{name: "a failed existing media lookup is surfaced instead of reusing a sort position", existingErr: boom, call: secretAttach, wantErr: boom},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			commentID := uuid.New()
+			userID := uuid.New()
+			m.secretRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, tc.lookupErr)
+			m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, userID).Return(false, tc.blockErr).Maybe()
+			m.secretRepo.EXPECT().GetCommentMedia(mock.Anything, commentID).Return(nil, tc.existingErr).Maybe()
+
+			// when
+			err := tc.call(svc, commentID, userID)
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+		})
+	}
+}
+
+func secretLike(s *service, commentID, userID uuid.UUID) error {
+	return s.LikeComment(context.Background(), userID, commentID)
+}
+
+func secretAttach(s *service, commentID, userID uuid.UUID) error {
+	_, err := s.UploadCommentMedia(context.Background(), commentID, userID, "image/png", "p.png", 3, strings.NewReader("img"), false)
+
+	return err
 }
 
 func TestLikeComment_BlocksIfBlocked(t *testing.T) {

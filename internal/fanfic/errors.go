@@ -1,9 +1,14 @@
 package fanfic
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+
+	"umineko_city_of_books/internal/dao"
+)
 
 var (
-	ErrNotFound      = errors.New("fanfic not found")
+	ErrNotFound      = fmt.Errorf("fanfic not found: %w", dao.ErrNotFound)
 	ErrEmptyTitle    = errors.New("title cannot be empty")
 	ErrEmptyBody     = errors.New("body cannot be empty")
 	ErrTooManyGenres = errors.New("maximum 2 genres allowed")

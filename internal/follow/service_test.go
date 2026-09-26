@@ -68,6 +68,22 @@ func TestFollow_BlockedEitherDirection(t *testing.T) {
 	require.ErrorIs(t, err, block.ErrUserBlocked)
 }
 
+func TestFollow_AFailedBlockCheckRefusesTheFollow(t *testing.T) {
+	// given
+	svc, followRepo, _, blockSvc, _, _ := newTestService(t)
+	follower := uuid.New()
+	target := uuid.New()
+	boom := errors.New("boom")
+	blockSvc.EXPECT().IsBlockedEither(mock.Anything, follower, target).Return(false, boom)
+
+	// when
+	err := svc.Follow(context.Background(), follower, target)
+
+	// then
+	require.ErrorIs(t, err, boom)
+	followRepo.AssertNotCalled(t, "Follow", mock.Anything, mock.Anything)
+}
+
 func TestFollow_RepoErrorBubbles(t *testing.T) {
 	// given
 	svc, followRepo, _, blockSvc, _, _ := newTestService(t)
@@ -324,23 +340,38 @@ func TestGetFollowStats_WithViewerPopulatesRelations(t *testing.T) {
 	assert.False(t, got.FollowsYou)
 }
 
-func TestGetFollowStats_RelationErrorsSwallowed(t *testing.T) {
-	// given
-	svc, followRepo, _, _, _, _ := newTestService(t)
-	userID := uuid.New()
-	viewer := uuid.New()
-	followRepo.EXPECT().GetFollowerCount(mock.Anything, userID).Return(0, nil)
-	followRepo.EXPECT().GetFollowingCount(mock.Anything, userID).Return(0, nil)
-	followRepo.EXPECT().IsFollowing(mock.Anything, spec.FollowSpec{FollowerID: viewer, FollowingID: userID}).Return(false, errors.New("boom"))
-	followRepo.EXPECT().IsFollowing(mock.Anything, spec.FollowSpec{FollowerID: userID, FollowingID: viewer}).Return(false, errors.New("boom"))
+func TestGetFollowStats_AFailedRelationLookupIsSurfacedInsteadOfShowingNotFollowing(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name          string
+		followingErr  error
+		followsYouErr error
+	}{
+		{name: "whether the viewer follows the user", followingErr: boom},
+		{name: "whether the user follows the viewer", followsYouErr: boom},
+	}
 
-	// when
-	got, err := svc.GetFollowStats(context.Background(), userID, viewer)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, followRepo, _, _, _, _ := newTestService(t)
+			userID := uuid.New()
+			viewer := uuid.New()
+			followRepo.EXPECT().GetFollowerCount(mock.Anything, userID).Return(0, nil)
+			followRepo.EXPECT().GetFollowingCount(mock.Anything, userID).Return(0, nil)
+			followRepo.EXPECT().IsFollowing(mock.Anything, spec.FollowSpec{FollowerID: viewer, FollowingID: userID}).Return(false, tc.followingErr)
+			if tc.followingErr == nil {
+				followRepo.EXPECT().IsFollowing(mock.Anything, spec.FollowSpec{FollowerID: userID, FollowingID: viewer}).Return(false, tc.followsYouErr)
+			}
 
-	// then
-	require.NoError(t, err)
-	assert.False(t, got.IsFollowing)
-	assert.False(t, got.FollowsYou)
+			// when
+			got, err := svc.GetFollowStats(context.Background(), userID, viewer)
+
+			// then
+			require.ErrorIs(t, err, boom)
+			assert.Nil(t, got)
+		})
+	}
 }
 
 func TestGetFollowers_OK(t *testing.T) {

@@ -260,7 +260,9 @@ func (r *mysteryRepository) MarkSolved(ctx context.Context, s spec.MysterySolve,
 		return err
 	}
 
-	return r.cache.Del(ctx, cache.MysteryTopDetectives.Key(), cache.MysteryTopGMs.Key())
+	r.invalidateLeaderboards(ctx)
+
+	return nil
 }
 
 func (r *mysteryRepository) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) error {
@@ -268,7 +270,9 @@ func (r *mysteryRepository) MarkPermanentlySolved(ctx context.Context, mysteryID
 		return err
 	}
 
-	return r.cache.Del(ctx, cache.MysteryTopDetectives.Key(), cache.MysteryTopGMs.Key())
+	r.invalidateLeaderboards(ctx)
+
+	return nil
 }
 
 func (r *mysteryRepository) GetTopDetectiveIDs(ctx context.Context, tx ...*sql.Tx) ([]string, error) {

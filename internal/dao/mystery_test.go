@@ -2,19 +2,60 @@ package dao_test
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+type (
+	mysteryMediaSurface struct {
+		name      string
+		onComment bool
+		add       func(repository.MysteryRepository, context.Context, spec.NewMedia, ...*sql.Tx) (int64, error)
+		get       func(repository.MysteryRepository, context.Context, uuid.UUID, ...*sql.Tx) ([]model.PostMediaRow, error)
+	}
+
+	mysteryClueFixture struct {
+		repos     *repository.Repositories
+		mysteryID uuid.UUID
+		oldClueID int
+		playerID  uuid.UUID
+	}
+
+	mysteryVote struct {
+		voter int
+		value int
+	}
+
+	mysteryLikeAction func(repository.MysteryRepository, context.Context, spec.CommentLike, ...*sql.Tx) error
+)
+
+var (
+	mysteryEntityMedia = mysteryMediaSurface{
+		name:      "mystery media",
+		onComment: false,
+		add:       repository.MysteryRepository.AddMedia,
+		get:       repository.MysteryRepository.GetMedia,
+	}
+	mysteryCommentMedia = mysteryMediaSurface{
+		name:      "comment media",
+		onComment: true,
+		add:       repository.MysteryRepository.AddCommentMedia,
+		get:       repository.MysteryRepository.GetCommentMedia,
+	}
 )
 
 func createMystery(t *testing.T, repos *repository.Repositories, userID uuid.UUID, title string, difficulty string, freeForAll bool) uuid.UUID {
@@ -29,6 +70,7 @@ func createMystery(t *testing.T, repos *repository.Repositories, userID uuid.UUI
 		Knox:               dto.DefaultKnoxContract(),
 	})
 	require.NoError(t, err)
+
 	return created.ID
 }
 
@@ -41,6 +83,7 @@ func createAttempt(t *testing.T, repos *repository.Repositories, mysteryID, user
 		Body:      body,
 	})
 	require.NoError(t, err)
+
 	return created.ID
 }
 
@@ -53,59 +96,207 @@ func createMysteryComment(t *testing.T, repos *repository.Repositories, mysteryI
 		Body:     body,
 	})
 	require.NoError(t, err)
+
 	return created.ID
 }
 
-func TestMysteryDAO_Create(t *testing.T) {
-	// given
+func mysteryByGM(t *testing.T) (*repository.Repositories, *model.User, uuid.UUID) {
+	t.Helper()
 	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
+	gm := daotest.CreateUser(t, repos)
 
-	// when
-	created, err := repos.Mystery.Create(context.Background(), spec.NewMystery{
-		UserID:             user.ID,
-		Title:              "The Murder",
-		Body:               "Who did it?",
-		Difficulty:         "hard",
-		FreeForAll:         false,
-		KeepOpenAfterSolve: false,
-		Knox:               dto.DefaultKnoxContract(),
-	})
-
-	// then
-	require.NoError(t, err)
-	row, err := repos.Mystery.GetByID(context.Background(), created.ID)
-	require.NoError(t, err)
-	require.NotNil(t, row)
-	assert.Equal(t, "The Murder", row.Title)
-	assert.Equal(t, "Who did it?", row.Body)
-	assert.Equal(t, "hard", row.Difficulty)
-	assert.False(t, row.FreeForAll)
-	assert.False(t, row.Solved)
+	return repos, gm, createMystery(t, repos, gm.ID, "T", "easy", false)
 }
 
-func TestMysteryDAO_Create_FreeForAll(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-
-	// when
-	created, err := repos.Mystery.Create(context.Background(), spec.NewMystery{
-		UserID:             user.ID,
-		Title:              "FFA",
-		Body:               "body",
-		Difficulty:         "medium",
-		FreeForAll:         true,
-		KeepOpenAfterSolve: false,
-		Knox:               dto.DefaultKnoxContract(),
-	})
-
-	// then
+func mysteryGet(t *testing.T, repos *repository.Repositories, id uuid.UUID) *model.MysteryRow {
+	t.Helper()
+	row, err := repos.Mystery.GetByID(context.Background(), id)
 	require.NoError(t, err)
-	row, err := repos.Mystery.GetByID(context.Background(), created.ID)
+
+	return row
+}
+
+func mysteryBackdate(t *testing.T, repos *repository.Repositories, mysteryID uuid.UUID, createdAt string) {
+	t.Helper()
+	_, err := repos.DB().ExecContext(context.Background(), `UPDATE mysteries SET created_at = $1 WHERE id = $2`, createdAt, mysteryID)
 	require.NoError(t, err)
-	require.NotNil(t, row)
-	assert.True(t, row.FreeForAll)
+}
+
+func mysteryRowIDs(rows []model.MysteryRow) []uuid.UUID {
+	ids := make([]uuid.UUID, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, row.ID)
+	}
+
+	return ids
+}
+
+func mysteryAddClue(t *testing.T, repos *repository.Repositories, mysteryID uuid.UUID, clue spec.NewClue) int {
+	t.Helper()
+	created, err := repos.Mystery.AddClue(context.Background(), spec.NewMysteryClue{MysteryID: mysteryID, NewClue: clue})
+	require.NoError(t, err)
+
+	return created.ID
+}
+
+func mysteryWithClues(t *testing.T) mysteryClueFixture {
+	t.Helper()
+	repos, _, id := mysteryByGM(t)
+	player := daotest.CreateUser(t, repos)
+
+	mysteryAddClue(t, repos, id, spec.NewClue{Body: "other", TruthType: "blue", SortOrder: 1})
+	oldID := mysteryAddClue(t, repos, id, spec.NewClue{Body: "old", TruthType: "red", SortOrder: 0})
+	mysteryAddClue(t, repos, id, spec.NewClue{Body: "private", TruthType: "red", SortOrder: 2, PlayerID: &player.ID})
+
+	return mysteryClueFixture{repos: repos, mysteryID: id, oldClueID: oldID, playerID: player.ID}
+}
+
+func mysteryClueBodies(t *testing.T, repos *repository.Repositories, mysteryID uuid.UUID) []string {
+	t.Helper()
+	clues, err := repos.Mystery.GetClues(context.Background(), mysteryID)
+	require.NoError(t, err)
+
+	var bodies []string
+	for _, clue := range clues {
+		bodies = append(bodies, clue.Body)
+	}
+
+	return bodies
+}
+
+func mysterySolve(t *testing.T, repos *repository.Repositories, mysteryID, attemptID uuid.UUID) {
+	t.Helper()
+	err := repos.Mystery.MarkSolved(context.Background(), spec.MysterySolve{MysteryID: mysteryID, AttemptID: attemptID, LockMystery: true})
+	require.NoError(t, err)
+}
+
+func mysterySolvedBy(t *testing.T, repos *repository.Repositories, gmID, solverID uuid.UUID, difficulty string) {
+	t.Helper()
+	id := createMystery(t, repos, gmID, difficulty, difficulty, false)
+	mysterySolve(t, repos, id, createAttempt(t, repos, id, solverID, nil, "answer"))
+}
+
+func mysteryAttempts(t *testing.T, repos *repository.Repositories, mysteryID, viewerID uuid.UUID) map[uuid.UUID]model.MysteryAttemptRow {
+	t.Helper()
+	rows, err := repos.Mystery.GetAttempts(context.Background(), spec.MysteryAttemptQuery{MysteryID: mysteryID, ViewerID: viewerID})
+	require.NoError(t, err)
+
+	byID := make(map[uuid.UUID]model.MysteryAttemptRow, len(rows))
+	for _, row := range rows {
+		byID[row.ID] = row
+	}
+	require.Len(t, byID, len(rows))
+
+	return byID
+}
+
+func mysteryComments(t *testing.T, repos *repository.Repositories, mysteryID, viewerID uuid.UUID) map[uuid.UUID]model.CommentRow {
+	t.Helper()
+	rows, _, err := repos.Mystery.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: mysteryID, ViewerID: viewerID, Limit: 500, Offset: 0})
+	require.NoError(t, err)
+
+	byID := make(map[uuid.UUID]model.CommentRow, len(rows))
+	for _, row := range rows {
+		byID[row.ID] = row
+	}
+	require.Len(t, byID, len(rows))
+
+	return byID
+}
+
+func mysteryAddCommentMedia(t *testing.T, repos *repository.Repositories, commentID uuid.UUID, mediaURL, thumbnailURL string) int64 {
+	t.Helper()
+	id, err := repos.Mystery.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: mediaURL, MediaType: "image", ThumbnailURL: thumbnailURL})
+	require.NoError(t, err)
+
+	return id
+}
+
+func mysteryAddUploads(t *testing.T, repos *repository.Repositories, mysteryID, commenterID uuid.UUID, thumbnails bool) {
+	t.Helper()
+	ctx := context.Background()
+
+	boardThumbnail := ""
+	replyThumbnail := ""
+	if thumbnails {
+		boardThumbnail = "/uploads/mystery/board_thumb.png"
+		replyThumbnail = "/uploads/mystery/reply_thumb.png"
+	}
+
+	_, err := repos.Mystery.AddMedia(ctx, spec.NewMedia{TargetID: mysteryID, MediaURL: "/uploads/mystery/board.png", MediaType: "image", ThumbnailURL: boardThumbnail})
+	require.NoError(t, err)
+
+	_, err = repos.Mystery.AddAttachment(ctx, spec.NewMysteryAttachment{MysteryID: mysteryID, FileURL: "/uploads/mystery/case.pdf", FileName: "case.pdf", FileSize: 42})
+	require.NoError(t, err)
+
+	commentID := createMysteryComment(t, repos, mysteryID, nil, commenterID, "a clue")
+	mysteryAddCommentMedia(t, repos, commentID, "/uploads/mystery/reply.png", replyThumbnail)
+}
+
+func mysteryCheckErr(t *testing.T, wantErr bool, err error) {
+	t.Helper()
+	if wantErr {
+		require.Error(t, err)
+
+		return
+	}
+
+	require.NoError(t, err)
+}
+
+func (s mysteryMediaSurface) target(t *testing.T, repos *repository.Repositories, mysteryID, userID uuid.UUID) uuid.UUID {
+	t.Helper()
+	if !s.onComment {
+		return mysteryID
+	}
+
+	return createMysteryComment(t, repos, mysteryID, nil, userID, "x")
+}
+
+func TestMysteryDAO_Create(t *testing.T) {
+	cases := []struct {
+		name       string
+		freeForAll bool
+	}{
+		{name: "a regular mystery reads back unsolved with its author through every lookup", freeForAll: false},
+		{name: "a free-for-all mystery keeps its flag", freeForAll: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			ctx := context.Background()
+			user := daotest.CreateUser(t, repos, daotest.WithDisplayName("Author Name"))
+
+			// when
+			created, err := repos.Mystery.Create(ctx, spec.NewMystery{
+				UserID:     user.ID,
+				Title:      "The Murder",
+				Body:       "Who did it?",
+				Difficulty: "hard",
+				FreeForAll: tc.freeForAll,
+				Knox:       dto.DefaultKnoxContract(),
+			})
+
+			// then
+			require.NoError(t, err)
+
+			row := mysteryGet(t, repos, created.ID)
+			require.NotNil(t, row)
+			assert.Equal(t, "The Murder", row.Title)
+			assert.Equal(t, "Who did it?", row.Body)
+			assert.Equal(t, "hard", row.Difficulty)
+			assert.Equal(t, tc.freeForAll, row.FreeForAll)
+			assert.False(t, row.Solved)
+			assert.Equal(t, user.Username, row.AuthorUsername)
+			assert.Equal(t, "Author Name", row.AuthorDisplayName)
+
+			authorID, err := repos.Mystery.GetAuthorID(ctx, created.ID)
+			require.NoError(t, err)
+			assert.Equal(t, user.ID, authorID)
+		})
+	}
 }
 
 func TestMysteryDAO_GetByID_NotFound(t *testing.T) {
@@ -120,88 +311,86 @@ func TestMysteryDAO_GetByID_NotFound(t *testing.T) {
 	assert.Nil(t, row)
 }
 
-func TestMysteryDAO_GetByID_PopulatesAuthor(t *testing.T) {
+func TestMysteryDAO_UnknownIDsReadAsNotFound(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos, daotest.WithDisplayName("Author Name"))
-	id := createMystery(t, repos, user.ID, "T", "easy", false)
+	ctx := context.Background()
+	missing := uuid.New()
 
 	// when
-	row, err := repos.Mystery.GetByID(context.Background(), id)
+	_, authorErr := repos.Mystery.GetAuthorID(ctx, missing)
+	_, solvedErr := repos.Mystery.IsSolved(ctx, missing)
+	_, pausedErr := repos.Mystery.IsPaused(ctx, missing)
+	_, attemptAuthorErr := repos.Mystery.GetAttemptAuthorID(ctx, missing)
+	_, attemptMysteryErr := repos.Mystery.GetAttemptMysteryID(ctx, missing)
 
 	// then
-	require.NoError(t, err)
-	require.NotNil(t, row)
-	assert.Equal(t, user.Username, row.AuthorUsername)
-	assert.Equal(t, "Author Name", row.AuthorDisplayName)
+	assert.ErrorIs(t, authorErr, dao.ErrNotFound)
+	assert.ErrorIs(t, solvedErr, dao.ErrNotFound)
+	assert.ErrorIs(t, pausedErr, dao.ErrNotFound)
+	assert.ErrorIs(t, attemptAuthorErr, dao.ErrNotFound)
+	assert.ErrorIs(t, attemptMysteryErr, dao.ErrNotFound)
 }
 
-func TestMysteryDAO_Update_AsOwner(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, user.ID, "Old", "easy", false)
+func TestMysteryDAO_Update(t *testing.T) {
+	cases := []struct {
+		name           string
+		byOwner        bool
+		wantErr        bool
+		wantTitle      string
+		wantBody       string
+		wantDifficulty string
+	}{
+		{name: "the owner can change the title, body and difficulty", byOwner: true, wantErr: false, wantTitle: "New", wantBody: "new body", wantDifficulty: "hard"},
+		{name: "a stranger cannot edit someone else's mystery", byOwner: false, wantErr: true, wantTitle: "T", wantBody: "body", wantDifficulty: "easy"},
+	}
 
-	// when
-	err := repos.Mystery.Update(context.Background(), spec.MysteryOwnerUpdate{
-		ID:         id,
-		UserID:     user.ID,
-		Title:      "New",
-		Body:       "new body",
-		Difficulty: "hard",
-	})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos, owner, id := mysteryByGM(t)
 
-	// then
-	require.NoError(t, err)
-	row, err := repos.Mystery.GetByID(context.Background(), id)
-	require.NoError(t, err)
-	assert.Equal(t, "New", row.Title)
-	assert.Equal(t, "new body", row.Body)
-	assert.Equal(t, "hard", row.Difficulty)
-}
+			editor := owner
+			if !tc.byOwner {
+				editor = daotest.CreateUser(t, repos)
+			}
 
-func TestMysteryDAO_Update_NotOwnedFails(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	owner := daotest.CreateUser(t, repos)
-	stranger := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, owner.ID, "T", "easy", false)
+			// when
+			err := repos.Mystery.Update(context.Background(), spec.MysteryOwnerUpdate{ID: id, UserID: editor.ID, Title: "New", Body: "new body", Difficulty: "hard"})
 
-	// when
-	err := repos.Mystery.Update(context.Background(), spec.MysteryOwnerUpdate{
-		ID:         id,
-		UserID:     stranger.ID,
-		Title:      "X",
-		Body:       "X",
-		Difficulty: "easy",
-	})
+			// then
+			mysteryCheckErr(t, tc.wantErr, err)
 
-	// then
-	require.Error(t, err)
+			row := mysteryGet(t, repos, id)
+			require.NotNil(t, row)
+			assert.Equal(t, tc.wantTitle, row.Title)
+			assert.Equal(t, tc.wantBody, row.Body)
+			assert.Equal(t, tc.wantDifficulty, row.Difficulty)
+		})
+	}
 }
 
 func TestMysteryDAO_UpdateAsAdmin(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	owner := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, owner.ID, "T", "easy", false)
+	repos, _, id := mysteryByGM(t)
 
 	// when
 	err := repos.Mystery.UpdateAsAdmin(context.Background(), spec.MysteryUpdate{
-		ID:                 id,
-		Title:              "Admin Title",
-		Body:               "Admin Body",
-		Difficulty:         "nightmare",
-		FreeForAll:         true,
-		KeepOpenAfterSolve: false,
-		Knox:               dto.DefaultKnoxContract(),
+		ID:         id,
+		Title:      "Admin Title",
+		Body:       "Admin Body",
+		Difficulty: "nightmare",
+		FreeForAll: true,
+		Knox:       dto.DefaultKnoxContract(),
 	})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Mystery.GetByID(context.Background(), id)
-	require.NoError(t, err)
+
+	row := mysteryGet(t, repos, id)
+	require.NotNil(t, row)
 	assert.Equal(t, "Admin Title", row.Title)
+	assert.Equal(t, "Admin Body", row.Body)
 	assert.Equal(t, "nightmare", row.Difficulty)
 	assert.True(t, row.FreeForAll)
 }
@@ -228,36 +417,22 @@ func TestMysteryRepo_CreateWithClues(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Mystery.GetByID(context.Background(), created.ID)
-	require.NoError(t, err)
+
+	row := mysteryGet(t, repos, created.ID)
 	require.NotNil(t, row)
 	assert.Equal(t, "Locked Room", row.Title)
-	clues, err := repos.Mystery.GetClues(context.Background(), created.ID)
-	require.NoError(t, err)
-	require.Len(t, clues, 2)
-	assert.Equal(t, "first", clues[0].Body)
-	assert.Equal(t, "second", clues[1].Body)
+	assert.Equal(t, []string{"first", "second"}, mysteryClueBodies(t, repos, created.ID))
 }
 
 func TestMysteryRepo_UpdateWithClues_ReplacesPublicCluesOnly(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
+	repos, _, id := mysteryByGM(t)
 	player := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	_, err := repos.Mystery.AddClue(context.Background(), spec.NewMysteryClue{
-		MysteryID: id,
-		NewClue:   spec.NewClue{Body: "old public", TruthType: "red", SortOrder: 0},
-	})
-	require.NoError(t, err)
-	_, err = repos.Mystery.AddClue(context.Background(), spec.NewMysteryClue{
-		MysteryID: id,
-		NewClue:   spec.NewClue{Body: "private", TruthType: "red", SortOrder: 1, PlayerID: &player.ID},
-	})
-	require.NoError(t, err)
+	mysteryAddClue(t, repos, id, spec.NewClue{Body: "old public", TruthType: "red", SortOrder: 0})
+	mysteryAddClue(t, repos, id, spec.NewClue{Body: "private", TruthType: "red", SortOrder: 1, PlayerID: &player.ID})
 
 	// when
-	err = repos.Mystery.UpdateWithClues(context.Background(), spec.MysteryUpdateWithClues{
+	err := repos.Mystery.UpdateWithClues(context.Background(), spec.MysteryUpdateWithClues{
 		MysteryUpdate: spec.MysteryUpdate{
 			ID:         id,
 			Title:      "New Title",
@@ -271,23 +446,18 @@ func TestMysteryRepo_UpdateWithClues_ReplacesPublicCluesOnly(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Mystery.GetByID(context.Background(), id)
-	require.NoError(t, err)
+
+	row := mysteryGet(t, repos, id)
+	require.NotNil(t, row)
 	assert.Equal(t, "New Title", row.Title)
 	assert.Equal(t, "nightmare", row.Difficulty)
 	assert.True(t, row.FreeForAll)
-	clues, err := repos.Mystery.GetClues(context.Background(), id)
-	require.NoError(t, err)
-	require.Len(t, clues, 2)
-	assert.Equal(t, "new public", clues[0].Body)
-	assert.Equal(t, "private", clues[1].Body)
+	assert.Equal(t, []string{"new public", "private"}, mysteryClueBodies(t, repos, id))
 }
 
 func TestMysteryRepo_UpdateWithClues_ClueFailureRollsBackTheUpdate(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "Original", "easy", false)
+	repos, _, id := mysteryByGM(t)
 
 	// when
 	err := repos.Mystery.UpdateWithClues(context.Background(), spec.MysteryUpdateWithClues{
@@ -303,434 +473,292 @@ func TestMysteryRepo_UpdateWithClues_ClueFailureRollsBackTheUpdate(t *testing.T)
 
 	// then
 	require.Error(t, err)
-	row, err := repos.Mystery.GetByID(context.Background(), id)
-	require.NoError(t, err)
-	assert.Equal(t, "Original", row.Title)
+
+	row := mysteryGet(t, repos, id)
+	require.NotNil(t, row)
+	assert.Equal(t, "T", row.Title)
 	assert.Equal(t, "easy", row.Difficulty)
 }
 
-func TestMysteryDAO_Delete_AsOwner(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, user.ID, "T", "easy", false)
+func TestMysteryDAO_Delete(t *testing.T) {
+	cases := []struct {
+		name     string
+		byOwner  bool
+		wantErr  bool
+		wantKept bool
+	}{
+		{name: "the owner can delete their mystery", byOwner: true, wantErr: false, wantKept: false},
+		{name: "a stranger cannot delete someone else's mystery", byOwner: false, wantErr: true, wantKept: true},
+	}
 
-	// when
-	err := repos.Mystery.Delete(context.Background(), spec.OwnedDeletion{ID: id, UserID: user.ID})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos, owner, id := mysteryByGM(t)
 
-	// then
-	require.NoError(t, err)
-	row, err := repos.Mystery.GetByID(context.Background(), id)
-	require.NoError(t, err)
-	assert.Nil(t, row)
-}
+			deleter := owner
+			if !tc.byOwner {
+				deleter = daotest.CreateUser(t, repos)
+			}
 
-func TestMysteryDAO_Delete_NotOwnedFails(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	owner := daotest.CreateUser(t, repos)
-	stranger := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, owner.ID, "T", "easy", false)
+			// when
+			err := repos.Mystery.Delete(context.Background(), spec.OwnedDeletion{ID: id, UserID: deleter.ID})
 
-	// when
-	err := repos.Mystery.Delete(context.Background(), spec.OwnedDeletion{ID: id, UserID: stranger.ID})
-
-	// then
-	require.Error(t, err)
+			// then
+			mysteryCheckErr(t, tc.wantErr, err)
+			assert.Equal(t, tc.wantKept, mysteryGet(t, repos, id) != nil)
+		})
+	}
 }
 
 func TestMysteryDAO_DeleteAsAdmin(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	owner := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, owner.ID, "T", "easy", false)
+	repos, _, id := mysteryByGM(t)
 
 	// when
 	err := repos.Mystery.DeleteAsAdmin(context.Background(), id)
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Mystery.GetByID(context.Background(), id)
-	require.NoError(t, err)
-	assert.Nil(t, row)
+	assert.Nil(t, mysteryGet(t, repos, id))
 }
 
-func TestMysteryDAO_GetAuthorID(t *testing.T) {
+func TestMysteryDAO_List(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, user.ID, "T", "easy", false)
+	ctx := context.Background()
+	gm := daotest.CreateUser(t, repos)
+	rival := daotest.CreateUser(t, repos)
+	oldest := createMystery(t, repos, gm.ID, "oldest", "easy", false)
+	middle := createMystery(t, repos, gm.ID, "middle", "easy", false)
+	newest := createMystery(t, repos, rival.ID, "newest", "easy", false)
+	mysteryBackdate(t, repos, oldest, "2024-01-01 00:00:00")
+	mysteryBackdate(t, repos, middle, "2024-01-02 00:00:00")
+	mysteryBackdate(t, repos, newest, "2024-01-03 00:00:00")
+	mysterySolve(t, repos, oldest, createAttempt(t, repos, oldest, rival.ID, nil, "answer"))
 
-	// when
-	author, err := repos.Mystery.GetAuthorID(context.Background(), id)
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, user.ID, author)
-}
-
-func TestMysteryDAO_List_Empty(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	rows, total, err := repos.Mystery.List(context.Background(), spec.MysteryListFilter{Sort: "new", Limit: 10, Offset: 0})
-
-	// then
-	require.NoError(t, err)
-	assert.Empty(t, rows)
-	assert.Equal(t, 0, total)
-}
-
-func TestMysteryDAO_List_Pagination(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	for range 3 {
-		createMystery(t, repos, user.ID, "T", "easy", false)
+	cases := []struct {
+		name      string
+		filter    spec.MysteryListFilter
+		want      []uuid.UUID
+		wantTotal int
+	}{
+		{name: "the new sort lists newest first", filter: spec.MysteryListFilter{Sort: "new", Limit: 10}, want: []uuid.UUID{newest, middle, oldest}, wantTotal: 3},
+		{name: "the old sort lists oldest first", filter: spec.MysteryListFilter{Sort: "old", Limit: 10}, want: []uuid.UUID{oldest, middle, newest}, wantTotal: 3},
+		{name: "a first page stops at the limit while the total counts every mystery", filter: spec.MysteryListFilter{Sort: "new", Limit: 2, Offset: 0}, want: []uuid.UUID{newest, middle}, wantTotal: 3},
+		{name: "a later page starts at the offset", filter: spec.MysteryListFilter{Sort: "new", Limit: 2, Offset: 2}, want: []uuid.UUID{oldest}, wantTotal: 3},
+		{name: "the solved filter keeps only solved mysteries", filter: spec.MysteryListFilter{Sort: "new", Solved: new(true), Limit: 10}, want: []uuid.UUID{oldest}, wantTotal: 1},
+		{name: "the unsolved filter keeps only unsolved mysteries", filter: spec.MysteryListFilter{Sort: "new", Solved: new(false), Limit: 10}, want: []uuid.UUID{newest, middle}, wantTotal: 2},
+		{name: "excluded authors drop out of the rows and the total", filter: spec.MysteryListFilter{Sort: "new", Limit: 10, ExcludeUserIDs: []uuid.UUID{gm.ID}}, want: []uuid.UUID{newest}, wantTotal: 1},
 	}
 
-	// when
-	page1, total1, err1 := repos.Mystery.List(context.Background(), spec.MysteryListFilter{Sort: "new", Limit: 2, Offset: 0})
-	page2, total2, err2 := repos.Mystery.List(context.Background(), spec.MysteryListFilter{Sort: "new", Limit: 2, Offset: 2})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			rows, total, err := repos.Mystery.List(ctx, tc.filter)
 
-	// then
-	require.NoError(t, err1)
-	require.NoError(t, err2)
-	assert.Len(t, page1, 2)
-	assert.Len(t, page2, 1)
-	assert.Equal(t, 3, total1)
-	assert.Equal(t, 3, total2)
-}
-
-func TestMysteryDAO_List_SortOld(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	a := createMystery(t, repos, user.ID, "first", "easy", false)
-	b := createMystery(t, repos, user.ID, "second", "easy", false)
-
-	// when
-	rows, _, err := repos.Mystery.List(context.Background(), spec.MysteryListFilter{Sort: "old", Limit: 10, Offset: 0})
-
-	// then
-	require.NoError(t, err)
-	require.Len(t, rows, 2)
-	ids := []uuid.UUID{rows[0].ID, rows[1].ID}
-	assert.ElementsMatch(t, []uuid.UUID{a, b}, ids)
-}
-
-func TestMysteryDAO_List_FilterSolved(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	solver := daotest.CreateUser(t, repos)
-	solvedID := createMystery(t, repos, gm.ID, "solved", "easy", false)
-	_ = createMystery(t, repos, gm.ID, "unsolved", "easy", false)
-	attemptID := createAttempt(t, repos, solvedID, solver.ID, nil, "answer")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), spec.MysterySolve{MysteryID: solvedID, AttemptID: attemptID, LockMystery: true})) // when
-	solved, _, errS := repos.Mystery.List(context.Background(), spec.MysteryListFilter{Sort: "new", Solved: new(true), Limit: 10, Offset: 0})
-	unsolved, _, errU := repos.Mystery.List(context.Background(), spec.MysteryListFilter{Sort: "new", Solved: new(false), Limit: 10, Offset: 0})
-
-	// then
-	require.NoError(t, errS)
-	require.NoError(t, errU)
-	require.Len(t, solved, 1)
-	require.Len(t, unsolved, 1)
-	assert.Equal(t, solvedID, solved[0].ID)
-}
-
-func TestMysteryDAO_List_ExcludeUsers(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	userA := daotest.CreateUser(t, repos)
-	userB := daotest.CreateUser(t, repos)
-	createMystery(t, repos, userA.ID, "A", "easy", false)
-	idB := createMystery(t, repos, userB.ID, "B", "easy", false)
-
-	// when
-	rows, total, err := repos.Mystery.List(context.Background(), spec.MysteryListFilter{
-		Sort:           "new",
-		Limit:          10,
-		Offset:         0,
-		ExcludeUserIDs: []uuid.UUID{userA.ID},
-	})
-
-	// then
-	require.NoError(t, err)
-	require.Len(t, rows, 1)
-	assert.Equal(t, idB, rows[0].ID)
-	assert.Equal(t, 1, total)
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, mysteryRowIDs(rows))
+			assert.Equal(t, tc.wantTotal, total)
+		})
+	}
 }
 
 func TestMysteryDAO_ListByUser(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
+	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
-	createMystery(t, repos, user.ID, "mine1", "easy", false)
-	createMystery(t, repos, user.ID, "mine2", "easy", false)
-	createMystery(t, repos, other.ID, "theirs", "easy", false)
+	older := createMystery(t, repos, user.ID, "older", "easy", false)
+	newer := createMystery(t, repos, user.ID, "newer", "easy", false)
+	theirs := createMystery(t, repos, other.ID, "theirs", "easy", false)
+	mysteryBackdate(t, repos, older, "2024-01-01 00:00:00")
+	mysteryBackdate(t, repos, newer, "2024-01-02 00:00:00")
+	mysteryBackdate(t, repos, theirs, "2024-01-03 00:00:00")
 
-	// when
-	rows, total, err := repos.Mystery.ListByUser(context.Background(), spec.MysteryUserListFilter{UserID: user.ID, Limit: 10, Offset: 0})
-
-	// then
-	require.NoError(t, err)
-	assert.Len(t, rows, 2)
-	assert.Equal(t, 2, total)
-}
-
-func TestMysteryDAO_ListByUser_Pagination(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	for range 3 {
-		createMystery(t, repos, user.ID, "x", "easy", false)
+	cases := []struct {
+		name      string
+		limit     int
+		offset    int
+		want      []uuid.UUID
+		wantTotal int
+	}{
+		{name: "lists only the user's own mysteries, newest first", limit: 10, offset: 0, want: []uuid.UUID{newer, older}, wantTotal: 2},
+		{name: "a page from an offset still totals every one of the user's mysteries", limit: 1, offset: 1, want: []uuid.UUID{older}, wantTotal: 2},
 	}
 
-	// when
-	rows, total, err := repos.Mystery.ListByUser(context.Background(), spec.MysteryUserListFilter{UserID: user.ID, Limit: 1, Offset: 1})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			rows, total, err := repos.Mystery.ListByUser(ctx, spec.MysteryUserListFilter{UserID: user.ID, Limit: tc.limit, Offset: tc.offset})
 
-	// then
-	require.NoError(t, err)
-	assert.Len(t, rows, 1)
-	assert.Equal(t, 3, total)
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, mysteryRowIDs(rows))
+			assert.Equal(t, tc.wantTotal, total)
+		})
+	}
 }
 
-func TestMysteryDAO_AddClue_AndGet(t *testing.T) {
+func TestMysteryDAO_GetClues(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, user.ID, "T", "easy", false)
+	fx := mysteryWithClues(t)
+	ctx := context.Background()
 
 	// when
-	_, err1 := repos.Mystery.AddClue(context.Background(), spec.NewMysteryClue{
-		MysteryID: id,
-		NewClue:   spec.NewClue{Body: "first clue", TruthType: "red", SortOrder: 1},
-	})
-	_, err2 := repos.Mystery.AddClue(context.Background(), spec.NewMysteryClue{
-		MysteryID: id,
-		NewClue:   spec.NewClue{Body: "second clue", TruthType: "blue", SortOrder: 0},
-	})
-
-	// then
-	require.NoError(t, err1)
-	require.NoError(t, err2)
-	clues, err := repos.Mystery.GetClues(context.Background(), id)
-	require.NoError(t, err)
-	require.Len(t, clues, 2)
-	assert.Equal(t, "second clue", clues[0].Body)
-	assert.Equal(t, "first clue", clues[1].Body)
-}
-
-func TestMysteryDAO_AddClue_WithPlayer(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	player := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-
-	// when
-	_, err := repos.Mystery.AddClue(context.Background(), spec.NewMysteryClue{
-		MysteryID: id,
-		NewClue:   spec.NewClue{Body: "private", TruthType: "red", SortOrder: 0, PlayerID: &player.ID},
-	})
+	clues, err := fx.repos.Mystery.GetClues(ctx, fx.mysteryID)
 
 	// then
 	require.NoError(t, err)
-	clues, err := repos.Mystery.GetClues(context.Background(), id)
+	require.Len(t, clues, 3)
+	assert.Equal(t, "old", clues[0].Body)
+	assert.Nil(t, clues[0].PlayerID)
+	assert.Equal(t, "other", clues[1].Body)
+	assert.Nil(t, clues[1].PlayerID)
+	assert.Equal(t, "private", clues[2].Body)
+	require.NotNil(t, clues[2].PlayerID)
+	assert.Equal(t, fx.playerID, *clues[2].PlayerID)
+
+	count, err := fx.repos.Mystery.CountClues(ctx, fx.mysteryID)
 	require.NoError(t, err)
-	require.Len(t, clues, 1)
-	require.NotNil(t, clues[0].PlayerID)
-	assert.Equal(t, player.ID, *clues[0].PlayerID)
+	assert.Equal(t, 3, count)
+
+	row := mysteryGet(t, fx.repos, fx.mysteryID)
+	require.NotNil(t, row)
+	assert.Equal(t, 3, row.ClueCount)
 }
 
 func TestMysteryDAO_DeleteClues_SkipsPrivate(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	player := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	_, err := repos.Mystery.AddClue(context.Background(), spec.NewMysteryClue{
-		MysteryID: id,
-		NewClue:   spec.NewClue{Body: "public", TruthType: "red", SortOrder: 0},
-	})
-	require.NoError(t, err)
-	_, err = repos.Mystery.AddClue(context.Background(), spec.NewMysteryClue{
-		MysteryID: id,
-		NewClue:   spec.NewClue{Body: "private", TruthType: "red", SortOrder: 1, PlayerID: &player.ID},
-	})
-	require.NoError(t, err)
+	fx := mysteryWithClues(t)
 
 	// when
-	err = repos.Mystery.DeleteClues(context.Background(), id)
+	err := fx.repos.Mystery.DeleteClues(context.Background(), fx.mysteryID)
 
 	// then
 	require.NoError(t, err)
-	clues, err := repos.Mystery.GetClues(context.Background(), id)
-	require.NoError(t, err)
-	require.Len(t, clues, 1)
-	assert.Equal(t, "private", clues[0].Body)
+	assert.Equal(t, []string{"private"}, mysteryClueBodies(t, fx.repos, fx.mysteryID))
 }
 
 func TestMysteryDAO_DeleteClue(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, user.ID, "T", "easy", false)
-	_, err := repos.Mystery.AddClue(context.Background(), spec.NewMysteryClue{
-		MysteryID: id,
-		NewClue:   spec.NewClue{Body: "a", TruthType: "red", SortOrder: 0},
-	})
-	require.NoError(t, err)
-	clues, err := repos.Mystery.GetClues(context.Background(), id)
-	require.NoError(t, err)
-	require.Len(t, clues, 1)
+	fx := mysteryWithClues(t)
 
 	// when
-	err = repos.Mystery.DeleteClue(context.Background(), clues[0].ID)
+	err := fx.repos.Mystery.DeleteClue(context.Background(), fx.oldClueID)
 
 	// then
 	require.NoError(t, err)
-	remaining, err := repos.Mystery.GetClues(context.Background(), id)
-	require.NoError(t, err)
-	assert.Empty(t, remaining)
+	assert.Equal(t, []string{"other", "private"}, mysteryClueBodies(t, fx.repos, fx.mysteryID))
 }
 
 func TestMysteryDAO_UpdateClue(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, user.ID, "T", "easy", false)
-	_, err := repos.Mystery.AddClue(context.Background(), spec.NewMysteryClue{
-		MysteryID: id,
-		NewClue:   spec.NewClue{Body: "old", TruthType: "red", SortOrder: 0},
-	})
-	require.NoError(t, err)
-	clues, err := repos.Mystery.GetClues(context.Background(), id)
-	require.NoError(t, err)
-	require.Len(t, clues, 1)
+	fx := mysteryWithClues(t)
 
 	// when
-	err = repos.Mystery.UpdateClue(context.Background(), spec.MysteryClueUpdate{ClueID: clues[0].ID, Body: "new"})
+	err := fx.repos.Mystery.UpdateClue(context.Background(), spec.MysteryClueUpdate{ClueID: fx.oldClueID, Body: "new"})
 
 	// then
 	require.NoError(t, err)
-	updated, err := repos.Mystery.GetClues(context.Background(), id)
-	require.NoError(t, err)
-	assert.Equal(t, "new", updated[0].Body)
+	assert.Equal(t, []string{"new", "other", "private"}, mysteryClueBodies(t, fx.repos, fx.mysteryID))
 }
 
-func TestMysteryDAO_CountClues(t *testing.T) {
+func TestMysteryDAO_CreateAttempt(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, user.ID, "T", "easy", false)
-	_, err := repos.Mystery.AddClue(context.Background(), spec.NewMysteryClue{
-		MysteryID: id,
-		NewClue:   spec.NewClue{Body: "a", TruthType: "red", SortOrder: 0},
-	})
-	require.NoError(t, err)
-	_, err = repos.Mystery.AddClue(context.Background(), spec.NewMysteryClue{
-		MysteryID: id,
-		NewClue:   spec.NewClue{Body: "b", TruthType: "blue", SortOrder: 1},
-	})
-	require.NoError(t, err)
-
-	// when
-	count, err := repos.Mystery.CountClues(context.Background(), id)
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 2, count)
-}
-
-func TestMysteryDAO_CreateAttempt_AndGet(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
+	repos, gm, id := mysteryByGM(t)
+	ctx := context.Background()
 	player := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
 
 	// when
-	attemptID := createAttempt(t, repos, id, player.ID, nil, "the answer")
+	rootID := createAttempt(t, repos, id, player.ID, nil, "the answer")
+	replyID := createAttempt(t, repos, id, gm.ID, &rootID, "reply")
 
 	// then
-	attempts, err := repos.Mystery.GetAttempts(context.Background(), spec.MysteryAttemptQuery{MysteryID: id, ViewerID: player.ID})
-	require.NoError(t, err)
-	require.Len(t, attempts, 1)
-	assert.Equal(t, attemptID, attempts[0].ID)
-	assert.Equal(t, "the answer", attempts[0].Body)
-	assert.False(t, attempts[0].IsWinner)
-}
-
-func TestMysteryDAO_CreateAttempt_ThreadedReply(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	player := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	parent := createAttempt(t, repos, id, player.ID, nil, "root")
-
-	// when
-	reply := createAttempt(t, repos, id, gm.ID, &parent, "reply")
-
-	// then
-	attempts, err := repos.Mystery.GetAttempts(context.Background(), spec.MysteryAttemptQuery{MysteryID: id, ViewerID: gm.ID})
-	require.NoError(t, err)
+	attempts := mysteryAttempts(t, repos, id, player.ID)
 	require.Len(t, attempts, 2)
-	var found bool
-	for _, a := range attempts {
-		if a.ID == reply {
-			require.NotNil(t, a.ParentID)
-			assert.Equal(t, parent, *a.ParentID)
-			found = true
-		}
+	assert.Equal(t, "the answer", attempts[rootID].Body)
+	assert.False(t, attempts[rootID].IsWinner)
+	assert.Nil(t, attempts[rootID].ParentID)
+	require.NotNil(t, attempts[replyID].ParentID)
+	assert.Equal(t, rootID, *attempts[replyID].ParentID)
+
+	authorID, err := repos.Mystery.GetAttemptAuthorID(ctx, rootID)
+	require.NoError(t, err)
+	assert.Equal(t, player.ID, authorID)
+
+	mysteryID, err := repos.Mystery.GetAttemptMysteryID(ctx, rootID)
+	require.NoError(t, err)
+	assert.Equal(t, id, mysteryID)
+}
+
+func TestMysteryDAO_AttemptCounts(t *testing.T) {
+	// given
+	repos, gm, id := mysteryByGM(t)
+	ctx := context.Background()
+	p1 := daotest.CreateUser(t, repos)
+	p2 := daotest.CreateUser(t, repos)
+	createAttempt(t, repos, id, p1.ID, nil, "a")
+	createAttempt(t, repos, id, p2.ID, nil, "b")
+	createAttempt(t, repos, id, gm.ID, nil, "gm")
+	parentID := createAttempt(t, repos, id, p1.ID, nil, "parent")
+	createAttempt(t, repos, id, p1.ID, &parentID, "reply")
+
+	// when
+	row := mysteryGet(t, repos, id)
+
+	// then
+	require.NotNil(t, row)
+	assert.Equal(t, 3, row.AttemptCount)
+
+	count, err := repos.Mystery.CountAttempts(ctx, id)
+	require.NoError(t, err)
+	assert.Equal(t, 5, count)
+
+	playerIDs, err := repos.Mystery.GetPlayerIDs(ctx, id)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []uuid.UUID{p1.ID, p2.ID}, playerIDs)
+}
+
+func TestMysteryDAO_DeleteAttempt(t *testing.T) {
+	cases := []struct {
+		name          string
+		byAuthor      bool
+		wantErr       bool
+		wantRemaining int
+	}{
+		{name: "the author can delete their attempt", byAuthor: true, wantErr: false, wantRemaining: 0},
+		{name: "a stranger cannot delete someone else's attempt", byAuthor: false, wantErr: true, wantRemaining: 1},
 	}
-	assert.True(t, found)
-}
 
-func TestMysteryDAO_DeleteAttempt_AsOwner(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	player := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos, _, id := mysteryByGM(t)
+			player := daotest.CreateUser(t, repos)
+			attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
 
-	// when
-	err := repos.Mystery.DeleteAttempt(context.Background(), spec.MysteryAttemptDeletion{ID: attemptID, UserID: player.ID})
+			deleter := player
+			if !tc.byAuthor {
+				deleter = daotest.CreateUser(t, repos)
+			}
 
-	// then
-	require.NoError(t, err)
-	attempts, err := repos.Mystery.GetAttempts(context.Background(), spec.MysteryAttemptQuery{MysteryID: id, ViewerID: player.ID})
-	require.NoError(t, err)
-	assert.Empty(t, attempts)
-}
+			// when
+			err := repos.Mystery.DeleteAttempt(context.Background(), spec.MysteryAttemptDeletion{ID: attemptID, UserID: deleter.ID})
 
-func TestMysteryDAO_DeleteAttempt_NotOwnedFails(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	player := daotest.CreateUser(t, repos)
-	stranger := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
-
-	// when
-	err := repos.Mystery.DeleteAttempt(context.Background(), spec.MysteryAttemptDeletion{ID: attemptID, UserID: stranger.ID})
-
-	// then
-	require.Error(t, err)
+			// then
+			mysteryCheckErr(t, tc.wantErr, err)
+			assert.Len(t, mysteryAttempts(t, repos, id, player.ID), tc.wantRemaining)
+		})
+	}
 }
 
 func TestMysteryDAO_DeleteAttemptAsAdmin(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
+	repos, _, id := mysteryByGM(t)
 	player := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
 	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
 
 	// when
@@ -738,421 +766,215 @@ func TestMysteryDAO_DeleteAttemptAsAdmin(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	attempts, err := repos.Mystery.GetAttempts(context.Background(), spec.MysteryAttemptQuery{MysteryID: id, ViewerID: player.ID})
-	require.NoError(t, err)
-	assert.Empty(t, attempts)
+	assert.Empty(t, mysteryAttempts(t, repos, id, player.ID))
 }
 
-func TestMysteryDAO_GetAttemptAuthorID(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	player := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
+func TestMysteryDAO_VoteAttempt(t *testing.T) {
+	cases := []struct {
+		name         string
+		votes        []mysteryVote
+		wantScore    int
+		wantUserVote int
+	}{
+		{name: "an upvote scores one and is the viewer's own vote", votes: []mysteryVote{{voter: 0, value: 1}}, wantScore: 1, wantUserVote: 1},
+		{name: "votes from several users are summed", votes: []mysteryVote{{voter: 0, value: 1}, {voter: 1, value: 1}, {voter: 2, value: -1}}, wantScore: 1, wantUserVote: 1},
+		{name: "voting again replaces the earlier vote", votes: []mysteryVote{{voter: 0, value: 1}, {voter: 0, value: -1}}, wantScore: -1, wantUserVote: -1},
+		{name: "a zero vote clears the earlier vote", votes: []mysteryVote{{voter: 0, value: 1}, {voter: 0, value: 0}}, wantScore: 0, wantUserVote: 0},
+	}
 
-	// when
-	author, err := repos.Mystery.GetAttemptAuthorID(context.Background(), attemptID)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos, _, id := mysteryByGM(t)
+			ctx := context.Background()
+			player := daotest.CreateUser(t, repos)
+			voters := []uuid.UUID{daotest.CreateUser(t, repos).ID, daotest.CreateUser(t, repos).ID, daotest.CreateUser(t, repos).ID}
+			attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
 
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, player.ID, author)
-}
+			// when
+			for _, vote := range tc.votes {
+				require.NoError(t, repos.Mystery.VoteAttempt(ctx, spec.Vote{UserID: voters[vote.voter], TargetID: attemptID, Value: vote.value}))
+			}
 
-func TestMysteryDAO_GetAttemptMysteryID(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	player := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
-
-	// when
-	got, err := repos.Mystery.GetAttemptMysteryID(context.Background(), attemptID)
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, id, got)
-}
-
-func TestMysteryDAO_VoteAttempt_Upvote(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	player := daotest.CreateUser(t, repos)
-	voter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
-
-	// when
-	err := repos.Mystery.VoteAttempt(context.Background(), spec.Vote{UserID: voter.ID, TargetID: attemptID, Value: 1})
-
-	// then
-	require.NoError(t, err)
-	attempts, err := repos.Mystery.GetAttempts(context.Background(), spec.MysteryAttemptQuery{MysteryID: id, ViewerID: voter.ID})
-	require.NoError(t, err)
-	require.Len(t, attempts, 1)
-	assert.Equal(t, 1, attempts[0].VoteScore)
-	assert.Equal(t, 1, attempts[0].UserVote)
-}
-
-func TestMysteryDAO_VoteAttempt_AggregateMultipleVoters(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	player := daotest.CreateUser(t, repos)
-	v1 := daotest.CreateUser(t, repos)
-	v2 := daotest.CreateUser(t, repos)
-	v3 := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
-
-	// when
-	require.NoError(t, repos.Mystery.VoteAttempt(context.Background(), spec.Vote{UserID: v1.ID, TargetID: attemptID, Value: 1}))
-	require.NoError(t, repos.Mystery.VoteAttempt(context.Background(), spec.Vote{UserID: v2.ID, TargetID: attemptID, Value: 1}))
-	require.NoError(t, repos.Mystery.VoteAttempt(context.Background(), spec.Vote{UserID: v3.ID, TargetID: attemptID, Value: -1}))
-
-	// then
-	attempts, err := repos.Mystery.GetAttempts(context.Background(), spec.MysteryAttemptQuery{MysteryID: id, ViewerID: v1.ID})
-	require.NoError(t, err)
-	require.Len(t, attempts, 1)
-	assert.Equal(t, 1, attempts[0].VoteScore)
-}
-
-func TestMysteryDAO_VoteAttempt_ChangeVote(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	player := daotest.CreateUser(t, repos)
-	voter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
-	require.NoError(t, repos.Mystery.VoteAttempt(context.Background(), spec.Vote{UserID: voter.ID, TargetID: attemptID, Value: 1}))
-
-	// when
-	err := repos.Mystery.VoteAttempt(context.Background(), spec.Vote{UserID: voter.ID, TargetID: attemptID, Value: -1})
-
-	// then
-	require.NoError(t, err)
-	attempts, err := repos.Mystery.GetAttempts(context.Background(), spec.MysteryAttemptQuery{MysteryID: id, ViewerID: voter.ID})
-	require.NoError(t, err)
-	require.Len(t, attempts, 1)
-	assert.Equal(t, -1, attempts[0].VoteScore)
-	assert.Equal(t, -1, attempts[0].UserVote)
-}
-
-func TestMysteryDAO_VoteAttempt_ZeroRemovesVote(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	player := daotest.CreateUser(t, repos)
-	voter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
-	require.NoError(t, repos.Mystery.VoteAttempt(context.Background(), spec.Vote{UserID: voter.ID, TargetID: attemptID, Value: 1}))
-
-	// when
-	err := repos.Mystery.VoteAttempt(context.Background(), spec.Vote{UserID: voter.ID, TargetID: attemptID, Value: 0})
-
-	// then
-	require.NoError(t, err)
-	attempts, err := repos.Mystery.GetAttempts(context.Background(), spec.MysteryAttemptQuery{MysteryID: id, ViewerID: voter.ID})
-	require.NoError(t, err)
-	require.Len(t, attempts, 1)
-	assert.Equal(t, 0, attempts[0].VoteScore)
-	assert.Equal(t, 0, attempts[0].UserVote)
+			// then
+			attempts := mysteryAttempts(t, repos, id, voters[0])
+			require.Len(t, attempts, 1)
+			assert.Equal(t, tc.wantScore, attempts[attemptID].VoteScore)
+			assert.Equal(t, tc.wantUserVote, attempts[attemptID].UserVote)
+		})
+	}
 }
 
 func TestMysteryDAO_MarkSolved(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
+	repos, _, id := mysteryByGM(t)
+	ctx := context.Background()
 	player := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
 	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
 
+	solvedBefore, err := repos.Mystery.IsSolved(ctx, id)
+	require.NoError(t, err)
+
 	// when
-	err := repos.Mystery.MarkSolved(context.Background(), spec.MysterySolve{MysteryID: id, AttemptID: attemptID, LockMystery: true})
+	err = repos.Mystery.MarkSolved(ctx, spec.MysterySolve{MysteryID: id, AttemptID: attemptID, LockMystery: true})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Mystery.GetByID(context.Background(), id)
+	assert.False(t, solvedBefore)
+
+	solvedAfter, err := repos.Mystery.IsSolved(ctx, id)
 	require.NoError(t, err)
+	assert.True(t, solvedAfter)
+
+	row := mysteryGet(t, repos, id)
 	require.NotNil(t, row)
 	assert.True(t, row.Solved)
 	require.NotNil(t, row.WinnerID)
 	assert.Equal(t, player.ID, *row.WinnerID)
-	attempts, err := repos.Mystery.GetAttempts(context.Background(), spec.MysteryAttemptQuery{MysteryID: id, ViewerID: player.ID})
-	require.NoError(t, err)
+
+	attempts := mysteryAttempts(t, repos, id, player.ID)
 	require.Len(t, attempts, 1)
-	assert.True(t, attempts[0].IsWinner)
+	assert.True(t, attempts[attemptID].IsWinner)
 }
 
 func TestMysteryDAO_MarkSolved_PreservesPreviousWinner(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
+	repos, _, id := mysteryByGM(t)
 	p1 := daotest.CreateUser(t, repos)
 	p2 := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
 	a1 := createAttempt(t, repos, id, p1.ID, nil, "first")
 	a2 := createAttempt(t, repos, id, p2.ID, nil, "second")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), spec.MysterySolve{MysteryID: id, AttemptID: a1, LockMystery: true}))
+	mysterySolve(t, repos, id, a1)
 
 	// when
 	err := repos.Mystery.MarkSolved(context.Background(), spec.MysterySolve{MysteryID: id, AttemptID: a2, LockMystery: true})
 
 	// then
 	require.NoError(t, err)
-	attempts, err := repos.Mystery.GetAttempts(context.Background(), spec.MysteryAttemptQuery{MysteryID: id, ViewerID: p2.ID})
-	require.NoError(t, err)
+
+	attempts := mysteryAttempts(t, repos, id, p2.ID)
 	require.Len(t, attempts, 2)
-	for _, a := range attempts {
-		if a.ID == a1 {
-			assert.True(t, a.IsWinner)
-		}
-		if a.ID == a2 {
-			assert.True(t, a.IsWinner)
-		}
-	}
+	assert.True(t, attempts[a1].IsWinner)
+	assert.True(t, attempts[a2].IsWinner)
 }
 
 func TestMysteryDAO_MarkSolved_MismatchMysteryFails(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
+	repos, gm, m1 := mysteryByGM(t)
+	ctx := context.Background()
 	player := daotest.CreateUser(t, repos)
-	m1 := createMystery(t, repos, gm.ID, "T1", "easy", false)
 	m2 := createMystery(t, repos, gm.ID, "T2", "easy", false)
 	attemptID := createAttempt(t, repos, m1, player.ID, nil, "a")
 
 	// when
-	err := repos.Mystery.MarkSolved(context.Background(), spec.MysterySolve{MysteryID: m2, AttemptID: attemptID, LockMystery: true})
+	err := repos.Mystery.MarkSolved(ctx, spec.MysterySolve{MysteryID: m2, AttemptID: attemptID, LockMystery: true})
 
 	// then
 	require.Error(t, err)
+
+	solved, err := repos.Mystery.IsSolved(ctx, m2)
+	require.NoError(t, err)
+	assert.False(t, solved)
 }
 
-func TestMysteryDAO_IsSolved(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	player := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
+func TestMysteryDAO_SetPaused(t *testing.T) {
+	cases := []struct {
+		name       string
+		steps      []bool
+		wantPaused bool
+	}{
+		{name: "pausing marks the mystery paused and stamps when", steps: []bool{true}, wantPaused: true},
+		{name: "unpausing clears the flag and the stamp", steps: []bool{true, false}, wantPaused: false},
+	}
 
-	// when
-	before, err1 := repos.Mystery.IsSolved(context.Background(), id)
-	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), spec.MysterySolve{MysteryID: id, AttemptID: attemptID, LockMystery: true}))
-	after, err2 := repos.Mystery.IsSolved(context.Background(), id)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos, _, id := mysteryByGM(t)
+			ctx := context.Background()
 
-	// then
-	require.NoError(t, err1)
-	require.NoError(t, err2)
-	assert.False(t, before)
-	assert.True(t, after)
-}
+			// when
+			for _, paused := range tc.steps {
+				require.NoError(t, repos.Mystery.SetPaused(ctx, spec.MysteryPauseUpdate{MysteryID: id, Paused: paused}))
+			}
 
-func TestMysteryDAO_SetPaused_AndIsPaused(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
+			// then
+			paused, err := repos.Mystery.IsPaused(ctx, id)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantPaused, paused)
 
-	// when
-	require.NoError(t, repos.Mystery.SetPaused(context.Background(), spec.MysteryPauseUpdate{MysteryID: id, Paused: true}))
-	paused, err := repos.Mystery.IsPaused(context.Background(), id)
-
-	// then
-	require.NoError(t, err)
-	assert.True(t, paused)
-	row, err := repos.Mystery.GetByID(context.Background(), id)
-	require.NoError(t, err)
-	require.NotNil(t, row)
-	assert.NotNil(t, row.PausedAt)
-}
-
-func TestMysteryDAO_SetPaused_Unpause(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	require.NoError(t, repos.Mystery.SetPaused(context.Background(), spec.MysteryPauseUpdate{MysteryID: id, Paused: true}))
-
-	// when
-	err := repos.Mystery.SetPaused(context.Background(), spec.MysteryPauseUpdate{MysteryID: id, Paused: false})
-
-	// then
-	require.NoError(t, err)
-	paused, err := repos.Mystery.IsPaused(context.Background(), id)
-	require.NoError(t, err)
-	assert.False(t, paused)
-	row, err := repos.Mystery.GetByID(context.Background(), id)
-	require.NoError(t, err)
-	require.NotNil(t, row)
-	assert.Nil(t, row.PausedAt)
+			row := mysteryGet(t, repos, id)
+			require.NotNil(t, row)
+			assert.Equal(t, tc.wantPaused, row.PausedAt != nil)
+		})
+	}
 }
 
 func TestMysteryDAO_SetGmAway(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
+	repos, _, id := mysteryByGM(t)
+	ctx := context.Background()
 
 	// when
-	require.NoError(t, repos.Mystery.SetGmAway(context.Background(), spec.MysteryGmAwayUpdate{MysteryID: id, Away: true}))
-	awayRow, err := repos.Mystery.GetByID(context.Background(), id)
-	require.NoError(t, err)
-	require.NotNil(t, awayRow)
-	require.NoError(t, repos.Mystery.SetGmAway(context.Background(), spec.MysteryGmAwayUpdate{MysteryID: id, Away: false}))
-	backRow, err := repos.Mystery.GetByID(context.Background(), id)
-	require.NoError(t, err)
-	require.NotNil(t, backRow)
+	require.NoError(t, repos.Mystery.SetGmAway(ctx, spec.MysteryGmAwayUpdate{MysteryID: id, Away: true}))
+	awayRow := mysteryGet(t, repos, id)
+	require.NoError(t, repos.Mystery.SetGmAway(ctx, spec.MysteryGmAwayUpdate{MysteryID: id, Away: false}))
+	backRow := mysteryGet(t, repos, id)
 
 	// then
+	require.NotNil(t, awayRow)
+	require.NotNil(t, backRow)
 	assert.True(t, awayRow.GmAway)
 	assert.False(t, backRow.GmAway)
 }
 
-func TestMysteryDAO_CountAttempts(t *testing.T) {
+func TestMysteryDAO_GetLeaderboard(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
+	ctx := context.Background()
 	gm := daotest.CreateUser(t, repos)
-	p1 := daotest.CreateUser(t, repos)
-	p2 := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	createAttempt(t, repos, id, p1.ID, nil, "a")
-	createAttempt(t, repos, id, p2.ID, nil, "b")
+	first := daotest.CreateUser(t, repos, daotest.WithDisplayName("Zelda"))
+	second := daotest.CreateUser(t, repos, daotest.WithDisplayName("Mallory"))
+	third := daotest.CreateUser(t, repos, daotest.WithDisplayName("Alice"))
+	mysterySolvedBy(t, repos, gm.ID, first.ID, "nightmare")
+	mysterySolvedBy(t, repos, gm.ID, first.ID, "easy")
+	mysterySolvedBy(t, repos, gm.ID, second.ID, "easy")
+	mysterySolvedBy(t, repos, gm.ID, second.ID, "hard")
+	mysterySolvedBy(t, repos, gm.ID, third.ID, "easy")
 
 	// when
-	count, err := repos.Mystery.CountAttempts(context.Background(), id)
+	entries, err := repos.Mystery.GetLeaderboard(ctx, 10)
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, 2, count)
-}
-
-func TestMysteryDAO_GetPlayerIDs_ExcludesAuthor(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	p1 := daotest.CreateUser(t, repos)
-	p2 := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	createAttempt(t, repos, id, p1.ID, nil, "a")
-	createAttempt(t, repos, id, p1.ID, nil, "b")
-	createAttempt(t, repos, id, p2.ID, nil, "c")
-	createAttempt(t, repos, id, gm.ID, nil, "gm reply")
-
-	// when
-	ids, err := repos.Mystery.GetPlayerIDs(context.Background(), id)
-
-	// then
-	require.NoError(t, err)
-	assert.Len(t, ids, 2)
-	assert.ElementsMatch(t, []uuid.UUID{p1.ID, p2.ID}, ids)
-}
-
-func TestMysteryDAO_GetLeaderboard_Empty(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	entries, err := repos.Mystery.GetLeaderboard(context.Background(), 10)
-
-	// then
-	require.NoError(t, err)
-	assert.Empty(t, entries)
-}
-
-func TestMysteryDAO_GetLeaderboard_ScoresByDifficulty(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	winner := daotest.CreateUser(t, repos, daotest.WithDisplayName("Winner"))
-	easyID := createMystery(t, repos, gm.ID, "e", "easy", false)
-	hardID := createMystery(t, repos, gm.ID, "h", "hard", false)
-	a1 := createAttempt(t, repos, easyID, winner.ID, nil, "a")
-	a2 := createAttempt(t, repos, hardID, winner.ID, nil, "b")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), spec.MysterySolve{MysteryID: easyID, AttemptID: a1, LockMystery: true}))
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), spec.MysterySolve{MysteryID: hardID, AttemptID: a2, LockMystery: true}))
-
-	// when
-	entries, err := repos.Mystery.GetLeaderboard(context.Background(), 10)
-
-	// then
-	require.NoError(t, err)
-	require.Len(t, entries, 1)
-	assert.Equal(t, winner.ID, entries[0].UserID)
-	assert.Equal(t, 8, entries[0].Score)
+	require.Len(t, entries, 3)
+	assert.Equal(t, first.ID, entries[0].UserID)
+	assert.Equal(t, 10, entries[0].Score)
+	assert.Equal(t, 1, entries[0].NightmareSolved)
 	assert.Equal(t, 1, entries[0].EasySolved)
-	assert.Equal(t, 1, entries[0].HardSolved)
-}
+	assert.Equal(t, second.ID, entries[1].UserID)
+	assert.Equal(t, 8, entries[1].Score)
+	assert.Equal(t, 1, entries[1].EasySolved)
+	assert.Equal(t, 1, entries[1].HardSolved)
+	assert.Equal(t, third.ID, entries[2].UserID)
+	assert.Equal(t, 2, entries[2].Score)
 
-func TestMysteryDAO_GetLeaderboard_Ordering(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	low := daotest.CreateUser(t, repos, daotest.WithDisplayName("Low"))
-	high := daotest.CreateUser(t, repos, daotest.WithDisplayName("High"))
-	lowM := createMystery(t, repos, gm.ID, "l", "easy", false)
-	highM := createMystery(t, repos, gm.ID, "h", "nightmare", false)
-	la := createAttempt(t, repos, lowM, low.ID, nil, "a")
-	ha := createAttempt(t, repos, highM, high.ID, nil, "a")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), spec.MysterySolve{MysteryID: lowM, AttemptID: la, LockMystery: true}))
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), spec.MysterySolve{MysteryID: highM, AttemptID: ha, LockMystery: true}))
-
-	// when
-	entries, err := repos.Mystery.GetLeaderboard(context.Background(), 10)
-
-	// then
+	topIDs, err := repos.Mystery.GetTopDetectiveIDs(ctx)
 	require.NoError(t, err)
-	require.Len(t, entries, 2)
-	assert.Equal(t, high.ID, entries[0].UserID)
-	assert.Equal(t, low.ID, entries[1].UserID)
+	assert.Equal(t, []string{first.ID.String()}, topIDs)
 }
 
-func TestMysteryDAO_GetTopDetectiveIDs(t *testing.T) {
+func TestMysteryDAO_GetGMLeaderboard(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	winner := daotest.CreateUser(t, repos)
-	mID := createMystery(t, repos, gm.ID, "T", "easy", false)
-	attemptID := createAttempt(t, repos, mID, winner.ID, nil, "a")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), spec.MysterySolve{MysteryID: mID, AttemptID: attemptID, LockMystery: true}))
-
-	// when
-	ids, err := repos.Mystery.GetTopDetectiveIDs(context.Background())
-
-	// then
-	require.NoError(t, err)
-	require.Len(t, ids, 1)
-	assert.Equal(t, winner.ID.String(), ids[0])
-}
-
-func TestMysteryDAO_GetGMLeaderboard_Empty(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	entries, err := repos.Mystery.GetGMLeaderboard(context.Background(), 10)
-
-	// then
-	require.NoError(t, err)
-	assert.Empty(t, entries)
-}
-
-func TestMysteryDAO_GetGMLeaderboard_ScoresSolvedMysteries(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
+	ctx := context.Background()
 	gm := daotest.CreateUser(t, repos, daotest.WithDisplayName("Ruler"))
 	player := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "hard", false)
-	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), spec.MysterySolve{MysteryID: id, AttemptID: attemptID, LockMystery: true}))
+	mysterySolvedBy(t, repos, gm.ID, player.ID, "hard")
+	createMystery(t, repos, gm.ID, "still open", "easy", false)
 
 	// when
-	entries, err := repos.Mystery.GetGMLeaderboard(context.Background(), 10)
+	entries, err := repos.Mystery.GetGMLeaderboard(ctx, 10)
 
 	// then
 	require.NoError(t, err)
@@ -1161,261 +983,49 @@ func TestMysteryDAO_GetGMLeaderboard_ScoresSolvedMysteries(t *testing.T) {
 	assert.Equal(t, 1, entries[0].MysteryCount)
 	assert.Equal(t, 1, entries[0].PlayerCount)
 	assert.Equal(t, 7, entries[0].Score)
-}
 
-func TestMysteryDAO_GetTopGMIDs(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	player := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), spec.MysterySolve{MysteryID: id, AttemptID: attemptID, LockMystery: true}))
-
-	// when
-	ids, err := repos.Mystery.GetTopGMIDs(context.Background())
-
-	// then
+	topIDs, err := repos.Mystery.GetTopGMIDs(ctx)
 	require.NoError(t, err)
-	require.Len(t, ids, 1)
-	assert.Equal(t, gm.ID.String(), ids[0])
+	assert.Equal(t, []string{gm.ID.String()}, topIDs)
 }
 
-func TestMysteryDAO_CreateComment_AndGet(t *testing.T) {
+func TestMysteryDAO_CreateComment(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
+	repos, gm, id := mysteryByGM(t)
+	ctx := context.Background()
 	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
 
 	// when
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "nice mystery")
+	parentID := createMysteryComment(t, repos, id, nil, commenter.ID, "nice mystery")
+	replyID := createMysteryComment(t, repos, id, &parentID, gm.ID, "reply")
 
 	// then
-	comments, _, err := repos.Mystery.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: commenter.ID, Limit: 500, Offset: 0})
-	require.NoError(t, err)
-	require.Len(t, comments, 1)
-	assert.Equal(t, commentID, comments[0].ID)
-	assert.Equal(t, "nice mystery", comments[0].Body)
-}
-
-func TestMysteryDAO_CreateComment_Threaded(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	parent := createMysteryComment(t, repos, id, nil, commenter.ID, "parent")
-
-	// when
-	reply := createMysteryComment(t, repos, id, &parent, gm.ID, "reply")
-
-	// then
-	comments, _, err := repos.Mystery.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: gm.ID, Limit: 500, Offset: 0})
-	require.NoError(t, err)
+	comments := mysteryComments(t, repos, id, commenter.ID)
 	require.Len(t, comments, 2)
-	var found bool
-	for _, c := range comments {
-		if c.ID == reply {
-			require.NotNil(t, c.ParentID)
-			assert.Equal(t, parent, *c.ParentID)
-			found = true
-		}
-	}
-	assert.True(t, found)
-}
+	assert.Equal(t, "nice mystery", comments[parentID].Body)
+	assert.Nil(t, comments[parentID].ParentID)
+	require.NotNil(t, comments[replyID].ParentID)
+	assert.Equal(t, parentID, *comments[replyID].ParentID)
 
-func TestMysteryDAO_UpdateComment_AsOwner(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "old")
-
-	// when
-	err := repos.Mystery.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: commentID, UserID: commenter.ID, Body: "new body"})
-
-	// then
+	entityID, err := repos.Mystery.GetCommentEntityID(ctx, parentID)
 	require.NoError(t, err)
-	comments, _, err := repos.Mystery.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: commenter.ID, Limit: 500, Offset: 0})
+	assert.Equal(t, id, entityID)
+
+	authorID, err := repos.Mystery.GetCommentAuthorID(ctx, parentID)
 	require.NoError(t, err)
-	require.Len(t, comments, 1)
-	assert.Equal(t, "new body", comments[0].Body)
-	assert.NotNil(t, comments[0].UpdatedAt)
-}
-
-func TestMysteryDAO_UpdateComment_NotOwnedFails(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	stranger := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "old")
-
-	// when
-	err := repos.Mystery.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: commentID, UserID: stranger.ID, Body: "hack"})
-
-	// then
-	require.Error(t, err)
-}
-
-func TestMysteryDAO_UpdateCommentAsAdmin(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "old")
-
-	// when
-	err := repos.Mystery.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: commentID, Body: "admin edit", AsAdmin: true})
-
-	// then
-	require.NoError(t, err)
-	comments, _, err := repos.Mystery.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: commenter.ID, Limit: 500, Offset: 0})
-	require.NoError(t, err)
-	require.Len(t, comments, 1)
-	assert.Equal(t, "admin edit", comments[0].Body)
-}
-
-func TestMysteryDAO_DeleteComment_AsOwner(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "bye")
-
-	// when
-	err := repos.Mystery.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: commentID, UserID: commenter.ID})
-
-	// then
-	require.NoError(t, err)
-	comments, _, err := repos.Mystery.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: commenter.ID, Limit: 500, Offset: 0})
-	require.NoError(t, err)
-	assert.Empty(t, comments)
-}
-
-func TestMysteryDAO_DeleteComment_NotOwnedFails(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	stranger := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "bye")
-
-	// when
-	err := repos.Mystery.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: commentID, UserID: stranger.ID})
-
-	// then
-	require.Error(t, err)
-}
-
-func TestMysteryDAO_DeleteCommentAsAdmin(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "bye")
-
-	// when
-	err := repos.Mystery.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: commentID, AsAdmin: true})
-
-	// then
-	require.NoError(t, err)
-	comments, _, err := repos.Mystery.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: commenter.ID, Limit: 500, Offset: 0})
-	require.NoError(t, err)
-	assert.Empty(t, comments)
-}
-
-func TestMysteryRepo_DeleteCommentWithAudit(t *testing.T) {
-	tests := []struct {
-		name       string
-		asAdmin    bool
-		wantAction audit.Action
-	}{
-		{name: "the owner deleting their own comment", asAdmin: false, wantAction: audit.ActionMysteryCommentDelete},
-		{name: "a moderator deleting someone else's comment", asAdmin: true, wantAction: audit.ActionMysteryCommentDeleteAdmin},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// given
-			repos := daotest.NewRepos(t)
-			gm := daotest.CreateUser(t, repos)
-			commenter := daotest.CreateUser(t, repos)
-			id := createMystery(t, repos, gm.ID, "T", "easy", false)
-			commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "bye")
-
-			actor := commenter
-			if tt.asAdmin {
-				actor = gm
-			}
-
-			// when
-			_, err := repos.Mystery.DeleteCommentWithAudit(context.Background(), spec.CommentDeletion{
-				CommentID: commentID,
-				UserID:    actor.ID,
-				AsAdmin:   tt.asAdmin,
-			})
-
-			// then
-			require.NoError(t, err)
-			comments, _, err := repos.Mystery.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: commenter.ID, Limit: 500, Offset: 0})
-			require.NoError(t, err)
-			assert.Empty(t, comments)
-			entries, total, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: tt.wantAction, Page: bounds.NewPage(10, 0)})
-			require.NoError(t, err)
-			assert.Equal(t, 1, total)
-			require.Len(t, entries, 1)
-			assert.Equal(t, actor.ID, entries[0].ActorID)
-			assert.Equal(t, audit.TargetMysteryComment, entries[0].TargetType)
-			assert.Equal(t, commentID.String(), entries[0].TargetID)
-		})
-	}
-}
-
-func TestMysteryRepo_DeleteCommentWithAudit_NotOwnedWritesNoAuditRow(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	stranger := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "bye")
-
-	// when
-	_, err := repos.Mystery.DeleteCommentWithAudit(context.Background(), spec.CommentDeletion{
-		CommentID: commentID,
-		UserID:    stranger.ID,
-	})
-
-	// then
-	require.Error(t, err)
-	comments, _, err := repos.Mystery.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: commenter.ID, Limit: 500, Offset: 0})
-	require.NoError(t, err)
-	assert.Len(t, comments, 1)
-	_, total, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: "", Page: bounds.NewPage(10, 0)})
-	require.NoError(t, err)
-	assert.Equal(t, 0, total)
+	assert.Equal(t, commenter.ID, authorID)
 }
 
 func TestMysteryDAO_GetComments_ExcludeUsers(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
+	repos, gm, id := mysteryByGM(t)
 	c1 := daotest.CreateUser(t, repos)
 	c2 := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
 	createMysteryComment(t, repos, id, nil, c1.ID, "A")
 	keepID := createMysteryComment(t, repos, id, nil, c2.ID, "B")
 
 	// when
-	comments, _, err := repos.Mystery.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
+	comments, total, err := repos.Mystery.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
 		TargetID:       id,
 		ViewerID:       gm.ID,
 		Limit:          500,
@@ -1427,232 +1037,288 @@ func TestMysteryDAO_GetComments_ExcludeUsers(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, keepID, comments[0].ID)
+	assert.Equal(t, 1, total)
 }
 
-func TestMysteryDAO_GetCommentEntityID(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "x")
+func TestMysteryDAO_UpdateComment(t *testing.T) {
+	cases := []struct {
+		name     string
+		byAuthor bool
+		asAdmin  bool
+		wantErr  bool
+		wantBody string
+	}{
+		{name: "the author can edit their comment and it is stamped as edited", byAuthor: true, asAdmin: false, wantErr: false, wantBody: "new body"},
+		{name: "a stranger cannot edit someone else's comment", byAuthor: false, asAdmin: false, wantErr: true, wantBody: "old"},
+		{name: "an admin can edit anyone's comment", byAuthor: false, asAdmin: true, wantErr: false, wantBody: "new body"},
+	}
 
-	// when
-	got, err := repos.Mystery.GetCommentEntityID(context.Background(), commentID)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos, _, id := mysteryByGM(t)
+			commenter := daotest.CreateUser(t, repos)
+			commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "old")
 
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, id, got)
+			editor := commenter
+			if !tc.byAuthor {
+				editor = daotest.CreateUser(t, repos)
+			}
+
+			// when
+			err := repos.Mystery.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: commentID, UserID: editor.ID, Body: "new body", AsAdmin: tc.asAdmin})
+
+			// then
+			mysteryCheckErr(t, tc.wantErr, err)
+
+			comments := mysteryComments(t, repos, id, commenter.ID)
+			require.Len(t, comments, 1)
+			assert.Equal(t, tc.wantBody, comments[commentID].Body)
+			assert.Equal(t, !tc.wantErr, comments[commentID].UpdatedAt != nil)
+		})
+	}
 }
 
-func TestMysteryDAO_GetCommentAuthorID(t *testing.T) {
+func TestMysteryRepo_DeleteCommentWithAudit(t *testing.T) {
+	cases := []struct {
+		name       string
+		asAdmin    bool
+		wantAction audit.Action
+	}{
+		{name: "the owner deleting their own comment", asAdmin: false, wantAction: audit.ActionMysteryCommentDelete},
+		{name: "a moderator deleting someone else's comment", asAdmin: true, wantAction: audit.ActionMysteryCommentDeleteAdmin},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos, gm, id := mysteryByGM(t)
+			ctx := context.Background()
+			commenter := daotest.CreateUser(t, repos)
+			commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "a clue")
+			mysteryAddCommentMedia(t, repos, commentID, "/uploads/mystery/reply.png", "/uploads/mystery/reply_thumb.png")
+			keptID := createMysteryComment(t, repos, id, nil, commenter.ID, "another clue")
+			mysteryAddCommentMedia(t, repos, keptID, "/uploads/mystery/keep.png", "")
+
+			actor := commenter
+			if tc.asAdmin {
+				actor = gm
+			}
+
+			// when
+			paths, err := repos.Mystery.DeleteCommentWithAudit(ctx, spec.CommentDeletion{
+				CommentID: commentID,
+				UserID:    actor.ID,
+				AsAdmin:   tc.asAdmin,
+			})
+
+			// then
+			require.NoError(t, err)
+			assert.ElementsMatch(t, []string{"/uploads/mystery/reply.png", "/uploads/mystery/reply_thumb.png"}, paths)
+
+			comments := mysteryComments(t, repos, id, commenter.ID)
+			assert.Len(t, comments, 1)
+			assert.Contains(t, comments, keptID)
+
+			media, err := repos.Mystery.GetCommentMedia(ctx, keptID)
+			require.NoError(t, err)
+			require.Len(t, media, 1)
+			assert.Equal(t, "/uploads/mystery/keep.png", media[0].MediaURL)
+
+			entries, total, err := repos.AuditLog.List(ctx, spec.AuditLogListing{Action: tc.wantAction, Page: bounds.NewPage(10, 0)})
+			require.NoError(t, err)
+			assert.Equal(t, 1, total)
+			require.Len(t, entries, 1)
+			assert.Equal(t, actor.ID, entries[0].ActorID)
+			assert.Equal(t, audit.TargetMysteryComment, entries[0].TargetType)
+			assert.Equal(t, commentID.String(), entries[0].TargetID)
+		})
+	}
+}
+
+func TestMysteryRepo_DeleteCommentWithAudit_NotOwnedLeavesEverythingInPlace(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
+	repos, _, id := mysteryByGM(t)
+	ctx := context.Background()
 	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "x")
+	stranger := daotest.CreateUser(t, repos)
+	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "a clue")
+	mysteryAddCommentMedia(t, repos, commentID, "/uploads/mystery/reply.png", "/uploads/mystery/reply_thumb.png")
 
 	// when
-	got, err := repos.Mystery.GetCommentAuthorID(context.Background(), commentID)
+	paths, err := repos.Mystery.DeleteCommentWithAudit(ctx, spec.CommentDeletion{CommentID: commentID, UserID: stranger.ID})
 
 	// then
+	require.Error(t, err)
+	assert.Empty(t, paths)
+
+	comments := mysteryComments(t, repos, id, commenter.ID)
+	assert.Len(t, comments, 1)
+	assert.Contains(t, comments, commentID)
+
+	media, err := repos.Mystery.GetCommentMedia(ctx, commentID)
 	require.NoError(t, err)
-	assert.Equal(t, commenter.ID, got)
+	require.Len(t, media, 1)
+	assert.Equal(t, "/uploads/mystery/reply.png", media[0].MediaURL)
+	assert.Equal(t, "/uploads/mystery/reply_thumb.png", media[0].ThumbnailURL)
+
+	_, total, err := repos.AuditLog.List(ctx, spec.AuditLogListing{Action: "", Page: bounds.NewPage(10, 0)})
+	require.NoError(t, err)
+	assert.Equal(t, 0, total)
 }
 
 func TestMysteryDAO_LikeComment(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	liker := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "x")
+	like := repository.MysteryRepository.LikeComment
+	unlike := repository.MysteryRepository.UnlikeComment
 
-	// when
-	err := repos.Mystery.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: commentID})
+	cases := []struct {
+		name      string
+		actions   []mysteryLikeAction
+		wantCount int
+		wantLiked bool
+	}{
+		{name: "a like is counted and marked as the viewer's own", actions: []mysteryLikeAction{like}, wantCount: 1, wantLiked: true},
+		{name: "liking twice is idempotent", actions: []mysteryLikeAction{like, like}, wantCount: 1, wantLiked: true},
+		{name: "unliking removes the like", actions: []mysteryLikeAction{like, unlike}, wantCount: 0, wantLiked: false},
+	}
 
-	// then
-	require.NoError(t, err)
-	comments, _, err := repos.Mystery.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: liker.ID, Limit: 500, Offset: 0})
-	require.NoError(t, err)
-	require.Len(t, comments, 1)
-	assert.Equal(t, 1, comments[0].LikeCount)
-	assert.True(t, comments[0].UserLiked)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos, _, id := mysteryByGM(t)
+			ctx := context.Background()
+			commenter := daotest.CreateUser(t, repos)
+			liker := daotest.CreateUser(t, repos)
+			commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "x")
+
+			// when
+			for _, act := range tc.actions {
+				require.NoError(t, act(repos.Mystery, ctx, spec.CommentLike{UserID: liker.ID, CommentID: commentID}))
+			}
+
+			// then
+			comments := mysteryComments(t, repos, id, liker.ID)
+			require.Len(t, comments, 1)
+			assert.Equal(t, tc.wantCount, comments[commentID].LikeCount)
+			assert.Equal(t, tc.wantLiked, comments[commentID].UserLiked)
+		})
+	}
 }
 
-func TestMysteryDAO_LikeComment_Idempotent(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	liker := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "x")
+func TestMysteryDAO_Media(t *testing.T) {
+	cases := []mysteryMediaSurface{mysteryEntityMedia, mysteryCommentMedia}
 
-	// when
-	require.NoError(t, repos.Mystery.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: commentID}))
-	require.NoError(t, repos.Mystery.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: commentID}))
+	for _, tc := range cases {
+		t.Run(tc.name+" reads back in the order it was added", func(t *testing.T) {
+			// given
+			repos, gm, id := mysteryByGM(t)
+			ctx := context.Background()
+			targetID := tc.target(t, repos, id, gm.ID)
 
-	// then
-	comments, _, err := repos.Mystery.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: liker.ID, Limit: 500, Offset: 0})
-	require.NoError(t, err)
-	require.Len(t, comments, 1)
-	assert.Equal(t, 1, comments[0].LikeCount)
+			// when
+			firstID, errFirst := tc.add(repos.Mystery, ctx, spec.NewMedia{TargetID: targetID, MediaURL: "/a.png", MediaType: "image", ThumbnailURL: "/t.png"})
+			_, errSecond := tc.add(repos.Mystery, ctx, spec.NewMedia{TargetID: targetID, MediaURL: "/b.png", MediaType: "image"})
+
+			// then
+			require.NoError(t, errFirst)
+			require.NoError(t, errSecond)
+			assert.NotZero(t, firstID)
+
+			media, err := tc.get(repos.Mystery, ctx, targetID)
+			require.NoError(t, err)
+			require.Len(t, media, 2)
+			assert.Equal(t, "/a.png", media[0].MediaURL)
+			assert.Equal(t, "image", media[0].MediaType)
+			assert.Equal(t, "/t.png", media[0].ThumbnailURL)
+			assert.Equal(t, 0, media[0].SortOrder)
+			assert.Equal(t, "/b.png", media[1].MediaURL)
+			assert.Equal(t, 1, media[1].SortOrder)
+		})
+	}
 }
 
-func TestMysteryDAO_UnlikeComment(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	liker := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "x")
-	require.NoError(t, repos.Mystery.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: commentID}))
+func TestMysteryDAO_UpdateMedia(t *testing.T) {
+	cases := []struct {
+		name          string
+		surface       mysteryMediaSurface
+		update        func(repository.MysteryRepository, context.Context, spec.MediaURLUpdate, ...*sql.Tx) error
+		wantURL       string
+		wantThumbnail string
+	}{
+		{name: "UpdateMediaURL swaps a mystery image's url and keeps its thumbnail", surface: mysteryEntityMedia, update: repository.MysteryRepository.UpdateMediaURL, wantURL: "/new.png", wantThumbnail: "/old.png"},
+		{name: "UpdateMediaThumbnail swaps a mystery image's thumbnail and keeps its url", surface: mysteryEntityMedia, update: repository.MysteryRepository.UpdateMediaThumbnail, wantURL: "/a.png", wantThumbnail: "/new.png"},
+		{name: "UpdateCommentMediaURL swaps a comment image's url and keeps its thumbnail", surface: mysteryCommentMedia, update: repository.MysteryRepository.UpdateCommentMediaURL, wantURL: "/new.png", wantThumbnail: "/old.png"},
+		{name: "UpdateCommentMediaThumbnail swaps a comment image's thumbnail and keeps its url", surface: mysteryCommentMedia, update: repository.MysteryRepository.UpdateCommentMediaThumbnail, wantURL: "/a.png", wantThumbnail: "/new.png"},
+	}
 
-	// when
-	err := repos.Mystery.UnlikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: commentID})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos, gm, id := mysteryByGM(t)
+			ctx := context.Background()
+			targetID := tc.surface.target(t, repos, id, gm.ID)
+			mediaID, err := tc.surface.add(repos.Mystery, ctx, spec.NewMedia{TargetID: targetID, MediaURL: "/a.png", MediaType: "image", ThumbnailURL: "/old.png"})
+			require.NoError(t, err)
 
-	// then
-	require.NoError(t, err)
-	comments, _, err := repos.Mystery.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: liker.ID, Limit: 500, Offset: 0})
-	require.NoError(t, err)
-	require.Len(t, comments, 1)
-	assert.Equal(t, 0, comments[0].LikeCount)
-	assert.False(t, comments[0].UserLiked)
-}
+			// when
+			err = tc.update(repos.Mystery, ctx, spec.MediaURLUpdate{ID: mediaID, URL: "/new.png"})
 
-func TestMysteryDAO_AddCommentMedia_AndGet(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "x")
+			// then
+			require.NoError(t, err)
 
-	// when
-	mediaID, err := repos.Mystery.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/a.png", MediaType: "image", ThumbnailURL: "/t.png"})
-
-	// then
-	require.NoError(t, err)
-	assert.NotZero(t, mediaID)
-	media, err := repos.Mystery.GetCommentMedia(context.Background(), commentID)
-	require.NoError(t, err)
-	require.Len(t, media, 1)
-	assert.Equal(t, "/a.png", media[0].MediaURL)
-	assert.Equal(t, "image", media[0].MediaType)
-	assert.Equal(t, "/t.png", media[0].ThumbnailURL)
-}
-
-func TestMysteryDAO_UpdateCommentMediaURL(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "x")
-	mediaID, err := repos.Mystery.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/a.png", MediaType: "image", ThumbnailURL: "/t.png"})
-	require.NoError(t, err)
-
-	// when
-	err = repos.Mystery.UpdateCommentMediaURL(context.Background(), spec.MediaURLUpdate{ID: mediaID, URL: "/new.png"})
-
-	// then
-	require.NoError(t, err)
-	media, err := repos.Mystery.GetCommentMedia(context.Background(), commentID)
-	require.NoError(t, err)
-	require.Len(t, media, 1)
-	assert.Equal(t, "/new.png", media[0].MediaURL)
-}
-
-func TestMysteryDAO_UpdateCommentMediaThumbnail(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "x")
-	mediaID, err := repos.Mystery.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/a.png", MediaType: "image", ThumbnailURL: "/old.png"})
-	require.NoError(t, err)
-
-	// when
-	err = repos.Mystery.UpdateCommentMediaThumbnail(context.Background(), spec.MediaURLUpdate{ID: mediaID, URL: "/new.png"})
-
-	// then
-	require.NoError(t, err)
-	media, err := repos.Mystery.GetCommentMedia(context.Background(), commentID)
-	require.NoError(t, err)
-	require.Len(t, media, 1)
-	assert.Equal(t, "/new.png", media[0].ThumbnailURL)
-}
-
-func TestMysteryDAO_GetCommentMedia_Ordering(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "x")
-	_, err := repos.Mystery.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/a.png", MediaType: "image"})
-	require.NoError(t, err)
-	_, err = repos.Mystery.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/b.png", MediaType: "image"})
-	require.NoError(t, err)
-
-	// when
-	media, err := repos.Mystery.GetCommentMedia(context.Background(), commentID)
-
-	// then
-	require.NoError(t, err)
-	require.Len(t, media, 2)
-	assert.Equal(t, "/a.png", media[0].MediaURL)
-	assert.Equal(t, "/b.png", media[1].MediaURL)
+			media, err := tc.surface.get(repos.Mystery, ctx, targetID)
+			require.NoError(t, err)
+			require.Len(t, media, 1)
+			assert.Equal(t, tc.wantURL, media[0].MediaURL)
+			assert.Equal(t, tc.wantThumbnail, media[0].ThumbnailURL)
+		})
+	}
 }
 
 func TestMysteryDAO_GetCommentMediaBatch(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	c1 := createMysteryComment(t, repos, id, nil, commenter.ID, "a")
-	c2 := createMysteryComment(t, repos, id, nil, commenter.ID, "b")
-	_, err := repos.Mystery.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: c1, MediaURL: "/c1.png", MediaType: "image"})
-	require.NoError(t, err)
-	_, err = repos.Mystery.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: c2, MediaURL: "/c2.png", MediaType: "image"})
-	require.NoError(t, err)
+	repos, gm, id := mysteryByGM(t)
+	ctx := context.Background()
+	c1 := createMysteryComment(t, repos, id, nil, gm.ID, "a")
+	c2 := createMysteryComment(t, repos, id, nil, gm.ID, "b")
+	m1 := mysteryAddCommentMedia(t, repos, c1, "/c1.png", "")
+	m2 := mysteryAddCommentMedia(t, repos, c2, "/c2.png", "")
 
-	// when
-	result, err := repos.Mystery.GetCommentMediaBatch(context.Background(), []uuid.UUID{c1, c2})
+	cases := []struct {
+		name string
+		ids  []uuid.UUID
+		want map[uuid.UUID][]model.PostMediaRow
+	}{
+		{
+			name: "each requested comment maps to its own media",
+			ids:  []uuid.UUID{c1, c2},
+			want: map[uuid.UUID][]model.PostMediaRow{
+				c1: {{ID: int(m1), PostID: c1, MediaURL: "/c1.png", MediaType: "image"}},
+				c2: {{ID: int(m2), PostID: c2, MediaURL: "/c2.png", MediaType: "image"}},
+			},
+		},
+		{name: "an empty id list short-circuits to nil", ids: nil, want: nil},
+	}
 
-	// then
-	require.NoError(t, err)
-	require.Len(t, result, 2)
-	assert.Equal(t, "/c1.png", result[c1][0].MediaURL)
-	assert.Equal(t, "/c2.png", result[c2][0].MediaURL)
-}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			result, err := repos.Mystery.GetCommentMediaBatch(ctx, tc.ids)
 
-func TestMysteryDAO_GetCommentMediaBatch_EmptyInput(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	result, err := repos.Mystery.GetCommentMediaBatch(context.Background(), nil)
-
-	// then
-	require.NoError(t, err)
-	assert.Nil(t, result)
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, result)
+		})
+	}
 }
 
 func TestMysteryDAO_AddAttachment_AndGet(t *testing.T) {
 	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
+	repos, _, id := mysteryByGM(t)
+	ctx := context.Background()
 
 	// when
-	attID, err := repos.Mystery.AddAttachment(context.Background(), spec.NewMysteryAttachment{
+	attID, err := repos.Mystery.AddAttachment(ctx, spec.NewMysteryAttachment{
 		MysteryID: id,
 		FileURL:   "/file.pdf",
 		FileName:  "file.pdf",
@@ -1662,7 +1328,8 @@ func TestMysteryDAO_AddAttachment_AndGet(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.NotZero(t, attID)
-	atts, err := repos.Mystery.GetAttachments(context.Background(), id)
+
+	atts, err := repos.Mystery.GetAttachments(ctx, id)
 	require.NoError(t, err)
 	require.Len(t, atts, 1)
 	assert.Equal(t, "/file.pdf", atts[0].FileURL)
@@ -1671,399 +1338,143 @@ func TestMysteryDAO_AddAttachment_AndGet(t *testing.T) {
 }
 
 func TestMysteryDAO_DeleteAttachment(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	attID, err := repos.Mystery.AddAttachment(context.Background(), spec.NewMysteryAttachment{
-		MysteryID: id,
-		FileURL:   "/f.pdf",
-		FileName:  "f.pdf",
-		FileSize:  1,
-	})
-	require.NoError(t, err)
+	cases := []struct {
+		name          string
+		viaOther      bool
+		wantErr       bool
+		wantRemaining int
+	}{
+		{name: "an attachment is deleted through its own mystery", viaOther: false, wantErr: false, wantRemaining: 0},
+		{name: "an attachment cannot be deleted through another mystery", viaOther: true, wantErr: true, wantRemaining: 1},
+	}
 
-	// when
-	err = repos.Mystery.DeleteAttachment(context.Background(), spec.MysteryAttachmentDeletion{ID: attID, MysteryID: id})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos, gm, own := mysteryByGM(t)
+			ctx := context.Background()
+			other := createMystery(t, repos, gm.ID, "B", "easy", false)
+			attID, err := repos.Mystery.AddAttachment(ctx, spec.NewMysteryAttachment{MysteryID: own, FileURL: "/f.pdf", FileName: "f.pdf", FileSize: 1})
+			require.NoError(t, err)
 
-	// then
-	require.NoError(t, err)
-	atts, err := repos.Mystery.GetAttachments(context.Background(), id)
-	require.NoError(t, err)
-	assert.Empty(t, atts)
-}
+			via := own
+			if tc.viaOther {
+				via = other
+			}
 
-func TestMysteryDAO_DeleteAttachment_WrongMysteryFails(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	m1 := createMystery(t, repos, gm.ID, "A", "easy", false)
-	m2 := createMystery(t, repos, gm.ID, "B", "easy", false)
-	attID, err := repos.Mystery.AddAttachment(context.Background(), spec.NewMysteryAttachment{
-		MysteryID: m1,
-		FileURL:   "/f.pdf",
-		FileName:  "f.pdf",
-		FileSize:  1,
-	})
-	require.NoError(t, err)
+			// when
+			err = repos.Mystery.DeleteAttachment(ctx, spec.MysteryAttachmentDeletion{ID: attID, MysteryID: via})
 
-	// when
-	err = repos.Mystery.DeleteAttachment(context.Background(), spec.MysteryAttachmentDeletion{ID: attID, MysteryID: m2})
+			// then
+			mysteryCheckErr(t, tc.wantErr, err)
 
-	// then
-	require.Error(t, err)
-}
-
-func TestMysteryDAO_GetAttachments_Empty(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-
-	// when
-	atts, err := repos.Mystery.GetAttachments(context.Background(), id)
-
-	// then
-	require.NoError(t, err)
-	assert.Empty(t, atts)
-}
-
-func TestMysteryDAO_GetByID_AttemptCount_ExcludesAuthor(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	p1 := daotest.CreateUser(t, repos)
-	p2 := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	createAttempt(t, repos, id, p1.ID, nil, "a")
-	createAttempt(t, repos, id, p2.ID, nil, "b")
-	createAttempt(t, repos, id, gm.ID, nil, "gm")
-	createAttempt(t, repos, id, p1.ID, new(createAttempt(t, repos, id, p1.ID, nil, "parent")), "reply")
-
-	// when
-	row, err := repos.Mystery.GetByID(context.Background(), id)
-
-	// then
-	require.NoError(t, err)
-	require.NotNil(t, row)
-	assert.Equal(t, 3, row.AttemptCount)
-}
-
-func TestMysteryDAO_GetByID_ClueCount(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	_, err := repos.Mystery.AddClue(context.Background(), spec.NewMysteryClue{
-		MysteryID: id,
-		NewClue:   spec.NewClue{Body: "a", TruthType: "red", SortOrder: 0},
-	})
-	require.NoError(t, err)
-	_, err = repos.Mystery.AddClue(context.Background(), spec.NewMysteryClue{
-		MysteryID: id,
-		NewClue:   spec.NewClue{Body: "b", TruthType: "blue", SortOrder: 1},
-	})
-	require.NoError(t, err)
-
-	// when
-	row, err := repos.Mystery.GetByID(context.Background(), id)
-
-	// then
-	require.NoError(t, err)
-	require.NotNil(t, row)
-	assert.Equal(t, 2, row.ClueCount)
-}
-
-func TestMysteryDAO_AddMedia_AndGet(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-
-	// when
-	mediaID, err := repos.Mystery.AddMedia(context.Background(), spec.NewMedia{TargetID: id, MediaURL: "/img.png", MediaType: "image", ThumbnailURL: "/t.png"})
-
-	// then
-	require.NoError(t, err)
-	assert.NotZero(t, mediaID)
-	media, err := repos.Mystery.GetMedia(context.Background(), id)
-	require.NoError(t, err)
-	require.Len(t, media, 1)
-	assert.Equal(t, "/img.png", media[0].MediaURL)
-	assert.Equal(t, "image", media[0].MediaType)
-	assert.Equal(t, "/t.png", media[0].ThumbnailURL)
-	assert.Equal(t, 0, media[0].SortOrder)
-}
-
-func TestMysteryDAO_UpdateMediaURL(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	mediaID, err := repos.Mystery.AddMedia(context.Background(), spec.NewMedia{TargetID: id, MediaURL: "/old.png", MediaType: "image"})
-	require.NoError(t, err)
-
-	// when
-	err = repos.Mystery.UpdateMediaURL(context.Background(), spec.MediaURLUpdate{ID: mediaID, URL: "/new.png"})
-
-	// then
-	require.NoError(t, err)
-	media, err := repos.Mystery.GetMedia(context.Background(), id)
-	require.NoError(t, err)
-	require.Len(t, media, 1)
-	assert.Equal(t, "/new.png", media[0].MediaURL)
-}
-
-func TestMysteryDAO_UpdateMediaThumbnail(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	mediaID, err := repos.Mystery.AddMedia(context.Background(), spec.NewMedia{TargetID: id, MediaURL: "/v.mp4", MediaType: "video", ThumbnailURL: "/old.png"})
-	require.NoError(t, err)
-
-	// when
-	err = repos.Mystery.UpdateMediaThumbnail(context.Background(), spec.MediaURLUpdate{ID: mediaID, URL: "/new.png"})
-
-	// then
-	require.NoError(t, err)
-	media, err := repos.Mystery.GetMedia(context.Background(), id)
-	require.NoError(t, err)
-	require.Len(t, media, 1)
-	assert.Equal(t, "/new.png", media[0].ThumbnailURL)
-}
-
-func TestMysteryDAO_GetMedia_Ordering(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	_, err := repos.Mystery.AddMedia(context.Background(), spec.NewMedia{TargetID: id, MediaURL: "/a.png", MediaType: "image"})
-	require.NoError(t, err)
-	_, err = repos.Mystery.AddMedia(context.Background(), spec.NewMedia{TargetID: id, MediaURL: "/b.png", MediaType: "image"})
-	require.NoError(t, err)
-
-	// when
-	media, err := repos.Mystery.GetMedia(context.Background(), id)
-
-	// then
-	require.NoError(t, err)
-	require.Len(t, media, 2)
-	assert.Equal(t, "/a.png", media[0].MediaURL)
-	assert.Equal(t, "/b.png", media[1].MediaURL)
+			atts, err := repos.Mystery.GetAttachments(ctx, own)
+			require.NoError(t, err)
+			assert.Len(t, atts, tc.wantRemaining)
+		})
+	}
 }
 
 func TestMysteryDAO_DeleteMedia(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	mediaID, err := repos.Mystery.AddMedia(context.Background(), spec.NewMedia{TargetID: id, MediaURL: "/x.png", MediaType: "image"})
-	require.NoError(t, err)
+	cases := []struct {
+		name          string
+		viaOther      bool
+		wantErr       bool
+		wantURL       string
+		wantRemaining int
+	}{
+		{name: "a media item is deleted through its own mystery and its url handed back", viaOther: false, wantErr: false, wantURL: "/x.png", wantRemaining: 0},
+		{name: "a media item cannot be deleted through another mystery", viaOther: true, wantErr: true, wantURL: "", wantRemaining: 1},
+	}
 
-	// when
-	url, err := repos.Mystery.DeleteMedia(context.Background(), spec.MediaDeletion{ID: mediaID, TargetID: id})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos, gm, own := mysteryByGM(t)
+			ctx := context.Background()
+			other := createMystery(t, repos, gm.ID, "Other", "easy", false)
+			mediaID, err := repos.Mystery.AddMedia(ctx, spec.NewMedia{TargetID: own, MediaURL: "/x.png", MediaType: "image"})
+			require.NoError(t, err)
 
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, "/x.png", url)
-	media, err := repos.Mystery.GetMedia(context.Background(), id)
-	require.NoError(t, err)
-	assert.Empty(t, media)
+			via := own
+			if tc.viaOther {
+				via = other
+			}
+
+			// when
+			url, err := repos.Mystery.DeleteMedia(ctx, spec.MediaDeletion{ID: mediaID, TargetID: via})
+
+			// then
+			mysteryCheckErr(t, tc.wantErr, err)
+			assert.Equal(t, tc.wantURL, url)
+
+			media, err := repos.Mystery.GetMedia(ctx, own)
+			require.NoError(t, err)
+			assert.Len(t, media, tc.wantRemaining)
+		})
+	}
 }
 
-func TestMysteryDAO_DeleteMedia_WrongMystery(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	otherID := createMystery(t, repos, gm.ID, "Other", "easy", false)
-	mediaID, err := repos.Mystery.AddMedia(context.Background(), spec.NewMedia{TargetID: id, MediaURL: "/x.png", MediaType: "image"})
-	require.NoError(t, err)
-
-	// when
-	_, err = repos.Mystery.DeleteMedia(context.Background(), spec.MediaDeletion{ID: mediaID, TargetID: otherID})
-
-	// then
-	require.Error(t, err)
-}
-
-func TestMysteryRepo_DeleteWithFiles_ReturnsEveryUploadedPath(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	_, err := repos.Mystery.AddMedia(context.Background(), spec.NewMedia{TargetID: id, MediaURL: "/uploads/mystery/board.png", MediaType: "image", ThumbnailURL: "/uploads/mystery/board_thumb.png"})
-	require.NoError(t, err)
-	_, err = repos.Mystery.AddAttachment(context.Background(), spec.NewMysteryAttachment{
-		MysteryID: id,
-		FileURL:   "/uploads/mystery/case.pdf",
-		FileName:  "case.pdf",
-		FileSize:  42,
-	})
-	require.NoError(t, err)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "a clue")
-	_, err = repos.Mystery.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/uploads/mystery/reply.png", MediaType: "image", ThumbnailURL: "/uploads/mystery/reply_thumb.png"})
-	require.NoError(t, err)
-
-	// when
-	paths, err := repos.Mystery.DeleteWithFiles(context.Background(), spec.MysteryDelete{ID: id, UserID: gm.ID})
-
-	// then
-	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{
+func TestMysteryRepo_DeleteWithFiles(t *testing.T) {
+	everyPath := []string{
 		"/uploads/mystery/board.png",
 		"/uploads/mystery/board_thumb.png",
 		"/uploads/mystery/case.pdf",
 		"/uploads/mystery/reply.png",
 		"/uploads/mystery/reply_thumb.png",
-	}, paths)
-	row, err := repos.Mystery.GetByID(context.Background(), id)
-	require.NoError(t, err)
-	assert.Nil(t, row)
-}
+	}
 
-func TestMysteryRepo_DeleteWithFiles_AsAdmin(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	moderator := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	_, err := repos.Mystery.AddMedia(context.Background(), spec.NewMedia{TargetID: id, MediaURL: "/uploads/mystery/board.png", MediaType: "image", ThumbnailURL: "/uploads/mystery/board_thumb.png"})
-	require.NoError(t, err)
-	_, err = repos.Mystery.AddAttachment(context.Background(), spec.NewMysteryAttachment{
-		MysteryID: id,
-		FileURL:   "/uploads/mystery/case.pdf",
-		FileName:  "case.pdf",
-		FileSize:  42,
-	})
-	require.NoError(t, err)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "a clue")
-	_, err = repos.Mystery.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/uploads/mystery/reply.png", MediaType: "image", ThumbnailURL: "/uploads/mystery/reply_thumb.png"})
-	require.NoError(t, err)
+	cases := []struct {
+		name       string
+		byOwner    bool
+		asAdmin    bool
+		uploads    bool
+		thumbnails bool
+		wantErr    bool
+		wantPaths  []string
+	}{
+		{name: "the owner gets back every uploaded path: media, thumbnails, attachments and comment media", byOwner: true, uploads: true, thumbnails: true, wantPaths: everyPath},
+		{name: "an admin deleting someone else's mystery gets back every uploaded path", asAdmin: true, uploads: true, thumbnails: true, wantPaths: everyPath},
+		{name: "blank thumbnails are skipped", byOwner: true, uploads: true, thumbnails: false, wantPaths: []string{"/uploads/mystery/board.png", "/uploads/mystery/case.pdf", "/uploads/mystery/reply.png"}},
+		{name: "a mystery with no uploads returns no paths", byOwner: true, uploads: false, wantPaths: nil},
+		{name: "a stranger deletes nothing and gets no paths", uploads: true, thumbnails: true, wantErr: true, wantPaths: nil},
+	}
 
-	// when
-	paths, err := repos.Mystery.DeleteWithFiles(context.Background(), spec.MysteryDelete{ID: id, UserID: moderator.ID, AsAdmin: true})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos, gm, id := mysteryByGM(t)
+			ctx := context.Background()
+			commenter := daotest.CreateUser(t, repos)
 
-	// then
-	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{
-		"/uploads/mystery/board.png",
-		"/uploads/mystery/board_thumb.png",
-		"/uploads/mystery/case.pdf",
-		"/uploads/mystery/reply.png",
-		"/uploads/mystery/reply_thumb.png",
-	}, paths)
-	row, err := repos.Mystery.GetByID(context.Background(), id)
-	require.NoError(t, err)
-	assert.Nil(t, row)
-}
+			if tc.uploads {
+				mysteryAddUploads(t, repos, id, commenter.ID, tc.thumbnails)
+			}
 
-func TestMysteryRepo_DeleteWithFiles_SkipsBlankThumbnails(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	_, err := repos.Mystery.AddMedia(context.Background(), spec.NewMedia{TargetID: id, MediaURL: "/uploads/mystery/board.png", MediaType: "image"})
-	require.NoError(t, err)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "a clue")
-	_, err = repos.Mystery.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/uploads/mystery/reply.png", MediaType: "image"})
-	require.NoError(t, err)
+			deleter := gm
+			if !tc.byOwner {
+				deleter = daotest.CreateUser(t, repos)
+			}
 
-	// when
-	paths, err := repos.Mystery.DeleteWithFiles(context.Background(), spec.MysteryDelete{ID: id, UserID: gm.ID})
+			// when
+			paths, err := repos.Mystery.DeleteWithFiles(ctx, spec.MysteryDelete{ID: id, UserID: deleter.ID, AsAdmin: tc.asAdmin})
 
-	// then
-	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{"/uploads/mystery/board.png", "/uploads/mystery/reply.png"}, paths)
-}
+			// then
+			mysteryCheckErr(t, tc.wantErr, err)
+			assert.ElementsMatch(t, tc.wantPaths, paths)
 
-func TestMysteryRepo_DeleteWithFiles_NotOwnedReturnsNoPaths(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	stranger := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	_, err := repos.Mystery.AddMedia(context.Background(), spec.NewMedia{TargetID: id, MediaURL: "/uploads/mystery/board.png", MediaType: "image", ThumbnailURL: "/uploads/mystery/board_thumb.png"})
-	require.NoError(t, err)
+			row := mysteryGet(t, repos, id)
+			media, err := repos.Mystery.GetMedia(ctx, id)
+			require.NoError(t, err)
 
-	// when
-	paths, err := repos.Mystery.DeleteWithFiles(context.Background(), spec.MysteryDelete{ID: id, UserID: stranger.ID})
-
-	// then
-	require.Error(t, err)
-	assert.Empty(t, paths)
-	row, err := repos.Mystery.GetByID(context.Background(), id)
-	require.NoError(t, err)
-	require.NotNil(t, row)
-	media, err := repos.Mystery.GetMedia(context.Background(), id)
-	require.NoError(t, err)
-	require.Len(t, media, 1)
-	assert.Equal(t, "/uploads/mystery/board.png", media[0].MediaURL)
-}
-
-func TestMysteryRepo_DeleteWithFiles_NoUploadsReturnsEmpty(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-
-	// when
-	paths, err := repos.Mystery.DeleteWithFiles(context.Background(), spec.MysteryDelete{ID: id, UserID: gm.ID})
-
-	// then
-	require.NoError(t, err)
-	assert.Empty(t, paths)
-}
-
-func TestMysteryRepo_DeleteCommentWithAudit_ReturnsCommentMediaPaths(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "a clue")
-	_, err := repos.Mystery.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/uploads/mystery/reply.png", MediaType: "image", ThumbnailURL: "/uploads/mystery/reply_thumb.png"})
-	require.NoError(t, err)
-	otherCommentID := createMysteryComment(t, repos, id, nil, commenter.ID, "another clue")
-	_, err = repos.Mystery.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: otherCommentID, MediaURL: "/uploads/mystery/keep.png", MediaType: "image"})
-	require.NoError(t, err)
-
-	// when
-	paths, err := repos.Mystery.DeleteCommentWithAudit(context.Background(), spec.CommentDeletion{CommentID: commentID, UserID: commenter.ID})
-
-	// then
-	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{"/uploads/mystery/reply.png", "/uploads/mystery/reply_thumb.png"}, paths)
-	media, err := repos.Mystery.GetCommentMedia(context.Background(), otherCommentID)
-	require.NoError(t, err)
-	require.Len(t, media, 1)
-	assert.Equal(t, "/uploads/mystery/keep.png", media[0].MediaURL)
-}
-
-func TestMysteryRepo_DeleteCommentWithAudit_NotOwnedReturnsNoPaths(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	gm := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	stranger := daotest.CreateUser(t, repos)
-	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "a clue")
-	_, err := repos.Mystery.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "/uploads/mystery/reply.png", MediaType: "image", ThumbnailURL: "/uploads/mystery/reply_thumb.png"})
-	require.NoError(t, err)
-
-	// when
-	paths, err := repos.Mystery.DeleteCommentWithAudit(context.Background(), spec.CommentDeletion{CommentID: commentID, UserID: stranger.ID})
-
-	// then
-	require.Error(t, err)
-	assert.Empty(t, paths)
-	media, err := repos.Mystery.GetCommentMedia(context.Background(), commentID)
-	require.NoError(t, err)
-	require.Len(t, media, 1)
-	assert.Equal(t, "/uploads/mystery/reply.png", media[0].MediaURL)
-	assert.Equal(t, "/uploads/mystery/reply_thumb.png", media[0].ThumbnailURL)
+			if tc.wantErr {
+				require.NotNil(t, row)
+				require.Len(t, media, 1)
+				assert.Equal(t, "/uploads/mystery/board.png", media[0].MediaURL)
+			} else {
+				assert.Nil(t, row)
+				assert.Empty(t, media)
+			}
+		})
+	}
 }
