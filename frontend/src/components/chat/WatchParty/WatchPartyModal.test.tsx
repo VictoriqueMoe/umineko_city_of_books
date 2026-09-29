@@ -1,10 +1,10 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createContext, type ReactNode, type RefObject } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeWatchPartySession } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
-import type { SiteRole, User, WatchPartyParticipant, WatchPartySession } from "../../../types/api";
+import type { User, WatchPartyParticipant, WatchPartySession } from "../../../types/api";
 import type { ActiveWatchPartySession } from "../../../hooks/useWatchParty";
 import { WatchPartyModal } from "./WatchPartyModal";
 
@@ -28,9 +28,7 @@ vi.mock("../../../hooks/useIsMobile", () => ({ useIsMobile: mocks.useIsMobile })
 
 interface MobileViewProps {
     title: string;
-    hasControl: boolean;
     canEnd: boolean;
-    busy: boolean;
     copied: boolean;
     watcherCount: number;
     voiceCount: number;
@@ -49,25 +47,24 @@ vi.mock("./WatchPartyMobileView", () => ({
     WatchPartyMobileView: (props: MobileViewProps) => (
         <div
             data-testid="mobile-view"
-            data-title={props.title}
             data-watchers={String(props.watcherCount)}
             data-voices={String(props.voiceCount)}
-            data-can-end={String(props.canEnd)}
-            data-control={String(props.hasControl)}
-            data-copied={String(props.copied)}
         >
+            <span>{props.title}</span>
             <button type="button" onClick={props.onCopyInvite}>
-                overflow copy invite
+                {props.copied ? "Phone menu: Link copied" : "Phone menu: Copy invite"}
             </button>
             <button type="button" onClick={props.onHide}>
-                overflow hide
+                Phone menu: Hide
             </button>
             <button type="button" onClick={props.onLeave}>
-                overflow leave
+                Phone menu: Leave
             </button>
-            <button type="button" onClick={props.onEnd}>
-                overflow end
-            </button>
+            {props.canEnd && (
+                <button type="button" onClick={props.onEnd}>
+                    Phone menu: End for everyone
+                </button>
+            )}
             <div data-testid="mobile-stage" ref={props.stageRef}>
                 {props.stage}
             </div>
@@ -179,6 +176,28 @@ function makeActive(overrides: Partial<ActiveWatchPartySession> = {}): ActiveWat
     };
 }
 
+const screenShareParty = makeActive({ session: makeSession({ type: "screenshare" }), embedURL: "" });
+
+const twoWatchers = makeSession({
+    participants: [
+        makeParticipant(),
+        makeParticipant({ user: makeChatUser({ id: "user-battler", display_name: "Battler" }) }),
+    ],
+});
+
+const layouts = [
+    { name: "desktop", mobile: false, menu: "" },
+    { name: "phone", mobile: true, menu: "Phone menu: " },
+];
+
+const roles = [
+    { role: "an ordinary watcher", isStarter: false, viewerIsStaff: false, trusted: false },
+    { role: "the host", isStarter: true, viewerIsStaff: false, trusted: true },
+    { role: "site staff who did not start it", isStarter: false, viewerIsStaff: true, trusted: true },
+];
+
+const roleCases = layouts.flatMap(layout => roles.map(role => ({ ...layout, ...role })));
+
 interface MediaState {
     room?: unknown;
     status?: "idle" | "connecting" | "connected";
@@ -204,10 +223,29 @@ function stubMedia(state: MediaState = {}) {
     return media;
 }
 
+function stubFullscreen() {
+    const requestFullscreen = vi.fn(() => Promise.resolve());
+    Object.defineProperty(Element.prototype, "requestFullscreen", {
+        configurable: true,
+        writable: true,
+        value: requestFullscreen,
+    });
+
+    return requestFullscreen;
+}
+
+function paneOf(mobile: boolean, testId: string) {
+    if (!mobile) {
+        return screen;
+    }
+
+    return within(screen.getByTestId(testId));
+}
+
 interface ModalOptions {
     isOpen?: boolean;
+    mobile?: boolean;
     active?: ActiveWatchPartySession;
-    viewerRole?: SiteRole | undefined;
     isStarter?: boolean;
     viewerIsStaff?: boolean;
     voiceEnabled?: boolean;
@@ -216,32 +254,33 @@ interface ModalOptions {
 }
 
 function renderModal(options: ModalOptions = {}) {
-    const onClose = vi.fn();
-    const onLeave = vi.fn(options.onLeave ?? (() => Promise.resolve()));
-    const onEnd = vi.fn(options.onEnd ?? (() => Promise.resolve()));
-    const onTransferControl = vi.fn(() => Promise.resolve());
-    const onKick = vi.fn(() => Promise.resolve());
-    const onIdentify = vi.fn(() => Promise.resolve());
+    mocks.useIsMobile.mockReturnValue(options.mobile ?? false);
 
-    const result = renderWithProviders(
+    const callbacks = {
+        onClose: vi.fn(),
+        onLeave: vi.fn(options.onLeave ?? (() => Promise.resolve())),
+        onEnd: vi.fn(options.onEnd ?? (() => Promise.resolve())),
+        onTransferControl: vi.fn(() => Promise.resolve()),
+        onKick: vi.fn(() => Promise.resolve()),
+        onIdentify: vi.fn(() => Promise.resolve()),
+    };
+
+    const modalWith = (active: ActiveWatchPartySession) => (
         <WatchPartyModal
             isOpen={options.isOpen ?? true}
-            onClose={onClose}
-            active={options.active ?? makeActive()}
+            active={active}
             viewerUserId={viewerId}
-            viewerRole={options.viewerRole}
+            viewerRole={undefined}
             isStarter={options.isStarter ?? false}
             viewerIsStaff={options.viewerIsStaff ?? false}
             voiceEnabled={options.voiceEnabled ?? true}
-            onLeave={onLeave}
-            onEnd={onEnd}
-            onTransferControl={onTransferControl}
-            onKick={onKick}
-            onIdentify={onIdentify}
-        />,
+            {...callbacks}
+        />
     );
 
-    return { ...result, onClose, onLeave, onEnd, onTransferControl, onKick, onIdentify };
+    const result = renderWithProviders(modalWith(options.active ?? makeActive()));
+
+    return { ...result, ...callbacks, modalWith };
 }
 
 function makeHandle(userId = "hb-user-1") {
@@ -250,7 +289,6 @@ function makeHandle(userId = "hb-user-1") {
 
 beforeEach(() => {
     stubMedia();
-    mocks.useIsMobile.mockReturnValue(false);
     mocks.useParticipants.mockReturnValue([]);
     mocks.hyperbeam.mockResolvedValue(makeHandle());
     mocks.forceMute.mockResolvedValue(undefined);
@@ -270,84 +308,75 @@ describe("WatchPartyModal shell", () => {
         expect(mocks.hyperbeam).not.toHaveBeenCalled();
     });
 
-    it("names the party in its header", () => {
+    it.each([
+        { name: "a titled party on the desktop", mobile: false, title: "Chiru rewatch", shown: "Chiru rewatch" },
+        { name: "an untitled party on the desktop", mobile: false, title: "", shown: "Untitled party" },
+        { name: "a titled party on the phone", mobile: true, title: "Chiru rewatch", shown: "Chiru rewatch" },
+        { name: "an untitled party on the phone", mobile: true, title: "", shown: "Untitled party" },
+    ])("names $name", ({ mobile, title, shown }) => {
         // given
-        const active = makeActive({ session: makeSession({ title: "Chiru rewatch" }) });
+        const active = makeActive({ session: makeSession({ title }) });
 
         // when
-        renderModal({ active });
+        renderModal({ active, mobile });
 
         // then
-        expect(screen.getByText("Chiru rewatch")).toBeInTheDocument();
+        expect(screen.getByText(shown)).toBeInTheDocument();
     });
 
-    it("falls back to a plain name for a party that was never titled", () => {
-        // given
-        const active = makeActive({ session: makeSession({ title: "" }) });
-
-        // when
-        renderModal({ active });
-
-        // then
-        expect(screen.getByText("Untitled party")).toBeInTheDocument();
-    });
-
-    it("badges the viewer who is driving the virtual browser", () => {
-        // given
-        const active = makeActive({ hasControl: true });
-
-        // when
-        renderModal({ active });
-
-        // then
-        expect(screen.getByText("Controller")).toBeInTheDocument();
-    });
-
-    it("leaves the badge off a viewer who is only watching", () => {
-        // given
-        const active = makeActive({ hasControl: false });
-
-        // when
-        renderModal({ active });
-
-        // then
-        expect(screen.queryByText("Controller")).not.toBeInTheDocument();
-    });
-
-    it("copies an invite that points straight at this party", async () => {
+    it.each(layouts)("copies an invite that points straight at this party on the $name", async ({ mobile, menu }) => {
         // given
         const user = userEvent.setup();
         const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
-        renderModal();
+        renderModal({ mobile });
 
         // when
-        await user.click(screen.getByRole("button", { name: "Copy invite" }));
+        await user.click(screen.getByRole("button", { name: `${menu}Copy invite` }));
 
         // then
         expect(writeText).toHaveBeenCalledWith("https://whentheycry.social/rooms/room-1?party=session-1");
-        expect(await screen.findByRole("button", { name: "Link copied" })).toBeInTheDocument();
+        expect(await screen.findByRole("button", { name: `${menu}Link copied` })).toBeInTheDocument();
     });
 
-    it("hides the window without leaving the party", async () => {
+    it("puts the invite control back two seconds after a copy", async () => {
         // given
+        vi.useFakeTimers({ shouldAdvanceTime: true });
         const user = userEvent.setup();
-        const { onClose, onLeave } = renderModal();
+        vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
+        renderModal();
+        await user.click(screen.getByRole("button", { name: "Copy invite" }));
+        await screen.findByRole("button", { name: "Link copied" });
 
         // when
-        await user.click(screen.getByRole("button", { name: "Hide" }));
+        act(() => {
+            vi.advanceTimersByTime(2000);
+        });
+
+        // then
+        expect(screen.getByRole("button", { name: "Copy invite" })).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Link copied" })).not.toBeInTheDocument();
+    });
+
+    it.each(layouts)("hides the window on the $name without leaving the party", async ({ mobile, menu }) => {
+        // given
+        const user = userEvent.setup();
+        const { onClose, onLeave } = renderModal({ mobile });
+
+        // when
+        await user.click(screen.getByRole("button", { name: `${menu}Hide` }));
 
         // then
         expect(onClose).toHaveBeenCalledOnce();
         expect(onLeave).not.toHaveBeenCalled();
     });
 
-    it("leaves the party and then closes the window", async () => {
+    it.each(layouts)("leaves the party on the $name and then closes the window", async ({ mobile, menu }) => {
         // given
         const user = userEvent.setup();
-        const { onClose, onLeave } = renderModal();
+        const { onClose, onLeave } = renderModal({ mobile });
 
         // when
-        await user.click(screen.getByRole("button", { name: "Leave" }));
+        await user.click(screen.getByRole("button", { name: `${menu}Leave` }));
 
         // then
         expect(onLeave).toHaveBeenCalledOnce();
@@ -356,24 +385,13 @@ describe("WatchPartyModal shell", () => {
         });
     });
 
-    it("keeps the end control away from an ordinary watcher", () => {
-        // given
-        const options = { isStarter: false, viewerIsStaff: false };
-
-        // when
-        renderModal(options);
-
-        // then
-        expect(screen.queryByRole("button", { name: "End for everyone" })).not.toBeInTheDocument();
-    });
-
-    it("lets the host end the party for everyone", async () => {
+    it.each(layouts)("lets the host end the party for everyone on the $name", async ({ mobile, menu }) => {
         // given
         const user = userEvent.setup();
-        const { onEnd, onClose } = renderModal({ isStarter: true });
+        const { onEnd, onClose } = renderModal({ mobile, isStarter: true });
 
         // when
-        await user.click(screen.getByRole("button", { name: "End for everyone" }));
+        await user.click(screen.getByRole("button", { name: `${menu}End for everyone` }));
 
         // then
         expect(onEnd).toHaveBeenCalledOnce();
@@ -382,143 +400,86 @@ describe("WatchPartyModal shell", () => {
         });
     });
 
-    it("swallows a refused leave instead of leaving the rejection unhandled", async () => {
+    it.each(roleCases)(
+        "$role on the $name may end the party and moderate voice: $trusted",
+        ({ mobile, menu, isStarter, viewerIsStaff, trusted }) => {
+            // given
+            stubMedia({ room: {} });
+
+            // when
+            renderModal({ mobile, isStarter, viewerIsStaff });
+
+            // then
+            const voicePane = paneOf(mobile, "mobile-voice");
+            expect(screen.queryAllByRole("button", { name: `${menu}End for everyone` })).toHaveLength(trusted ? 1 : 0);
+            expect(voicePane.getByTestId("voice-participants")).toHaveAttribute("data-can-moderate", String(trusted));
+            expect(voicePane.getByRole("button", { name: "Join voice" })).toBeInTheDocument();
+        },
+    );
+
+    it.each([
+        { name: "leave", button: "Leave", options: { onLeave: () => Promise.reject(new Error("network is down")) } },
+        {
+            name: "end",
+            button: "End for everyone",
+            options: { isStarter: true, onEnd: () => Promise.reject(new Error("only the host may end it")) },
+        },
+    ])("swallows a refused $name instead of leaving the rejection unhandled", async ({ button, options }) => {
         // given
         const unhandled: unknown[] = [];
         const record = (reason: unknown) => unhandled.push(reason);
         nodeProcess.on("unhandledRejection", record);
         const user = userEvent.setup();
-        const { onClose } = renderModal({ onLeave: () => Promise.reject(new Error("network is down")) });
+        const { onClose } = renderModal(options);
 
         // when
-        await user.click(screen.getByRole("button", { name: "Leave" }));
+        await user.click(screen.getByRole("button", { name: button }));
         await new Promise(resolve => setTimeout(resolve, 0));
         nodeProcess.off("unhandledRejection", record);
 
         // then
         expect(unhandled).toEqual([]);
         expect(onClose).not.toHaveBeenCalled();
-        expect(screen.getByRole("button", { name: "Leave" })).toBeEnabled();
-    });
-
-    it("swallows a refused end instead of leaving the rejection unhandled", async () => {
-        // given
-        const unhandled: unknown[] = [];
-        const record = (reason: unknown) => unhandled.push(reason);
-        nodeProcess.on("unhandledRejection", record);
-        const user = userEvent.setup();
-        const { onClose } = renderModal({
-            isStarter: true,
-            onEnd: () => Promise.reject(new Error("only the host may end it")),
-        });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "End for everyone" }));
-        await new Promise(resolve => setTimeout(resolve, 0));
-        nodeProcess.off("unhandledRejection", record);
-
-        // then
-        expect(unhandled).toEqual([]);
-        expect(onClose).not.toHaveBeenCalled();
-        expect(screen.getByRole("button", { name: "End for everyone" })).toBeEnabled();
-    });
-
-    it("lets site staff end a party they did not start", () => {
-        // given
-        const options = { isStarter: false, viewerIsStaff: true };
-
-        // when
-        renderModal(options);
-
-        // then
-        expect(screen.getByRole("button", { name: "End for everyone" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: button })).toBeEnabled();
     });
 });
 
 describe("WatchPartyModal virtual browser", () => {
-    it("mounts the virtual browser at the embed url with input locked for a passenger", async () => {
-        // given
-        const active = makeActive({ embedURL: "https://hb.test/embed-9", hasControl: false });
+    it.each([
+        { name: "a passenger", hasControl: false, disableInput: true, badges: 0 },
+        { name: "the controller", hasControl: true, disableInput: false, badges: 1 },
+    ])(
+        "mounts the virtual browser for $name, with input and badge matching their control, and reports their seat",
+        async ({ hasControl, disableInput, badges }) => {
+            // given
+            mocks.hyperbeam.mockResolvedValue(makeHandle("hb-user-7"));
+            const active = makeActive({ embedURL: "https://hb.test/embed-9", hasControl });
 
-        // when
-        renderModal({ active });
+            // when
+            const { onIdentify } = renderModal({ active });
 
-        // then
-        await waitFor(() => {
+            // then
+            await waitFor(() => {
+                expect(onIdentify).toHaveBeenCalledWith("hb-user-7");
+            });
             expect(mocks.hyperbeam).toHaveBeenCalledOnce();
-        });
-        expect(mocks.hyperbeam.mock.calls[0][1]).toBe("https://hb.test/embed-9");
-        expect(mocks.hyperbeam.mock.calls[0][2]).toEqual({ delegateKeyboard: true, disableInput: true });
-    });
-
-    it("unlocks input straight away for the viewer who holds control", async () => {
-        // given
-        const active = makeActive({ hasControl: true });
-
-        // when
-        renderModal({ active });
-
-        // then
-        await waitFor(() => {
-            expect(mocks.hyperbeam).toHaveBeenCalledOnce();
-        });
-        expect(mocks.hyperbeam.mock.calls[0][2]).toEqual({ delegateKeyboard: true, disableInput: false });
-    });
-
-    it("tells the server which seat the virtual browser handed the viewer", async () => {
-        // given
-        mocks.hyperbeam.mockResolvedValue(makeHandle("hb-user-7"));
-
-        // when
-        const { onIdentify } = renderModal();
-
-        // then
-        await waitFor(() => {
-            expect(onIdentify).toHaveBeenCalledWith("hb-user-7");
-        });
-    });
-
-    it("identifies nobody when the virtual browser hands back no seat", async () => {
-        // given
-        mocks.hyperbeam.mockResolvedValue(makeHandle(""));
-
-        // when
-        const { onIdentify } = renderModal();
-
-        // then
-        await waitFor(() => {
-            expect(mocks.hyperbeam).toHaveBeenCalledOnce();
-        });
-        expect(onIdentify).not.toHaveBeenCalled();
-    });
+            expect(mocks.hyperbeam.mock.calls[0][1]).toBe("https://hb.test/embed-9");
+            expect(mocks.hyperbeam.mock.calls[0][2]).toEqual({ delegateKeyboard: true, disableInput });
+            expect(screen.queryAllByText("Controller")).toHaveLength(badges);
+        },
+    );
 
     it("unlocks the virtual browser when control is handed to the viewer", async () => {
         // given
         const handle = makeHandle();
         mocks.hyperbeam.mockResolvedValue(handle);
-        const { onIdentify, rerender } = renderModal({ active: makeActive({ hasControl: false }) });
+        const { onIdentify, rerender, modalWith } = renderModal({ active: makeActive({ hasControl: false }) });
         await waitFor(() => {
             expect(onIdentify).toHaveBeenCalled();
         });
 
         // when
-        rerender(
-            <WatchPartyModal
-                isOpen
-                onClose={() => {}}
-                active={makeActive({ hasControl: true })}
-                viewerUserId={viewerId}
-                viewerRole={undefined}
-                isStarter={false}
-                viewerIsStaff={false}
-                voiceEnabled
-                onLeave={() => Promise.resolve()}
-                onEnd={() => Promise.resolve()}
-                onTransferControl={() => Promise.resolve()}
-                onKick={() => Promise.resolve()}
-                onIdentify={() => Promise.resolve()}
-            />,
-        );
+        rerender(modalWith(makeActive({ hasControl: true })));
 
         // then
         expect(handle.disableInput).toBe(false);
@@ -548,77 +509,45 @@ describe("WatchPartyModal virtual browser", () => {
         expect(screen.getByText("Loading virtual browser...")).toBeInTheDocument();
         expect(mocks.hyperbeam).not.toHaveBeenCalled();
     });
-
-    it("tears the virtual browser down when the window goes away", async () => {
-        // given
-        const handle = makeHandle();
-        mocks.hyperbeam.mockResolvedValue(handle);
-        const { unmount, onIdentify } = renderModal();
-        await waitFor(() => {
-            expect(onIdentify).toHaveBeenCalled();
-        });
-
-        // when
-        unmount();
-
-        // then
-        expect(handle.destroy).toHaveBeenCalledOnce();
-    });
 });
 
 describe("WatchPartyModal screen share", () => {
-    const screenShareActive = () => makeActive({ session: makeSession({ type: "screenshare" }), embedURL: "" });
-
     it("says it is still connecting until livekit is up", () => {
         // given
         stubMedia({ room: null });
 
         // when
-        renderModal({ active: screenShareActive() });
+        renderModal({ active: screenShareParty });
 
         // then
         expect(screen.getByText("Connecting...")).toBeInTheDocument();
         expect(screen.queryByTestId("screen-share-view")).not.toBeInTheDocument();
     });
 
-    it("never mounts a virtual browser for a screen share party", () => {
+    it.each([
+        {
+            name: "a watcher they are waiting on the host",
+            isStarter: false,
+            shown: "Waiting for the host to share their screen.",
+        },
+        { name: "the host they can start sharing", isStarter: true, shown: "Click Share screen to start sharing." },
+    ])("tells $name, and never mounts a virtual browser", ({ isStarter, shown }) => {
         // given
         stubMedia({ room: {} });
 
         // when
-        renderModal({ active: screenShareActive() });
+        renderModal({ active: screenShareParty, isStarter });
 
         // then
+        expect(screen.getByText(shown)).toBeInTheDocument();
         expect(mocks.hyperbeam).not.toHaveBeenCalled();
-    });
-
-    it("tells a watcher they are waiting on the host to share", () => {
-        // given
-        stubMedia({ room: {} });
-
-        // when
-        renderModal({ active: screenShareActive(), isStarter: false });
-
-        // then
-        expect(screen.getByText("Waiting for the host to share their screen.")).toBeInTheDocument();
-    });
-
-    it("prompts the host to start sharing", () => {
-        // given
-        stubMedia({ room: {} });
-
-        // when
-        renderModal({ active: screenShareActive(), isStarter: true });
-
-        // then
-        expect(screen.getByText("Click Share screen to start sharing.")).toBeInTheDocument();
     });
 
     it("rebuilds the stream when a watcher asks for a reload", async () => {
         // given
         const user = userEvent.setup();
         const media = stubMedia({ room: {} });
-        renderModal({ active: screenShareActive() });
+        renderModal({ active: screenShareParty });
 
         // when
         await user.click(screen.getByRole("button", { name: "reload share" }));
@@ -630,14 +559,9 @@ describe("WatchPartyModal screen share", () => {
     it("asks the browser for fullscreen on the media panel", async () => {
         // given
         const user = userEvent.setup();
-        const requestFullscreen = vi.fn(() => Promise.resolve());
-        Object.defineProperty(Element.prototype, "requestFullscreen", {
-            configurable: true,
-            writable: true,
-            value: requestFullscreen,
-        });
+        const requestFullscreen = stubFullscreen();
         stubMedia({ room: {} });
-        renderModal({ active: screenShareActive() });
+        renderModal({ active: screenShareParty });
 
         // when
         await user.click(screen.getByRole("button", { name: "Fullscreen" }));
@@ -659,14 +583,14 @@ describe("WatchPartyModal voice", () => {
         expect(screen.queryByRole("button", { name: "Join voice" })).not.toBeInTheDocument();
     });
 
-    it("lets a watcher join the voice channel", async () => {
+    it.each(layouts)("lets a watcher join the voice channel on the $name", async ({ mobile }) => {
         // given
         const user = userEvent.setup();
         const media = stubMedia();
-        renderModal();
+        renderModal({ mobile });
 
         // when
-        await user.click(screen.getByRole("button", { name: "Join voice" }));
+        await user.click(paneOf(mobile, "mobile-voice").getByRole("button", { name: "Join voice" }));
 
         // then
         expect(media.joinVoice).toHaveBeenCalledOnce();
@@ -708,29 +632,7 @@ describe("WatchPartyModal voice", () => {
         expect(screen.queryByTestId("voice-participants")).not.toBeInTheDocument();
     });
 
-    it("hands moderation of the voice roster to the host", () => {
-        // given
-        stubMedia({ room: {} });
-
-        // when
-        renderModal({ isStarter: true });
-
-        // then
-        expect(screen.getByTestId("voice-participants")).toHaveAttribute("data-can-moderate", "true");
-    });
-
-    it("withholds voice moderation from an ordinary watcher", () => {
-        // given
-        stubMedia({ room: {} });
-
-        // when
-        renderModal({ isStarter: false, viewerIsStaff: false });
-
-        // then
-        expect(screen.getByTestId("voice-participants")).toHaveAttribute("data-can-moderate", "false");
-    });
-
-    it("forwards a forced mute to the party voice endpoint", async () => {
+    it("forwards a forced mute to the party voice endpoint and says nothing once it has worked", async () => {
         // given
         const user = userEvent.setup();
         stubMedia({ room: {} });
@@ -743,110 +645,71 @@ describe("WatchPartyModal voice", () => {
         await waitFor(() => {
             expect(mocks.forceMute).toHaveBeenCalledWith("room-1", "session-1", "battler", true);
         });
-    });
-
-    it("tells the moderator when a forced mute was refused", async () => {
-        // given
-        const user = userEvent.setup();
-        mocks.forceMute.mockRejectedValue(new Error("that watcher outranks you"));
-        stubMedia({ room: {} });
-        renderModal({ isStarter: true });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "force mute" }));
-
-        // then
-        expect(await screen.findByRole("alert")).toHaveTextContent("that watcher outranks you");
-    });
-
-    it("falls back to a plain message when the refused mute carries none", async () => {
-        // given
-        const user = userEvent.setup();
-        mocks.forceMute.mockRejectedValue(new Error(""));
-        stubMedia({ room: {} });
-        renderModal({ isStarter: true });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "force mute" }));
-
-        // then
-        expect(await screen.findByRole("alert")).toHaveTextContent("Could not change that microphone.");
-    });
-
-    it("says nothing about the microphone while every forced mute has worked", async () => {
-        // given
-        const user = userEvent.setup();
-        stubMedia({ room: {} });
-        renderModal({ isStarter: true });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "force mute" }));
-
-        // then
-        await waitFor(() => {
-            expect(mocks.forceMute).toHaveBeenCalled();
-        });
         expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it.each([
+        {
+            name: "with the reason it was given",
+            reason: "that watcher outranks you",
+            shown: "that watcher outranks you",
+        },
+        { name: "with a plain message when it carries none", reason: "", shown: "Could not change that microphone." },
+    ])("tells the moderator when a forced mute was refused, $name", async ({ reason, shown }) => {
+        // given
+        const user = userEvent.setup();
+        mocks.forceMute.mockRejectedValue(new Error(reason));
+        stubMedia({ room: {} });
+        renderModal({ isStarter: true });
+
+        // when
+        await user.click(screen.getByRole("button", { name: "force mute" }));
+
+        // then
+        expect(await screen.findByRole("alert")).toHaveTextContent(shown);
     });
 });
 
 describe("WatchPartyModal sharing controls", () => {
-    const screenShareActive = () => makeActive({ session: makeSession({ type: "screenshare" }), embedURL: "" });
-
-    it("keeps the share controls away from anybody but the host", () => {
+    it.each([
+        { name: "anybody but the host", active: screenShareParty, isStarter: false },
+        { name: "the host of a virtual browser party", active: makeActive(), isStarter: true },
+    ])("keeps the share controls away from $name", ({ active, isStarter }) => {
         // given
         stubMedia({ room: {} });
 
         // when
-        renderModal({ active: screenShareActive(), isStarter: false });
+        renderModal({ active, isStarter });
 
         // then
         expect(screen.queryByRole("button", { name: "Share screen" })).not.toBeInTheDocument();
     });
 
-    it("keeps the share controls off a virtual browser party", () => {
-        // given
-        stubMedia({ room: {} });
-
-        // when
-        renderModal({ isStarter: true });
-
-        // then
-        expect(screen.queryByRole("button", { name: "Share screen" })).not.toBeInTheDocument();
-    });
-
-    it("shares with the gaming preset by default", async () => {
+    it.each([
+        { name: "the gaming preset by default", modes: [], preset: "gaming" },
+        { name: "the screenshare preset once that mode is chosen", modes: ["Screenshare"], preset: "screenshare" },
+    ])("shares with $name", async ({ modes, preset }) => {
         // given
         const user = userEvent.setup();
         const media = stubMedia({ room: {} });
-        renderModal({ active: screenShareActive(), isStarter: true });
+        renderModal({ active: screenShareParty, isStarter: true });
 
         // when
+        for (const mode of modes) {
+            await user.click(screen.getByRole("button", { name: mode }));
+        }
+
         await user.click(screen.getByRole("button", { name: "Share screen" }));
 
         // then
-        expect(media.shareScreen).toHaveBeenCalledWith(true, "gaming");
-    });
-
-    it("shares with the screenshare preset once that mode is chosen", async () => {
-        // given
-        const user = userEvent.setup();
-        const media = stubMedia({ room: {} });
-        renderModal({ active: screenShareActive(), isStarter: true });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Screenshare" }));
-        await user.click(screen.getByRole("button", { name: "Share screen" }));
-
-        // then
-        expect(media.shareScreen).toHaveBeenCalledWith(true, "screenshare");
+        expect(media.shareScreen).toHaveBeenCalledWith(true, preset);
     });
 
     it("offers to stop a share that is already running", async () => {
         // given
         const user = userEvent.setup();
         const media = stubMedia({ room: {}, isSharing: true });
-        renderModal({ active: screenShareActive(), isStarter: true });
+        renderModal({ active: screenShareParty, isStarter: true });
 
         // when
         await user.click(screen.getByRole("button", { name: "Stop sharing" }));
@@ -856,34 +719,24 @@ describe("WatchPartyModal sharing controls", () => {
         expect(screen.queryByRole("group", { name: "Stream mode" })).not.toBeInTheDocument();
     });
 
-    it("tells the host why a share never started", () => {
+    it("keeps claiming nothing is shared while the hook says the share never took, and tells the host why", () => {
         // given
-        stubMedia({ room: {}, shareError: "Could not start audio source" });
+        stubMedia({ room: {}, isSharing: false, shareError: "Could not start audio source" });
 
         // when
-        renderModal({ active: screenShareActive(), isStarter: true });
+        renderModal({ active: screenShareParty, isStarter: true });
 
         // then
         expect(screen.getByRole("alert")).toHaveTextContent("Could not start audio source");
+        expect(screen.queryByRole("button", { name: "Stop sharing" })).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Share screen" })).toBeInTheDocument();
-    });
-
-    it("says nothing at all while no share has failed", () => {
-        // given
-        stubMedia({ room: {} });
-
-        // when
-        renderModal({ active: screenShareActive(), isStarter: true });
-
-        // then
-        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 
     it("keeps quiet about a picker the host simply closed", async () => {
         // given
         const user = userEvent.setup();
         stubMedia({ room: {} });
-        renderModal({ active: screenShareActive(), isStarter: true });
+        renderModal({ active: screenShareParty, isStarter: true });
 
         // when
         await user.click(screen.getByRole("button", { name: "Share screen" }));
@@ -892,16 +745,17 @@ describe("WatchPartyModal sharing controls", () => {
         expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 
-    it("keeps claiming nothing is shared while the hook says the share never took", () => {
+    it("keeps the host's share controls and share errors reachable on the desktop with voice switched off", () => {
         // given
-        stubMedia({ room: {}, isSharing: false, shareError: "Could not start audio source" });
+        stubMedia({ room: {}, shareError: "Could not start audio source" });
 
         // when
-        renderModal({ active: screenShareActive(), isStarter: true });
+        renderModal({ active: screenShareParty, isStarter: true, voiceEnabled: false });
 
         // then
-        expect(screen.queryByRole("button", { name: "Stop sharing" })).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Share screen" })).toBeInTheDocument();
+        expect(screen.getByRole("alert")).toHaveTextContent("Could not start audio source");
+        expect(screen.queryByRole("button", { name: "Join voice" })).not.toBeInTheDocument();
     });
 });
 
@@ -922,80 +776,47 @@ describe("WatchPartyModal panels", () => {
         });
     });
 
-    it("shows the party chat alongside the media, scoped to the session's own room", () => {
+    it.each([
+        { name: "alongside the media on the desktop", mobile: false, hideHeader: "false", flush: "false" },
+        {
+            name: "in a flush pane with no header of its own on the phone",
+            mobile: true,
+            hideHeader: "true",
+            flush: "true",
+        },
+    ])("shows the party chat $name, scoped to the session's own room", ({ mobile, hideHeader, flush }) => {
         // given
         const active = makeActive({ session: makeSession({ id: "session-42" }) });
 
         // when
-        renderModal({ active });
+        renderModal({ active, mobile });
 
         // then
-        const panel = screen.getByTestId("room-chat-panel");
+        const panel = paneOf(mobile, "mobile-chat").getByTestId("room-chat-panel");
         expect(panel).toHaveTextContent("Party chat");
         expect(panel).toHaveAttribute("data-room-id", "session-42");
-        expect(panel).toHaveAttribute("data-hide-header", "false");
+        expect(panel).toHaveAttribute("data-hide-header", hideHeader);
+        expect(panel).toHaveAttribute("data-flush", flush);
     });
 
-    it("lists the watchers of the party underneath", () => {
+    it.each(layouts)("lists the watchers of the party on the $name", ({ mobile }) => {
         // given
-        const active = makeActive({
-            session: makeSession({
-                participants: [
-                    makeParticipant(),
-                    makeParticipant({ user: makeChatUser({ id: "user-battler", display_name: "Battler" }) }),
-                ],
-            }),
-        });
+        const active = makeActive({ session: twoWatchers });
 
         // when
-        renderModal({ active });
+        renderModal({ active, mobile });
 
         // then
-        expect(screen.getByText("2 watchers")).toBeInTheDocument();
-        expect(screen.getByText("Battler")).toBeInTheDocument();
+        const pane = paneOf(mobile, "mobile-people");
+        expect(pane.getByText("2 watchers")).toBeInTheDocument();
+        expect(pane.getByText("Battler")).toBeInTheDocument();
     });
 });
 
 describe("WatchPartyModal on a phone", () => {
-    beforeEach(() => {
-        mocks.useIsMobile.mockReturnValue(true);
-    });
-
-    it("names the party and counts its watchers for the phone layout", () => {
-        // given
-        const active = makeActive({
-            session: makeSession({
-                title: "Chiru rewatch",
-                participants: [
-                    makeParticipant(),
-                    makeParticipant({ user: makeChatUser({ id: "user-battler", display_name: "Battler" }) }),
-                ],
-            }),
-        });
-
-        // when
-        renderModal({ active });
-
-        // then
-        const view = screen.getByTestId("mobile-view");
-        expect(view).toHaveAttribute("data-title", "Chiru rewatch");
-        expect(view).toHaveAttribute("data-watchers", "2");
-    });
-
-    it("falls back to a plain name for an untitled party on a phone", () => {
-        // given
-        const active = makeActive({ session: makeSession({ title: "" }) });
-
-        // when
-        renderModal({ active });
-
-        // then
-        expect(screen.getByTestId("mobile-view")).toHaveAttribute("data-title", "Untitled party");
-    });
-
     it("keeps the full sized header actions off the phone", () => {
         // given
-        const options = { isStarter: true };
+        const options = { mobile: true, isStarter: true };
 
         // when
         renderModal(options);
@@ -1007,108 +828,12 @@ describe("WatchPartyModal on a phone", () => {
         expect(screen.queryByRole("button", { name: "End for everyone" })).not.toBeInTheDocument();
     });
 
-    it("copies the invite from the phone's overflow menu", async () => {
-        // given
-        const user = userEvent.setup();
-        const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
-        renderModal();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "overflow copy invite" }));
-
-        // then
-        expect(writeText).toHaveBeenCalledWith("https://whentheycry.social/rooms/room-1?party=session-1");
-        await waitFor(() => {
-            expect(screen.getByTestId("mobile-view")).toHaveAttribute("data-copied", "true");
-        });
-    });
-
-    it("hides the window from the phone's overflow menu without leaving", async () => {
-        // given
-        const user = userEvent.setup();
-        const { onClose, onLeave } = renderModal();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "overflow hide" }));
-
-        // then
-        expect(onClose).toHaveBeenCalledOnce();
-        expect(onLeave).not.toHaveBeenCalled();
-    });
-
-    it("leaves the party from the phone's overflow menu", async () => {
-        // given
-        const user = userEvent.setup();
-        const { onClose, onLeave } = renderModal();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "overflow leave" }));
-
-        // then
-        expect(onLeave).toHaveBeenCalledOnce();
-        await waitFor(() => {
-            expect(onClose).toHaveBeenCalledOnce();
-        });
-    });
-
-    it("ends the party for everyone from the phone's overflow menu", async () => {
-        // given
-        const user = userEvent.setup();
-        const { onEnd } = renderModal({ isStarter: true });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "overflow end" }));
-
-        // then
-        expect(onEnd).toHaveBeenCalledOnce();
-        expect(screen.getByTestId("mobile-view")).toHaveAttribute("data-can-end", "true");
-    });
-
-    it("tells the phone layout that an ordinary watcher may not end the party", () => {
-        // given
-        const options = { isStarter: false, viewerIsStaff: false };
-
-        // when
-        renderModal(options);
-
-        // then
-        expect(screen.getByTestId("mobile-view")).toHaveAttribute("data-can-end", "false");
-    });
-
-    it("gives the phone a chat pane with no header of its own", () => {
-        // given
-        const active = makeActive({ session: makeSession({ id: "session-42" }) });
-
-        // when
-        renderModal({ active });
-
-        // then
-        const panel = within(screen.getByTestId("mobile-chat")).getByTestId("room-chat-panel");
-        expect(panel).toHaveAttribute("data-room-id", "session-42");
-        expect(panel).toHaveAttribute("data-hide-header", "true");
-        expect(panel).toHaveAttribute("data-flush", "true");
-    });
-
-    it("puts the voice roster and its join control in the voice pane", () => {
-        // given
-        stubMedia({ room: {} });
-
-        // when
-        renderModal({ isStarter: true });
-
-        // then
-        const pane = within(screen.getByTestId("mobile-voice"));
-        expect(pane.getByRole("button", { name: "Join voice" })).toBeInTheDocument();
-        expect(pane.getByTestId("voice-participants")).toHaveAttribute("data-can-moderate", "true");
-    });
-
     it("keeps the host's share controls reachable even with voice switched off", () => {
         // given
         stubMedia({ room: {} });
-        const active = makeActive({ session: makeSession({ type: "screenshare" }), embedURL: "" });
 
         // when
-        renderModal({ active, isStarter: true, voiceEnabled: false });
+        renderModal({ mobile: true, active: screenShareParty, isStarter: true, voiceEnabled: false });
 
         // then
         const pane = within(screen.getByTestId("mobile-voice"));
@@ -1116,74 +841,46 @@ describe("WatchPartyModal on a phone", () => {
         expect(pane.queryByRole("button", { name: "Join voice" })).not.toBeInTheDocument();
     });
 
-    it("counts the watchers who are in voice for the voice tab", () => {
-        // given
-        stubMedia({ room: {} });
-        mocks.useParticipants.mockReturnValue([{ identity: "beatrice" }, { identity: "battler" }]);
+    it.each([
+        { name: "on", voiceEnabled: true, voices: "2", rosters: 1 },
+        { name: "switched off", voiceEnabled: false, voices: "0", rosters: 0 },
+    ])(
+        "counts the watchers, and who is in voice, for the phone's tabs with voice $name",
+        ({ voiceEnabled, voices, rosters }) => {
+            // given
+            stubMedia({ room: {} });
+            mocks.useParticipants.mockReturnValue([{ identity: "beatrice" }, { identity: "battler" }]);
 
-        // when
-        renderModal();
+            // when
+            renderModal({ mobile: true, active: makeActive({ session: twoWatchers }), voiceEnabled });
 
-        // then
-        expect(screen.getByTestId("mobile-view")).toHaveAttribute("data-voices", "2");
-    });
-
-    it("counts nobody in voice while the site has voice switched off", () => {
-        // given
-        stubMedia({ room: {} });
-        mocks.useParticipants.mockReturnValue([{ identity: "beatrice" }]);
-
-        // when
-        renderModal({ voiceEnabled: false });
-
-        // then
-        expect(screen.getByTestId("mobile-view")).toHaveAttribute("data-voices", "0");
-        expect(within(screen.getByTestId("mobile-voice")).queryByTestId("voice-participants")).not.toBeInTheDocument();
-    });
+            // then
+            const view = screen.getByTestId("mobile-view");
+            expect(view).toHaveAttribute("data-watchers", "2");
+            expect(view).toHaveAttribute("data-voices", voices);
+            expect(within(screen.getByTestId("mobile-voice")).queryAllByTestId("voice-participants")).toHaveLength(
+                rosters,
+            );
+        },
+    );
 
     it("keeps the party audio playing from the stage while another pane is open", () => {
         // given
         stubMedia({ room: {} });
 
         // when
-        renderModal();
+        renderModal({ mobile: true });
 
         // then
         expect(within(screen.getByTestId("mobile-stage")).getByTestId("room-audio")).toBeInTheDocument();
     });
 
-    it("lists the watchers in the people pane", () => {
-        // given
-        const active = makeActive({
-            session: makeSession({
-                participants: [
-                    makeParticipant(),
-                    makeParticipant({ user: makeChatUser({ id: "user-battler", display_name: "Battler" }) }),
-                ],
-            }),
-        });
-
-        // when
-        renderModal({ active });
-
-        // then
-        const pane = within(screen.getByTestId("mobile-people"));
-        expect(pane.getByText("2 watchers")).toBeInTheDocument();
-        expect(pane.getByText("Battler")).toBeInTheDocument();
-    });
-
     it("fullscreens the whole stage from the control sitting on the picture", async () => {
         // given
         const user = userEvent.setup();
-        const requestFullscreen = vi.fn(() => Promise.resolve());
-        Object.defineProperty(Element.prototype, "requestFullscreen", {
-            configurable: true,
-            writable: true,
-            value: requestFullscreen,
-        });
+        const requestFullscreen = stubFullscreen();
         stubMedia({ room: {} });
-        const active = makeActive({ session: makeSession({ type: "screenshare" }), embedURL: "" });
-        renderModal({ active });
+        renderModal({ mobile: true, active: screenShareParty });
 
         // when
         const stage = within(screen.getByTestId("mobile-stage"));

@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model/spec"
@@ -487,6 +488,44 @@ func TestOCDAO_GalleryRoundTrip(t *testing.T) {
 	got, err = repos.OC.GetGallery(context.Background(), id)
 	require.NoError(t, err)
 	assert.Len(t, got, 1)
+}
+
+func TestOCDAO_GalleryImageWritesOnAMissingImageReadAsNotFound(t *testing.T) {
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	ocID := createOC(t, repos, user.ID, "Linda", "umineko", "")
+	otherOCID := createOC(t, repos, user.ID, "Ange", "umineko", "")
+	foreignImage, err := repos.OC.AddGalleryImage(context.Background(), spec.NewOCGalleryImage{OCID: otherOCID, ImageURL: "/uploads/ocs/a.png"})
+	require.NoError(t, err)
+
+	cases := []struct {
+		name  string
+		write func(imageID int64) error
+	}{
+		{
+			name: "update",
+			write: func(imageID int64) error {
+				return repos.OC.UpdateGalleryImage(context.Background(), spec.OCGalleryImageUpdate{ID: imageID, OCID: ocID, Caption: new("x")})
+			},
+		},
+		{
+			name: "delete",
+			write: func(imageID int64) error {
+				return repos.OC.DeleteGalleryImage(context.Background(), spec.MediaDeletion{ID: imageID, TargetID: ocID})
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			missingErr := tc.write(999999)
+			foreignErr := tc.write(foreignImage)
+
+			// then
+			require.ErrorIs(t, missingErr, dao.ErrNotFound)
+			require.ErrorIs(t, foreignErr, dao.ErrNotFound)
+		})
+	}
 }
 
 func TestOCDAO_VoteRoundTrip(t *testing.T) {

@@ -133,14 +133,18 @@ func (s *service) GetProfile(ctx context.Context, username string, viewerID uuid
 		return nil, ErrUserNotFound
 	}
 
-	secrets, _ := s.userSecretRepo.ListForUser(ctx, user.ID)
+	secrets, err := s.userSecretRepo.ListForUser(ctx, user.ID)
+	if err != nil {
+		return nil, fmt.Errorf("profile secrets: %w", err)
+	}
+
 	resp := user.ToProfileResponse(stats, user.ID == viewerID)
 	resp.Secrets = secrets
 
 	if resp.Private != nil {
-		optedIn, optErr := s.userSvc.IsChatbotOptedIn(ctx, user.ID)
-		if optErr != nil {
-			logger.Ctx(ctx).Error().Err(optErr).Str("user_id", user.ID.String()).Msg("failed to read character opt-in state")
+		optedIn, err := s.userSvc.IsChatbotOptedIn(ctx, user.ID)
+		if err != nil {
+			return nil, fmt.Errorf("character opt-in state: %w", err)
 		}
 
 		resp.Private.ChatbotOptedIn = optedIn

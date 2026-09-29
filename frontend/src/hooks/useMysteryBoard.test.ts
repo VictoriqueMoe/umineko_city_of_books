@@ -430,6 +430,41 @@ describe("useMysteryBoard", () => {
         expect(result.current.uploadingAttachment).toBe(false);
     });
 
+    it("reports why an attachment could not be deleted", async () => {
+        // given
+        vi.spyOn(window, "confirm").mockReturnValue(true);
+        mocked.deleteAttachment.mockRejectedValue(new Error("the attachment is sealed"));
+        const { result } = renderBoard({ viewer: gameMasterUser });
+
+        // when
+        await act(async () => {
+            await result.current.removeAttachment({
+                id: 3,
+                file_url: "/files/notes.pdf",
+                file_name: "notes.pdf",
+                file_size: 512,
+            });
+        });
+
+        // then
+        expect(result.current.attachmentError).toBe("the attachment is sealed");
+    });
+
+    it("reports why an image could not be removed", async () => {
+        // given
+        vi.spyOn(window, "confirm").mockReturnValue(true);
+        mocked.deleteMedia.mockRejectedValue(new Error("the image is sealed"));
+        const { result } = renderBoard({ viewer: gameMasterUser });
+
+        // when
+        await act(async () => {
+            await result.current.removeMedia(11);
+        });
+
+        // then
+        expect(result.current.mediaError).toBe("the image is sealed");
+    });
+
     it("ignores an attachment change that carried no file", async () => {
         // given
         const { result } = renderBoard({ viewer: gameMasterUser });

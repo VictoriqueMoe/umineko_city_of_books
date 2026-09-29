@@ -103,8 +103,13 @@ func (m *messagesService) GetMessages(ctx context.Context, userID, roomID uuid.U
 		return nil, fmt.Errorf("get messages: %w", err)
 	}
 
+	messages, err := m.hydrateMessageRows(ctx, userID, rows)
+	if err != nil {
+		return nil, err
+	}
+
 	return &dto.ChatMessageListResponse{
-		Messages: m.hydrateMessageRows(ctx, userID, rows),
+		Messages: messages,
 		Total:    total,
 		Limit:    page.Limit(),
 		Offset:   page.Offset(),
@@ -123,8 +128,13 @@ func (m *messagesService) GetMessagesBefore(ctx context.Context, userID, roomID 
 		return nil, fmt.Errorf("get messages before: %w", err)
 	}
 
+	messages, err := m.hydrateMessageRows(ctx, userID, rows)
+	if err != nil {
+		return nil, err
+	}
+
 	return &dto.ChatMessageListResponse{
-		Messages: m.hydrateMessageRows(ctx, userID, rows),
+		Messages: messages,
 		Total:    -1,
 		Limit:    limit,
 	}, nil
@@ -145,8 +155,13 @@ func (m *messagesService) ListRoomAttachments(ctx context.Context, userID, roomI
 		return nil, fmt.Errorf("list room attachments: %w", err)
 	}
 
+	messages, err := m.hydrateMessageRows(ctx, userID, rows)
+	if err != nil {
+		return nil, err
+	}
+
 	return &dto.ChatMessageListResponse{
-		Messages: m.hydrateMessageRows(ctx, userID, rows),
+		Messages: messages,
 		Total:    -1,
 		Limit:    limit,
 	}, nil
@@ -217,8 +232,11 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 	var replyToPreview *dto.ChatMessageReplyPreview
 	var replyToAuthor uuid.UUID
 	if req.ReplyToID != nil {
-		parent, perr := m.chatRepo.GetMessageByID(ctx, *req.ReplyToID)
-		if perr == nil && parent != nil && parent.RoomID == roomID {
+		parent, err := m.chatRepo.GetMessageByID(ctx, *req.ReplyToID)
+		if err != nil {
+			return nil, fmt.Errorf("get reply parent: %w", err)
+		}
+		if parent != nil && parent.RoomID == roomID {
 			replyToID = req.ReplyToID
 			replyToAuthor = parent.SenderID
 			preview := text.ClampRunes(parent.Body, 140)
@@ -260,7 +278,10 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 
 	displayName := sender.DisplayName
 	avatarURL := sender.AvatarURL
-	memberRows, _ := m.chatRepo.GetRoomMembersDetailed(ctx, roomID)
+	memberRows, err := m.chatRepo.GetRoomMembersDetailed(ctx, roomID)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("sent message: room alias lookup failed, using the profile name")
+	}
 	for _, mr := range memberRows {
 		if mr.UserID == senderID {
 			if mr.Nickname != "" {
@@ -273,7 +294,10 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		}
 	}
 
-	senderVanity, _ := m.vanityRoleRepo.GetRolesForUser(ctx, senderID)
+	senderVanity, err := m.vanityRoleRepo.GetRolesForUser(ctx, senderID)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("user_id", senderID.String()).Msg("sent message: vanity roles lookup failed")
+	}
 
 	resp := &dto.ChatMessageResponse{
 		ID:     msgID,
@@ -422,7 +446,11 @@ func (m *messagesService) dispatchPostSendSideEffects(
 
 		_, isMentioned := mentionedIDs[memberID]
 		isReplyTarget := replyToAuthor != uuid.Nil && memberID == replyToAuthor
-		muted, _ := m.chatRepo.IsMuted(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: memberID})
+		muted, err := m.chatRepo.IsMuted(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: memberID})
+		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Str("user_id", memberID.String()).Msg("mute state unknown, treating the recipient as muted")
+			muted = true
+		}
 
 		switch {
 		case isMentioned:
@@ -460,16 +488,20 @@ func (m *messagesService) dispatchPostSendSideEffects(
 			continue
 		}
 
-		total, countErr := m.chatRepo.CountUnreadRoomsForUser(ctx, memberID)
-		if countErr == nil {
-			m.hub.SendToUser(memberID, ws.Message{
-				Type: "chat_unread_bumped",
-				Data: map[string]any{
-					"room_id": roomID,
-					"total":   total,
-				},
-			})
+		total, err := m.chatRepo.CountUnreadRoomsForUser(ctx, memberID)
+		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("user_id", memberID.String()).Msg("unread bump skipped, count failed")
+
+			continue
 		}
+
+		m.hub.SendToUser(memberID, ws.Message{
+			Type: "chat_unread_bumped",
+			Data: map[string]any{
+				"room_id": roomID,
+				"total":   total,
+			},
+		})
 	}
 }
 
@@ -494,7 +526,12 @@ func (m *messagesService) resolveMentions(ctx context.Context, body string, send
 	}
 
 	users, err := m.userRepo.GetByUsernames(ctx, usernames)
-	if err != nil || len(users) == 0 {
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("sender_id", senderID.String()).Msg("mentions dropped, username lookup failed")
+
+		return nil
+	}
+	if len(users) == 0 {
 		return nil
 	}
 
@@ -512,7 +549,13 @@ func (m *messagesService) resolveMentions(ctx context.Context, body string, send
 		if _, isMember := memberSet[uid]; !isMember {
 			continue
 		}
-		if blocked, _ := m.blockSvc.IsBlockedEither(ctx, senderID, uid); blocked {
+		blocked, err := m.blockSvc.IsBlockedEither(ctx, senderID, uid)
+		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("sender_id", senderID.String()).Str("user_id", uid.String()).Msg("mention dropped, block check failed")
+
+			continue
+		}
+		if blocked {
 			continue
 		}
 		mentioned[uid] = struct{}{}
@@ -572,6 +615,8 @@ func (m *messagesService) MarkRead(ctx context.Context, roomID, userID uuid.UUID
 func (m *messagesService) fanOutReadReceipt(ctx context.Context, roomID, readerID uuid.UUID, readAt string) {
 	members, err := m.chatRepo.GetRoomMembers(ctx, roomID)
 	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("read receipt broadcast: member lookup failed")
+
 		return
 	}
 
@@ -635,7 +680,7 @@ func (m *messagesService) validateMediaFile(ctx context.Context, f FileUpload) e
 	}
 
 	if f.Size > maxSize {
-		return fmt.Errorf("file size %dMB exceeds maximum %dMB", f.Size/(1024*1024), maxSize/(1024*1024))
+		return fmt.Errorf("%w: file size %dMB exceeds maximum %dMB", upload.ErrFileTooLarge, f.Size/(1024*1024), maxSize/(1024*1024))
 	}
 
 	r, err := f.Open()
@@ -753,13 +798,28 @@ func (m *messagesService) EditMessage(ctx context.Context, messageID, actorID uu
 	}
 
 	updated, err := m.chatRepo.GetMessageByID(ctx, messageID)
-	if err != nil || updated == nil {
+	if err != nil {
 		return nil, fmt.Errorf("reload message: %w", err)
 	}
+	if updated == nil {
+		return nil, ErrRoomNotFound
+	}
 
-	mediaBatch, _ := m.chatRepo.GetMessageMediaBatch(ctx, []uuid.UUID{messageID})
-	reactionBatch, _ := m.chatRepo.GetReactionsBatch(ctx, spec.ChatReactionsQuery{MessageIDs: []uuid.UUID{messageID}, ViewerID: actorID})
-	vanityRows, _ := m.vanityRoleRepo.GetRolesForUser(ctx, updated.SenderID)
+	mediaBatch, err := m.chatRepo.GetMessageMediaBatch(ctx, []uuid.UUID{messageID})
+	if err != nil {
+		return nil, fmt.Errorf("reload message media: %w", err)
+	}
+
+	reactionBatch, err := m.chatRepo.GetReactionsBatch(ctx, spec.ChatReactionsQuery{MessageIDs: []uuid.UUID{messageID}, ViewerID: actorID})
+	if err != nil {
+		return nil, fmt.Errorf("reload message reactions: %w", err)
+	}
+
+	vanityRows, err := m.vanityRoleRepo.GetRolesForUser(ctx, updated.SenderID)
+	if err != nil {
+		return nil, fmt.Errorf("reload sender roles: %w", err)
+	}
+
 	resp := m.messageRowToResponse(*updated, mediaBatch[messageID], reactionBatch[messageID], m.toVanityRoleResponses(vanityRows))
 
 	m.broadcastToRoomMembers(ctx, msg.RoomID, ws.Message{

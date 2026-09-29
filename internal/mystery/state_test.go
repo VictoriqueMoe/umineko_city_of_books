@@ -20,7 +20,7 @@ func TestSetPaused_NotFound(t *testing.T) {
 	svc, m := newTestService(t)
 	mid := uuid.New()
 	userID := uuid.New()
-	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errors.New("boom"))
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errMissingRow)
 
 	// when
 	err := svc.SetPaused(context.Background(), mid, userID, true)
@@ -108,7 +108,7 @@ func TestSetGmAway_NotFound(t *testing.T) {
 	svc, m := newTestService(t)
 	mid := uuid.New()
 	userID := uuid.New()
-	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errors.New("boom"))
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errMissingRow)
 
 	// when
 	err := svc.SetGmAway(context.Background(), mid, userID, true)

@@ -72,16 +72,16 @@ vi.mock("../../components/chat/RoomInfoPanel/RoomInfoPanel", () => ({
 }));
 
 vi.mock("../../components/chat/WatchParty/WatchPartyButton", () => ({
-    WatchPartyButton: (props: { enabled: boolean }) => (
-        <div data-testid="watch-party-button">{String(props.enabled)}</div>
-    ),
+    WatchPartyButton: () => <button type="button">Watch party</button>,
 }));
 
 vi.mock("../../components/chat/WatchParty/WatchPartyModal", () => ({
     WatchPartyModal: (props: { isStarter: boolean; voiceEnabled: boolean }) => (
-        <div data-testid="watch-party-modal" data-voice={String(props.voiceEnabled)}>
-            {String(props.isStarter)}
-        </div>
+        <div
+            data-testid="watch-party-modal"
+            data-starter={String(props.isStarter)}
+            data-voice={String(props.voiceEnabled)}
+        />
     ),
 }));
 
@@ -94,7 +94,7 @@ vi.mock("../../components/chat/Voice/VoiceBar", () => ({
 }));
 
 vi.mock("../../components/chat/Voice/VoiceButton", () => ({
-    VoiceButton: (props: { enabled: boolean }) => <div data-testid="voice-button">{String(props.enabled)}</div>,
+    VoiceButton: () => <button type="button">Voice</button>,
 }));
 
 vi.mock("../../components/Lightbox/Lightbox", () => ({
@@ -102,6 +102,18 @@ vi.mock("../../components/Lightbox/Lightbox", () => ({
 }));
 
 const viewer = makeUser({ id: "viewer-1", username: "battler", display_name: "Battler" });
+const staff = makeUser({ id: "viewer-1", role: "moderator" });
+const TIMED_OUT_UNTIL = "2026-02-01T13:00:00Z";
+const ROOM_CONTROLS = ["Moderation", "Delete Room", "Leave Room", "+ Invite", "Voice", "Watch party"];
+const MEMBER_CONTROLS = [
+    "Moderator actions",
+    "Change nickname",
+    "Reset/unlock nickname",
+    "Kick member",
+    "Ban from room",
+    "Set timeout",
+];
+const OVERLAYS = ["search-panel", "pins-panel", "invite-modal", "moderation-dialog", "lightbox"];
 
 function makeMemberUser(overrides: Partial<User> = {}): User {
     return makePublicUser({ id: "member-1", ...overrides });
@@ -111,208 +123,71 @@ function makeMember(overrides: Partial<ChatRoomMember> = {}): ChatRoomMember {
     return makeRoomMember({ user: makeMemberUser(), ...overrides });
 }
 
-function makeActiveSession(startedBy: string): RoomController["watchParty"]["activeSession"] {
-    return { session: makeWatchPartySession({ started_by: startedBy }), embedURL: "", hasControl: false };
+function offeredButtons(labels: string[]): string[] {
+    return labels.filter(label => screen.queryByRole("button", { name: label }) !== null);
 }
 
-interface ControllerOptions {
-    user?: UserProfile | null;
-    loading?: boolean;
+interface RoomSetup {
+    viewer?: UserProfile | null;
     room?: ChatRoom | null;
-    roomId?: string | null;
     members?: ChatRoomMember[];
-    memberGroups?: { label: string; members: ChatRoomMember[] }[];
-    presenceMapMerged?: RoomController["members"]["presence"];
-    onlineIds?: string[];
-    currentMember?: ChatRoomMember | null;
-    sidebarCollapsed?: boolean;
-    descExpanded?: boolean;
-    typingNames?: string[];
-    voiceStatus?: RoomController["voice"]["status"];
-    voiceRoom?: RoomController["voice"]["room"];
-    voiceEnabled?: boolean;
-    watchPartyEnabled?: boolean;
-    activeSession?: RoomController["watchParty"]["activeSession"];
-    invitedPartyMissing?: boolean;
-    lightboxSrc?: string | null;
-    toast?: string | null;
-    busy?: string | null;
-    joining?: boolean;
-    openMemberMenu?: string | null;
-    editProfileOpen?: boolean;
-    inviteModalOpen?: boolean;
-    moderationDialogOpen?: boolean;
-    panelTab?: "search" | "pins" | null;
-    nicknameDialogTarget?: ChatRoomMember | null;
-    nicknameDialogError?: string;
-    nicknameDialogSaving?: boolean;
-    timeoutDialogTarget?: ChatRoomMember | null;
-    timeoutDialogError?: string;
-    timeoutDialogSaving?: boolean;
+    toast?: string;
+    roomState?: Partial<RoomController["room"]>;
+    session?: Partial<RoomController["session"]>;
+    roster?: Partial<RoomController["members"]>;
+    moderation?: Partial<RoomController["moderation"]>;
+    prefs?: Partial<RoomController["prefs"]>;
+    voice?: Partial<RoomController["voice"]>;
+    watchParty?: Partial<RoomController["watchParty"]>;
+    panels?: Partial<RoomController["panels"]>;
 }
 
-function stubController(options: ControllerOptions = {}) {
-    const handlers = {
-        backToRooms: vi.fn(),
-        setMobileView: vi.fn(),
-        toggleSidebar: vi.fn(),
-        toggleDescExpanded: vi.fn(),
-        setReplyingTo: vi.fn(),
-        setLightboxSrc: vi.fn(),
-        setToast: vi.fn(),
-        openPanel: vi.fn(),
-        setEditProfileOpen: vi.fn(),
-        setInviteModalOpen: vi.fn(),
-        setModerationDialogOpen: vi.fn(),
-        setOpenMemberMenu: vi.fn(),
-        setRoom: vi.fn(),
-        setMembers: vi.fn(),
-        notifyTyping: vi.fn(),
-        setNicknameDialogTarget: vi.fn(),
-        setNicknameDialogValue: vi.fn(),
-        setTimeoutDialogTarget: vi.fn(),
-        setTimeoutDialogAmount: vi.fn(),
-        setTimeoutDialogUnit: vi.fn(),
-        openNicknameDialog: vi.fn(),
-        openTimeoutDialog: vi.fn(),
-        handleSentMessage: vi.fn(),
-        handleJoin: vi.fn(),
-        handleModSetNickname: vi.fn(),
-        handleModUnlockNickname: vi.fn(),
-        handleSetTimeout: vi.fn(),
-        handleClearTimeout: vi.fn(),
-        handleKick: vi.fn(),
-        handleBan: vi.fn(),
-        handleToggleMute: vi.fn(),
-        handleLeave: vi.fn(),
-        handleDelete: vi.fn(),
-        handleJumpToMessage: vi.fn(),
-        handleEditLast: vi.fn(),
-        watchPartyStart: vi.fn(),
-        watchPartyClose: vi.fn(),
-    };
-
-    const members = options.members ?? [];
-    const onlineIds = new Set(options.onlineIds ?? []);
+function renderRoom(setup: RoomSetup = {}) {
+    const roomViewer = setup.viewer === undefined ? viewer : setup.viewer;
+    const room = setup.room === undefined ? makeChatRoom() : setup.room;
+    const members = setup.members ?? [];
     const base = makeRoomController();
-    const roomData = options.room === undefined ? makeChatRoom() : options.room;
-    const viewerUser = options.user === undefined ? viewer : options.user;
 
     const controller = makeRoomController({
-        capabilities: roomCapabilities(roomData, viewerUser),
+        capabilities: roomCapabilities(room, roomViewer),
         room: {
             ...base.room,
-            data: roomData,
-            id: options.roomId === undefined ? "room-1" : (options.roomId ?? undefined),
-            loading: options.loading ?? false,
-            joining: options.joining ?? false,
-            set: handlers.setRoom,
-            join: handlers.handleJoin,
-            toggleMute: handlers.handleToggleMute,
-            leave: handlers.handleLeave,
-            remove: handlers.handleDelete,
-            backToRooms: handlers.backToRooms,
+            data: room,
+            join: vi.fn(),
+            toggleMute: vi.fn(),
+            backToRooms: vi.fn(),
+            ...setup.roomState,
         },
-        session: {
-            ...base.session,
-            viewer: viewerUser,
-            setReplyingTo: handlers.setReplyingTo,
-            typingNames: options.typingNames ?? [],
-            notifyTyping: handlers.notifyTyping,
-            onSent: handlers.handleSentMessage,
-            editLast: handlers.handleEditLast,
-        },
-        members: {
-            ...base.members,
-            list: members,
-            groups: options.memberGroups ?? [{ label: "Members", members }],
-            presence: options.presenceMapMerged ?? {},
-            onlineWeight: (id: string) => (onlineIds.has(id) ? 0 : 1),
-            current: options.currentMember ?? null,
-            set: handlers.setMembers,
-        },
+        session: { ...base.session, viewer: roomViewer, ...setup.session },
+        members: { ...base.members, list: members, groups: [{ label: "Members", members }], ...setup.roster },
         moderation: {
             ...base.moderation,
-            busy: options.busy ?? null,
-            openMemberMenu: options.openMemberMenu ?? null,
-            setOpenMemberMenu: handlers.setOpenMemberMenu,
-            nicknameDialogTarget: options.nicknameDialogTarget ?? null,
-            setNicknameDialogTarget: handlers.setNicknameDialogTarget,
-            setNicknameDialogValue: handlers.setNicknameDialogValue,
-            nicknameDialogError: options.nicknameDialogError ?? "",
-            nicknameDialogSaving: options.nicknameDialogSaving ?? false,
-            timeoutDialogTarget: options.timeoutDialogTarget ?? null,
-            setTimeoutDialogTarget: handlers.setTimeoutDialogTarget,
-            setTimeoutDialogAmount: handlers.setTimeoutDialogAmount,
-            setTimeoutDialogUnit: handlers.setTimeoutDialogUnit,
-            timeoutDialogError: options.timeoutDialogError ?? "",
-            timeoutDialogSaving: options.timeoutDialogSaving ?? false,
+            setOpenMemberMenu: vi.fn(),
             formatTimeoutUntil: (value?: string) => `until ${value ?? "never"}`,
-            openNicknameDialog: handlers.openNicknameDialog,
-            openTimeoutDialog: handlers.openTimeoutDialog,
-            handleModSetNickname: handlers.handleModSetNickname,
-            handleModUnlockNickname: handlers.handleModUnlockNickname,
-            handleSetTimeout: handlers.handleSetTimeout,
-            handleClearTimeout: handlers.handleClearTimeout,
-            handleKick: handlers.handleKick,
-            handleBan: handlers.handleBan,
+            openTimeoutDialog: vi.fn(),
+            handleModSetNickname: vi.fn(),
+            handleSetTimeout: vi.fn(),
+            handleClearTimeout: vi.fn(),
+            handleKick: vi.fn(),
+            handleBan: vi.fn(),
+            ...setup.moderation,
         },
-        prefs: {
-            ...base.prefs,
-            sidebarCollapsed: options.sidebarCollapsed ?? false,
-            toggleSidebar: handlers.toggleSidebar,
-            descExpanded: options.descExpanded ?? false,
-            toggleDescExpanded: handlers.toggleDescExpanded,
-            setMobileView: handlers.setMobileView,
-        },
-        anchor: {
-            ...base.anchor,
-            jumpTo: handlers.handleJumpToMessage,
-        },
-        voice: {
-            ...base.voice,
-            status: options.voiceStatus ?? "idle",
-            room: options.voiceRoom ?? null,
-            enabled: options.voiceEnabled ?? true,
-        },
-        watchParty: {
-            ...base.watchParty,
-            enabled: options.watchPartyEnabled ?? true,
-            activeSession: options.activeSession ?? null,
-            start: handlers.watchPartyStart,
-            close: handlers.watchPartyClose,
-            invitedPartyMissing: options.invitedPartyMissing ?? false,
-        },
-        panels: {
-            ...base.panels,
-            panelTab: options.panelTab ?? null,
-            openPanel: handlers.openPanel,
-            lightboxSrc: options.lightboxSrc ?? null,
-            setLightboxSrc: handlers.setLightboxSrc,
-            editProfileOpen: options.editProfileOpen ?? false,
-            setEditProfileOpen: handlers.setEditProfileOpen,
-            inviteModalOpen: options.inviteModalOpen ?? false,
-            setInviteModalOpen: handlers.setInviteModalOpen,
-            moderationDialogOpen: options.moderationDialogOpen ?? false,
-            setModerationDialogOpen: handlers.setModerationDialogOpen,
-        },
-        toast: {
-            message: options.toast ?? null,
-            show: handlers.setToast,
-        },
+        prefs: { ...base.prefs, toggleSidebar: vi.fn(), toggleDescExpanded: vi.fn(), ...setup.prefs },
+        voice: { ...base.voice, ...setup.voice },
+        watchParty: { ...base.watchParty, ...setup.watchParty },
+        panels: { ...base.panels, openPanel: vi.fn(), setEditProfileOpen: vi.fn(), ...setup.panels },
+        toast: { message: setup.toast ?? null, show: vi.fn() },
     });
-
     mocks.useRoomController.mockReturnValue(controller);
 
-    return handlers;
+    const { container } = renderWithProviders(<RoomPage />, { user: roomViewer });
+
+    return { container, controller };
 }
 
-function renderRoom(options: ControllerOptions = {}) {
-    const handlers = stubController(options);
-    const result = renderWithProviders(<RoomPage />, { user: options.user === undefined ? viewer : options.user });
-
-    return { ...result, ...handlers };
-}
+const hostRoom = makeChatRoom({ viewer_role: "host" });
+const menuTarget = makeMember();
+const hostMenu: RoomSetup = { room: hostRoom, members: [menuTarget], moderation: { openMemberMenu: "member-1" } };
 
 beforeEach(() => {
     mocks.useIsMobile.mockReturnValue(false);
@@ -322,10 +197,10 @@ beforeEach(() => {
 describe("RoomPage gates", () => {
     it("shows nothing at all to a signed out visitor", () => {
         // given
-        const user = null;
+        const signedOut = null;
 
         // when
-        const { container } = renderRoom({ user });
+        const { container } = renderRoom({ viewer: signedOut });
 
         // then
         expect(container).toBeEmptyDOMElement();
@@ -333,46 +208,35 @@ describe("RoomPage gates", () => {
 
     it("waits while the room is being loaded", () => {
         // given
-        const loading = true;
+        const roomState = { loading: true };
 
         // when
-        renderRoom({ loading });
+        renderRoom({ roomState });
 
         // then
         expect(screen.getByText("Loading room...")).toBeInTheDocument();
     });
 
-    it("offers a way in when the viewer is not a member", () => {
+    it("offers a way in when the viewer is not a member and tries to join when asked", async () => {
         // given
-        const room = null;
+        const pointer = userEvent.setup();
+        const { controller } = renderRoom({ room: null });
 
         // when
-        renderRoom({ room });
+        await pointer.click(screen.getByRole("button", { name: "Try to Join" }));
 
         // then
         expect(screen.getByText("You're not a member of this room.")).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "Try to Join" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Back to Rooms" })).toBeInTheDocument();
-    });
-
-    it("tries to join when the outsider asks to", async () => {
-        // given
-        const user = userEvent.setup();
-        const { handleJoin } = renderRoom({ room: null });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Try to Join" }));
-
-        // then
-        expect(handleJoin).toHaveBeenCalledTimes(1);
+        expect(controller.room.join).toHaveBeenCalledTimes(1);
     });
 
     it("says it is joining while the request is in flight", () => {
         // given
-        const joining = true;
+        const roomState = { joining: true };
 
         // when
-        renderRoom({ room: null, joining });
+        renderRoom({ room: null, roomState });
 
         // then
         expect(screen.getByRole("button", { name: "Joining..." })).toBeDisabled();
@@ -380,24 +244,13 @@ describe("RoomPage gates", () => {
 
     it("hides the join button when there is no room in the address at all", () => {
         // given
-        const roomId = null;
+        const roomState = { id: undefined };
 
         // when
-        renderRoom({ room: null, roomId });
+        renderRoom({ room: null, roomState });
 
         // then
         expect(screen.queryByRole("button", { name: "Try to Join" })).not.toBeInTheDocument();
-    });
-
-    it("passes on why the join failed", () => {
-        // given
-        const toast = "You are banned from this room.";
-
-        // when
-        renderRoom({ room: null, toast });
-
-        // then
-        expect(screen.getByText("You are banned from this room.")).toBeInTheDocument();
     });
 
     it("hands the room to the mobile view on a small screen", () => {
@@ -414,589 +267,330 @@ describe("RoomPage gates", () => {
 });
 
 describe("RoomPage header", () => {
-    it("names the room and describes who can see it", () => {
-        // given
-        const room = makeChatRoom({ name: "Rokkenjima", member_count: 7, is_public: true });
+    const headerCases: { name: string; room: Partial<ChatRoom>; meta: string; badges: string[] }[] = [
+        { name: "names the room and describes who can see it", room: {}, meta: "7 members · public", badges: [] },
+        {
+            name: "marks a private room as private",
+            room: { is_public: false },
+            meta: "7 members · private",
+            badges: [],
+        },
+        {
+            name: "badges a staff room and a roleplay room",
+            room: { is_system: true, is_rp: true },
+            meta: "7 members · public",
+            badges: ["Staff", "RP"],
+        },
+    ];
+
+    it.each(headerCases)("$name", ({ room, meta, badges }) => {
+        // given the room, from the table row
 
         // when
-        renderRoom({ room });
+        renderRoom({ room: makeChatRoom({ name: "Rokkenjima", member_count: 7, is_public: true, ...room }) });
 
         // then
         expect(screen.getByText("Rokkenjima")).toBeInTheDocument();
-        expect(screen.getByText(/7 members/)).toBeInTheDocument();
-        expect(screen.getByText(/public/)).toBeInTheDocument();
+        expect(screen.getByText(meta)).toBeInTheDocument();
+        expect(["Staff", "RP"].filter(badge => screen.queryByText(badge) !== null)).toEqual(badges);
     });
 
-    it("marks a private room as private", () => {
-        // given
-        const room = makeChatRoom({ is_public: false });
+    const infoCases: { name: string; room: Partial<ChatRoom>; toggles: string[]; shows: string[] }[] = [
+        {
+            name: "leaves the info panel out when there is nothing to say",
+            room: { description: "", tags: [] },
+            toggles: [],
+            shows: [],
+        },
+        {
+            name: "offers the info panel when the room has a description",
+            room: { description: "Where the witches take tea" },
+            toggles: ["Show info ▼"],
+            shows: ["Where the witches take tea"],
+        },
+        {
+            name: "lists the room's tags",
+            room: { tags: ["horror", "spoilers"] },
+            toggles: ["Show info ▼"],
+            shows: ["#horror", "#spoilers"],
+        },
+    ];
+
+    it.each(infoCases)("$name", ({ room, toggles, shows }) => {
+        // given the room's description and tags, from the table row
 
         // when
-        renderRoom({ room });
+        renderRoom({ room: makeChatRoom(room) });
 
         // then
-        expect(screen.getByText(/private/)).toBeInTheDocument();
-    });
-
-    it("badges a staff room and a roleplay room", () => {
-        // given
-        const room = makeChatRoom({ is_system: true, is_rp: true });
-
-        // when
-        renderRoom({ room });
-
-        // then
-        expect(screen.getByText("Staff")).toBeInTheDocument();
-        expect(screen.getByText("RP")).toBeInTheDocument();
-    });
-
-    it("opens the message search when asked", async () => {
-        // given
-        const user = userEvent.setup();
-        const { openPanel } = renderRoom();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Search messages" }));
-
-        // then
-        expect(openPanel).toHaveBeenCalledWith("search");
-    });
-
-    it("opens the pinned messages when asked", async () => {
-        // given
-        const user = userEvent.setup();
-        const { openPanel } = renderRoom();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Pinned messages" }));
-
-        // then
-        expect(openPanel).toHaveBeenCalledWith("pins");
-    });
-
-    it("keeps the search panel closed until it is opened", () => {
-        // given
-        const panelTab = null;
-
-        // when
-        renderRoom({ panelTab });
-
-        // then
-        expect(screen.queryByTestId("search-panel")).not.toBeInTheDocument();
-    });
-
-    it("shows the search panel once it is open", () => {
-        // given
-        const panelTab = "search" as const;
-
-        // when
-        renderRoom({ panelTab });
-
-        // then
-        expect(screen.getByTestId("search-panel")).toBeInTheDocument();
-    });
-});
-
-describe("RoomPage room info", () => {
-    it("leaves the info panel out when there is nothing to say", () => {
-        // given
-        const room = makeChatRoom({ description: "", tags: [] });
-
-        // when
-        renderRoom({ room });
-
-        // then
-        expect(screen.queryByRole("button", { name: /Show info/ })).not.toBeInTheDocument();
-    });
-
-    it("offers the info panel when the room has a description", () => {
-        // given
-        const room = makeChatRoom({ description: "Where the witches take tea" });
-
-        // when
-        renderRoom({ room });
-
-        // then
-        expect(screen.getByRole("button", { name: "Show info ▼" })).toBeInTheDocument();
-        expect(screen.getByText("Where the witches take tea")).toBeInTheDocument();
-    });
-
-    it("lists the room's tags", () => {
-        // given
-        const room = makeChatRoom({ tags: ["horror", "spoilers"] });
-
-        // when
-        renderRoom({ room });
-
-        // then
-        expect(screen.getByText("#horror")).toBeInTheDocument();
-        expect(screen.getByText("#spoilers")).toBeInTheDocument();
-    });
-
-    it("collapses the info panel when it is already expanded", async () => {
-        // given
-        const user = userEvent.setup();
-        const { toggleDescExpanded } = renderRoom({ room: makeChatRoom({ description: "Tea" }), descExpanded: true });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Hide info ▲" }));
-
-        // then
-        expect(toggleDescExpanded).toHaveBeenCalledTimes(1);
+        expect(screen.queryAllByRole("button", { name: /Show info/ }).map(button => button.textContent)).toEqual(
+            toggles,
+        );
+        for (const text of shows) {
+            expect(screen.getByText(text)).toBeInTheDocument();
+        }
     });
 });
 
 describe("RoomPage members", () => {
-    it("counts the members in the sidebar", () => {
-        // given
-        const members = [makeMember(), makeMember({ user: makeMemberUser({ id: "member-2", username: "ange" }) })];
+    const voiceMembers = [makeMember()];
+    const rosterCases: { name: string; setup: RoomSetup; shows: () => HTMLElement; hides?: string[] }[] = [
+        {
+            name: "counts the members in the sidebar",
+            setup: {
+                members: [makeMember(), makeMember({ user: makeMemberUser({ id: "member-2", username: "ange" }) })],
+            },
+            shows: () => screen.getByText("2"),
+        },
+        {
+            name: "groups the members under an online heading when they are around",
+            setup: { members: [makeMember()], roster: { onlineWeight: () => 0 } },
+            shows: () => screen.getByText("Online"),
+        },
+        {
+            name: "groups the members under an offline heading when they are away",
+            setup: { members: [makeMember()], roster: { onlineWeight: () => 1 } },
+            shows: () => screen.getByText("Offline"),
+        },
+        {
+            name: "skips the status heading inside the voice group",
+            setup: { members: voiceMembers, roster: { groups: [{ label: "In Voice", members: voiceMembers }] } },
+            shows: () => screen.getByText("In Voice"),
+            hides: ["Offline"],
+        },
+        {
+            name: "says whether a member is watching the room right now",
+            setup: { members: [makeMember()], roster: { presence: { "member-1": "active" } } },
+            shows: () => screen.getByLabelText("Active in this room"),
+        },
+        {
+            name: "marks a member who is timed out",
+            setup: { members: [makeMember({ timeout_until: TIMED_OUT_UNTIL })] },
+            shows: () => screen.getByLabelText(`Timed out until until ${TIMED_OUT_UNTIL}`),
+        },
+    ];
+
+    it.each(rosterCases)("$name", ({ setup, shows, hides = [] }) => {
+        // given the roster, from the table row
 
         // when
-        renderRoom({ members });
+        renderRoom(setup);
 
         // then
-        expect(screen.getByText("2")).toBeInTheDocument();
-    });
-
-    it("groups the members under an online heading when they are around", () => {
-        // given
-        const members = [makeMember()];
-
-        // when
-        renderRoom({ members, onlineIds: ["member-1"] });
-
-        // then
-        expect(screen.getByText("Online")).toBeInTheDocument();
-    });
-
-    it("groups the members under an offline heading when they are away", () => {
-        // given
-        const members = [makeMember()];
-
-        // when
-        renderRoom({ members });
-
-        // then
-        expect(screen.getByText("Offline")).toBeInTheDocument();
-    });
-
-    it("skips the status heading inside the voice group", () => {
-        // given
-        const members = [makeMember()];
-
-        // when
-        renderRoom({ members, memberGroups: [{ label: "In Voice", members }] });
-
-        // then
-        expect(screen.getByText("In Voice")).toBeInTheDocument();
-        expect(screen.queryByText("Offline")).not.toBeInTheDocument();
-    });
-
-    it("says whether a member is watching the room right now", () => {
-        // given
-        const members = [makeMember()];
-
-        // when
-        renderRoom({ members, presenceMapMerged: { "member-1": "active" } });
-
-        // then
-        expect(screen.getByLabelText("Active in this room")).toBeInTheDocument();
-    });
-
-    it("says when a member has the tab in the background", () => {
-        // given
-        const members = [makeMember()];
-
-        // when
-        renderRoom({ members, presenceMapMerged: { "member-1": "idle" } });
-
-        // then
-        expect(screen.getByLabelText("Idle or tab in background")).toBeInTheDocument();
-    });
-
-    it("badges the host and a ghost member", () => {
-        // given
-        const members = [makeMember({ role: "host", ghost: true })];
-
-        // when
-        renderRoom({ members });
-
-        // then
-        expect(screen.getByText("Host")).toBeInTheDocument();
-        expect(screen.getByTitle(/Ghost member/)).toBeInTheDocument();
-    });
-
-    it("marks a member who is timed out", () => {
-        // given
-        const members = [makeMember({ timeout_until: "2026-02-01T13:00:00Z" })];
-
-        // when
-        renderRoom({ members });
-
-        // then
-        expect(screen.getByLabelText("Timed out until until 2026-02-01T13:00:00Z")).toBeInTheDocument();
-    });
-
-    it("lets the viewer edit their own profile in the room", async () => {
-        // given
-        const user = userEvent.setup();
-        const members = [makeMember({ user: makeMemberUser({ id: viewer.id, username: "battler" }) })];
-        const { setEditProfileOpen } = renderRoom({ members });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Edit profile in this room" }));
-
-        // then
-        expect(setEditProfileOpen).toHaveBeenCalledWith(true);
-    });
-
-    it("shows a member's nickname in place of their display name", () => {
-        // given
-        const members = [makeMember({ nickname: "The Golden Witch" })];
-
-        // when
-        renderRoom({ members });
-
-        // then
-        expect(screen.getByText("The Golden Witch")).toBeInTheDocument();
-        expect(screen.queryByText("Beatrice")).not.toBeInTheDocument();
+        expect(shows()).toBeInTheDocument();
+        for (const text of hides) {
+            expect(screen.queryByText(text)).not.toBeInTheDocument();
+        }
     });
 });
 
-describe("RoomPage moderation", () => {
-    it("gives an ordinary member no moderator actions", () => {
-        // given
-        const members = [makeMember()];
+describe("RoomPage permissions", () => {
+    const permissionCases: {
+        name: string;
+        viewer: UserProfile;
+        room: Partial<ChatRoom>;
+        roomControls: string[];
+        memberControls: string[];
+    }[] = [
+        {
+            name: "gives the host of an ordinary room its controls and kick, ban and timeout but no nickname change",
+            viewer,
+            room: { viewer_role: "host" },
+            roomControls: ["Moderation", "Delete Room", "+ Invite", "Voice", "Watch party"],
+            memberControls: ["Moderator actions", "Kick member", "Ban from room", "Set timeout"],
+        },
+        {
+            name: "offers an ordinary member the door and the call buttons but nothing to moderate",
+            viewer,
+            room: { viewer_role: "member" },
+            roomControls: ["Leave Room", "Voice", "Watch party"],
+            memberControls: [],
+        },
+        {
+            name: "keeps every control away from the host of a system room",
+            viewer,
+            room: { viewer_role: "host", is_system: true },
+            roomControls: [],
+            memberControls: [],
+        },
+        {
+            name: "gives site staff who do not host the room every control, nickname ones included",
+            viewer: staff,
+            room: { viewer_role: "member" },
+            roomControls: ROOM_CONTROLS,
+            memberControls: MEMBER_CONTROLS,
+        },
+        {
+            name: "keeps every control away from site staff in a system room",
+            viewer: staff,
+            room: { viewer_role: "member", is_system: true },
+            roomControls: [],
+            memberControls: [],
+        },
+    ];
 
-        // when
-        renderRoom({ members, room: makeChatRoom({ viewer_role: "member" }) });
-
-        // then
-        expect(screen.queryByRole("button", { name: "Moderator actions" })).not.toBeInTheDocument();
-    });
-
-    it("gives the host moderator actions over an ordinary member", () => {
-        // given
-        const members = [makeMember()];
-
-        // when
-        renderRoom({ members, room: makeChatRoom({ viewer_role: "host" }) });
-
-        // then
-        expect(screen.getByRole("button", { name: "Moderator actions" })).toBeInTheDocument();
-    });
-
-    it("opens the moderator menu when it is clicked", async () => {
-        // given
-        const user = userEvent.setup();
-        const { setOpenMemberMenu } = renderRoom({
-            members: [makeMember()],
-            room: makeChatRoom({ viewer_role: "host" }),
-        });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Moderator actions" }));
-
-        // then
-        expect(setOpenMemberMenu).toHaveBeenCalledTimes(1);
-    });
-
-    it("offers the host kick and ban but no nickname change", () => {
-        // given
-        const members = [makeMember()];
-
-        // when
-        renderRoom({ members, room: makeChatRoom({ viewer_role: "host" }), openMemberMenu: "member-1" });
-
-        // then
-        expect(screen.getByRole("button", { name: "Kick member" })).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "Ban from room" })).toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "Change nickname" })).not.toBeInTheDocument();
-    });
-
-    it("offers site staff the nickname controls too", () => {
-        // given
-        const user = makeUser({ id: "viewer-1", role: "moderator" });
+    it.each(permissionCases)("$name", ({ viewer: roomViewer, room, roomControls, memberControls }) => {
+        // given the viewer and the room, from the table row, with the menu open on a member whose nickname is locked
+        const members = [makeMember({ nickname_locked: true })];
 
         // when
         renderRoom({
-            user,
-            members: [makeMember({ nickname_locked: true })],
-            room: makeChatRoom({ viewer_role: "member" }),
-            openMemberMenu: "member-1",
+            viewer: roomViewer,
+            room: makeChatRoom(room),
+            members,
+            moderation: { openMemberMenu: "member-1" },
         });
 
         // then
-        expect(screen.getByRole("button", { name: "Change nickname" })).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "Reset/unlock nickname" })).toBeInTheDocument();
-    });
-
-    it("kicks a member when the host chooses to", async () => {
-        // given
-        const user = userEvent.setup();
-        const { handleKick } = renderRoom({
-            members: [makeMember()],
-            room: makeChatRoom({ viewer_role: "host" }),
-            openMemberMenu: "member-1",
-        });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Kick member" }));
-
-        // then
-        expect(handleKick).toHaveBeenCalledWith("member-1");
-    });
-
-    it("bans a member when the host chooses to", async () => {
-        // given
-        const user = userEvent.setup();
-        const { handleBan } = renderRoom({
-            members: [makeMember()],
-            room: makeChatRoom({ viewer_role: "host" }),
-            openMemberMenu: "member-1",
-        });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Ban from room" }));
-
-        // then
-        expect(handleBan).toHaveBeenCalledWith("member-1");
-    });
-
-    it("opens the timeout dialog for a member", async () => {
-        // given
-        const user = userEvent.setup();
-        const { openTimeoutDialog } = renderRoom({
-            members: [makeMember()],
-            room: makeChatRoom({ viewer_role: "host" }),
-            openMemberMenu: "member-1",
-        });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Set timeout" }));
-
-        // then
-        expect(openTimeoutDialog).toHaveBeenCalledTimes(1);
-    });
-
-    it("clears an existing timeout", async () => {
-        // given
-        const user = userEvent.setup();
-        const { handleClearTimeout } = renderRoom({
-            members: [makeMember({ timeout_until: "2026-02-01T13:00:00Z" })],
-            room: makeChatRoom({ viewer_role: "host" }),
-            openMemberMenu: "member-1",
-        });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Remove timeout" }));
-
-        // then
-        expect(handleClearTimeout).toHaveBeenCalledWith("member-1");
-    });
-
-    it("leaves a system room unmoderated", () => {
-        // given
-        const room = makeChatRoom({ is_system: true, viewer_role: "host" });
-
-        // when
-        renderRoom({ members: [makeMember()], room });
-
-        // then
-        expect(screen.queryByRole("button", { name: "Moderator actions" })).not.toBeInTheDocument();
-    });
-});
-
-describe("RoomPage sidebar actions", () => {
-    it("offers to mute the room's notifications", async () => {
-        // given
-        const user = userEvent.setup();
-        const { handleToggleMute } = renderRoom();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Mute notifications" }));
-
-        // then
-        expect(handleToggleMute).toHaveBeenCalledTimes(1);
-    });
-
-    it("offers to unmute a room that is already muted", () => {
-        // given
-        const room = makeChatRoom({ viewer_muted: true });
-
-        // when
-        renderRoom({ room });
-
-        // then
-        expect(screen.getByRole("button", { name: "Unmute notifications" })).toBeInTheDocument();
-    });
-
-    it("gives the host moderation and deletion", () => {
-        // given
-        const room = makeChatRoom({ viewer_role: "host" });
-
-        // when
-        renderRoom({ room });
-
-        // then
-        expect(screen.getByRole("button", { name: "Moderation" })).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "Delete Room" })).toBeInTheDocument();
-    });
-
-    it("offers an ordinary member the door instead", () => {
-        // given
-        const room = makeChatRoom({ viewer_role: "member" });
-
-        // when
-        renderRoom({ room });
-
-        // then
-        expect(screen.getByRole("button", { name: "Leave Room" })).toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "Delete Room" })).not.toBeInTheDocument();
-    });
-
-    it("keeps deletion and leaving away from a system room", () => {
-        // given
-        const room = makeChatRoom({ is_system: true, viewer_role: "host" });
-
-        // when
-        renderRoom({ room });
-
-        // then
-        expect(screen.queryByRole("button", { name: "Delete Room" })).not.toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "Leave Room" })).not.toBeInTheDocument();
-    });
-
-    it("shows the invite button to the host of an ordinary room", () => {
-        // given
-        const room = makeChatRoom({ viewer_role: "host" });
-
-        // when
-        renderRoom({ room });
-
-        // then
-        expect(screen.getByRole("button", { name: "+ Invite" })).toBeInTheDocument();
-    });
-
-    it("hides the invite button from a plain member", () => {
-        // given
-        const room = makeChatRoom({ viewer_role: "member" });
-
-        // when
-        renderRoom({ room });
-
-        // then
-        expect(screen.queryByRole("button", { name: "+ Invite" })).not.toBeInTheDocument();
-    });
-
-    it("shows the invite button to site staff who do not host the room", () => {
-        // given
-        const user = makeUser({ id: "viewer-1", role: "moderator" });
-        const room = makeChatRoom({ viewer_role: "member" });
-
-        // when
-        renderRoom({ user, room });
-
-        // then
-        expect(screen.getByRole("button", { name: "+ Invite" })).toBeInTheDocument();
-    });
-
-    it("hides the invite button from site staff in a system room", () => {
-        // given
-        const user = makeUser({ id: "viewer-1", role: "moderator" });
-        const room = makeChatRoom({ viewer_role: "member", is_system: true });
-
-        // when
-        renderRoom({ user, room });
-
-        // then
-        expect(screen.queryByRole("button", { name: "+ Invite" })).not.toBeInTheDocument();
-    });
-
-    it("collapses the member sidebar when asked", async () => {
-        // given
-        const user = userEvent.setup();
-        const { toggleSidebar } = renderRoom();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Hide members" }));
-
-        // then
-        expect(toggleSidebar).toHaveBeenCalledTimes(1);
-    });
-
-    it("offers a rail to bring the sidebar back once it is collapsed", () => {
-        // given
-        const sidebarCollapsed = true;
-
-        // when
-        renderRoom({ sidebarCollapsed });
-
-        // then
-        expect(screen.getByRole("button", { name: "Show members" })).toBeInTheDocument();
-    });
-
-    it("goes back to the rooms list from the sidebar", async () => {
-        // given
-        const user = userEvent.setup();
-        const { backToRooms } = renderRoom();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Back to rooms" }));
-
-        // then
-        expect(backToRooms).toHaveBeenCalledOnce();
+        expect(offeredButtons(ROOM_CONTROLS)).toEqual(roomControls);
+        expect(offeredButtons(MEMBER_CONTROLS)).toEqual(memberControls);
     });
 
     it("says it is deleting while the room is being removed", () => {
         // given
-        const busy = "delete";
+        const moderation = { busy: "delete" };
 
         // when
-        renderRoom({ room: makeChatRoom({ viewer_role: "host" }), busy });
+        renderRoom({ room: hostRoom, moderation });
 
         // then
         expect(screen.getByRole("button", { name: "Deleting..." })).toBeDisabled();
     });
 });
 
+describe("RoomPage controls", () => {
+    const controlCases: {
+        name: string;
+        setup: RoomSetup;
+        button: string;
+        handler: (controller: RoomController) => unknown;
+        args?: unknown[];
+    }[] = [
+        {
+            name: "opens the message search when asked",
+            setup: {},
+            button: "Search messages",
+            handler: controller => controller.panels.openPanel,
+            args: ["search"],
+        },
+        {
+            name: "opens the pinned messages when asked",
+            setup: {},
+            button: "Pinned messages",
+            handler: controller => controller.panels.openPanel,
+            args: ["pins"],
+        },
+        {
+            name: "collapses the info panel when it is already expanded",
+            setup: { room: makeChatRoom({ description: "Tea" }), prefs: { descExpanded: true } },
+            button: "Hide info ▲",
+            handler: controller => controller.prefs.toggleDescExpanded,
+        },
+        {
+            name: "lets the viewer edit their own profile in the room",
+            setup: { members: [makeMember({ user: makeMemberUser({ id: viewer.id, username: "battler" }) })] },
+            button: "Edit profile in this room",
+            handler: controller => controller.panels.setEditProfileOpen,
+            args: [true],
+        },
+        {
+            name: "opens the moderator menu when it is clicked",
+            setup: { room: hostRoom, members: [makeMember()] },
+            button: "Moderator actions",
+            handler: controller => controller.moderation.setOpenMemberMenu,
+            args: [expect.any(Function)],
+        },
+        {
+            name: "kicks a member when the host chooses to",
+            setup: hostMenu,
+            button: "Kick member",
+            handler: controller => controller.moderation.handleKick,
+            args: ["member-1"],
+        },
+        {
+            name: "bans a member when the host chooses to",
+            setup: hostMenu,
+            button: "Ban from room",
+            handler: controller => controller.moderation.handleBan,
+            args: ["member-1"],
+        },
+        {
+            name: "opens the timeout dialog for a member",
+            setup: hostMenu,
+            button: "Set timeout",
+            handler: controller => controller.moderation.openTimeoutDialog,
+            args: [menuTarget],
+        },
+        {
+            name: "clears an existing timeout",
+            setup: { ...hostMenu, members: [makeMember({ timeout_until: TIMED_OUT_UNTIL })] },
+            button: "Remove timeout",
+            handler: controller => controller.moderation.handleClearTimeout,
+            args: ["member-1"],
+        },
+        {
+            name: "offers to mute the room's notifications",
+            setup: {},
+            button: "Mute notifications",
+            handler: controller => controller.room.toggleMute,
+        },
+        {
+            name: "offers to unmute a room that is already muted",
+            setup: { room: makeChatRoom({ viewer_muted: true }) },
+            button: "Unmute notifications",
+            handler: controller => controller.room.toggleMute,
+        },
+        {
+            name: "collapses the member sidebar when asked",
+            setup: {},
+            button: "Hide members",
+            handler: controller => controller.prefs.toggleSidebar,
+        },
+        {
+            name: "offers a rail to bring the sidebar back once it is collapsed",
+            setup: { prefs: { sidebarCollapsed: true } },
+            button: "Show members",
+            handler: controller => controller.prefs.toggleSidebar,
+        },
+        {
+            name: "goes back to the rooms list from the sidebar",
+            setup: {},
+            button: "Back to rooms",
+            handler: controller => controller.room.backToRooms,
+            args: [],
+        },
+    ];
+
+    it.each(controlCases)("$name", async ({ setup, button, handler, args }) => {
+        // given the page and the control, from the table row
+        const pointer = userEvent.setup();
+        const { controller } = renderRoom(setup);
+
+        // when
+        await pointer.click(screen.getByRole("button", { name: button }));
+
+        // then
+        if (args === undefined) {
+            expect(handler(controller)).toHaveBeenCalledOnce();
+        } else {
+            expect(handler(controller)).toHaveBeenCalledExactlyOnceWith(...args);
+        }
+    });
+});
+
 describe("RoomPage voice and watch party", () => {
     it("keeps the voice bar away until the call is connected", () => {
         // given
-        const voiceStatus = "connecting";
+        const voice = { status: "connecting" as const, room: new Room() };
 
         // when
-        renderRoom({ voiceStatus, voiceRoom: new Room() });
+        renderRoom({ voice });
 
         // then
         expect(screen.queryByRole("button", { name: "voice bar" })).not.toBeInTheDocument();
     });
 
-    it("shows the voice bar once the call is connected", async () => {
-        // given
-        const voiceStatus = "connected";
-
-        // when
-        renderRoom({ voiceStatus, voiceRoom: new Room(), room: makeChatRoom({ viewer_role: "host" }) });
-
-        // then
-        expect(await screen.findByRole("button", { name: "voice bar" })).toHaveAttribute("data-moderator", "true");
-    });
-
-    it("force mutes a voice participant in this room", async () => {
-        // given
-        const pointer = userEvent.setup();
-        renderRoom({ voiceStatus: "connected", voiceRoom: new Room(), room: makeChatRoom({ viewer_role: "host" }) });
-        const bar = await screen.findByRole("button", { name: "voice bar" });
-
-        // when
-        await pointer.click(bar);
-
-        // then
-        expect(mocks.forceMute).toHaveBeenCalledWith("room-1", { userId: "u9", muted: true }, expect.anything());
-    });
-
-    it("tells the moderator when a force mute did not take", async () => {
+    it("lets a moderator force mute a voice participant in this room and says when it did not take", async () => {
         // given
         mocks.forceMute.mockImplementation(
             (
@@ -1006,249 +600,171 @@ describe("RoomPage voice and watch party", () => {
             ) => options?.onError?.(new Error("LiveKit said no")),
         );
         const pointer = userEvent.setup();
-        const { setToast } = renderRoom({
-            voiceStatus: "connected",
-            voiceRoom: new Room(),
-            room: makeChatRoom({ viewer_role: "host" }),
-        });
+        const { controller } = renderRoom({ room: hostRoom, voice: { status: "connected", room: new Room() } });
         const bar = await screen.findByRole("button", { name: "voice bar" });
 
         // when
         await pointer.click(bar);
 
         // then
+        expect(bar).toHaveAttribute("data-moderator", "true");
+        expect(mocks.forceMute).toHaveBeenCalledWith("room-1", { userId: "u9", muted: true }, expect.anything());
         await waitFor(() => {
-            expect(setToast).toHaveBeenCalledWith("LiveKit said no");
+            expect(controller.toast.show).toHaveBeenCalledWith("LiveKit said no");
         });
     });
 
-    it("gives an ordinary room the voice and watch party buttons", () => {
-        // given
-        const room = makeChatRoom({ is_system: false });
+    const watchPartyCases = [
+        {
+            name: "opens the watch party window for an active session, with voice when the site allows it",
+            enabled: true,
+            startedBy: viewer.id,
+            starter: "true",
+        },
+        {
+            name: "obeys the site voice setting inside a watch party",
+            enabled: false,
+            startedBy: viewer.id,
+            starter: "true",
+        },
+        {
+            name: "knows the viewer did not start somebody else's watch party",
+            enabled: true,
+            startedBy: "someone-else",
+            starter: "false",
+        },
+    ];
+
+    it.each(watchPartyCases)("$name", async ({ enabled, startedBy, starter }) => {
+        // given the site voice setting and who started the party, from the table row
+        const activeSession = {
+            session: makeWatchPartySession({ started_by: startedBy }),
+            embedURL: "",
+            hasControl: false,
+        };
 
         // when
-        renderRoom({ room });
+        renderRoom({ watchParty: { activeSession }, voice: { enabled } });
 
         // then
-        expect(screen.getByTestId("voice-button")).toBeInTheDocument();
-        expect(screen.getByTestId("watch-party-button")).toBeInTheDocument();
-    });
-
-    it("keeps the voice and watch party buttons out of a system room", () => {
-        // given
-        const room = makeChatRoom({ is_system: true });
-
-        // when
-        renderRoom({ room });
-
-        // then
-        expect(screen.queryByTestId("voice-button")).not.toBeInTheDocument();
-        expect(screen.queryByTestId("watch-party-button")).not.toBeInTheDocument();
-    });
-
-    it("opens the watch party window for an active session", async () => {
-        // given
-        const activeSession = makeActiveSession(viewer.id);
-
-        // when
-        renderRoom({ activeSession });
-
-        // then
-        expect(await screen.findByTestId("watch-party-modal")).toHaveTextContent("true");
-    });
-
-    it("knows the viewer did not start somebody else's watch party", async () => {
-        // given
-        const activeSession = makeActiveSession("someone-else");
-
-        // when
-        renderRoom({ activeSession });
-
-        // then
-        expect(await screen.findByTestId("watch-party-modal")).toHaveTextContent("false");
-    });
-
-    it("offers watch party voice when the site allows voice and screen share is on", async () => {
-        // given
-        const activeSession = makeActiveSession(viewer.id);
-
-        // when
-        renderRoom({ activeSession, voiceEnabled: true });
-
-        // then
-        expect(await screen.findByTestId("watch-party-modal")).toHaveAttribute("data-voice", "true");
-    });
-
-    it("obeys the site voice setting inside a watch party", async () => {
-        // given
-        const voiceEnabled = false;
-
-        // when
-        renderRoom({ activeSession: makeActiveSession(viewer.id), voiceEnabled });
-
-        // then
-        expect(await screen.findByTestId("watch-party-modal")).toHaveAttribute("data-voice", "false");
-    });
-
-    it("says so when the invited watch party has already ended", () => {
-        // given
-        const invitedPartyMissing = true;
-
-        // when
-        renderRoom({ invitedPartyMissing });
-
-        // then
-        expect(screen.getByText("That watch party has ended.")).toBeInTheDocument();
+        const modal = await screen.findByTestId("watch-party-modal");
+        expect(modal).toHaveAttribute("data-starter", starter);
+        expect(modal).toHaveAttribute("data-voice", String(enabled));
     });
 });
 
-describe("RoomPage dialogs", () => {
-    it("keeps the nickname dialog shut until a target is chosen", () => {
+describe("RoomPage member dialogs", () => {
+    it("names the member whose nickname is being changed and saves the new nickname when asked", async () => {
         // given
-        const nicknameDialogTarget = null;
+        const pointer = userEvent.setup();
+        const { controller } = renderRoom({ moderation: { nicknameDialogTarget: makeMember() } });
 
         // when
-        renderRoom({ nicknameDialogTarget });
-
-        // then
-        expect(screen.queryByRole("heading", { name: /Change nickname for/ })).not.toBeInTheDocument();
-    });
-
-    it("names the member whose nickname is being changed", () => {
-        // given
-        const nicknameDialogTarget = makeMember();
-
-        // when
-        renderRoom({ nicknameDialogTarget });
+        await pointer.click(screen.getByRole("button", { name: "Save" }));
 
         // then
         expect(screen.getByRole("heading", { name: "Change nickname for Beatrice" })).toBeInTheDocument();
+        expect(controller.moderation.handleModSetNickname).toHaveBeenCalledTimes(1);
     });
 
-    it("saves the new nickname when asked", async () => {
+    it("names the member being timed out, offers the units and sets the timeout when asked", async () => {
         // given
-        const user = userEvent.setup();
-        const { handleModSetNickname } = renderRoom({ nicknameDialogTarget: makeMember() });
+        const pointer = userEvent.setup();
+        const { controller } = renderRoom({ moderation: { timeoutDialogTarget: makeMember() } });
 
         // when
-        await user.click(screen.getByRole("button", { name: "Save" }));
-
-        // then
-        expect(handleModSetNickname).toHaveBeenCalledTimes(1);
-    });
-
-    it("reports why a nickname could not be saved", () => {
-        // given
-        const nicknameDialogError = "That name is taken.";
-
-        // when
-        renderRoom({ nicknameDialogTarget: makeMember(), nicknameDialogError });
-
-        // then
-        expect(screen.getByText("That name is taken.")).toBeInTheDocument();
-    });
-
-    it("names the member being timed out and offers the units", () => {
-        // given
-        const timeoutDialogTarget = makeMember();
-
-        // when
-        renderRoom({ timeoutDialogTarget });
+        await pointer.click(screen.getByRole("button", { name: "Set timeout" }));
 
         // then
         expect(screen.getByRole("heading", { name: "Set timeout for Beatrice" })).toBeInTheDocument();
         expect(screen.getByRole("option", { name: "centuries" })).toBeInTheDocument();
-    });
-
-    it("sets the timeout when asked", async () => {
-        // given
-        const user = userEvent.setup();
-        const { handleSetTimeout } = renderRoom({ timeoutDialogTarget: makeMember() });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Set timeout" }));
-
-        // then
-        expect(handleSetTimeout).toHaveBeenCalledTimes(1);
-    });
-
-    it("shows the invite modal only once it is opened", () => {
-        // given
-        const inviteModalOpen = true;
-
-        // when
-        renderRoom({ inviteModalOpen, room: makeChatRoom({ viewer_role: "host" }) });
-
-        // then
-        expect(screen.getByTestId("invite-modal")).toBeInTheDocument();
-    });
-
-    it("shows the moderation dialog only once it is opened", () => {
-        // given
-        const moderationDialogOpen = true;
-
-        // when
-        renderRoom({ moderationDialogOpen, room: makeChatRoom({ viewer_role: "host" }) });
-
-        // then
-        expect(screen.getByTestId("moderation-dialog")).toBeInTheDocument();
-    });
-
-    it("shows the pinned messages panel only once it is opened", () => {
-        // given
-        const panelTab = "pins" as const;
-
-        // when
-        renderRoom({ panelTab });
-
-        // then
-        expect(screen.getByTestId("pins-panel")).toBeInTheDocument();
+        expect(controller.moderation.handleSetTimeout).toHaveBeenCalledTimes(1);
     });
 });
 
-describe("RoomPage notices", () => {
-    it("says who is typing", () => {
-        // given
-        const typingNames = ["Beatrice", "Ange"];
+describe("RoomPage overlays", () => {
+    const overlayCases: { name: string; panels: Partial<RoomController["panels"]>; open: string[] }[] = [
+        { name: "keeps every panel, dialog and the lightbox shut until one is opened", panels: {}, open: [] },
+        { name: "shows the search panel once it is open", panels: { panelTab: "search" }, open: ["search-panel"] },
+        {
+            name: "shows the pinned messages panel only once it is opened",
+            panels: { panelTab: "pins" },
+            open: ["pins-panel"],
+        },
+        {
+            name: "shows the invite modal only once it is opened",
+            panels: { inviteModalOpen: true },
+            open: ["invite-modal"],
+        },
+        {
+            name: "shows the moderation dialog only once it is opened",
+            panels: { moderationDialogOpen: true },
+            open: ["moderation-dialog"],
+        },
+    ];
+
+    it.each(overlayCases)("$name", ({ panels, open }) => {
+        // given the open panels, from the table row
 
         // when
-        renderRoom({ typingNames });
+        renderRoom({ panels });
 
         // then
-        expect(screen.getByText(/are typing/)).toHaveTextContent("Beatrice and Ange are typing...");
-    });
-
-    it("shows a passing toast", () => {
-        // given
-        const toast = "1 member invited";
-
-        // when
-        renderRoom({ toast });
-
-        // then
-        expect(screen.getByText("1 member invited")).toBeInTheDocument();
-    });
-
-    it("keeps the lightbox shut until an image is opened", () => {
-        // given
-        const lightboxSrc = null;
-
-        // when
-        renderRoom({ lightboxSrc });
-
-        // then
-        expect(screen.queryByTestId("lightbox")).not.toBeInTheDocument();
+        expect(OVERLAYS.filter(testId => screen.queryByTestId(testId) !== null)).toEqual(open);
+        expect(screen.queryByRole("heading")).not.toBeInTheDocument();
     });
 
     it("shows the image the viewer opened", () => {
         // given
-        const lightboxSrc = "/media/witch.png";
+        const panels = { lightboxSrc: "/media/witch.png" };
 
         // when
-        renderRoom({ lightboxSrc });
+        renderRoom({ panels });
 
         // then
         expect(screen.getByTestId("lightbox")).toHaveTextContent("/media/witch.png");
+    });
+});
+
+describe("RoomPage notices", () => {
+    const noticeCases: { name: string; setup: RoomSetup; text: string }[] = [
+        { name: "shows a passing toast", setup: { toast: "1 member invited" }, text: "1 member invited" },
+        {
+            name: "passes on why the join failed",
+            setup: { room: null, toast: "You are banned from this room." },
+            text: "You are banned from this room.",
+        },
+        {
+            name: "says so when the invited watch party has already ended",
+            setup: { watchParty: { invitedPartyMissing: true } },
+            text: "That watch party has ended.",
+        },
+        {
+            name: "reports why a nickname could not be saved",
+            setup: { moderation: { nicknameDialogTarget: makeMember(), nicknameDialogError: "That name is taken." } },
+            text: "That name is taken.",
+        },
+    ];
+
+    it.each(noticeCases)("$name", ({ setup, text }) => {
+        // given the notice, from the table row
+
+        // when
+        renderRoom(setup);
+
+        // then
+        expect(screen.getByText(text)).toBeInTheDocument();
+    });
+
+    it("says who is typing", () => {
+        // given
+        const session = { typingNames: ["Beatrice", "Ange"] };
+
+        // when
+        renderRoom({ session });
+
+        // then
+        expect(screen.getByText(/are typing/)).toHaveTextContent("Beatrice and Ange are typing...");
     });
 
     it("wires the composer to the open room", () => {

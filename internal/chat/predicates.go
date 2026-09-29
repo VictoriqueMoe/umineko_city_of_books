@@ -62,7 +62,11 @@ func plainMessageNotification(roomRow *model.ChatRoomSendContext) (dto.Notificat
 }
 
 func (c *core) assertPairNotBlocked(ctx context.Context, userID, otherID uuid.UUID) error {
-	if blocked, _ := c.blockSvc.IsBlockedEither(ctx, userID, otherID); blocked {
+	blocked, err := c.blockSvc.IsBlockedEither(ctx, userID, otherID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return ErrUserBlocked
 	}
 
@@ -92,7 +96,11 @@ func (c *core) assertBlocksAllowParticipation(ctx context.Context, roomRow *mode
 		return nil
 	}
 
-	if blocked, _ := c.blockSvc.IsBlocked(ctx, roomRow.CreatedBy, userID); blocked {
+	blocked, err := c.blockSvc.IsBlocked(ctx, roomRow.CreatedBy, userID)
+	if err != nil {
+		return fmt.Errorf("host block check: %w", err)
+	}
+	if blocked {
 		return ErrBlockedByRoomHost
 	}
 

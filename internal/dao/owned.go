@@ -30,7 +30,7 @@ func (o *ownedDAO) Delete(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.
 	}
 
 	if n == 0 {
-		return fmt.Errorf("%s not found or not owned", o.entity)
+		return fmt.Errorf("%s not found or not owned: %w", o.entity, ErrNotFound)
 	}
 
 	return nil

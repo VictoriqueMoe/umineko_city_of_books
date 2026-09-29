@@ -94,7 +94,7 @@ func (s *Service) listChatbots(ctx fiber.Ctx) error {
 func (s *Service) adminListChatbots(ctx fiber.Ctx) error {
 	bots, err := s.ChatbotAdminService.List(ctx.Context())
 	if err != nil {
-		return utils.InternalError(ctx, err.Error())
+		return utils.InternalError(ctx, "failed to list chatbots", err)
 	}
 
 	return ctx.JSON(bots)
@@ -156,7 +156,7 @@ func (s *Service) adminChatbotUsage(ctx fiber.Ctx) error {
 
 	usage, usageErr := s.ChatbotAdminService.Usage(ctx.Context(), since)
 	if usageErr != nil {
-		return utils.InternalError(ctx, usageErr.Error())
+		return utils.InternalError(ctx, "failed to load chatbot usage", usageErr)
 	}
 
 	return ctx.JSON(usage)
@@ -194,7 +194,7 @@ func (s *Service) adminChatbotTest(ctx fiber.Ctx) error {
 func (s *Service) adminListBasePrompts(ctx fiber.Ctx) error {
 	prompts, err := s.ChatbotAdminService.ListBasePrompts(ctx.Context())
 	if err != nil {
-		return utils.InternalError(ctx, err.Error())
+		return utils.InternalError(ctx, "failed to list base prompts", err)
 	}
 
 	return ctx.JSON(dto.ChatbotBasePromptListResponse{BasePrompts: prompts})
@@ -261,6 +261,6 @@ func handleChatbotError(ctx fiber.Ctx, err error) error {
 	case errors.Is(err, dao.ErrBasePromptInUse):
 		return utils.BadRequest(ctx, "unassign that base prompt from every chatbot before deleting it")
 	default:
-		return utils.InternalError(ctx, err.Error())
+		return utils.InternalError(ctx, "chatbot action failed", err)
 	}
 }

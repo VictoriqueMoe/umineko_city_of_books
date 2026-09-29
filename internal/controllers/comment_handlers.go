@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 
+	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dao"
@@ -41,8 +42,11 @@ func (s *Service) handleLikeComment(ctx fiber.Ctx, like func(context.Context, uu
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.NotFound(ctx, "comment not found")
+		}
 
-		return utils.InternalError(ctx, "failed to like comment")
+		return utils.InternalError(ctx, "failed to like comment", err)
 	}
 
 	return ctx.SendStatus(fiber.StatusNoContent)
@@ -56,7 +60,7 @@ func (s *Service) handleUnlikeComment(ctx fiber.Ctx, unlike func(context.Context
 
 	userID := utils.UserID(ctx)
 	if err := unlike(ctx.Context(), userID, commentID); err != nil {
-		return utils.InternalError(ctx, "failed to unlike comment")
+		return utils.InternalError(ctx, "failed to unlike comment", err)
 	}
 
 	return ctx.SendStatus(fiber.StatusNoContent)
@@ -76,16 +80,30 @@ func handleUploadCommentMedia[T any](ctx fiber.Ctx, upload func(context.Context,
 
 	reader, err := file.Open()
 	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
+		return utils.InternalError(ctx, "failed to read file", err)
 	}
 	defer reader.Close()
 
 	result, err := upload(ctx.Context(), commentID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader, isSpoilerUpload(ctx))
 	if err != nil {
-		return utils.BadRequest(ctx, err.Error())
+		return uploadMediaError(ctx, err, authz.ErrNotCommentAuthor)
 	}
 
 	return ctx.Status(fiber.StatusCreated).JSON(result)
+}
+
+func uploadMediaError(ctx fiber.Ctx, err error, notAuthor error) error {
+	if errors.Is(err, dao.ErrNotFound) {
+		return utils.NotFound(ctx, "not found")
+	}
+	if errors.Is(err, notAuthor) {
+		return utils.Forbidden(ctx, notAuthor.Error())
+	}
+	if utils.IsUploadRejection(err) {
+		return utils.BadRequest(ctx, err.Error())
+	}
+
+	return utils.InternalError(ctx, "failed to upload media", err)
 }
 
 func isSpoilerUpload(ctx fiber.Ctx) bool {

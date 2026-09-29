@@ -2,12 +2,15 @@ package mystery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/ws"
@@ -23,9 +26,9 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 		return uuid.Nil, err
 	}
 
-	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	authorID, err := s.mysteryAuthor(ctx, mysteryID)
 	if err != nil {
-		return uuid.Nil, ErrNotFound
+		return uuid.Nil, err
 	}
 	if solved, err := s.mysteryRepo.IsSolved(ctx, mysteryID); err != nil {
 		return uuid.Nil, err
@@ -39,17 +42,29 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 			return uuid.Nil, ErrAlreadySolved
 		}
 	}
-	if paused, _ := s.mysteryRepo.IsPaused(ctx, mysteryID); paused && authorID != userID {
+	paused, err := s.mysteryRepo.IsPaused(ctx, mysteryID)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if paused && authorID != userID {
 		return uuid.Nil, ErrMysteryPaused
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
 	if req.ParentID != nil {
 		parentAuthor, err := s.mysteryRepo.GetAttemptAuthorID(ctx, *req.ParentID)
-		if err != nil {
+		if errors.Is(err, dao.ErrNotFound) {
 			return uuid.Nil, ErrNotFound
+		}
+		if err != nil {
+			return uuid.Nil, err
 		}
 		if userID != authorID && userID != parentAuthor {
 			return uuid.Nil, ErrCannotReply
@@ -105,7 +120,13 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 		})
 
 		if req.ParentID != nil {
-			if parentAuthor, err := s.mysteryRepo.GetAttemptAuthorID(bgCtx, *req.ParentID); err == nil && parentAuthor != authorID {
+			parentAuthor, err := s.mysteryRepo.GetAttemptAuthorID(bgCtx, *req.ParentID)
+			if err != nil {
+				logger.Ctx(bgCtx).Warn().Err(err).Str("attempt_id", req.ParentID.String()).Msg("attempt reply notification skipped, parent lookup failed")
+
+				return
+			}
+			if parentAuthor != authorID {
 				_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 					RecipientID:   parentAuthor,
 					Type:          dto.NotifMysteryReply,
@@ -129,8 +150,11 @@ func (s *service) DeleteAttempt(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 
 	attemptAuthorID, err := s.mysteryRepo.GetAttemptAuthorID(ctx, id)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return ErrNotFound
+	}
+	if err != nil {
+		return err
 	}
 
 	if err := s.mysteryRepo.DeleteAttemptAsAdmin(ctx, id); err != nil {
@@ -156,10 +180,18 @@ func (s *service) VoteAttempt(ctx context.Context, attemptID uuid.UUID, userID u
 	}
 
 	attemptAuthorID, err := s.mysteryRepo.GetAttemptAuthorID(ctx, attemptID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return ErrNotFound
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, attemptAuthorID); blocked {
+	if err != nil {
+		return err
+	}
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, attemptAuthorID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return block.ErrUserBlocked
 	}
 
@@ -172,6 +204,8 @@ func (s *service) VoteAttempt(ctx context.Context, attemptID uuid.UUID, userID u
 			bgCtx := context.Background()
 			mysteryID, err := s.mysteryRepo.GetAttemptMysteryID(bgCtx, attemptID)
 			if err != nil {
+				logger.Ctx(bgCtx).Warn().Err(err).Str("attempt_id", attemptID.String()).Msg("vote notification skipped, mystery lookup failed")
+
 				return
 			}
 			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{

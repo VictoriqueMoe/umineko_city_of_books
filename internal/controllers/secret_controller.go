@@ -5,6 +5,7 @@ import (
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	secretsvc "umineko_city_of_books/internal/secret"
 
@@ -60,7 +61,7 @@ func (s *Service) listSecrets(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 	resp, err := s.SecretService.List(ctx.Context(), userID)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to list secrets")
+		return utils.InternalError(ctx, "failed to list secrets", err)
 	}
 	return ctx.JSON(resp)
 }
@@ -73,7 +74,7 @@ func (s *Service) getSecret(ctx fiber.Ctx) error {
 		if errors.Is(err, secretsvc.ErrNotFound) {
 			return utils.NotFound(ctx, "secret not found")
 		}
-		return utils.InternalError(ctx, "failed to load secret")
+		return utils.InternalError(ctx, "failed to load secret", err)
 	}
 	return ctx.JSON(resp)
 }
@@ -101,7 +102,7 @@ func (s *Service) createSecretComment(ctx fiber.Ctx) error {
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return utils.InternalError(ctx, "failed to create comment")
+		return utils.InternalError(ctx, "failed to create comment", err)
 	}
 	s.Hub.BumpSidebarActivity("secrets")
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
@@ -126,7 +127,10 @@ func (s *Service) updateSecretComment(ctx fiber.Ctx) error {
 		if errors.Is(err, secretsvc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to update comment")
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot update this comment")
+		}
+		return utils.InternalError(ctx, "failed to update comment", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }

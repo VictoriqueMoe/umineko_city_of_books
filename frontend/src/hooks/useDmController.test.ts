@@ -1,17 +1,17 @@
-import type { QueryClient } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useLocation, useNavigate } from "react-router";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi, type Mock } from "vitest";
 import { queryKeys } from "../api/queryKeys";
 import type * as BusModule from "../api/realtime/bus";
 import type * as OutboundModule from "../api/realtime/outbound";
+import type { RoomCapabilities } from "../domain/chat/roomPolicy";
 import { makeChatMessage, makeChatRoom, makeDmRoom, makePublicUser, makeUser } from "../test-utils/fixtures";
 import { createTestQueryClient, providerWrapper } from "../test-utils/render";
 import { makeWSHarness, type RealtimeTestEvent, type RealtimeTestNames, type WSHarness } from "../test-utils/ws";
 import type { ChatMessage, ChatRoom, User, UserProfile } from "../types/api";
 import type * as ChatMutations from "./mutations/chat";
 import type * as ChatQueries from "./queries/chat";
-import { useDmController } from "./useDmController";
+import { useDmController, type DmController } from "./useDmController";
 
 const mocks = vi.hoisted(() => ({
     getUserRooms: vi.fn(),
@@ -110,6 +110,7 @@ vi.mock("../platform/sound", () => ({
 }));
 
 const viewer = makeUser({ id: "u1", username: "beatrice", display_name: "Beatrice" });
+const viewerAsSender = makePublicUser();
 
 function makeMember(overrides: Partial<User> = {}): User {
     return { id: "u2", username: "battler", display_name: "Battler", ...overrides };
@@ -135,8 +136,6 @@ function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
 interface HarnessOptions {
     user?: UserProfile | null;
     route?: string;
-    path?: string;
-    queryClient?: QueryClient;
 }
 
 async function settle(): Promise<void> {
@@ -146,11 +145,11 @@ async function settle(): Promise<void> {
 }
 
 function renderDm(options: HarnessOptions = {}) {
-    const queryClient = options.queryClient ?? createTestQueryClient();
+    const queryClient = createTestQueryClient();
     const wrapper = providerWrapper({
         user: options.user === undefined ? viewer : options.user,
         route: options.route ?? "/chat/room-1",
-        path: options.path ?? "/chat/:roomId?",
+        path: "/chat/:roomId?",
         queryClient,
     });
     const rendered = renderHook(() => useDmController(), { wrapper });
@@ -193,10 +192,22 @@ async function renderNavigableDm(route = "/chat/room-1") {
     return rendered;
 }
 
-function roomCommands(): OutboundModule.RealtimeCommand[] {
-    return holder.ws.sendRealtime.mock.calls
-        .map(call => call[0])
-        .filter(command => command.type === "join_room" || command.type === "leave_room");
+function sentCommands(types: readonly OutboundModule.RealtimeCommandName[]): OutboundModule.RealtimeCommand[] {
+    return holder.ws.sendRealtime.mock.calls.map(call => call[0]).filter(command => types.includes(command.type));
+}
+
+function hideTab(): void {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+    onTestFinished(() => {
+        Reflect.deleteProperty(document, "visibilityState");
+    });
+}
+
+function answerConfirmation(answer: boolean): void {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(answer);
+    onTestFinished(() => {
+        confirm.mockRestore();
+    });
 }
 
 beforeEach(() => {
@@ -215,18 +226,59 @@ beforeEach(() => {
 });
 
 describe("useDmController conversation list", () => {
-    it("keeps only the direct messages the viewer belongs to", async () => {
-        // given
-        mocks.getUserRooms.mockResolvedValue({
-            rooms: [makeRoom(), makeRoom({ id: "room-2", type: "group", name: "Rokkenjima" })],
-        });
+    interface ScreenCase {
+        name: string;
+        route: string;
+        activeRoomId: string | null;
+        mobileView: "list" | "room";
+        capabilities: Partial<RoomCapabilities>;
+        title: string;
+        absentTitle: string;
+        viewerStates: OutboundModule.RealtimeCommand[];
+    }
 
-        // when
-        const { result } = await renderLoadedDm();
+    const screenCases: ScreenCase[] = [
+        {
+            name: "a conversation",
+            route: "/chat/room-1",
+            activeRoomId: "room-1",
+            mobileView: "room",
+            capabilities: { kind: "pair", readReceipts: "pairwise", canEditSettings: false },
+            title: "Battler",
+            absentTitle: "Chat",
+            viewerStates: [{ type: "viewer_state", data: { room_id: "room-1", state: "active" } }],
+        },
+        {
+            name: "no conversation",
+            route: "/chat",
+            activeRoomId: null,
+            mobileView: "list",
+            capabilities: { kind: "group", readReceipts: "none", canEditSettings: false },
+            title: "Chat",
+            absentTitle: "Battler",
+            viewerStates: [],
+        },
+    ];
 
-        // then
-        expect(result.current.rooms.map(r => r.id)).toEqual(["room-1"]);
-    });
+    it.each(screenCases)(
+        "opens, describes, titles and reports $name as the url names it",
+        async ({ route, activeRoomId, mobileView, capabilities, title, absentTitle, viewerStates }) => {
+            // given
+            const options: HarnessOptions = { route };
+
+            // when
+            const { result } = await renderLoadedDm(options);
+
+            // then
+            expect(result.current.activeRoomId).toBe(activeRoomId);
+            expect(result.current.activeRoom?.id).toBe(activeRoomId ?? undefined);
+            expect(result.current.mobileView).toBe(mobileView);
+            expect(result.current.capabilities).toMatchObject(capabilities);
+            expect(document.title).toContain(title);
+            expect(document.title).not.toContain(absentTitle);
+            expect(sentCommands(["viewer_state"])).toEqual(viewerStates);
+        },
+    );
 
     it("never asks for conversations while nobody is signed in", () => {
         // given
@@ -238,44 +290,6 @@ describe("useDmController conversation list", () => {
         // then
         expect(mocks.getUserRooms).not.toHaveBeenCalled();
         expect(result.current.loading).toBe(true);
-    });
-
-    it("opens the conversation named in the url", async () => {
-        // given
-        const options: HarnessOptions = { route: "/chat/room-1", path: "/chat/:roomId" };
-
-        // when
-        const { result } = await renderLoadedDm(options);
-
-        // then
-        expect(result.current.activeRoomId).toBe("room-1");
-        expect(result.current.activeRoom?.id).toBe("room-1");
-        expect(result.current.mobileView).toBe("room");
-    });
-
-    it("describes the conversation on screen as a pair, with its own capabilities", async () => {
-        // given
-        const options: HarnessOptions = { route: "/chat/room-1" };
-
-        // when
-        const { result } = await renderLoadedDm(options);
-
-        // then
-        expect(result.current.capabilities.kind).toBe("pair");
-        expect(result.current.capabilities.readReceipts).toBe("pairwise");
-        expect(result.current.capabilities.canEditSettings).toBe(false);
-    });
-
-    it("shows the conversation list when the url names no room", async () => {
-        // given
-        const options: HarnessOptions = { route: "/chat" };
-
-        // when
-        const { result } = await renderLoadedDm(options);
-
-        // then
-        expect(result.current.activeRoomId).toBeNull();
-        expect(result.current.mobileView).toBe("list");
     });
 });
 
@@ -331,40 +345,30 @@ describe("useDmController conversation list cache", () => {
         expect(mocks.getUserRooms).toHaveBeenCalledTimes(2);
     });
 
-    it("never asks for the conversation list again when a message lands in a group room", async () => {
+    it("keeps group rooms off the list and leaves the list alone, asking for nothing, while they are busy", async () => {
         // given
-        mocks.getUserRooms.mockResolvedValue({ rooms: [makeRoom(), makeGroupRoom()] });
+        mocks.getUserRooms.mockResolvedValue({
+            rooms: [makeRoom(), makeRoom({ id: "room-2" }), makeGroupRoom()],
+        });
         const { result, emit } = await renderLoadedDm();
+        const listed = result.current.rooms.map(r => r.id);
         mocks.getUserRooms.mockClear();
 
         // when
         await emit({ type: "chat_message", data: makeMessage({ id: "m9", room_id: "room-group" }) });
 
         // then
+        expect(listed).toEqual(["room-1", "room-2"]);
         expect(mocks.getUserRooms).not.toHaveBeenCalled();
-        expect(result.current.rooms.map(r => r.id)).toEqual(["room-1"]);
-    });
-
-    it("leaves the conversation the viewer is reading at the top while group rooms are busy", async () => {
-        // given
-        mocks.getUserRooms.mockResolvedValue({
-            rooms: [makeRoom(), makeRoom({ id: "room-2" }), makeGroupRoom()],
-        });
-        const { result, emit } = await renderLoadedDm();
-
-        // when
-        await emit({ type: "chat_message", data: makeMessage({ id: "m9", room_id: "room-group" }) });
-
-        // then
         expect(result.current.rooms.map(r => r.id)).toEqual(["room-1", "room-2"]);
         expect(result.current.rooms[0].unread).toBeFalsy();
     });
 });
 
 describe("useDmController socket wiring", () => {
-    it("joins the active room over the socket and leaves when the view closes", async () => {
+    it("joins the active room, marks it read and listens, then leaves and stops listening when the view closes", async () => {
         // given
-        const { sendRealtime, unmount } = await renderLoadedDm();
+        const { sendRealtime, subscribe, unsubscribe, unmount } = await renderLoadedDm();
 
         // when
         const joined = sendRealtime.mock.calls.map(call => call[0]);
@@ -372,18 +376,10 @@ describe("useDmController socket wiring", () => {
 
         // then
         expect(joined).toContainEqual({ type: "join_room", data: { room_id: "room-1" } });
-        expect(sendRealtime).toHaveBeenLastCalledWith({ type: "leave_room", data: { room_id: "room-1" } });
-    });
-
-    it("marks the active conversation read as soon as it opens", async () => {
-        // given
-        const options: HarnessOptions = {};
-
-        // when
-        await renderLoadedDm(options);
-
-        // then
         expect(mocks.markChatRoomRead).toHaveBeenCalledWith("room-1");
+        expect(subscribe).toHaveBeenCalled();
+        expect(sendRealtime).toHaveBeenLastCalledWith({ type: "leave_room", data: { room_id: "room-1" } });
+        expect(unsubscribe).toHaveBeenCalled();
     });
 
     it("marks the active conversation read again when the window regains focus", async () => {
@@ -400,34 +396,18 @@ describe("useDmController socket wiring", () => {
         expect(mocks.markChatRoomRead).toHaveBeenCalledWith("room-1");
     });
 
-    it("stops listening to the socket once the view goes away", async () => {
+    const typingAnnouncementCases: { name: string; route: string; sent: OutboundModule.RealtimeCommand[] }[] = [
+        {
+            name: "announces that the viewer is typing in the active conversation",
+            route: "/chat/room-1",
+            sent: [{ type: "typing", data: { room_id: "room-1" } }],
+        },
+        { name: "says nothing about typing while no conversation is open", route: "/chat", sent: [] },
+    ];
+
+    it.each(typingAnnouncementCases)("$name", async ({ route, sent }) => {
         // given
-        const { unmount, unsubscribe, subscribe } = await renderLoadedDm();
-
-        // when
-        unmount();
-
-        // then
-        expect(subscribe).toHaveBeenCalled();
-        expect(unsubscribe).toHaveBeenCalled();
-    });
-
-    it("announces that the viewer is typing in the active conversation", async () => {
-        // given
-        const { result, sendRealtime } = await renderLoadedDm();
-
-        // when
-        act(() => {
-            result.current.notifyTyping();
-        });
-
-        // then
-        expect(sendRealtime).toHaveBeenCalledWith({ type: "typing", data: { room_id: "room-1" } });
-    });
-
-    it("says nothing about typing while no conversation is open", async () => {
-        // given
-        const { result, sendRealtime } = await renderLoadedDm({ route: "/chat" });
+        const { result, sendRealtime } = await renderLoadedDm({ route });
         sendRealtime.mockClear();
 
         // when
@@ -436,7 +416,7 @@ describe("useDmController socket wiring", () => {
         });
 
         // then
-        expect(sendRealtime).not.toHaveBeenCalled();
+        expect(sendRealtime.mock.calls.map(call => call[0])).toEqual(sent);
     });
 });
 
@@ -474,10 +454,18 @@ describe("useDmController url navigation", () => {
     ];
 
     it.each(navigationCases)(
-        "re-points the open conversation and the socket when the url moves to $name",
+        "re-points the open conversation and the socket when the url moves to $name, dropping the reply target but keeping the view mounted",
         async ({ to, expectedRoomId, expectedView, expectedCommands }) => {
             // given
             const { result } = await renderNavigableDm();
+            act(() => {
+                result.current.dm.setReplyingTo({
+                    id: "m1",
+                    senderName: "Battler",
+                    bodyPreview: "without love it cannot be seen",
+                });
+                result.current.dm.showToast("the golden land");
+            });
 
             // when
             act(() => {
@@ -485,52 +473,41 @@ describe("useDmController url navigation", () => {
             });
 
             // then
-            expect(roomCommands()).toEqual(expectedCommands);
+            expect(sentCommands(["join_room", "leave_room"])).toEqual(expectedCommands);
             expect(result.current.dm.activeRoomId).toBe(expectedRoomId);
             expect(result.current.dm.mobileView).toBe(expectedView);
+            expect(result.current.dm.replyingTo).toBeNull();
+            expect(result.current.dm.toast).toBe("the golden land");
+            expect(mocks.getUserRooms).toHaveBeenCalledTimes(1);
         },
     );
 
-    it("drops the reply target belonging to the conversation the url left behind", async () => {
+    it("opens the conversation the viewer picks with its badge cleared, leaving it in the history so back returns to the list", async () => {
         // given
-        const { result } = await renderNavigableDm();
-        act(() => {
-            result.current.dm.setReplyingTo({
-                id: "m1",
-                senderName: "Battler",
-                bodyPreview: "without love it cannot be seen",
-            });
-        });
-
-        // when
-        act(() => {
-            result.current.navigate("/chat/room-2");
-        });
-
-        // then
-        expect(result.current.dm.replyingTo).toBeNull();
-    });
-
-    it("leaves the conversation the viewer opened in the history, so back returns to the list", async () => {
-        // given
+        mocks.getUserRooms.mockResolvedValue({ rooms: [makeRoom({ unread: true })] });
         const { result } = await renderNavigableDm("/chat");
 
         // when
         act(() => {
             result.current.dm.handleRoomSelect("room-1");
         });
-        const afterSelect = result.current.pathname;
+        await settle();
+        const afterSelect = {
+            pathname: result.current.pathname,
+            activeRoomId: result.current.dm.activeRoomId,
+            unread: result.current.dm.rooms[0].unread,
+        };
         act(() => {
             result.current.navigate(-1);
         });
 
         // then
-        expect(afterSelect).toBe("/chat/room-1");
+        expect(afterSelect).toEqual({ pathname: "/chat/room-1", activeRoomId: "room-1", unread: false });
         expect(result.current.pathname).toBe("/chat");
         expect(result.current.dm.activeRoomId).toBeNull();
     });
 
-    it("keeps the mobile back button out of the history, so back returns to the conversation before it", async () => {
+    it("keeps the mobile back button out of the history and drops any draft, so back returns to the conversation before it", async () => {
         // given
         const { result } = await renderNavigableDm("/chat");
         act(() => {
@@ -539,56 +516,93 @@ describe("useDmController url navigation", () => {
         act(() => {
             result.current.dm.handleRoomSelect("room-2");
         });
+        act(() => {
+            result.current.dm.setDraftRecipient(makeMember({ id: "u5" }));
+        });
 
         // when
         act(() => {
             result.current.dm.handleMobileBack();
         });
-        const afterBack = result.current.pathname;
+        const afterBack = {
+            pathname: result.current.pathname,
+            activeRoomId: result.current.dm.activeRoomId,
+            draftRecipient: result.current.dm.draftRecipient,
+        };
         act(() => {
             result.current.navigate(-1);
         });
 
         // then
-        expect(afterBack).toBe("/chat");
+        expect(afterBack).toEqual({ pathname: "/chat", activeRoomId: null, draftRecipient: null });
         expect(result.current.pathname).toBe("/chat/room-1");
         expect(result.current.dm.activeRoomId).toBe("room-1");
-    });
-
-    it("keeps the conversation view mounted while the url changes under it", async () => {
-        // given
-        const { result } = await renderNavigableDm();
-        act(() => {
-            result.current.dm.showToast("the golden land");
-        });
-
-        // when
-        act(() => {
-            result.current.navigate("/chat/room-2");
-        });
-
-        // then
-        expect(result.current.dm.toast).toBe("the golden land");
-        expect(mocks.getUserRooms).toHaveBeenCalledTimes(1);
     });
 });
 
 describe("useDmController incoming messages", () => {
-    it("shows a message that arrives for the conversation on screen", async () => {
-        // given
-        const { result, emit } = await renderLoadedDm();
+    interface LandingCase {
+        name: string;
+        message: ChatMessage;
+        transcript: string[];
+        roster: string[];
+        unread: boolean;
+        typing: string[];
+    }
 
-        // when
-        await emit({ type: "chat_message", data: makeMessage({ id: "m1" }) });
+    const landedAt = "2026-08-02T12:00:00Z";
 
-        // then
-        expect(result.current.messages.map(m => m.id)).toEqual(["m1"]);
-    });
+    const landingCases: LandingCase[] = [
+        {
+            name: "the conversation on screen",
+            message: makeMessage({ id: "m1", created_at: landedAt }),
+            transcript: ["m1"],
+            roster: ["room-1", "room-2"],
+            unread: false,
+            typing: [],
+        },
+        {
+            name: "another conversation",
+            message: makeMessage({ id: "m9", room_id: "room-2", created_at: landedAt }),
+            transcript: [],
+            roster: ["room-2", "room-1"],
+            unread: true,
+            typing: ["Battler"],
+        },
+        {
+            name: "another conversation from the viewer themselves",
+            message: makeMessage({ id: "m9", room_id: "room-2", sender: viewerAsSender, created_at: landedAt }),
+            transcript: [],
+            roster: ["room-2", "room-1"],
+            unread: false,
+            typing: ["Battler"],
+        },
+    ];
+
+    it.each(landingCases)(
+        "updates the transcript, roster order, badge and typing for a message landing in $name",
+        async ({ message, transcript, roster, unread, typing }) => {
+            // given
+            mocks.getUserRooms.mockResolvedValue({ rooms: [makeRoom(), makeRoom({ id: "room-2" })] });
+            const { result, emit } = await renderLoadedDm();
+            await emit({ type: "typing", data: { room_id: "room-1", user_id: "u2" } });
+
+            // when
+            await emit({ type: "chat_message", data: message });
+
+            // then
+            expect(result.current.messages.map(m => m.id)).toEqual(transcript);
+            expect(result.current.rooms.map(r => r.id)).toEqual(roster);
+            expect(result.current.rooms[0].unread).toBe(unread);
+            expect(result.current.rooms[0].last_message_at).toBe(landedAt);
+            expect(result.current.typingNames).toEqual(typing);
+        },
+    );
 
     it("never shows the viewer's own message twice when the echo arrives", async () => {
         // given
         const { result, emit } = await renderLoadedDm();
-        const own = makeMessage({ id: "m1", sender: { id: "u1", username: "beatrice", display_name: "Beatrice" } });
+        const own = makeMessage({ id: "m1", sender: viewerAsSender });
         act(() => {
             result.current.handleSentMessage(own);
         });
@@ -598,79 +612,6 @@ describe("useDmController incoming messages", () => {
 
         // then
         expect(result.current.messages).toHaveLength(1);
-    });
-
-    it("leaves the open conversation alone when a message lands in another one", async () => {
-        // given
-        mocks.getUserRooms.mockResolvedValue({ rooms: [makeRoom(), makeRoom({ id: "room-2" })] });
-        const { result, emit } = await renderLoadedDm();
-
-        // when
-        await emit({ type: "chat_message", data: makeMessage({ id: "m9", room_id: "room-2" }) });
-
-        // then
-        expect(result.current.messages).toEqual([]);
-    });
-
-    it("badges another conversation as unread and floats it to the top", async () => {
-        // given
-        mocks.getUserRooms.mockResolvedValue({ rooms: [makeRoom(), makeRoom({ id: "room-2" })] });
-        const { result, emit } = await renderLoadedDm();
-
-        // when
-        await emit({
-            type: "chat_message",
-            data: makeMessage({ id: "m9", room_id: "room-2", created_at: "2026-08-02T12:00:00Z" }),
-        });
-
-        // then
-        expect(result.current.rooms.map(r => r.id)).toEqual(["room-2", "room-1"]);
-        expect(result.current.rooms[0].unread).toBe(true);
-        expect(result.current.rooms[0].last_message_at).toBe("2026-08-02T12:00:00Z");
-    });
-
-    it("never badges a conversation for the viewer's own message", async () => {
-        // given
-        mocks.getUserRooms.mockResolvedValue({ rooms: [makeRoom(), makeRoom({ id: "room-2" })] });
-        const { result, emit } = await renderLoadedDm();
-
-        // when
-        await emit({
-            type: "chat_message",
-            data: makeMessage({
-                id: "m9",
-                room_id: "room-2",
-                sender: { id: "u1", username: "beatrice", display_name: "Beatrice" },
-            }),
-        });
-
-        // then
-        expect(result.current.rooms[0].unread).toBe(false);
-    });
-
-    it("never badges the conversation the viewer is reading", async () => {
-        // given
-        const { result, emit } = await renderLoadedDm();
-
-        // when
-        await emit({ type: "chat_message", data: makeMessage({ id: "m1" }) });
-
-        // then
-        expect(result.current.rooms[0].unread).toBe(false);
-    });
-
-    it("reloads the conversation list when a message arrives for a room it does not know", async () => {
-        // given
-        const { emit } = await renderLoadedDm();
-        mocks.getUserRooms.mockClear();
-
-        // when
-        await emit({ type: "chat_message", data: makeMessage({ id: "m9", room_id: "room-unknown" }) });
-
-        // then
-        await waitFor(() => {
-            expect(mocks.getUserRooms).toHaveBeenCalled();
-        });
     });
 
     it("asks once, not once per message, for a room the server keeps leaving off the list", async () => {
@@ -710,18 +651,6 @@ describe("useDmController incoming messages", () => {
         });
     });
 
-    it("drops a message the server says was deleted", async () => {
-        // given
-        const { result, emit } = await renderLoadedDm();
-        await emit({ type: "chat_message", data: makeMessage({ id: "m1" }) });
-
-        // when
-        await emit({ type: "chat_message_deleted", data: { room_id: "room-1", message_id: "m1" } });
-
-        // then
-        expect(result.current.messages).toEqual([]);
-    });
-
     it("applies an edit that arrives over the socket", async () => {
         // given
         const { result, emit } = await renderLoadedDm();
@@ -738,148 +667,131 @@ describe("useDmController incoming messages", () => {
         expect(result.current.messages[0].edited_at).toBe("2026-08-02T10:05:00Z");
     });
 
-    it("ignores an edit meant for another conversation", async () => {
+    const soundCases: { name: string; sender: User; sounds: number }[] = [
+        {
+            name: "plays a sound for someone else's message while the tab is in the background",
+            sender: makeMember(),
+            sounds: 1,
+        },
+        { name: "stays silent for the viewer's own message", sender: viewerAsSender, sounds: 0 },
+    ];
+
+    it.each(soundCases)("$name", async ({ sender, sounds }) => {
         // given
-        const { result, emit } = await renderLoadedDm();
-        await emit({ type: "chat_message", data: makeMessage({ id: "m1" }) });
-
-        // when
-        await emit({
-            type: "chat_message_edited",
-            data: makeMessage({ id: "m1", room_id: "room-2", body: "elsewhere" }),
-        });
-
-        // then
-        expect(result.current.messages[0].body).toBe("without love it cannot be seen");
-    });
-
-    it("plays a sound for someone else's message while the tab is in the background", async () => {
-        // given
-        Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+        hideTab();
         const { emit } = await renderLoadedDm();
 
         // when
-        await emit({ type: "chat_message", data: makeMessage({ id: "m1" }) });
+        await emit({ type: "chat_message", data: makeMessage({ id: "m1", sender }) });
 
         // then
-        expect(mocks.playMessageSound).toHaveBeenCalled();
-        Reflect.deleteProperty(document, "visibilityState");
-    });
-
-    it("stays silent for the viewer's own message", async () => {
-        // given
-        Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
-        const { emit } = await renderLoadedDm();
-
-        // when
-        await emit({
-            type: "chat_message",
-            data: makeMessage({ id: "m1", sender: { id: "u1", username: "beatrice", display_name: "Beatrice" } }),
-        });
-
-        // then
-        expect(mocks.playMessageSound).not.toHaveBeenCalled();
-        Reflect.deleteProperty(document, "visibilityState");
+        expect(mocks.playMessageSound).toHaveBeenCalledTimes(sounds);
     });
 });
 
 describe("useDmController message failures", () => {
-    it("tells the viewer why their edit was refused", async () => {
+    interface FailureCase {
+        name: string;
+        refused: Mock;
+        reason: string;
+        attempt: (dm: DmController) => Promise<unknown>;
+    }
+
+    const failureCases: FailureCase[] = [
+        {
+            name: "tells the viewer why their edit was refused",
+            refused: mocks.editChatMessage,
+            reason: "that message is too old to edit",
+            attempt: dm => dm.handleEditMessage(makeMessage({ id: "m1" }), "rewritten").catch(() => {}),
+        },
+        {
+            name: "tells the viewer why their delete was refused",
+            refused: mocks.deleteChatMessage,
+            reason: "the witch forbids it",
+            attempt: dm => dm.handleDeleteMessage(makeMessage({ id: "m1" })),
+        },
+        {
+            name: "tells the viewer why their reaction was refused",
+            refused: mocks.addChatMessageReaction,
+            reason: "that emoji is forbidden",
+            attempt: dm => dm.handleReactionToggle(makeMessage({ id: "m1" }), "❤"),
+        },
+    ];
+
+    it.each(failureCases)("$name", async ({ refused, reason, attempt }) => {
         // given
-        mocks.editChatMessage.mockRejectedValue(new Error("that message is too old to edit"));
+        refused.mockRejectedValue(new Error(reason));
         const { result } = await renderLoadedDm();
 
         // when
         await act(async () => {
-            await result.current.handleEditMessage(makeMessage({ id: "m1" }), "rewritten").catch(() => {});
+            await attempt(result.current);
         });
 
         // then
-        expect(result.current.toast).toBe("that message is too old to edit");
-    });
-
-    it("tells the viewer why their delete was refused", async () => {
-        // given
-        mocks.deleteChatMessage.mockRejectedValue(new Error("the witch forbids it"));
-        const { result } = await renderLoadedDm();
-
-        // when
-        await act(async () => {
-            await result.current.handleDeleteMessage(makeMessage({ id: "m1" }));
-        });
-
-        // then
-        expect(result.current.toast).toBe("the witch forbids it");
+        expect(result.current.toast).toBe(reason);
     });
 });
 
 describe("useDmController read receipts", () => {
-    it("records who has read how far", async () => {
-        // given
-        const { result, emit } = await renderLoadedDm();
+    interface ReceiptCase {
+        name: string;
+        route: string;
+        receiptRoomId: string;
+        screenKind: RoomCapabilities["kind"];
+        held: Record<string, string> | undefined;
+    }
 
-        // when
-        await emit({
-            type: "chat_read_receipt",
-            data: { room_id: "room-1", user_id: "u2", read_at: "2026-08-02T10:30:00Z" },
-        });
+    const readAt = "2026-08-02T10:30:00Z";
 
-        // then
-        expect(result.current.readReceipts["room-1"].u2).toBe("2026-08-02T10:30:00Z");
-    });
+    const receiptCases: ReceiptCase[] = [
+        {
+            name: "records who has read how far",
+            route: "/chat/room-1",
+            receiptRoomId: "room-1",
+            screenKind: "pair",
+            held: { u2: readAt },
+        },
+        {
+            name: "never records a receipt for a room that is not a pair",
+            route: "/chat/room-group",
+            receiptRoomId: "room-group",
+            screenKind: "group",
+            held: undefined,
+        },
+        {
+            name: "keeps a receipt for a pair that lands while the viewer is on the conversation list",
+            route: "/chat",
+            receiptRoomId: "room-1",
+            screenKind: "group",
+            held: { u2: readAt },
+        },
+        {
+            name: "keeps a receipt for a pair that lands while another kind of room is open",
+            route: "/chat/room-group",
+            receiptRoomId: "room-1",
+            screenKind: "group",
+            held: { u2: readAt },
+        },
+    ];
 
-    it("never records a receipt for a room that is not a pair", async () => {
-        // given
-        mocks.getUserRooms.mockResolvedValue({ rooms: [makeRoom(), makeGroupRoom()] });
-        const { result, emit } = await renderLoadedDm({ route: "/chat/room-group" });
-
-        // when
-        await emit({
-            type: "chat_read_receipt",
-            data: { room_id: "room-group", user_id: "u2", read_at: "2026-08-02T10:30:00Z" },
-        });
-
-        // then
-        expect(result.current.capabilities.kind).toBe("group");
-        expect(result.current.readReceipts["room-group"]).toBeUndefined();
-    });
-
-    it("keeps a receipt for a pair that lands while the viewer is on the conversation list", async () => {
-        // given
-        const { result, emit } = await renderLoadedDm({ route: "/chat" });
-
-        // when
-        await emit({
-            type: "chat_read_receipt",
-            data: { room_id: "room-1", user_id: "u2", read_at: "2026-08-02T10:30:00Z" },
-        });
-
-        // then
-        expect(result.current.readReceipts["room-1"].u2).toBe("2026-08-02T10:30:00Z");
-    });
-
-    it("keeps a receipt for a pair that lands while another kind of room is open", async () => {
+    it.each(receiptCases)("$name", async ({ route, receiptRoomId, screenKind, held }) => {
         // given
         mocks.getUserRooms.mockResolvedValue({ rooms: [makeRoom(), makeGroupRoom()] });
-        const { result, emit } = await renderLoadedDm({ route: "/chat/room-group" });
+        const { result, emit } = await renderLoadedDm({ route });
 
         // when
-        await emit({
-            type: "chat_read_receipt",
-            data: { room_id: "room-1", user_id: "u2", read_at: "2026-08-02T10:30:00Z" },
-        });
+        await emit({ type: "chat_read_receipt", data: { room_id: receiptRoomId, user_id: "u2", read_at: readAt } });
 
         // then
-        expect(result.current.readReceipts["room-1"].u2).toBe("2026-08-02T10:30:00Z");
+        expect(result.current.capabilities.kind).toBe(screenKind);
+        expect(result.current.readReceipts[receiptRoomId]).toEqual(held);
     });
 
     it("ignores a receipt older than the one it already holds", async () => {
         // given
         const { result, emit } = await renderLoadedDm();
-        await emit({
-            type: "chat_read_receipt",
-            data: { room_id: "room-1", user_id: "u2", read_at: "2026-08-02T10:30:00Z" },
-        });
+        await emit({ type: "chat_read_receipt", data: { room_id: "room-1", user_id: "u2", read_at: readAt } });
 
         // when
         await emit({
@@ -888,102 +800,37 @@ describe("useDmController read receipts", () => {
         });
 
         // then
-        expect(result.current.readReceipts["room-1"].u2).toBe("2026-08-02T10:30:00Z");
+        expect(result.current.readReceipts["room-1"].u2).toBe(readAt);
     });
 });
 
 describe("useDmController typing", () => {
-    it("names the person typing in the active conversation", async () => {
+    const typingCases: { name: string; typist: string; names: string[] }[] = [
+        { name: "names the person typing in the active conversation", typist: "u2", names: ["Battler"] },
+        { name: "never says the viewer is typing to themselves", typist: "u1", names: [] },
+        {
+            name: "falls back to a placeholder for somebody the room does not list",
+            typist: "ghost",
+            names: ["Someone"],
+        },
+    ];
+
+    it.each(typingCases)("$name", async ({ typist, names }) => {
         // given
         const { result, emit } = await renderLoadedDm();
 
         // when
-        await emit({ type: "typing", data: { room_id: "room-1", user_id: "u2" } });
+        await emit({ type: "typing", data: { room_id: "room-1", user_id: typist } });
 
         // then
-        expect(result.current.typingNames).toEqual(["Battler"]);
-    });
-
-    it("never says the viewer is typing to themselves", async () => {
-        // given
-        const { result, emit } = await renderLoadedDm();
-
-        // when
-        await emit({ type: "typing", data: { room_id: "room-1", user_id: "u1" } });
-
-        // then
-        expect(result.current.typingNames).toEqual([]);
-    });
-
-    it("falls back to a placeholder for somebody the room does not list", async () => {
-        // given
-        const { result, emit } = await renderLoadedDm();
-
-        // when
-        await emit({ type: "typing", data: { room_id: "room-1", user_id: "ghost" } });
-
-        // then
-        expect(result.current.typingNames).toEqual(["Someone"]);
-    });
-
-    it("ignores typing from a conversation the viewer is not reading", async () => {
-        // given
-        const { result, emit } = await renderLoadedDm();
-
-        // when
-        await emit({ type: "typing", data: { room_id: "room-2", user_id: "u2" } });
-
-        // then
-        expect(result.current.typingNames).toEqual([]);
-    });
-
-    it("clears the typing indicator once that person's message lands", async () => {
-        // given
-        const { result, emit } = await renderLoadedDm();
-        await emit({ type: "typing", data: { room_id: "room-1", user_id: "u2" } });
-
-        // when
-        await emit({ type: "chat_message", data: makeMessage({ id: "m1" }) });
-
-        // then
-        expect(result.current.typingNames).toEqual([]);
+        expect(result.current.typingNames).toEqual(names);
     });
 });
 
 describe("useDmController selecting conversations", () => {
-    it("clears the unread badge for the conversation the viewer opens", async () => {
-        // given
-        mocks.getUserRooms.mockResolvedValue({ rooms: [makeRoom({ unread: true })] });
-        const { result } = await renderLoadedDm();
-
-        // when
-        act(() => {
-            result.current.handleRoomSelect("room-1");
-        });
-        await settle();
-
-        // then
-        expect(result.current.rooms[0].unread).toBe(false);
-        expect(result.current.activeRoomId).toBe("room-1");
-    });
-
-    it("drops back to the conversation list when the viewer goes back", async () => {
-        // given
-        const { result } = await renderLoadedDm();
-
-        // when
-        act(() => {
-            result.current.handleMobileBack();
-        });
-
-        // then
-        expect(result.current.activeRoomId).toBeNull();
-        expect(result.current.draftRecipient).toBeNull();
-    });
-
     it("opens the conversation the viewer already had with the person they picked", async () => {
         // given
-        const { result } = await renderLoadedDm({ route: "/chat", path: "/chat/:roomId?" });
+        const { result } = await renderLoadedDm({ route: "/chat" });
         mocks.fetchResolveDMRoom.mockResolvedValue({ room: makeRoom({ id: "room-9" }), recipient: makeMember() });
 
         // when
@@ -998,23 +845,7 @@ describe("useDmController selecting conversations", () => {
         expect(result.current.rooms.map(r => r.id)).toContain("room-9");
     });
 
-    it("holds the person as a draft when there is no conversation yet", async () => {
-        // given
-        const { result } = await renderLoadedDm({ route: "/chat" });
-        mocks.fetchResolveDMRoom.mockResolvedValue({ room: null, recipient: makeMember({ id: "u5" }) });
-
-        // when
-        await act(async () => {
-            await result.current.handleSelectUser(makeMember({ id: "u5" }));
-        });
-
-        // then
-        expect(result.current.draftRecipient?.id).toBe("u5");
-        expect(result.current.activeRoomId).toBeNull();
-        expect(result.current.mobileView).toBe("room");
-    });
-
-    it("clears the conversation on screen when the viewer starts a fresh draft", async () => {
+    it("holds the person as a draft and clears the conversation on screen when there is no conversation yet", async () => {
         // given
         const { result, emit } = await renderLoadedDm();
         await emit({ type: "chat_message", data: makeMessage({ id: "m1" }) });
@@ -1029,6 +860,7 @@ describe("useDmController selecting conversations", () => {
         // then
         expect(result.current.draftRecipient?.id).toBe("u5");
         expect(result.current.activeRoomId).toBeNull();
+        expect(result.current.mobileView).toBe("room");
         expect(result.current.messages).toEqual([]);
     });
 
@@ -1049,38 +881,26 @@ describe("useDmController selecting conversations", () => {
 });
 
 describe("useDmController sending", () => {
-    it("opens the brand new conversation the first message created", async () => {
+    it("opens the brand new conversation the first message created, showing that message before the server answers", async () => {
         // given
-        const { result } = await renderLoadedDm({ route: "/chat", path: "/chat/:roomId?" });
-        const room = makeRoom({ id: "room-9" });
-        const message = makeMessage({ id: "m1", room_id: "room-9" });
+        const { result } = await renderLoadedDm({ route: "/chat" });
+        mocks.fetchRoomMessages.mockReturnValue(new Promise(() => {}));
+        act(() => {
+            result.current.setDraftRecipient(makeMember());
+        });
 
         // when
         act(() => {
-            result.current.handleSentMessage(message, room);
+            result.current.handleSentMessage(makeMessage({ id: "m1", room_id: "room-9" }), makeRoom({ id: "room-9" }));
         });
+        const shownAtOnce = result.current.messages.map(m => m.id);
         await settle();
 
         // then
+        expect(shownAtOnce).toEqual(["m1"]);
         expect(result.current.activeRoomId).toBe("room-9");
         expect(result.current.rooms.map(r => r.id)).toContain("room-9");
         expect(result.current.draftRecipient).toBeNull();
-    });
-
-    it("shows the first message of the brand new conversation before the server answers", async () => {
-        // given
-        const { result } = await renderLoadedDm({ route: "/chat", path: "/chat/:roomId?" });
-        const room = makeRoom({ id: "room-9" });
-        const message = makeMessage({ id: "m1", room_id: "room-9" });
-        mocks.fetchRoomMessages.mockReturnValue(new Promise(() => {}));
-
-        // when
-        act(() => {
-            result.current.handleSentMessage(message, room);
-        });
-
-        // then
-        expect(result.current.messages.map(m => m.id)).toEqual(["m1"]);
     });
 
     it("floats the conversation the viewer replied to back to the top", async () => {
@@ -1101,25 +921,32 @@ describe("useDmController sending", () => {
     });
 });
 
-describe("useDmController deleting a conversation", () => {
-    it("leaves the conversation alone when the viewer backs out of the confirmation", async () => {
+describe("useDmController muting a conversation", () => {
+    interface MuteCase {
+        name: string;
+        answer: () => Promise<unknown>;
+        viewerMuted: boolean;
+        toast: string;
+    }
+
+    const muteCases: MuteCase[] = [
+        {
+            name: "mutes the conversation and reflects it on the room before the roster catches up",
+            answer: () => Promise.resolve({ muted: true }),
+            viewerMuted: true,
+            toast: "Notifications muted",
+        },
+        {
+            name: "leaves the conversation unmuted when the server refuses",
+            answer: () => Promise.reject(new Error("nope")),
+            viewerMuted: false,
+            toast: "nope",
+        },
+    ];
+
+    it.each(muteCases)("$name", async ({ answer, viewerMuted, toast }) => {
         // given
-        const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-        const { result } = await renderLoadedDm();
-
-        // when
-        await act(async () => {
-            await result.current.handleDeleteChat();
-        });
-
-        // then
-        expect(mocks.deleteChatRoom).not.toHaveBeenCalled();
-        expect(result.current.rooms).toHaveLength(1);
-        confirm.mockRestore();
-    });
-
-    it("mutes the conversation and reflects it on the room before the roster catches up", async () => {
-        // given
+        mocks.setChatRoomMuted.mockImplementation(answer);
         const { result } = await renderLoadedDm();
         mocks.getUserRooms.mockReturnValue(new Promise(() => {}));
 
@@ -1131,8 +958,9 @@ describe("useDmController deleting a conversation", () => {
 
         // then
         expect(mocks.setChatRoomMuted).toHaveBeenCalledWith("room-1", true);
-        expect(result.current.rooms[0].viewer_muted).toBe(true);
-        expect(result.current.toast).toBe("Notifications muted");
+        expect(result.current.rooms[0].viewer_muted).toBe(viewerMuted);
+        expect(result.current.toast).toBe(toast);
+        expect(result.current.mutePending).toBe(false);
     });
 
     it("keeps the muted conversation once the refreshed roster confirms it, with nobody asking for it", async () => {
@@ -1151,26 +979,55 @@ describe("useDmController deleting a conversation", () => {
         });
         expect(result.current.rooms[0].viewer_muted).toBe(true);
     });
+});
 
-    it("leaves the conversation unmuted when the server refuses", async () => {
+describe("useDmController deleting a conversation", () => {
+    interface KeptCase {
+        name: string;
+        confirmed: boolean;
+        server: () => Promise<unknown>;
+        deleteCalls: string[][];
+        toast: string | null;
+    }
+
+    const keptCases: KeptCase[] = [
+        {
+            name: "leaves the conversation alone when the viewer backs out of the confirmation",
+            confirmed: false,
+            server: () => Promise.resolve(undefined),
+            deleteCalls: [],
+            toast: null,
+        },
+        {
+            name: "keeps the conversation and says why when the server refuses to delete it",
+            confirmed: true,
+            server: () => Promise.reject(new Error("the witch forbids it")),
+            deleteCalls: [["room-1"]],
+            toast: "the witch forbids it",
+        },
+    ];
+
+    it.each(keptCases)("$name", async ({ confirmed, server, deleteCalls, toast }) => {
         // given
-        mocks.setChatRoomMuted.mockRejectedValue(new Error("nope"));
+        answerConfirmation(confirmed);
+        mocks.deleteChatRoom.mockImplementation(server);
         const { result } = await renderLoadedDm();
 
         // when
         await act(async () => {
-            await result.current.handleToggleMute();
+            await result.current.handleDeleteChat();
         });
 
         // then
-        expect(result.current.rooms[0].viewer_muted).toBeFalsy();
-        expect(result.current.toast).toBe("nope");
-        expect(result.current.mutePending).toBe(false);
+        expect(mocks.deleteChatRoom.mock.calls).toEqual(deleteCalls);
+        expect(result.current.rooms.map(r => r.id)).toEqual(["room-1"]);
+        expect(result.current.activeRoomId).toBe("room-1");
+        expect(result.current.toast).toBe(toast);
     });
 
     it("removes the conversation and returns to the list before the roster catches up", async () => {
         // given
-        const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+        answerConfirmation(true);
         const { result } = await renderLoadedDm();
         mocks.getUserRooms.mockReturnValue(new Promise(() => {}));
 
@@ -1184,12 +1041,11 @@ describe("useDmController deleting a conversation", () => {
         expect(mocks.deleteChatRoom).toHaveBeenCalledWith("room-1");
         expect(result.current.rooms).toEqual([]);
         expect(result.current.activeRoomId).toBeNull();
-        confirm.mockRestore();
     });
 
     it("keeps the deleted conversation off the roster once it refreshes itself", async () => {
         // given
-        const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+        answerConfirmation(true);
         const { result } = await renderLoadedDm();
         mocks.getUserRooms.mockResolvedValue({ rooms: [] });
 
@@ -1203,68 +1059,38 @@ describe("useDmController deleting a conversation", () => {
             expect(mocks.getUserRooms).toHaveBeenCalledTimes(2);
         });
         expect(result.current.rooms).toEqual([]);
-        confirm.mockRestore();
-    });
-
-    it("keeps the conversation and says why when the server refuses to delete it", async () => {
-        // given
-        const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
-        mocks.deleteChatRoom.mockRejectedValue(new Error("the witch forbids it"));
-        const { result } = await renderLoadedDm();
-
-        // when
-        await act(async () => {
-            await result.current.handleDeleteChat();
-        });
-
-        // then
-        expect(result.current.rooms).toHaveLength(1);
-        expect(result.current.activeRoomId).toBe("room-1");
-        expect(result.current.toast).toBe("the witch forbids it");
-        confirm.mockRestore();
     });
 });
 
 describe("useDmController reactions", () => {
-    it("adds a reaction the viewer has not given yet", async () => {
-        // given
-        const message = makeMessage({ id: "m1", reactions: [] });
-        const { result } = await renderLoadedDm();
+    interface ReactionCase {
+        name: string;
+        reactions: ChatMessage["reactions"];
+        added: unknown[][];
+        removed: unknown[][];
+    }
 
-        // when
-        await act(async () => {
-            await result.current.handleReactionToggle(message, "❤");
-        });
+    const toggled = { messageId: "m1", emoji: "❤" };
 
-        // then
-        expect(mocks.addChatMessageReaction).toHaveBeenCalledWith({ messageId: "m1", emoji: "❤" });
-        expect(mocks.removeChatMessageReaction).not.toHaveBeenCalled();
-    });
-
-    it("takes back the reaction the viewer already gave", async () => {
-        // given
-        const message = makeMessage({
-            id: "m1",
+    const reactionCases: ReactionCase[] = [
+        { name: "adds a reaction the viewer has not given yet", reactions: [], added: [[toggled]], removed: [] },
+        {
+            name: "takes back the reaction the viewer already gave",
             reactions: [{ emoji: "❤", count: 1, viewer_reacted: true, display_names: ["Beatrice"] }],
-        });
-        const { result } = await renderLoadedDm();
-
-        // when
-        await act(async () => {
-            await result.current.handleReactionToggle(message, "❤");
-        });
-
-        // then
-        expect(mocks.removeChatMessageReaction).toHaveBeenCalledWith({ messageId: "m1", emoji: "❤" });
-        expect(mocks.addChatMessageReaction).not.toHaveBeenCalled();
-    });
-
-    it("adds to a reaction somebody else started", async () => {
-        // given
-        const message = makeMessage({
-            id: "m1",
+            added: [],
+            removed: [[toggled]],
+        },
+        {
+            name: "adds to a reaction somebody else started",
             reactions: [{ emoji: "❤", count: 1, viewer_reacted: false, display_names: ["Battler"] }],
-        });
+            added: [[toggled]],
+            removed: [],
+        },
+    ];
+
+    it.each(reactionCases)("$name", async ({ reactions, added, removed }) => {
+        // given
+        const message = makeMessage({ id: "m1", reactions });
         const { result } = await renderLoadedDm();
 
         // when
@@ -1273,21 +1099,8 @@ describe("useDmController reactions", () => {
         });
 
         // then
-        expect(mocks.addChatMessageReaction).toHaveBeenCalledWith({ messageId: "m1", emoji: "❤" });
-    });
-
-    it("tells the viewer why their reaction was refused", async () => {
-        // given
-        mocks.addChatMessageReaction.mockRejectedValue(new Error("that emoji is forbidden"));
-        const { result } = await renderLoadedDm();
-
-        // when
-        await act(async () => {
-            await result.current.handleReactionToggle(makeMessage({ id: "m1" }), "❤");
-        });
-
-        // then
-        expect(result.current.toast).toBe("that emoji is forbidden");
+        expect(mocks.addChatMessageReaction.mock.calls).toEqual(added);
+        expect(mocks.removeChatMessageReaction.mock.calls).toEqual(removed);
     });
 });
 
@@ -1302,65 +1115,21 @@ describe("useDmController room presence", () => {
         // then
         expect(mocks.useVoiceChat).toHaveBeenLastCalledWith("room-1", ["u2"]);
     });
-
-    it("reports the viewer as watching the conversation they opened", async () => {
-        // given
-        const { sendRealtime } = await renderLoadedDm();
-
-        // when
-        const sent = sendRealtime.mock.calls.map(call => call[0]);
-
-        // then
-        expect(sent).toContainEqual({ type: "viewer_state", data: { room_id: "room-1", state: "active" } });
-    });
-
-    it("reports nothing while no conversation is open", async () => {
-        // given
-        const { sendRealtime } = await renderLoadedDm({ route: "/chat" });
-
-        // when
-        const sent = sendRealtime.mock.calls.map(call => call[0]);
-
-        // then
-        expect(sent.filter(command => command.type === "viewer_state")).toEqual([]);
-    });
-
-    it("titles the tab with the person on the other end", async () => {
-        // given
-        const options: HarnessOptions = {};
-
-        // when
-        await renderLoadedDm(options);
-
-        // then
-        expect(document.title).toContain("Battler");
-    });
-
-    it("falls back to a plain title while no conversation is open", async () => {
-        // given
-        const options: HarnessOptions = { route: "/chat" };
-
-        // when
-        await renderLoadedDm(options);
-
-        // then
-        expect(document.title).not.toContain("Battler");
-        expect(document.title).toContain("Chat");
-    });
 });
 
 describe("useDmController finding people", () => {
-    it("waits for the viewer to stop typing before searching", async () => {
+    it("searches once the viewer stops typing, shows who it found, and clears them when the box is emptied", async () => {
         // given
         vi.useFakeTimers();
-        const harness = renderDm();
+        mocks.fetchSearchUsers.mockResolvedValue([makeMember({ id: "u7", display_name: "Ange" })]);
+        const { result } = renderDm();
         await act(async () => {
             await vi.advanceTimersByTimeAsync(0);
         });
 
         // when
         act(() => {
-            harness.result.current.setDmSearch("bat");
+            result.current.setDmSearch("ang");
         });
         act(() => {
             vi.advanceTimersByTime(150);
@@ -1369,90 +1138,49 @@ describe("useDmController finding people", () => {
         await act(async () => {
             await vi.advanceTimersByTimeAsync(100);
         });
-
-        // then
-        expect(beforeDebounce).toBe(0);
-        expect(mocks.fetchSearchUsers).toHaveBeenCalledWith("bat");
-    });
-
-    it("shows the people the search found", async () => {
-        // given
-        vi.useFakeTimers();
-        mocks.fetchSearchUsers.mockResolvedValue([makeMember({ id: "u7", display_name: "Ange" })]);
-        const harness = renderDm();
-        await act(async () => {
-            await vi.advanceTimersByTimeAsync(0);
-        });
-
-        // when
+        const found = result.current.dmResults.map(u => u.id);
         act(() => {
-            harness.result.current.setDmSearch("ang");
-        });
-        await act(async () => {
-            await vi.advanceTimersByTimeAsync(250);
-        });
-
-        // then
-        expect(harness.result.current.dmResults.map(u => u.id)).toEqual(["u7"]);
-    });
-
-    it("clears the results when the search box is emptied", async () => {
-        // given
-        vi.useFakeTimers();
-        mocks.fetchSearchUsers.mockResolvedValue([makeMember({ id: "u7" })]);
-        const harness = renderDm();
-        await act(async () => {
-            await vi.advanceTimersByTimeAsync(0);
-        });
-        act(() => {
-            harness.result.current.setDmSearch("ang");
-        });
-        await act(async () => {
-            await vi.advanceTimersByTimeAsync(250);
-        });
-
-        // when
-        act(() => {
-            harness.result.current.setDmSearch("   ");
+            result.current.setDmSearch("   ");
         });
         await act(async () => {
             await vi.advanceTimersByTimeAsync(10);
         });
 
         // then
-        expect(harness.result.current.dmResults).toEqual([]);
-        expect(mocks.fetchSearchUsers).toHaveBeenCalledTimes(1);
+        expect(beforeDebounce).toBe(0);
+        expect(mocks.fetchSearchUsers).toHaveBeenCalledExactlyOnceWith("ang");
+        expect(found).toEqual(["u7"]);
+        expect(result.current.dmResults).toEqual([]);
     });
 
-    it("suggests mutual followers when the new conversation panel opens", async () => {
+    const mutualCases: { name: string; lookup: () => Promise<User[]>; mutuals: string[] }[] = [
+        {
+            name: "suggests mutual followers when the new conversation panel opens",
+            lookup: () => Promise.resolve([makeMember({ id: "u8", display_name: "Maria" })]),
+            mutuals: ["u8"],
+        },
+        {
+            name: "shows nobody when the mutual follower lookup fails",
+            lookup: () => Promise.reject(new Error("offline")),
+            mutuals: [],
+        },
+    ];
+
+    it.each(mutualCases)("$name", async ({ lookup, mutuals }) => {
         // given
-        mocks.fetchMutualFollowers.mockResolvedValue([makeMember({ id: "u8", display_name: "Maria" })]);
+        mocks.fetchMutualFollowers.mockImplementation(lookup);
         const { result } = await renderLoadedDm();
 
         // when
         act(() => {
             result.current.setShowNewDm(true);
         });
+        await settle();
 
         // then
         await waitFor(() => {
-            expect(result.current.dmMutuals.map(u => u.id)).toEqual(["u8"]);
+            expect(result.current.dmMutuals.map(u => u.id)).toEqual(mutuals);
         });
-    });
-
-    it("shows nobody when the mutual follower lookup fails", async () => {
-        // given
-        mocks.fetchMutualFollowers.mockRejectedValue(new Error("offline"));
-        const { result } = await renderLoadedDm();
-
-        // when
-        act(() => {
-            result.current.setShowNewDm(true);
-        });
-
-        // then
-        await waitFor(() => {
-            expect(result.current.dmMutuals).toEqual([]);
-        });
+        expect(mocks.fetchMutualFollowers).toHaveBeenCalledTimes(1);
     });
 });

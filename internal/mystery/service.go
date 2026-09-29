@@ -2,6 +2,7 @@ package mystery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -122,6 +124,18 @@ func (s *service) audit(ctx context.Context, entry audit.NewEntry) {
 	}
 }
 
+func (s *service) mysteryAuthor(ctx context.Context, mysteryID uuid.UUID) (uuid.UUID, error) {
+	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	if errors.Is(err, dao.ErrNotFound) {
+		return uuid.Nil, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return authorID, nil
+}
+
 func clueBodies(clues []dto.CreateClueRequest) []string {
 	out := make([]string, 0, len(clues))
 	for _, c := range clues {
@@ -153,7 +167,11 @@ func newClues(clues []dto.CreateClueRequest) []spec.NewClue {
 }
 
 func (s *service) ListMysteries(ctx context.Context, sort string, solved *bool, viewerID uuid.UUID, page bounds.Page) (*dto.MysteryListResponse, error) {
-	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("blocked users: %w", err)
+	}
+
 	rows, total, err := s.mysteryRepo.List(ctx, spec.MysteryListFilter{
 		Sort:           sort,
 		Solved:         solved,
@@ -195,12 +213,18 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		return nil, ErrNotFound
 	}
 
-	allClues, _ := s.mysteryRepo.GetClues(ctx, id)
+	allClues, err := s.mysteryRepo.GetClues(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("mystery clues: %w", err)
+	}
 	if allClues == nil {
 		allClues = []dto.MysteryClue{}
 	}
 
-	attemptRows, _ := s.mysteryRepo.GetAttempts(ctx, spec.MysteryAttemptQuery{MysteryID: id, ViewerID: viewerID})
+	attemptRows, err := s.mysteryRepo.GetAttempts(ctx, spec.MysteryAttemptQuery{MysteryID: id, ViewerID: viewerID})
+	if err != nil {
+		return nil, fmt.Errorf("mystery attempts: %w", err)
+	}
 	flatAttempts := make([]dto.MysteryAttempt, len(attemptRows))
 	for i, a := range attemptRows {
 		flatAttempts[i] = dto.MysteryAttempt{
@@ -234,7 +258,10 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		}
 	}
 
-	viewerRole, _ := s.authz.GetRole(ctx, viewerID)
+	viewerRole, err := s.authz.GetRole(ctx, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("viewer role: %w", err)
+	}
 	isGameMaster := viewerID == row.UserID || viewerRole == authz.RoleSuperAdmin
 	if !isGameMaster && !row.Solved && !row.FreeForAll {
 		filtered := make([]dto.MysteryAttempt, 0, len(attempts))
@@ -258,20 +285,31 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 
 	var comments []dto.MysteryCommentResponse
 	if row.Solved {
-		blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-		commentRows, _, _ := s.mysteryRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
+		blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+		if err != nil {
+			return nil, fmt.Errorf("blocked users: %w", err)
+		}
+
+		commentRows, _, err := s.mysteryRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
 			TargetID:       id,
 			ViewerID:       viewerID,
 			Limit:          500,
 			Offset:         0,
 			ExcludeUserIDs: blockedIDs,
 		})
+		if err != nil {
+			return nil, fmt.Errorf("mystery comments: %w", err)
+		}
+
 		if len(commentRows) > 0 {
 			commentIDs := make([]uuid.UUID, len(commentRows))
 			for i, c := range commentRows {
 				commentIDs[i] = c.ID
 			}
-			mediaBatch, _ := s.mysteryRepo.GetCommentMediaBatch(ctx, commentIDs)
+			mediaBatch, err := s.mysteryRepo.GetCommentMediaBatch(ctx, commentIDs)
+			if err != nil {
+				return nil, fmt.Errorf("mystery comment media: %w", err)
+			}
 			flat := make([]dto.MysteryCommentResponse, len(commentRows))
 			for i, c := range commentRows {
 				flat[i] = mysteryCommentToResponse(c, mediaBatch[c.ID])
@@ -287,17 +325,26 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		comments = []dto.MysteryCommentResponse{}
 	}
 
-	attachments, _ := s.mysteryRepo.GetAttachments(ctx, id)
+	attachments, err := s.mysteryRepo.GetAttachments(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("mystery attachments: %w", err)
+	}
 	if attachments == nil {
 		attachments = []dto.MysteryAttachment{}
 	}
 
-	mediaRows, _ := s.mysteryRepo.GetMedia(ctx, id)
+	mediaRows, err := s.mysteryRepo.GetMedia(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("mystery media: %w", err)
+	}
 	mediaList := model.MediaRowsToResponse(mediaRows)
 
 	viewerHasSolved := false
 	if viewerID != uuid.Nil && viewerID != row.UserID {
-		viewerHasSolved, _ = s.mysteryRepo.UserHasWinningAttempt(ctx, spec.MysterySolverQuery{MysteryID: id, UserID: viewerID})
+		viewerHasSolved, err = s.mysteryRepo.UserHasWinningAttempt(ctx, spec.MysterySolverQuery{MysteryID: id, UserID: viewerID})
+		if err != nil {
+			return nil, fmt.Errorf("viewer solved: %w", err)
+		}
 	}
 
 	resp := dto.MysteryDetailResponse{
@@ -394,17 +441,24 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 
 func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateMysteryRequest) error {
 	if !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
-		return fmt.Errorf("not authorised")
+		return ErrNotAuthor
 	}
 	if err := s.contentFilter.Check(ctx, append([]string{req.Title, req.Body}, clueBodies(req.Clues)...)...); err != nil {
 		return err
 	}
 
 	old, err := s.mysteryRepo.GetByID(ctx, id)
-	if err != nil || old == nil {
+	if err != nil {
+		return err
+	}
+	if old == nil {
 		return ErrNotFound
 	}
-	oldClues, _ := s.mysteryRepo.GetClues(ctx, id)
+
+	oldClues, err := s.mysteryRepo.GetClues(ctx, id)
+	if err != nil {
+		return fmt.Errorf("mystery clues: %w", err)
+	}
 
 	contract := old.Knox
 	if req.KnoxContract != nil {

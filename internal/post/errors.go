@@ -9,6 +9,8 @@ import (
 
 var (
 	ErrNotFound         = fmt.Errorf("post not found: %w", dao.ErrNotFound)
+	ErrNotAuthor        = errors.New("not the post author")
+	ErrNotAuthorised    = errors.New("not authorised")
 	ErrEmptyBody        = errors.New("post body cannot be empty")
 	ErrRateLimited      = errors.New("you have reached your daily post limit")
 	ErrInvalidPoll      = errors.New("poll must have between 2 and 10 options")

@@ -391,7 +391,10 @@ func (s *Service) staff(ctx fiber.Ctx) error {
 }
 
 func (s *Service) siteInfo(ctx fiber.Ctx) error {
-	info := s.SiteInfoService.Get(ctx.Context())
+	info, err := s.SiteInfoService.Get(ctx.Context())
+	if err != nil {
+		return utils.InternalError(ctx, "failed to load site info", err)
+	}
 
 	if middleware.PrivateGated(ctx) {
 		info = info.WithoutMemberData()

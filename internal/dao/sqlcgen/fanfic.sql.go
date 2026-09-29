@@ -78,11 +78,19 @@ func (q *Queries) CountFanficChapters(ctx context.Context, fanficID uuid.UUID) (
 }
 
 const countFanficFavourites = `-- name: CountFanficFavourites :one
-SELECT COUNT(*) FROM fanfic_favourites WHERE user_id = $1
+SELECT COUNT(*)
+FROM fanfic_favourites fav
+JOIN fanfics f ON f.id = fav.fanfic_id
+WHERE fav.user_id = $1::uuid AND (f.status != 'draft' OR f.user_id = $2::uuid)
 `
 
-func (q *Queries) CountFanficFavourites(ctx context.Context, userID uuid.UUID) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countFanficFavourites, userID)
+type CountFanficFavouritesParams struct {
+	UserID   uuid.UUID
+	ViewerID uuid.UUID
+}
+
+func (q *Queries) CountFanficFavourites(ctx context.Context, arg CountFanficFavouritesParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countFanficFavourites, arg.UserID, arg.ViewerID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err

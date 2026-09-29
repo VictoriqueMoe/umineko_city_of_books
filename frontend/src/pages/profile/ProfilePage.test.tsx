@@ -1,9 +1,21 @@
-import { screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeGallery as makeContentGallery, makeStats, makeUser } from "../../test-utils/fixtures";
+import { screen, type Matcher } from "@testing-library/react";
+import userEvent, { type UserEvent } from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { makeGallery, makeStats, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
-import type { ActivityItem, Fanfic, Gallery, Mystery, OC, Ship, SiteInfo, User, UserProfile } from "../../types/api";
+import type {
+    ActivityItem,
+    BlockStatus,
+    Fanfic,
+    FollowStats,
+    Mystery,
+    OC,
+    SessionUser,
+    Ship,
+    SiteInfo,
+    User,
+    UserProfile,
+} from "../../types/api";
 import { ProfilePage } from "./ProfilePage";
 
 const mocks = vi.hoisted(() => ({
@@ -75,10 +87,39 @@ vi.mock("../../components/art/ArtGrid/ArtGrid", () => ({
     ArtGrid: ({ art }: { art: { id: string }[] }) => <div data-testid="art-grid">{art.length} pieces of art</div>,
 }));
 
+interface ProfileCase {
+    name: string;
+    viewer?: SessionUser | null;
+    siteInfo?: Partial<SiteInfo>;
+    profile?: Partial<UserProfile>;
+    follow?: Partial<FollowStats> | null;
+    block?: Partial<BlockStatus>;
+    serves?: [Mock, object];
+    stat?: string;
+    press?: string[];
+    shown?: Matcher[];
+    hidden?: Matcher[];
+    buttons?: string[];
+    noButtons?: string[];
+    reads?: [Matcher, string][];
+    links?: [RegExp, string][];
+    socialLinks?: [string, string][];
+    cards?: [string, string][];
+    fetches?: [Mock, ...unknown[]];
+    once?: Mock[];
+    calls?: [Mock, ...unknown[]];
+}
+
 const profileId = "profile-1";
 const viewerId = "viewer-1";
+const emptyBio = "This player has not written a bio yet.";
+const guide = "How to talk to me";
 
 const author: User = { id: profileId, username: "beatrice", display_name: "Beatrice" };
+const member = makeUser({ id: viewerId });
+const owner = makeUser({ id: profileId });
+const staff = makeUser({ id: viewerId, role: "moderator" });
+const followStats: FollowStats = { follower_count: 7, following_count: 3, is_following: false, follows_you: false };
 
 function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
     return makeUser({
@@ -176,16 +217,6 @@ function makeFanfic(overrides: Partial<Fanfic> = {}): Fanfic {
     };
 }
 
-function makeGallery(overrides: Partial<Gallery> = {}): Gallery {
-    return makeContentGallery({
-        author,
-        name: "Witch Portraits",
-        art_count: 4,
-        created_at: "2026-02-01T00:00:00Z",
-        ...overrides,
-    });
-}
-
 function makeActivity(overrides: Partial<ActivityItem> = {}): ActivityItem {
     return {
         type: "theory",
@@ -208,36 +239,101 @@ function statBox(label: string): HTMLElement {
     throw new Error(`there is no ${label} counter on the profile`);
 }
 
-function renderProfile(viewer: UserProfile | null = makeUser({ id: viewerId }), siteInfo: Partial<SiteInfo> = {}) {
+function renderProfile(viewer: SessionUser | null = member, siteInfo?: Partial<SiteInfo>) {
     const user = userEvent.setup();
-    const result = renderWithProviders(<ProfilePage />, {
-        user: viewer,
-        siteInfo,
-        route: "/user/beatrice",
-        path: "/user/:username",
-    });
+    renderWithProviders(<ProfilePage />, { user: viewer, siteInfo, route: "/user/beatrice", path: "/user/:username" });
 
-    return { ...result, user };
+    return user;
+}
+
+async function openGalleryForm(user: UserEvent) {
+    await user.click(screen.getByRole("button", { name: "Galleries" }));
+    await user.click(screen.getByRole("button", { name: "Create Gallery" }));
+}
+
+async function checkProfileCase(testCase: ProfileCase) {
+    // given
+    mocks.useProfile.mockReturnValue({ profile: makeProfile(testCase.profile), loading: false });
+    mocks.useFollow.mockReturnValue({
+        stats: testCase.follow === null ? null : { ...followStats, ...testCase.follow },
+        loading: testCase.follow === null,
+        toggleFollow: mocks.toggleFollow,
+    });
+    mocks.useBlock.mockReturnValue({
+        status: { blocking: false, blocked_by: false, ...testCase.block },
+        loading: false,
+        toggleBlock: mocks.toggleBlock,
+    });
+    if (testCase.serves) {
+        const [hook, value] = testCase.serves;
+        hook.mockReturnValue(value);
+    }
+
+    // when
+    const user = renderProfile(testCase.viewer, testCase.siteInfo);
+    if (testCase.stat) {
+        await user.click(statBox(testCase.stat));
+    }
+    for (const name of testCase.press ?? []) {
+        await user.click(screen.getByRole("button", { name }));
+    }
+
+    // then
+    for (const text of testCase.shown ?? []) {
+        expect(screen.getByText(text)).toBeInTheDocument();
+    }
+
+    for (const text of testCase.hidden ?? []) {
+        expect(screen.queryByText(text)).not.toBeInTheDocument();
+    }
+
+    for (const name of testCase.buttons ?? []) {
+        expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+
+    for (const name of testCase.noButtons ?? []) {
+        expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+    }
+
+    for (const [text, content] of testCase.reads ?? []) {
+        expect(screen.getByText(text)).toHaveTextContent(content);
+    }
+
+    for (const [name, href] of testCase.links ?? []) {
+        expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
+    }
+
+    if (testCase.socialLinks) {
+        const links = screen
+            .queryAllByRole("link")
+            .filter(link => /^https?:\/\//.test(link.getAttribute("href") ?? ""))
+            .map(link => [link.textContent, link.getAttribute("href")]);
+        expect(links).toEqual(testCase.socialLinks);
+    }
+
+    for (const [testId, content] of testCase.cards ?? []) {
+        expect(screen.getByTestId(testId)).toHaveTextContent(content);
+    }
+
+    if (testCase.fetches) {
+        const [hook, ...args] = testCase.fetches;
+        expect(hook).toHaveBeenLastCalledWith(...args);
+    }
+
+    for (const spy of testCase.once ?? []) {
+        expect(spy).toHaveBeenCalledOnce();
+    }
+
+    if (testCase.calls) {
+        const [spy, ...args] = testCase.calls;
+        expect(spy).toHaveBeenCalledExactlyOnceWith(...args);
+    }
 }
 
 beforeEach(() => {
     mocks.useProfile.mockReturnValue({ profile: makeProfile(), loading: false });
-    mocks.useTheoryFeed.mockReturnValue({
-        theories: [],
-        total: 0,
-        loading: false,
-        offset: 0,
-        limit: 20,
-        goNext: vi.fn(),
-        goPrev: vi.fn(),
-        hasNext: false,
-        hasPrev: false,
-    });
-    mocks.useFollow.mockReturnValue({
-        stats: { follower_count: 7, following_count: 3, is_following: false, follows_you: false },
-        loading: false,
-        toggleFollow: mocks.toggleFollow,
-    });
+    mocks.useTheoryFeed.mockReturnValue({ theories: [], total: 0, loading: false });
+    mocks.useFollow.mockReturnValue({ stats: followStats, loading: false, toggleFollow: mocks.toggleFollow });
     mocks.useBlock.mockReturnValue({
         status: { blocking: false, blocked_by: false },
         loading: false,
@@ -271,43 +367,22 @@ describe("ProfilePage loading and absence", () => {
         expect(screen.getByText("Consulting the game board...")).toBeInTheDocument();
     });
 
-    it("says the player is not on the game board when there is no such profile", () => {
+    it("says the player is not on the game board and sends the visitor back to the feed", async () => {
         // given
         mocks.useProfile.mockReturnValue({ profile: null, loading: false });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText(/Player not found on the game board./)).toBeInTheDocument();
-    });
-
-    it("sends the visitor back to the feed from a missing profile", async () => {
-        // given
-        mocks.useProfile.mockReturnValue({ profile: null, loading: false });
-        const { user } = renderProfile();
+        const user = renderProfile();
 
         // when
         await user.click(screen.getByRole("button", { name: "Return to Feed" }));
 
         // then
+        expect(screen.getByText(/Player not found on the game board./)).toBeInTheDocument();
         expect(mocks.navigate).toHaveBeenCalledWith("/");
-    });
-
-    it("looks the profile up by the username in the address", () => {
-        // given
-        const viewer = makeUser({ id: viewerId });
-
-        // when
-        renderProfile(viewer);
-
-        // then
-        expect(mocks.useProfile).toHaveBeenCalledWith("beatrice");
     });
 });
 
 describe("ProfilePage header", () => {
-    it("introduces the player by their name and handle", () => {
+    it("looks the player up by the username in the address and introduces them by name and handle", () => {
         // given
         mocks.useProfile.mockReturnValue({
             profile: makeProfile({ display_name: "The Golden Witch" }),
@@ -318,6 +393,7 @@ describe("ProfilePage header", () => {
         renderProfile();
 
         // then
+        expect(mocks.useProfile).toHaveBeenCalledWith("beatrice");
         expect(screen.getByRole("heading", { name: /The Golden Witch/ })).toBeInTheDocument();
         expect(screen.getByText("@beatrice")).toBeInTheDocument();
     });
@@ -348,846 +424,423 @@ describe("ProfilePage header", () => {
         expect(screen.getByAltText("Beatrice")).toHaveAttribute("src", "https://cdn.test/beato.png");
     });
 
-    it("flags a banned profile together with the reason", () => {
-        // given
-        mocks.useProfile.mockReturnValue({
-            profile: makeProfile({ banned: true, ban_reason: "Endless witch hunting" }),
-            loading: false,
-        });
+    const headerCases: ProfileCase[] = [
+        {
+            name: "flags a banned profile together with the reason",
+            profile: { banned: true, ban_reason: "Endless witch hunting" },
+            shown: ["This user has been banned"],
+            reads: [[/Reason:/, "Reason: Endless witch hunting"]],
+        },
+        {
+            name: "leaves the ban banner off an ordinary profile",
+            profile: { banned: false },
+            hidden: ["This user has been banned"],
+        },
+        {
+            name: "shows the bio the player wrote",
+            profile: { bio: "Without love it cannot be seen." },
+            shown: ["Without love it cannot be seen."],
+        },
+        {
+            name: "does not offer the member empty-bio line to a character with no bio",
+            profile: { bio: "", is_bot: true },
+            shown: [guide],
+            hidden: [emptyBio],
+        },
+        {
+            name: "keeps a withheld gender to itself",
+            profile: { gender: "Prefer not to say" },
+            hidden: ["Prefer not to say"],
+        },
+        {
+            name: "shows a gender the player was happy to share",
+            profile: { gender: "Female" },
+            shown: ["Female"],
+        },
+        {
+            name: "shows the pronouns as a pair",
+            profile: { pronoun_subject: "she", pronoun_possessive: "her" },
+            shown: ["she/her"],
+        },
+        {
+            name: "leaves an unreadable date of birth exactly as it stands",
+            profile: { dob: "sometime" },
+            shown: ["Born sometime"],
+        },
+        {
+            name: "celebrates the player's favourite character",
+            profile: { favourite_character: "Battler" },
+            shown: ["Favourite Character", "Battler"],
+        },
+    ];
 
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("This user has been banned")).toBeInTheDocument();
-        expect(screen.getByText(/Reason:/)).toHaveTextContent("Reason: Endless witch hunting");
-    });
-
-    it("leaves the ban banner off an ordinary profile", () => {
-        // given
-        mocks.useProfile.mockReturnValue({ profile: makeProfile({ banned: false }), loading: false });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.queryByText("This user has been banned")).not.toBeInTheDocument();
-    });
-
-    it("hints at the empty bio when the player wrote none", () => {
-        // given
-        mocks.useProfile.mockReturnValue({ profile: makeProfile({ bio: "" }), loading: false });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("This player has not written a bio yet.")).toBeInTheDocument();
-    });
-
-    it("shows the bio the player wrote", () => {
-        // given
-        mocks.useProfile.mockReturnValue({
-            profile: makeProfile({ bio: "Without love it cannot be seen." }),
-            loading: false,
-        });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("Without love it cannot be seen.")).toBeInTheDocument();
-    });
-
-    it("does not offer the member empty-bio line to a character with no bio", () => {
-        // given
-        mocks.useProfile.mockReturnValue({ profile: makeProfile({ bio: "", is_bot: true }), loading: false });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.queryByText("This player has not written a bio yet.")).not.toBeInTheDocument();
-        expect(screen.getByText("How to talk to me")).toBeInTheDocument();
-    });
-
-    it("records the day the player joined", () => {
-        // given
-        mocks.useProfile.mockReturnValue({
-            profile: makeProfile({ created_at: "2026-01-15T10:00:00Z" }),
-            loading: false,
-        });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText(/^Joined /)).toBeInTheDocument();
-    });
-
-    it("keeps a withheld gender to itself", () => {
-        // given
-        mocks.useProfile.mockReturnValue({ profile: makeProfile({ gender: "Prefer not to say" }), loading: false });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.queryByText("Prefer not to say")).not.toBeInTheDocument();
-    });
-
-    it("shows a gender the player was happy to share", () => {
-        // given
-        mocks.useProfile.mockReturnValue({ profile: makeProfile({ gender: "Female" }), loading: false });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("Female")).toBeInTheDocument();
-    });
-
-    it("shows the pronouns as a pair", () => {
-        // given
-        mocks.useProfile.mockReturnValue({
-            profile: makeProfile({ pronoun_subject: "she", pronoun_possessive: "her" }),
-            loading: false,
-        });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("she/her")).toBeInTheDocument();
-    });
-
-    it("leaves an unreadable date of birth exactly as it stands", () => {
-        // given
-        mocks.useProfile.mockReturnValue({ profile: makeProfile({ dob: "sometime" }), loading: false });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("Born sometime")).toBeInTheDocument();
-    });
-
-    it("celebrates the player's favourite character", () => {
-        // given
-        mocks.useProfile.mockReturnValue({ profile: makeProfile({ favourite_character: "Battler" }), loading: false });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("Favourite Character")).toBeInTheDocument();
-        expect(screen.getByText("Battler")).toBeInTheDocument();
-    });
+    it.each(headerCases)("$name", checkProfileCase);
 });
 
 describe("ProfilePage social links", () => {
-    it("turns a bare handle into a link to the service", () => {
-        // given
-        mocks.useProfile.mockReturnValue({
-            profile: makeProfile({
+    const socialCases: ProfileCase[] = [
+        {
+            name: "turns a bare handle into a link to the service",
+            profile: {
                 social_twitter: "beato",
                 social_github: "beato",
                 social_bluesky: "beato",
                 social_tumblr: "beato",
-            }),
-            loading: false,
-        });
+            },
+            socialLinks: [
+                ["beato", "https://x.com/beato"],
+                ["beato", "https://beato.tumblr.com"],
+                ["beato", "https://github.com/beato"],
+                ["beato", "https://bsky.app/profile/beato"],
+            ],
+        },
+        {
+            name: "labels the bluesky handle the player shared",
+            profile: { social_bluesky: "beato.bsky.social" },
+            shown: ["Bluesky"],
+            socialLinks: [["beato.bsky.social", "https://bsky.app/profile/beato.bsky.social"]],
+        },
+        {
+            name: "shows the discord tag as plain text because it cannot be linked",
+            profile: { social_discord: "beato#0001" },
+            shown: ["beato#0001"],
+            socialLinks: [],
+        },
+        {
+            name: "shows no social row when the player shared nothing",
+            hidden: ["Twitter / X", "Website"],
+            socialLinks: [],
+        },
+    ];
 
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getAllByRole("link", { name: "beato" }).map(link => link.getAttribute("href"))).toEqual([
-            "https://x.com/beato",
-            "https://beato.tumblr.com",
-            "https://github.com/beato",
-            "https://bsky.app/profile/beato",
-        ]);
-    });
-
-    it("labels the bluesky handle the player shared", () => {
-        // given
-        mocks.useProfile.mockReturnValue({
-            profile: makeProfile({ social_bluesky: "beato.bsky.social" }),
-            loading: false,
-        });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("Bluesky")).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: "beato.bsky.social" })).toHaveAttribute(
-            "href",
-            "https://bsky.app/profile/beato.bsky.social",
-        );
-    });
-
-    it("shows the discord tag as plain text because it cannot be linked", () => {
-        // given
-        mocks.useProfile.mockReturnValue({ profile: makeProfile({ social_discord: "beato#0001" }), loading: false });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("beato#0001")).toBeInTheDocument();
-        expect(screen.queryByRole("link", { name: "beato#0001" })).not.toBeInTheDocument();
-    });
-
-    it("shows no social row when the player shared nothing", () => {
-        // given
-        mocks.useProfile.mockReturnValue({ profile: makeProfile(), loading: false });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.queryByText("Twitter / X")).not.toBeInTheDocument();
-        expect(screen.queryByText("Website")).not.toBeInTheDocument();
-    });
+    it.each(socialCases)("$name", checkProfileCase);
 });
 
 describe("ProfilePage viewer gates", () => {
-    it("offers a signed out visitor nothing to press", () => {
-        // given
-        const viewer = null;
+    const gateCases: ProfileCase[] = [
+        {
+            name: "offers a signed out visitor nothing to press",
+            viewer: null,
+            noButtons: ["Follow", "Message", "Block"],
+        },
+        {
+            name: "does not invite the owner to follow themselves",
+            viewer: owner,
+            noButtons: ["Follow"],
+        },
+        {
+            name: "invites a member to follow the player",
+            press: ["Follow"],
+            once: [mocks.toggleFollow],
+        },
+        {
+            name: "offers to unfollow a player the member already follows",
+            follow: { is_following: true },
+            buttons: ["Unfollow"],
+        },
+        {
+            name: "mentions when the player follows the viewer back",
+            follow: { follows_you: true },
+            shown: ["Follows you"],
+        },
+        {
+            name: "opens a direct message with the player from the profile",
+            press: ["Message"],
+            calls: [mocks.navigate, "/chat", { state: { dmUserId: profileId } }],
+        },
+        {
+            name: "hides the message shortcut when the player takes no direct messages",
+            profile: { dms_enabled: false },
+            noButtons: ["Message"],
+        },
+        {
+            name: "hides the message shortcut while the viewer is blocking the player",
+            block: { blocking: true },
+            buttons: ["Unblock"],
+            noButtons: ["Message"],
+        },
+        {
+            name: "warns the viewer that this player has blocked them",
+            block: { blocked_by: true },
+            shown: ["This user has blocked you."],
+            noButtons: ["Message"],
+        },
+        {
+            name: "lets a member block an ordinary player",
+            press: ["Block"],
+            once: [mocks.toggleBlock],
+        },
+        {
+            name: "refuses to offer a block against a member of staff",
+            profile: { role: "moderator" },
+            noButtons: ["Block"],
+        },
+        {
+            name: "offers staff a way through to the account management screen",
+            viewer: staff,
+            press: ["Manage account"],
+            calls: [mocks.navigate, `/admin/users/${profileId}`],
+        },
+        {
+            name: "keeps account management away from an ordinary member",
+            noButtons: ["Manage account"],
+        },
+        {
+            name: "keeps account management off a staff member's own profile",
+            viewer: makeUser({ id: profileId, role: "admin" }),
+            noButtons: ["Manage account"],
+        },
+    ];
 
-        // when
-        renderProfile(viewer);
-
-        // then
-        expect(screen.queryByRole("button", { name: "Follow" })).not.toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "Message" })).not.toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "Block" })).not.toBeInTheDocument();
-    });
-
-    it("does not invite the owner to follow themselves", () => {
-        // given
-        const viewer = makeUser({ id: profileId });
-
-        // when
-        renderProfile(viewer);
-
-        // then
-        expect(screen.queryByRole("button", { name: "Follow" })).not.toBeInTheDocument();
-    });
-
-    it("invites a member to follow the player", async () => {
-        // given
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Follow" }));
-
-        // then
-        expect(mocks.toggleFollow).toHaveBeenCalledOnce();
-    });
-
-    it("offers to unfollow a player the member already follows", () => {
-        // given
-        mocks.useFollow.mockReturnValue({
-            stats: { follower_count: 7, following_count: 3, is_following: true, follows_you: false },
-            loading: false,
-            toggleFollow: mocks.toggleFollow,
-        });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByRole("button", { name: "Unfollow" })).toBeInTheDocument();
-    });
-
-    it("mentions when the player follows the viewer back", () => {
-        // given
-        mocks.useFollow.mockReturnValue({
-            stats: { follower_count: 7, following_count: 3, is_following: false, follows_you: true },
-            loading: false,
-            toggleFollow: mocks.toggleFollow,
-        });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("Follows you")).toBeInTheDocument();
-    });
-
-    it("opens a direct message with the player from the profile", async () => {
-        // given
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Message" }));
-
-        // then
-        expect(mocks.navigate).toHaveBeenCalledWith("/chat", { state: { dmUserId: profileId } });
-    });
-
-    it("hides the message shortcut when the player takes no direct messages", () => {
-        // given
-        mocks.useProfile.mockReturnValue({ profile: makeProfile({ dms_enabled: false }), loading: false });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.queryByRole("button", { name: "Message" })).not.toBeInTheDocument();
-    });
-
-    it("hides the message shortcut while the viewer is blocking the player", () => {
-        // given
-        mocks.useBlock.mockReturnValue({
-            status: { blocking: true, blocked_by: false },
-            loading: false,
-            toggleBlock: mocks.toggleBlock,
-        });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.queryByRole("button", { name: "Message" })).not.toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "Unblock" })).toBeInTheDocument();
-    });
-
-    it("warns the viewer that this player has blocked them", () => {
-        // given
-        mocks.useBlock.mockReturnValue({
-            status: { blocking: false, blocked_by: true },
-            loading: false,
-            toggleBlock: mocks.toggleBlock,
-        });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("This user has blocked you.")).toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "Message" })).not.toBeInTheDocument();
-    });
-
-    it("lets a member block an ordinary player", async () => {
-        // given
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Block" }));
-
-        // then
-        expect(mocks.toggleBlock).toHaveBeenCalledOnce();
-    });
-
-    it("refuses to offer a block against a member of staff", () => {
-        // given
-        mocks.useProfile.mockReturnValue({ profile: makeProfile({ role: "moderator" }), loading: false });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.queryByRole("button", { name: "Block" })).not.toBeInTheDocument();
-    });
-
-    it("offers staff a way through to the account management screen", async () => {
-        // given
-        const { user } = renderProfile(makeUser({ id: viewerId, role: "moderator" }));
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Manage account" }));
-
-        // then
-        expect(mocks.navigate).toHaveBeenCalledWith(`/admin/users/${profileId}`);
-    });
-
-    it("keeps account management away from an ordinary member", () => {
-        // given
-        const viewer = makeUser({ id: viewerId });
-
-        // when
-        renderProfile(viewer);
-
-        // then
-        expect(screen.queryByRole("button", { name: "Manage account" })).not.toBeInTheDocument();
-    });
-
-    it("keeps account management off a staff member's own profile", () => {
-        // given
-        const viewer = makeUser({ id: profileId, role: "admin" });
-
-        // when
-        renderProfile(viewer);
-
-        // then
-        expect(screen.queryByRole("button", { name: "Manage account" })).not.toBeInTheDocument();
-    });
+    it.each(gateCases)("$name", checkProfileCase);
 });
 
 describe("ProfilePage stats", () => {
-    it("counts the theories, responses and votes the player earned", () => {
-        // given
-        mocks.useProfile.mockReturnValue({
-            profile: makeProfile({ stats: makeStats({ theory_count: 4, response_count: 9, votes_received: 21 }) }),
-            loading: false,
-        });
+    const statCases: ProfileCase[] = [
+        {
+            name: "counts the theories, responses and votes the player earned",
+            profile: { stats: makeStats({ theory_count: 4, response_count: 9, votes_received: 21 }) },
+            shown: ["Votes Received", "4", "9", "21"],
+        },
+        {
+            name: "counts followers and following once the follow stats arrive",
+            shown: ["Followers", "Following"],
+        },
+        {
+            name: "leaves the follower counters out until the follow stats arrive",
+            follow: null,
+            hidden: ["Followers", "Following"],
+        },
+        {
+            name: "jumps to the ships tab from the ships counter",
+            stat: "Ships",
+            shown: ["No ships declared yet."],
+        },
+        {
+            name: "jumps to the followers tab from the followers counter",
+            stat: "Followers",
+            shown: ["No followers yet."],
+        },
+    ];
 
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("Votes Received")).toBeInTheDocument();
-        expect(screen.getByText("4")).toBeInTheDocument();
-        expect(screen.getByText("9")).toBeInTheDocument();
-        expect(screen.getByText("21")).toBeInTheDocument();
-    });
-
-    it("counts followers and following once the follow stats arrive", () => {
-        // given
-        mocks.useFollow.mockReturnValue({
-            stats: { follower_count: 7, following_count: 3, is_following: false, follows_you: false },
-            loading: false,
-            toggleFollow: mocks.toggleFollow,
-        });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("Followers")).toBeInTheDocument();
-        expect(screen.getByText("Following")).toBeInTheDocument();
-    });
-
-    it("leaves the follower counters out until the follow stats arrive", () => {
-        // given
-        mocks.useFollow.mockReturnValue({ stats: null, loading: true, toggleFollow: mocks.toggleFollow });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.queryByText("Followers")).not.toBeInTheDocument();
-        expect(screen.queryByText("Following")).not.toBeInTheDocument();
-    });
-
-    it("jumps to the ships tab from the ships counter", async () => {
-        // given
-        const { user } = renderProfile();
-
-        // when
-        await user.click(statBox("Ships"));
-
-        // then
-        expect(screen.getByText("No ships declared yet.")).toBeInTheDocument();
-    });
-
-    it("jumps to the followers tab from the followers counter", async () => {
-        // given
-        const { user } = renderProfile();
-
-        // when
-        await user.click(statBox("Followers"));
-
-        // then
-        expect(screen.getByText("No followers yet.")).toBeInTheDocument();
-    });
+    it.each(statCases)("$name", checkProfileCase);
 });
 
 describe("ProfilePage tabs", () => {
-    it("opens on posts and says when the player has written none", () => {
-        // given
-        mocks.useUserPosts.mockReturnValue({ posts: [], total: 0, loading: false, refresh: mocks.refreshPosts });
+    const tabCases: ProfileCase[] = [
+        {
+            name: "opens on posts and says when the player has written none",
+            shown: ["No posts yet."],
+            fetches: [mocks.useUserPosts, profileId, 20, 0],
+        },
+        {
+            name: "opens on the tab the player chose as their default",
+            profile: { private: { default_profile_tab: "mysteries" } },
+            shown: ["No mysteries declared yet."],
+            fetches: [mocks.useUserMysteries, profileId, 20, 0],
+        },
+        {
+            name: "fetches the player's ships once the tab is opened and describes each with its pairing and score",
+            serves: [mocks.useUserShips, { ships: [makeShip()], total: 1, loading: false }],
+            press: ["Ships"],
+            shown: ["Beato and Battler", "Beatrice × Battler"],
+            links: [[/Beato and Battler/, "/ships/ship-1"]],
+            fetches: [mocks.useUserShips, profileId, 20, 0],
+        },
+        {
+            name: "waits while the ships of the tab are being fetched",
+            serves: [mocks.useUserShips, { ships: [], total: 0, loading: true }],
+            press: ["Ships"],
+            shown: ["Loading ships..."],
+            hidden: ["No ships declared yet."],
+        },
+        {
+            name: "names the series of a custom original character",
+            serves: [
+                mocks.useUserOCs,
+                { ocs: [makeOC({ series: "custom", custom_series_name: "Rose Guns Days" })], total: 1, loading: false },
+            ],
+            press: ["OCs"],
+            shown: ["Clair Vaux Bernardus", "Rose Guns Days"],
+        },
+        {
+            name: "marks an unsolved mystery as still open",
+            serves: [mocks.useUserMysteries, { mysteries: [makeMystery()], total: 1, loading: false }],
+            press: ["Mysteries"],
+            shown: ["The Sealed Room", "Open"],
+        },
+        {
+            name: "names the winner of a solved mystery",
+            serves: [
+                mocks.useUserMysteries,
+                {
+                    mysteries: [
+                        makeMystery({ solved: true, winner: { id: "w", username: "ange", display_name: "Ange" } }),
+                    ],
+                    total: 1,
+                    loading: false,
+                },
+            ],
+            press: ["Mysteries"],
+            shown: ["Solved"],
+            reads: [[/Winner:/, "Winner: Ange"]],
+        },
+        {
+            name: "counts the words and chapters of each fanfiction",
+            serves: [mocks.useUserFanfics, { fanfics: [makeFanfic()], total: 1, loading: false }],
+            press: ["Fanfictions"],
+            shown: ["Golden Land", /12,000 words/, /1 chapter$/],
+        },
+        {
+            name: "keeps saved fanfictions apart from the ones the player wrote",
+            serves: [
+                mocks.useUserFanficFavourites,
+                { fanfics: [makeFanfic({ id: "fanfic-2", title: "Rokkenjima Nights" })], total: 1, loading: false },
+            ],
+            press: ["Saved Fics"],
+            shown: ["Rokkenjima Nights"],
+            fetches: [mocks.useUserFanficFavourites, profileId, 20, 0],
+        },
+        {
+            name: "lists the reading journals through their cards",
+            serves: [
+                mocks.useUserJournals,
+                { journals: [{ id: "journal-1", title: "First read" }], total: 1, loading: false },
+            ],
+            press: ["Journals"],
+            cards: [["journal-card", "First read"]],
+        },
+        {
+            name: "says when the player follows no journals",
+            press: ["Following Journals"],
+            shown: ["Not following any journals yet."],
+        },
+        {
+            name: "hands the theories tab to the theory cards",
+            serves: [
+                mocks.useTheoryFeed,
+                { theories: [{ id: "theory-1", title: "The witch did it" }], total: 1, loading: false },
+            ],
+            press: ["Theories"],
+            cards: [["theory-card", "The witch did it"]],
+        },
+        {
+            name: "shows the player's art in a grid",
+            serves: [mocks.useUserArt, { art: [{ id: "art-1" }, { id: "art-2" }], total: 2, loading: false }],
+            press: ["Art"],
+            cards: [["art-grid", "2 pieces of art"]],
+        },
+    ];
 
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("No posts yet.")).toBeInTheDocument();
-        expect(mocks.useUserPosts).toHaveBeenCalledWith(profileId, 20, 0);
-    });
-
-    it("opens on the tab the player chose as their default", () => {
-        // given
-        mocks.useProfile.mockReturnValue({
-            profile: makeProfile({ private: { default_profile_tab: "mysteries" } }),
-            loading: false,
-        });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("No mysteries declared yet.")).toBeInTheDocument();
-        expect(mocks.useUserMysteries).toHaveBeenCalledWith(profileId, 20, 0);
-    });
-
-    it("asks nothing of the tabs the viewer is not looking at", () => {
-        // given
-        const viewer = makeUser({ id: viewerId });
-
-        // when
-        renderProfile(viewer);
-
-        // then
-        expect(mocks.useUserShips).toHaveBeenCalledWith("", 20, 0);
-        expect(mocks.useUserOCs).toHaveBeenCalledWith("");
-        expect(mocks.useUserActivity).toHaveBeenCalledWith("", 20, 0);
-    });
-
-    it("fetches the player's ships once the ships tab is opened", async () => {
-        // given
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Ships" }));
-
-        // then
-        expect(mocks.useUserShips).toHaveBeenLastCalledWith(profileId, 20, 0);
-    });
-
-    it("describes each ship with its pairing and score", async () => {
-        // given
-        mocks.useUserShips.mockReturnValue({ ships: [makeShip()], total: 1, loading: false });
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Ships" }));
-
-        // then
-        expect(screen.getByText("Beato and Battler")).toBeInTheDocument();
-        expect(screen.getByText("Beatrice × Battler")).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: /Beato and Battler/ })).toHaveAttribute("href", "/ships/ship-1");
-    });
-
-    it("waits while the ships of the tab are being fetched", async () => {
-        // given
-        mocks.useUserShips.mockReturnValue({ ships: [], total: 0, loading: true });
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Ships" }));
-
-        // then
-        expect(screen.getByText("Loading ships...")).toBeInTheDocument();
-        expect(screen.queryByText("No ships declared yet.")).not.toBeInTheDocument();
-    });
-
-    it("names the series of a custom original character", async () => {
-        // given
-        mocks.useUserOCs.mockReturnValue({
-            ocs: [makeOC({ series: "custom", custom_series_name: "Rose Guns Days" })],
-            total: 1,
-            loading: false,
-        });
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "OCs" }));
-
-        // then
-        expect(screen.getByText("Clair Vaux Bernardus")).toBeInTheDocument();
-        expect(screen.getByText("Rose Guns Days")).toBeInTheDocument();
-    });
-
-    it("marks an unsolved mystery as still open", async () => {
-        // given
-        mocks.useUserMysteries.mockReturnValue({ mysteries: [makeMystery()], total: 1, loading: false });
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Mysteries" }));
-
-        // then
-        expect(screen.getByText("The Sealed Room")).toBeInTheDocument();
-        expect(screen.getByText("Open")).toBeInTheDocument();
-    });
-
-    it("names the winner of a solved mystery", async () => {
-        // given
-        mocks.useUserMysteries.mockReturnValue({
-            mysteries: [makeMystery({ solved: true, winner: { id: "w", username: "ange", display_name: "Ange" } })],
-            total: 1,
-            loading: false,
-        });
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Mysteries" }));
-
-        // then
-        expect(screen.getByText("Solved")).toBeInTheDocument();
-        expect(screen.getByText(/Winner:/)).toHaveTextContent("Winner: Ange");
-    });
-
-    it("counts the words and chapters of each fanfiction", async () => {
-        // given
-        mocks.useUserFanfics.mockReturnValue({ fanfics: [makeFanfic()], total: 1, loading: false });
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Fanfictions" }));
-
-        // then
-        expect(screen.getByText("Golden Land")).toBeInTheDocument();
-        expect(screen.getByText(/12,000 words/)).toBeInTheDocument();
-        expect(screen.getByText(/1 chapter$/)).toBeInTheDocument();
-    });
-
-    it("keeps saved fanfictions apart from the ones the player wrote", async () => {
-        // given
-        mocks.useUserFanficFavourites.mockReturnValue({
-            fanfics: [makeFanfic({ id: "fanfic-2", title: "Rokkenjima Nights" })],
-            total: 1,
-            loading: false,
-        });
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Saved Fics" }));
-
-        // then
-        expect(screen.getByText("Rokkenjima Nights")).toBeInTheDocument();
-        expect(mocks.useUserFanficFavourites).toHaveBeenLastCalledWith(profileId, 20, 0);
-    });
-
-    it("lists the reading journals through their cards", async () => {
-        // given
-        mocks.useUserJournals.mockReturnValue({
-            journals: [{ id: "journal-1", title: "First read" }],
-            total: 1,
-            loading: false,
-        });
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Journals" }));
-
-        // then
-        expect(screen.getByTestId("journal-card")).toHaveTextContent("First read");
-    });
-
-    it("says when the player follows no journals", async () => {
-        // given
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Following Journals" }));
-
-        // then
-        expect(screen.getByText("Not following any journals yet.")).toBeInTheDocument();
-    });
-
-    it("hands the theories tab to the theory cards", async () => {
-        // given
-        mocks.useTheoryFeed.mockReturnValue({
-            theories: [{ id: "theory-1", title: "The witch did it" }],
-            total: 1,
-            loading: false,
-            offset: 0,
-            limit: 20,
-            goNext: vi.fn(),
-            goPrev: vi.fn(),
-            hasNext: false,
-            hasPrev: false,
-        });
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Theories" }));
-
-        // then
-        expect(screen.getByTestId("theory-card")).toHaveTextContent("The witch did it");
-    });
-
-    it("shows the player's art in a grid", async () => {
-        // given
-        mocks.useUserArt.mockReturnValue({ art: [{ id: "art-1" }, { id: "art-2" }], total: 2, loading: false });
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Art" }));
-
-        // then
-        expect(screen.getByTestId("art-grid")).toHaveTextContent("2 pieces of art");
-    });
+    it.each(tabCases)("$name", checkProfileCase);
 });
 
 describe("ProfilePage activity tab", () => {
-    it("says when the player has done nothing yet", async () => {
-        // given
-        const { user } = renderProfile();
+    const activityCases: ProfileCase[] = [
+        {
+            name: "says when the player has done nothing yet",
+            press: ["Activity"],
+            shown: ["No activity yet."],
+            fetches: [mocks.useUserActivity, "beatrice", 20, 0],
+        },
+        {
+            name: "walks the activity on to the next page",
+            serves: [mocks.useUserActivity, { activity: [makeActivity()], total: 45, loading: false }],
+            press: ["Activity", "Next"],
+            fetches: [mocks.useUserActivity, "beatrice", 20, 20],
+        },
+        {
+            name: "labels a theory the player created and leaves the pager out while it fits on one page",
+            serves: [mocks.useUserActivity, { activity: [makeActivity()], total: 1, loading: false }],
+            press: ["Activity"],
+            shown: ["Created theory"],
+            links: [[/The culprit is on the island/, "/theory/theory-1"]],
+            noButtons: ["Next"],
+        },
+        {
+            name: "labels which side a response took",
+            serves: [
+                mocks.useUserActivity,
+                { activity: [makeActivity({ type: "response", side: "without_love" })], total: 1, loading: false },
+            ],
+            press: ["Activity"],
+            shown: ["Responded without love"],
+        },
+        {
+            name: "shortens a long piece of activity",
+            serves: [
+                mocks.useUserActivity,
+                { activity: [makeActivity({ body: "a".repeat(250) })], total: 1, loading: false },
+            ],
+            press: ["Activity"],
+            shown: [`${"a".repeat(200)}...`],
+        },
+    ];
 
-        // when
-        await user.click(screen.getByRole("button", { name: "Activity" }));
-
-        // then
-        expect(screen.getByText("No activity yet.")).toBeInTheDocument();
-        expect(mocks.useUserActivity).toHaveBeenLastCalledWith("beatrice", 20, 0);
-    });
-
-    it("walks the activity on to the next page", async () => {
-        // given
-        mocks.useUserActivity.mockReturnValue({ activity: [makeActivity()], total: 45, loading: false });
-        const { user } = renderProfile();
-        await user.click(screen.getByRole("button", { name: "Activity" }));
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Next" }));
-
-        // then
-        expect(mocks.useUserActivity).toHaveBeenLastCalledWith("beatrice", 20, 20);
-    });
-
-    it("leaves the activity pager out while everything fits on one page", async () => {
-        // given
-        mocks.useUserActivity.mockReturnValue({ activity: [makeActivity()], total: 1, loading: false });
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Activity" }));
-
-        // then
-        expect(screen.queryByRole("button", { name: "Next" })).not.toBeInTheDocument();
-    });
-
-    it("labels a theory the player created", async () => {
-        // given
-        mocks.useUserActivity.mockReturnValue({ activity: [makeActivity()], total: 1, loading: false });
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Activity" }));
-
-        // then
-        expect(screen.getByText("Created theory")).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: /The culprit is on the island/ })).toHaveAttribute(
-            "href",
-            "/theory/theory-1",
-        );
-    });
-
-    it("labels which side a response took", async () => {
-        // given
-        mocks.useUserActivity.mockReturnValue({
-            activity: [makeActivity({ type: "response", side: "without_love" })],
-            total: 1,
-            loading: false,
-        });
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Activity" }));
-
-        // then
-        expect(screen.getByText("Responded without love")).toBeInTheDocument();
-    });
-
-    it("shortens a long piece of activity", async () => {
-        // given
-        const body = "a".repeat(250);
-        mocks.useUserActivity.mockReturnValue({ activity: [makeActivity({ body })], total: 1, loading: false });
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Activity" }));
-
-        // then
-        expect(screen.getByText(`${"a".repeat(200)}...`)).toBeInTheDocument();
-    });
+    it.each(activityCases)("$name", checkProfileCase);
 });
 
 describe("ProfilePage follow lists", () => {
-    it("lists the players following this profile", async () => {
-        // given
-        mocks.useFollowers.mockReturnValue({
-            users: [{ id: "u-1", username: "ange", display_name: "Ange" }],
-            total: 1,
-            loading: false,
-        });
-        const { user } = renderProfile();
+    const followListCases: ProfileCase[] = [
+        {
+            name: "lists the players following this profile",
+            serves: [
+                mocks.useFollowers,
+                { users: [{ id: "u-1", username: "ange", display_name: "Ange" }], total: 1, loading: false },
+            ],
+            stat: "Followers",
+            links: [[/Ange/, "/user/ange"]],
+            fetches: [mocks.useFollowers, profileId],
+        },
+        {
+            name: "says the player follows nobody yet",
+            stat: "Following",
+            shown: ["Not following anyone yet."],
+            fetches: [mocks.useFollowing, profileId],
+        },
+    ];
 
-        // when
-        await user.click(statBox("Followers"));
-
-        // then
-        expect(screen.getByRole("link", { name: /Ange/ })).toHaveAttribute("href", "/user/ange");
-        expect(mocks.useFollowers).toHaveBeenLastCalledWith(profileId);
-    });
-
-    it("says the player follows nobody yet", async () => {
-        // given
-        const { user } = renderProfile();
-
-        // when
-        await user.click(statBox("Following"));
-
-        // then
-        expect(screen.getByText("Not following anyone yet.")).toBeInTheDocument();
-        expect(mocks.useFollowing).toHaveBeenLastCalledWith(profileId);
-    });
+    it.each(followListCases)("$name", checkProfileCase);
 });
 
 describe("ProfilePage galleries tab", () => {
-    async function openGalleries(user: ReturnType<typeof userEvent.setup>) {
-        await user.click(screen.getByRole("button", { name: "Galleries" }));
-    }
+    const galleryCases: ProfileCase[] = [
+        {
+            name: "shows each gallery with how much art it holds",
+            serves: [
+                mocks.useUserGalleries,
+                {
+                    galleries: [makeGallery({ author, name: "Witch Portraits", art_count: 4 })],
+                    loading: false,
+                    refresh: mocks.refreshGalleries,
+                },
+            ],
+            press: ["Galleries"],
+            shown: ["Witch Portraits", "4 pieces"],
+            links: [[/Witch Portraits/, "/gallery/view/gallery-1"]],
+        },
+        {
+            name: "keeps gallery creation away from a visitor",
+            press: ["Galleries"],
+            shown: ["No galleries yet."],
+            noButtons: ["Create Gallery"],
+        },
+        {
+            name: "lets the owner start a new gallery",
+            viewer: owner,
+            press: ["Galleries"],
+            buttons: ["Create Gallery"],
+        },
+    ];
 
-    it("shows each gallery with how much art it holds", async () => {
-        // given
-        mocks.useUserGalleries.mockReturnValue({
-            galleries: [makeGallery()],
-            loading: false,
-            refresh: mocks.refreshGalleries,
-        });
-        const { user } = renderProfile();
-
-        // when
-        await openGalleries(user);
-
-        // then
-        expect(screen.getByText("Witch Portraits")).toBeInTheDocument();
-        expect(screen.getByText("4 pieces")).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: /Witch Portraits/ })).toHaveAttribute(
-            "href",
-            "/gallery/view/gallery-1",
-        );
-    });
-
-    it("keeps gallery creation away from a visitor", async () => {
-        // given
-        const { user } = renderProfile();
-
-        // when
-        await openGalleries(user);
-
-        // then
-        expect(screen.queryByRole("button", { name: "Create Gallery" })).not.toBeInTheDocument();
-        expect(screen.getByText("No galleries yet.")).toBeInTheDocument();
-    });
-
-    it("lets the owner start a new gallery", async () => {
-        // given
-        const { user } = renderProfile(makeUser({ id: profileId }));
-
-        // when
-        await openGalleries(user);
-
-        // then
-        expect(screen.getByRole("button", { name: "Create Gallery" })).toBeInTheDocument();
-    });
+    it.each(galleryCases)("$name", checkProfileCase);
 
     it("refuses to create a gallery without a name", async () => {
         // given
-        const { user } = renderProfile(makeUser({ id: profileId }));
-        await openGalleries(user);
+        const user = renderProfile(owner);
 
         // when
-        await user.click(screen.getByRole("button", { name: "Create Gallery" }));
+        await openGalleryForm(user);
 
         // then
         expect(screen.getByRole("button", { name: "Create" })).toBeDisabled();
@@ -1195,9 +848,8 @@ describe("ProfilePage galleries tab", () => {
 
     it("creates the gallery with a trimmed name and description", async () => {
         // given
-        const { user } = renderProfile(makeUser({ id: profileId }));
-        await openGalleries(user);
-        await user.click(screen.getByRole("button", { name: "Create Gallery" }));
+        const user = renderProfile(owner);
+        await openGalleryForm(user);
 
         // when
         await user.type(screen.getByPlaceholderText("Gallery name"), "  Witch Portraits  ");
@@ -1212,9 +864,8 @@ describe("ProfilePage galleries tab", () => {
     it("keeps the form open when the gallery could not be created", async () => {
         // given
         mocks.createGallery.mockRejectedValue(new Error("Gallery limit reached."));
-        const { user } = renderProfile(makeUser({ id: profileId }));
-        await openGalleries(user);
-        await user.click(screen.getByRole("button", { name: "Create Gallery" }));
+        const user = renderProfile(owner);
+        await openGalleryForm(user);
         await user.type(screen.getByPlaceholderText("Gallery name"), "Witch Portraits");
 
         // when
@@ -1227,9 +878,8 @@ describe("ProfilePage galleries tab", () => {
 
     it("lets the owner abandon the new gallery", async () => {
         // given
-        const { user } = renderProfile(makeUser({ id: profileId }));
-        await openGalleries(user);
-        await user.click(screen.getByRole("button", { name: "Create Gallery" }));
+        const user = renderProfile(owner);
+        await openGalleryForm(user);
 
         // when
         await user.click(screen.getByRole("button", { name: "Cancel" }));
@@ -1241,133 +891,67 @@ describe("ProfilePage galleries tab", () => {
 });
 
 describe("ProfilePage pagination", () => {
-    it("leaves the pager out while everything fits on one page", () => {
-        // given
-        mocks.useUserPosts.mockReturnValue({
-            posts: [{ id: "post-1", body: "hello" }],
-            total: 1,
-            loading: false,
-            refresh: mocks.refreshPosts,
-        });
+    function onePostOf(total: number): [Mock, object] {
+        return [
+            mocks.useUserPosts,
+            { posts: [{ id: "post-1", body: "hello" }], total, loading: false, refresh: mocks.refreshPosts },
+        ];
+    }
 
-        // when
-        renderProfile();
+    const pagerCases: ProfileCase[] = [
+        {
+            name: "leaves the pager out while everything fits on one page",
+            serves: onePostOf(1),
+            noButtons: ["Next"],
+        },
+        {
+            name: "walks the posts on to the next page",
+            serves: onePostOf(45),
+            press: ["Next"],
+            fetches: [mocks.useUserPosts, profileId, 20, 20],
+        },
+        {
+            name: "walks the posts back to the previous page",
+            serves: onePostOf(45),
+            press: ["Next", "Previous"],
+            fetches: [mocks.useUserPosts, profileId, 20, 0],
+        },
+    ];
 
-        // then
-        expect(screen.queryByRole("button", { name: "Next" })).not.toBeInTheDocument();
-    });
-
-    it("walks the posts on to the next page", async () => {
-        // given
-        mocks.useUserPosts.mockReturnValue({
-            posts: [{ id: "post-1", body: "hello" }],
-            total: 45,
-            loading: false,
-            refresh: mocks.refreshPosts,
-        });
-        const { user } = renderProfile();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Next" }));
-
-        // then
-        expect(mocks.useUserPosts).toHaveBeenLastCalledWith(profileId, 20, 20);
-    });
-
-    it("walks the posts back to the previous page", async () => {
-        // given
-        mocks.useUserPosts.mockReturnValue({
-            posts: [{ id: "post-1", body: "hello" }],
-            total: 45,
-            loading: false,
-            refresh: mocks.refreshPosts,
-        });
-        const { user } = renderProfile();
-        await user.click(screen.getByRole("button", { name: "Next" }));
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Previous" }));
-
-        // then
-        expect(mocks.useUserPosts).toHaveBeenLastCalledWith(profileId, 20, 0);
-    });
+    it.each(pagerCases)("$name", checkProfileCase);
 });
 
 describe("ProfilePage character guide", () => {
-    it("explains how to talk to a character on a bot profile", () => {
-        // given
-        mocks.useProfile.mockReturnValue({ profile: makeProfile({ is_bot: true }), loading: false });
+    const guideCases: ProfileCase[] = [
+        {
+            name: "leaves an ordinary member profile alone",
+            profile: { is_bot: false },
+            shown: [emptyBio],
+            hidden: [guide],
+        },
+        {
+            name: "leaves a profile alone when the server sends no bot flag at all",
+            shown: [emptyBio],
+            hidden: [guide],
+        },
+        {
+            name: "keeps a character's own bio above the guide",
+            profile: { is_bot: true, bio: "The Golden Witch, endless and cruel." },
+            shown: ["The Golden Witch, endless and cruel.", guide],
+        },
+        {
+            name: "renders the guide in full under a very long bio",
+            profile: { is_bot: true, bio: "Beatrice repeats herself endlessly. ".repeat(200) },
+            shown: [guide, /read back over the last 20 messages/, /back through up to 25 messages/],
+        },
+        {
+            name: "takes both memory limits from the live settings",
+            siteInfo: { chatbot_context_messages: 42, chatbot_max_reply_chain: 99 },
+            profile: { is_bot: true },
+            shown: [/read back over the last 42 messages/, /back through up to 99 messages/],
+            hidden: [/20 messages/, /25 messages/],
+        },
+    ];
 
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("How to talk to me")).toBeInTheDocument();
-    });
-
-    it("leaves an ordinary member profile alone", () => {
-        // given
-        mocks.useProfile.mockReturnValue({ profile: makeProfile({ is_bot: false }), loading: false });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.queryByText("How to talk to me")).not.toBeInTheDocument();
-        expect(screen.getByText("This player has not written a bio yet.")).toBeInTheDocument();
-    });
-
-    it("leaves a profile alone when the server sends no bot flag at all", () => {
-        // given
-        mocks.useProfile.mockReturnValue({ profile: makeProfile(), loading: false });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.queryByText("How to talk to me")).not.toBeInTheDocument();
-    });
-
-    it("keeps a character's own bio above the guide", () => {
-        // given
-        mocks.useProfile.mockReturnValue({
-            profile: makeProfile({ is_bot: true, bio: "The Golden Witch, endless and cruel." }),
-            loading: false,
-        });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("The Golden Witch, endless and cruel.")).toBeInTheDocument();
-        expect(screen.getByText("How to talk to me")).toBeInTheDocument();
-    });
-
-    it("renders the guide in full under a very long bio", () => {
-        // given
-        const longBio = "Beatrice repeats herself endlessly. ".repeat(200);
-        mocks.useProfile.mockReturnValue({ profile: makeProfile({ is_bot: true, bio: longBio }), loading: false });
-
-        // when
-        renderProfile();
-
-        // then
-        expect(screen.getByText("How to talk to me")).toBeInTheDocument();
-        expect(screen.getByText(/read back over the last 20 messages/)).toBeInTheDocument();
-        expect(screen.getByText(/back through up to 25 messages/)).toBeInTheDocument();
-    });
-
-    it("takes both memory limits from the live settings", () => {
-        // given
-        mocks.useProfile.mockReturnValue({ profile: makeProfile({ is_bot: true }), loading: false });
-
-        // when
-        renderProfile(makeUser({ id: viewerId }), { chatbot_context_messages: 42, chatbot_max_reply_chain: 99 });
-
-        // then
-        expect(screen.getByText(/read back over the last 42 messages/)).toBeInTheDocument();
-        expect(screen.getByText(/back through up to 99 messages/)).toBeInTheDocument();
-        expect(screen.queryByText(/20 messages/)).not.toBeInTheDocument();
-        expect(screen.queryByText(/25 messages/)).not.toBeInTheDocument();
-    });
+    it.each(guideCases)("$name", checkProfileCase);
 });

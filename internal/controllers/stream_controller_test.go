@@ -117,10 +117,10 @@ func TestUpdateStreamTitle_ServiceErrors(t *testing.T) {
 			wantBody: "you do not own this stream",
 		},
 		{
-			name:     "internal error",
+			name:     "internal error does not leak the cause",
 			err:      errors.New("boom"),
 			wantCode: http.StatusInternalServerError,
-			wantBody: "stream request failed",
+			wantBody: `{"error":"stream request failed"}`,
 		},
 	}
 

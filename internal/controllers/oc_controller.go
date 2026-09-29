@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/oc"
 
@@ -132,7 +133,7 @@ func (s *Service) listOCs(ctx fiber.Ctx) error {
 
 	result, err := s.OCService.ListOCs(ctx.Context(), viewerID, sort, crackOnly, series, customSeriesName, ownerID, page)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to list ocs")
+		return utils.InternalError(ctx, "failed to list ocs", err)
 	}
 	return ctx.JSON(result)
 }
@@ -149,7 +150,7 @@ func (s *Service) getOC(ctx fiber.Ctx) error {
 		if errors.Is(err, oc.ErrNotFound) {
 			return utils.NotFound(ctx, "oc not found")
 		}
-		return utils.InternalError(ctx, "failed to get oc")
+		return utils.InternalError(ctx, "failed to get oc", err)
 	}
 	return ctx.JSON(result)
 }
@@ -169,7 +170,7 @@ func (s *Service) createOC(ctx fiber.Ctx) error {
 		if errors.Is(err, oc.ErrEmptyName) || errors.Is(err, oc.ErrInvalidSeries) || errors.Is(err, oc.ErrEmptyCustomSeries) || errors.Is(err, oc.ErrDuplicateName) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to create oc")
+		return utils.InternalError(ctx, "failed to create oc", err)
 	}
 	s.Hub.BumpSidebarActivity("ocs")
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
@@ -194,7 +195,10 @@ func (s *Service) updateOC(ctx fiber.Ctx) error {
 		if errors.Is(err, oc.ErrEmptyName) || errors.Is(err, oc.ErrInvalidSeries) || errors.Is(err, oc.ErrEmptyCustomSeries) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to update oc")
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot update this oc")
+		}
+		return utils.InternalError(ctx, "failed to update oc", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -207,9 +211,34 @@ func (s *Service) deleteOC(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
 	if err := s.OCService.DeleteOC(ctx.Context(), id, userID); err != nil {
-		return utils.InternalError(ctx, "failed to delete oc")
+		if errors.Is(err, oc.ErrNotFound) {
+			return utils.NotFound(ctx, "oc not found")
+		}
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot delete this oc")
+		}
+		return utils.InternalError(ctx, "failed to delete oc", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
+}
+
+func ocImageError(ctx fiber.Ctx, err error, msg string) error {
+	if utils.MapFilterError(ctx, err) {
+		return nil
+	}
+	if errors.Is(err, oc.ErrNotFound) {
+		return utils.NotFound(ctx, "oc not found")
+	}
+	if errors.Is(err, oc.ErrNotOwner) {
+		return utils.Forbidden(ctx, "cannot edit this oc")
+	}
+	if errors.Is(err, dao.ErrNotFound) {
+		return utils.NotFound(ctx, "gallery image not found")
+	}
+	if utils.IsUploadRejection(err) {
+		return utils.BadRequest(ctx, err.Error())
+	}
+	return utils.InternalError(ctx, msg, err)
 }
 
 func (s *Service) uploadOCImage(ctx fiber.Ctx) error {
@@ -225,13 +254,13 @@ func (s *Service) uploadOCImage(ctx fiber.Ctx) error {
 	}
 	reader, err := file.Open()
 	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
+		return utils.InternalError(ctx, "failed to read file", err)
 	}
 	defer reader.Close()
 
 	url, err := s.OCService.UploadOCImage(ctx.Context(), ocID, userID, file.Header.Get("Content-Type"), file.Size, reader)
 	if err != nil {
-		return utils.BadRequest(ctx, err.Error())
+		return ocImageError(ctx, err, "failed to upload image")
 	}
 	return ctx.JSON(fiber.Map{"image_url": url})
 }
@@ -249,14 +278,14 @@ func (s *Service) addOCGalleryImage(ctx fiber.Ctx) error {
 	}
 	reader, err := file.Open()
 	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
+		return utils.InternalError(ctx, "failed to read file", err)
 	}
 	defer reader.Close()
 
 	caption := ctx.FormValue("caption")
 	result, err := s.OCService.AddGalleryImage(ctx.Context(), ocID, userID, caption, file.Header.Get("Content-Type"), file.Size, reader)
 	if err != nil {
-		return utils.BadRequest(ctx, err.Error())
+		return ocImageError(ctx, err, "failed to add gallery image")
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(result)
 }
@@ -278,7 +307,7 @@ func (s *Service) updateOCGalleryImage(ctx fiber.Ctx) error {
 	}
 
 	if err := s.OCService.UpdateGalleryImage(ctx.Context(), ocID, imageID, userID, req); err != nil {
-		return utils.BadRequest(ctx, err.Error())
+		return ocImageError(ctx, err, "failed to update gallery image")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -295,7 +324,7 @@ func (s *Service) deleteOCGalleryImage(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
 	if err := s.OCService.DeleteGalleryImage(ctx.Context(), ocID, imageID, userID); err != nil {
-		return utils.BadRequest(ctx, err.Error())
+		return ocImageError(ctx, err, "failed to delete gallery image")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -319,7 +348,10 @@ func (s *Service) voteOC(ctx fiber.Ctx) error {
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return utils.InternalError(ctx, "failed to vote")
+		if errors.Is(err, oc.ErrNotFound) {
+			return utils.NotFound(ctx, "oc not found")
+		}
+		return utils.InternalError(ctx, "failed to vote", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -339,7 +371,7 @@ func (s *Service) favouriteOC(ctx fiber.Ctx) error {
 		if errors.Is(err, oc.ErrNotFound) {
 			return utils.NotFound(ctx, "oc not found")
 		}
-		return utils.InternalError(ctx, "failed to favourite oc")
+		return utils.InternalError(ctx, "failed to favourite oc", err)
 	}
 	return ctx.JSON(fiber.Map{"favourited": favourited})
 }
@@ -367,7 +399,10 @@ func (s *Service) createOCComment(ctx fiber.Ctx) error {
 		if errors.Is(err, oc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to create comment")
+		if errors.Is(err, oc.ErrNotFound) {
+			return utils.NotFound(ctx, "oc not found")
+		}
+		return utils.InternalError(ctx, "failed to create comment", err)
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
@@ -391,7 +426,13 @@ func (s *Service) updateOCComment(ctx fiber.Ctx) error {
 		if errors.Is(err, oc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to update comment")
+		if errors.Is(err, oc.ErrNotFound) {
+			return utils.NotFound(ctx, "comment not found")
+		}
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot update this comment")
+		}
+		return utils.InternalError(ctx, "failed to update comment", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -422,7 +463,7 @@ func (s *Service) listUserOCs(ctx fiber.Ctx) error {
 
 	result, err := s.OCService.ListOCsByUser(ctx.Context(), userID, viewerID, page)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to list user ocs")
+		return utils.InternalError(ctx, "failed to list user ocs", err)
 	}
 	return ctx.JSON(result)
 }
@@ -435,7 +476,7 @@ func (s *Service) listUserOCSummaries(ctx fiber.Ctx) error {
 
 	result, err := s.OCService.ListOCSummariesByUser(ctx.Context(), userID)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to list user oc summaries")
+		return utils.InternalError(ctx, "failed to list user oc summaries", err)
 	}
 	if result == nil {
 		result = []dto.OCSummary{}

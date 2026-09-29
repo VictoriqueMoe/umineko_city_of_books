@@ -2,7 +2,7 @@ package theory
 
 import (
 	"context"
-
+	"errors"
 	"fmt"
 
 	"umineko_city_of_books/internal/audit"
@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/credibility"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/logger"
@@ -124,10 +125,46 @@ func evidenceNotes(evidence []dto.EvidenceInput) []string {
 
 func (s *service) actorName(ctx context.Context, userID uuid.UUID) string {
 	u, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil || u == nil {
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("user_id", userID.String()).Msg("theory notification: actor lookup failed")
+	}
+	if u == nil {
 		return "Someone"
 	}
 	return u.DisplayLabel()
+}
+
+func (s *service) theoryTitle(ctx context.Context, theoryID uuid.UUID) string {
+	title, err := s.repo.GetTheoryTitle(ctx, theoryID)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("theory_id", theoryID.String()).Msg("theory notification: title lookup failed")
+	}
+
+	return title
+}
+
+func (s *service) theoryAuthor(ctx context.Context, theoryID uuid.UUID) (uuid.UUID, error) {
+	authorID, err := s.repo.GetTheoryAuthorID(ctx, theoryID)
+	if errors.Is(err, dao.ErrNotFound) {
+		return uuid.Nil, ErrTheoryNotFound
+	}
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return authorID, nil
+}
+
+func (s *service) responseInfo(ctx context.Context, responseID uuid.UUID) (uuid.UUID, uuid.UUID, error) {
+	authorID, theoryID, err := s.repo.GetResponseInfo(ctx, responseID)
+	if errors.Is(err, dao.ErrNotFound) {
+		return uuid.Nil, uuid.Nil, ErrResponseNotFound
+	}
+	if err != nil {
+		return uuid.Nil, uuid.Nil, err
+	}
+
+	return authorID, theoryID, nil
 }
 
 func (s *service) CreateTheory(ctx context.Context, userID uuid.UUID, req dto.CreateTheoryRequest) (uuid.UUID, error) {
@@ -195,7 +232,7 @@ func (s *service) GetTheoryDetail(ctx context.Context, id uuid.UUID, userID uuid
 	if userID != uuid.Nil {
 		vote, err := s.repo.GetUserTheoryVote(ctx, spec.TheoryVoteLookup{UserID: userID, TheoryID: id})
 		if err != nil {
-			logger.Ctx(ctx).Error().Err(err).Str("theory_id", id.String()).Msg("failed to get user theory vote")
+			return nil, fmt.Errorf("viewer vote: %w", err)
 		}
 		detail.UserVote = vote
 	}
@@ -204,7 +241,11 @@ func (s *service) GetTheoryDetail(ctx context.Context, id uuid.UUID, userID uuid
 }
 
 func (s *service) ListTheories(ctx context.Context, p params.ListParams, userID uuid.UUID) (*dto.TheoryListResponse, error) {
-	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, userID)
+	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("blocked users: %w", err)
+	}
+
 	theories, total, err := s.repo.List(ctx, spec.TheoryListFilter{Params: p, ViewerID: userID, ExcludeUserIDs: blockedIDs})
 	if err != nil {
 		return nil, err
@@ -222,7 +263,7 @@ func (s *service) UpdateTheory(ctx context.Context, id uuid.UUID, userID uuid.UU
 		return err
 	}
 
-	authorID, err := s.repo.GetTheoryAuthorID(ctx, id)
+	authorID, err := s.theoryAuthor(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -260,6 +301,8 @@ func (s *service) UpdateTheory(ctx context.Context, id uuid.UUID, userID uuid.UU
 func (s *service) notifyContentEdited(ctx context.Context, contentID uuid.UUID, contentType string, referenceID uuid.UUID, editorID uuid.UUID) {
 	authorID, err := s.repo.GetTheoryAuthorID(ctx, contentID)
 	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("theory_id", contentID.String()).Msg("edit notification skipped, author lookup failed")
+
 		return
 	}
 	notification.SendEditNotification(ctx, s.userRepo, s.notifService, notification.EditNotifyParams{
@@ -273,7 +316,7 @@ func (s *service) notifyContentEdited(ctx context.Context, contentID uuid.UUID, 
 }
 
 func (s *service) DeleteTheory(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	authorID, err := s.repo.GetTheoryAuthorID(ctx, id)
+	authorID, err := s.theoryAuthor(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -329,11 +372,16 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 		}
 	}
 
-	theoryAuthorID, err := s.repo.GetTheoryAuthorID(ctx, theoryID)
+	theoryAuthorID, err := s.theoryAuthor(ctx, theoryID)
 	if err != nil {
 		return uuid.Nil, err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, theoryAuthorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, theoryAuthorID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
@@ -372,7 +420,6 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 	}()
 
 	go func() {
-		title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
 		if err := s.notifService.Notify(ctx, dto.NotifyParams{
 			RecipientID:   theoryAuthorID,
 			Type:          dto.NotifTheoryResponse,
@@ -381,7 +428,7 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 			ActorID:       userID,
 			EmailActor:    s.actorName(ctx, userID),
 			EmailAction:   "responded to your theory",
-			EmailTitle:    title,
+			EmailTitle:    s.theoryTitle(ctx, theoryID),
 			EmailLink:     fmt.Sprintf("/theory/%s#response-%s", theoryID, responseID),
 		}); err != nil {
 			logger.Ctx(ctx).Warn().Err(err).Msg("notify theory response failed")
@@ -392,9 +439,10 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 		go func() {
 			recipientID, _, err := s.repo.GetResponseInfo(ctx, *req.ParentID)
 			if err != nil {
+				logger.Ctx(ctx).Warn().Err(err).Str("response_id", req.ParentID.String()).Msg("response reply notification skipped, parent lookup failed")
+
 				return
 			}
-			title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
 			if err := s.notifService.Notify(ctx, dto.NotifyParams{
 				RecipientID:   recipientID,
 				Type:          dto.NotifResponseReply,
@@ -403,7 +451,7 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 				ActorID:       userID,
 				EmailActor:    s.actorName(ctx, userID),
 				EmailAction:   "replied to your response",
-				EmailTitle:    title,
+				EmailTitle:    s.theoryTitle(ctx, theoryID),
 				EmailLink:     fmt.Sprintf("/theory/%s#response-%s", theoryID, responseID),
 			}); err != nil {
 				logger.Ctx(ctx).Warn().Err(err).Msg("notify response reply failed")
@@ -455,9 +503,11 @@ func (s *service) resolveEvidenceWeights(ctx context.Context, theoryID uuid.UUID
 }
 
 func (s *service) DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	responseAuthorID, theoryID, _ := s.repo.GetResponseInfo(ctx, id)
+	responseAuthorID, theoryID, err := s.responseInfo(ctx, id)
+	if err != nil {
+		return err
+	}
 
-	var err error
 	if s.authz.Can(ctx, userID, authz.PermDeleteAnyResponse) {
 		err = s.repo.DeleteResponseAsAdmin(ctx, id)
 	} else {
@@ -507,8 +557,11 @@ func (s *service) RefuteTheory(ctx context.Context, theoryID uuid.UUID, userID u
 	}
 
 	meta, err := s.repo.GetResponseMeta(ctx, responseID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return ErrResponseNotOnTheory
+	}
+	if err != nil {
+		return err
 	}
 	if meta.TheoryID != theoryID {
 		return ErrResponseNotOnTheory
@@ -543,7 +596,6 @@ func (s *service) RefuteTheory(ctx context.Context, theoryID uuid.UUID, userID u
 
 	go func() {
 		bgCtx := context.Background()
-		title, _ := s.repo.GetTheoryTitle(bgCtx, theoryID)
 		if err := s.notifService.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   meta.AuthorID,
 			Type:          dto.NotifTheoryRefuted,
@@ -552,7 +604,7 @@ func (s *service) RefuteTheory(ctx context.Context, theoryID uuid.UUID, userID u
 			ActorID:       userID,
 			EmailActor:    s.actorName(bgCtx, userID),
 			EmailAction:   "accepted your response as the refutation",
-			EmailTitle:    title,
+			EmailTitle:    s.theoryTitle(bgCtx, theoryID),
 			EmailLink:     fmt.Sprintf("/theory/%s#response-%s", theoryID, responseID),
 		}); err != nil {
 			logger.Ctx(ctx).Warn().Err(err).Msg("notify theory refuted failed")
@@ -563,11 +615,16 @@ func (s *service) RefuteTheory(ctx context.Context, theoryID uuid.UUID, userID u
 }
 
 func (s *service) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, value int) error {
-	authorID, err := s.repo.GetTheoryAuthorID(ctx, theoryID)
+	authorID, err := s.theoryAuthor(ctx, theoryID)
 	if err != nil {
 		return err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return block.ErrUserBlocked
 	}
 
@@ -577,7 +634,6 @@ func (s *service) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uui
 
 	if value == 1 {
 		go func() {
-			title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
 			if err := s.notifService.Notify(ctx, dto.NotifyParams{
 				RecipientID:   authorID,
 				Type:          dto.NotifTheoryUpvote,
@@ -586,7 +642,7 @@ func (s *service) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uui
 				ActorID:       userID,
 				EmailActor:    s.actorName(ctx, userID),
 				EmailAction:   "upvoted your theory",
-				EmailTitle:    title,
+				EmailTitle:    s.theoryTitle(ctx, theoryID),
 				EmailLink:     fmt.Sprintf("/theory/%s", theoryID),
 			}); err != nil {
 				logger.Ctx(ctx).Warn().Err(err).Msg("notify theory upvote failed")
@@ -598,11 +654,16 @@ func (s *service) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uui
 }
 
 func (s *service) VoteResponse(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, value int) error {
-	respAuthorID, theoryID, err := s.repo.GetResponseInfo(ctx, responseID)
+	respAuthorID, theoryID, err := s.responseInfo(ctx, responseID)
 	if err != nil {
 		return err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, respAuthorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, respAuthorID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return block.ErrUserBlocked
 	}
 
@@ -612,7 +673,6 @@ func (s *service) VoteResponse(ctx context.Context, userID uuid.UUID, responseID
 
 	if value == 1 {
 		go func() {
-			title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
 			if err := s.notifService.Notify(ctx, dto.NotifyParams{
 				RecipientID:   respAuthorID,
 				Type:          dto.NotifResponseUpvote,
@@ -621,7 +681,7 @@ func (s *service) VoteResponse(ctx context.Context, userID uuid.UUID, responseID
 				ActorID:       userID,
 				EmailActor:    s.actorName(ctx, userID),
 				EmailAction:   "upvoted your response",
-				EmailTitle:    title,
+				EmailTitle:    s.theoryTitle(ctx, theoryID),
 				EmailLink:     fmt.Sprintf("/theory/%s#response-%s", theoryID, responseID),
 			}); err != nil {
 				logger.Ctx(ctx).Warn().Err(err).Msg("notify response upvote failed")

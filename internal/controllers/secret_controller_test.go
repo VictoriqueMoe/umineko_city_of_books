@@ -1,10 +1,13 @@
 package controllers
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
 	"umineko_city_of_books/internal/controllers/utils/testutil"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	secretsvc "umineko_city_of_books/internal/secret"
 
@@ -134,6 +137,40 @@ func TestCreateSecretComment_NotFound(t *testing.T) {
 
 	// then
 	require.Equal(t, http.StatusNotFound, status)
+}
+
+func TestUpdateSecretComment_ServiceOutcomes(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"ok", nil, http.StatusNoContent, ""},
+		{"empty body", secretsvc.ErrEmptyBody, http.StatusBadRequest, "empty"},
+		{"not owned", fmt.Errorf("comment not found or not owned: %w", dao.ErrNotFound), http.StatusForbidden, "cannot update this comment"},
+		{"server failure", errors.New("pq: connection refused"), http.StatusInternalServerError, `{"error":"failed to update comment"}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, ms := newSecretHarness(t)
+			userID := uuid.New()
+			commentID := uuid.New()
+			h.ExpectValidSession("valid", userID)
+			ms.EXPECT().UpdateComment(mock.Anything, commentID, userID, dto.UpdateSecretCommentRequest{Body: "hi"}).Return(tc.err)
+
+			// when
+			status, body := h.NewRequest("PUT", "/secret-comments/"+commentID.String()).
+				WithCookie("valid").
+				WithJSONBody(dto.UpdateSecretCommentRequest{Body: "hi"}).
+				Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
 }
 
 func TestDeleteSecretComment_OK(t *testing.T) {

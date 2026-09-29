@@ -216,7 +216,12 @@ func (s *service) graceExpired(userID, roomID uuid.UUID) {
 
 	ctx := context.Background()
 	row, err := s.repo.GetRoom(ctx, roomID)
-	if err != nil || row == nil || row.Status != string(dto.GameStatusActive) {
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Str("user_id", userID.String()).Msg("grace expiry skipped, room lookup failed")
+
+		return
+	}
+	if row == nil || row.Status != string(dto.GameStatusActive) {
 		return
 	}
 	handler, ok := s.handlers[dto.GameType(row.GameType)]
@@ -225,6 +230,8 @@ func (s *service) graceExpired(userID, roomID uuid.UUID) {
 	}
 	slot, err := s.repo.GetPlayerSlot(ctx, spec.GameRoomPlayerRef{RoomID: roomID, UserID: userID})
 	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Str("user_id", userID.String()).Msg("grace expiry skipped, player slot lookup failed")
+
 		return
 	}
 	res := handler.OnGraceExpired(row.StateJSON, slot)

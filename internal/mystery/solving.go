@@ -2,11 +2,14 @@ package mystery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/ws"
 
@@ -14,31 +17,41 @@ import (
 )
 
 func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, attemptID uuid.UUID) error {
-	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	authorID, err := s.mysteryAuthor(ctx, mysteryID)
 	if err != nil {
-		return ErrNotFound
+		return err
 	}
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return ErrNotAuthor
 	}
 
 	attemptAuthorID, err := s.mysteryRepo.GetAttemptAuthorID(ctx, attemptID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return ErrNotFound
 	}
-	attemptMysteryID, err := s.mysteryRepo.GetAttemptMysteryID(ctx, attemptID)
 	if err != nil {
+		return err
+	}
+
+	attemptMysteryID, err := s.mysteryRepo.GetAttemptMysteryID(ctx, attemptID)
+	if errors.Is(err, dao.ErrNotFound) {
 		return ErrNotFound
+	}
+	if err != nil {
+		return err
 	}
 	if attemptMysteryID != mysteryID {
-		return fmt.Errorf("attempt does not belong to this mystery")
+		return ErrAttemptNotOnMystery
 	}
 	if attemptAuthorID == authorID {
-		return fmt.Errorf("cannot select your own attempt as the winner")
+		return ErrOwnAttempt
 	}
 
 	row, err := s.mysteryRepo.GetByID(ctx, mysteryID)
-	if err != nil || row == nil {
+	if err != nil {
+		return err
+	}
+	if row == nil {
 		return ErrNotFound
 	}
 	if row.Solved {
@@ -49,7 +62,7 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 	if alreadyWon, err := s.mysteryRepo.UserHasWinningAttempt(ctx, spec.MysterySolverQuery{MysteryID: mysteryID, UserID: attemptAuthorID}); err != nil {
 		return err
 	} else if alreadyWon {
-		return fmt.Errorf("user has already solved this mystery")
+		return ErrAlreadyWon
 	}
 
 	if err := s.mysteryRepo.MarkSolved(ctx, spec.MysterySolve{MysteryID: mysteryID, AttemptID: attemptID, LockMystery: !ongoing}); err != nil {
@@ -98,7 +111,10 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 		})
 
 		if !ongoing {
-			playerIDs, _ := s.mysteryRepo.GetPlayerIDs(bgCtx, mysteryID)
+			playerIDs, err := s.mysteryRepo.GetPlayerIDs(bgCtx, mysteryID)
+			if err != nil {
+				logger.Ctx(bgCtx).Warn().Err(err).Str("mystery_id", mysteryID.String()).Msg("solved notification to players skipped, player lookup failed")
+			}
 			solvedLink := fmt.Sprintf("/mystery/%s", mysteryID)
 			params := make([]dto.NotifyParams, 0, len(playerIDs))
 			for _, pid := range playerIDs {
@@ -120,35 +136,51 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 			s.notifService.NotifyMany(bgCtx, params)
 		}
 
-		topIDs, err := s.mysteryRepo.GetTopDetectiveIDs(bgCtx)
-		if err == nil {
-			s.hub.Broadcast(ws.Message{
-				Type: "top_detective_changed",
-				Data: map[string]any{
-					"user_ids": topIDs,
-				},
-			})
-		}
+		s.broadcastTopDetectives(bgCtx)
 		if !ongoing {
-			topGMIDs, err := s.mysteryRepo.GetTopGMIDs(bgCtx)
-			if err == nil {
-				s.hub.Broadcast(ws.Message{
-					Type: "top_gm_changed",
-					Data: map[string]any{
-						"user_ids": topGMIDs,
-					},
-				})
-			}
+			s.broadcastTopGMs(bgCtx)
 		}
 	}()
 
 	return nil
 }
 
-func (s *service) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID) error {
-	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+func (s *service) broadcastTopDetectives(ctx context.Context) {
+	topIDs, err := s.mysteryRepo.GetTopDetectiveIDs(ctx)
 	if err != nil {
-		return ErrNotFound
+		logger.Ctx(ctx).Warn().Err(err).Msg("top detective broadcast skipped, lookup failed")
+
+		return
+	}
+
+	s.hub.Broadcast(ws.Message{
+		Type: "top_detective_changed",
+		Data: map[string]any{
+			"user_ids": topIDs,
+		},
+	})
+}
+
+func (s *service) broadcastTopGMs(ctx context.Context) {
+	topGMIDs, err := s.mysteryRepo.GetTopGMIDs(ctx)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Msg("top gm broadcast skipped, lookup failed")
+
+		return
+	}
+
+	s.hub.Broadcast(ws.Message{
+		Type: "top_gm_changed",
+		Data: map[string]any{
+			"user_ids": topGMIDs,
+		},
+	})
+}
+
+func (s *service) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID) error {
+	authorID, err := s.mysteryAuthor(ctx, mysteryID)
+	if err != nil {
+		return err
 	}
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return ErrNotAuthor
@@ -181,15 +213,27 @@ func (s *service) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID
 
 	go func() {
 		bgCtx := context.Background()
+		s.broadcastTopGMs(bgCtx)
+
 		solvedLink := fmt.Sprintf("/mystery/%s", mysteryID)
 
-		solverIDs, _ := s.mysteryRepo.GetSolverIDs(bgCtx, mysteryID)
+		solverIDs, err := s.mysteryRepo.GetSolverIDs(bgCtx, mysteryID)
+		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("mystery_id", mysteryID.String()).Msg("closed notification skipped, solver lookup failed")
+
+			return
+		}
 		solverSet := make(map[uuid.UUID]struct{}, len(solverIDs))
 		for _, sid := range solverIDs {
 			solverSet[sid] = struct{}{}
 		}
 
-		playerIDs, _ := s.mysteryRepo.GetPlayerIDs(bgCtx, mysteryID)
+		playerIDs, err := s.mysteryRepo.GetPlayerIDs(bgCtx, mysteryID)
+		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("mystery_id", mysteryID.String()).Msg("closed notification skipped, player lookup failed")
+
+			return
+		}
 		params := make([]dto.NotifyParams, 0, len(playerIDs))
 		for _, pid := range playerIDs {
 			if _, isSolver := solverSet[pid]; isSolver {
@@ -208,16 +252,6 @@ func (s *service) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID
 			})
 		}
 		s.notifService.NotifyMany(bgCtx, params)
-
-		topGMIDs, err := s.mysteryRepo.GetTopGMIDs(bgCtx)
-		if err == nil {
-			s.hub.Broadcast(ws.Message{
-				Type: "top_gm_changed",
-				Data: map[string]any{
-					"user_ids": topGMIDs,
-				},
-			})
-		}
 	}()
 
 	return nil
@@ -231,9 +265,9 @@ func (s *service) AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.
 		return err
 	}
 
-	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	authorID, err := s.mysteryAuthor(ctx, mysteryID)
 	if err != nil {
-		return ErrNotFound
+		return err
 	}
 	if authorID != userID {
 		return ErrNotAuthor
@@ -243,7 +277,11 @@ func (s *service) AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.
 		req.TruthType = "red"
 	}
 
-	count, _ := s.mysteryRepo.CountClues(ctx, mysteryID)
+	count, err := s.mysteryRepo.CountClues(ctx, mysteryID)
+	if err != nil {
+		return fmt.Errorf("count clues: %w", err)
+	}
+
 	if _, err := s.mysteryRepo.AddClue(ctx, spec.NewMysteryClue{
 		MysteryID: mysteryID,
 		NewClue: spec.NewClue{

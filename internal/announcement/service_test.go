@@ -30,6 +30,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	errMissingRow = errors.Join(errors.New("not found or not owned"), dao.ErrNotFound)
+)
+
 type harness struct {
 	repo         *repository.MockAnnouncementRepository
 	comments     *dao.MockCommentDAO[uuid.UUID]
@@ -142,6 +146,45 @@ func TestService_GetDetail_BuildsTreeFromComments(t *testing.T) {
 	assert.Equal(t, c1, resp.Comments[0].ID)
 	require.Len(t, resp.Comments[0].Replies, 1)
 	assert.Equal(t, c2, resp.Comments[0].Replies[0].ID)
+}
+
+func TestService_GetDetail_AFailedReadIsSurfacedInsteadOfHidingComments(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name       string
+		blockErr   error
+		commentErr error
+		mediaErr   error
+	}{
+		{name: "the viewer's block list", blockErr: boom},
+		{name: "the comments", commentErr: boom},
+		{name: "the comment media", mediaErr: boom},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name+" failing to load", func(t *testing.T) {
+			// given
+			h := newHarness(t)
+			annID := uuid.New()
+			viewerID := uuid.New()
+			commentID := uuid.New()
+			h.repo.EXPECT().GetByID(mock.Anything, annID).Return(&model.AnnouncementRow{ID: annID, Title: "T"}, nil)
+			h.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewerID).Return(nil, tc.blockErr)
+			if tc.blockErr == nil {
+				h.repo.EXPECT().GetComments(mock.Anything, mock.Anything).Return([]model.CommentRow{{ID: commentID}}, 1, tc.commentErr)
+			}
+			if tc.blockErr == nil && tc.commentErr == nil {
+				h.repo.EXPECT().GetCommentMediaBatch(mock.Anything, []uuid.UUID{commentID}).Return(nil, tc.mediaErr)
+			}
+
+			// when
+			got, err := h.svc.GetDetail(context.Background(), annID, viewerID)
+
+			// then
+			assert.ErrorIs(t, err, boom)
+			assert.Nil(t, got)
+		})
+	}
 }
 
 func TestService_GetLatest_NoneReturnsNil(t *testing.T) {
@@ -409,6 +452,39 @@ func TestService_CreateComment_AnnouncementNotFound(t *testing.T) {
 	assert.ErrorIs(t, err, announcement.ErrNotFound)
 }
 
+func TestService_CreateComment_AFailedLookupRefusesTheComment(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name     string
+		getErr   error
+		blockErr error
+	}{
+		{name: "the announcement read", getErr: boom},
+		{name: "the block check against its author", blockErr: boom},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name+" failing is surfaced", func(t *testing.T) {
+			// given
+			h := newHarness(t)
+			annID := uuid.New()
+			authorID := uuid.New()
+			userID := uuid.New()
+			h.repo.EXPECT().GetByID(mock.Anything, annID).Return(&model.AnnouncementRow{ID: annID, AuthorID: authorID}, tc.getErr)
+			if tc.getErr == nil {
+				h.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, tc.blockErr)
+			}
+
+			// when
+			_, err := h.svc.CreateComment(context.Background(), annID, userID, nil, "hi")
+
+			// then
+			assert.ErrorIs(t, err, boom)
+			h.comments.AssertNotCalled(t, "CreateComment", mock.Anything, mock.Anything)
+		})
+	}
+}
+
 func TestService_CreateComment_BlockedAuthor(t *testing.T) {
 	// given
 	h := newHarness(t)
@@ -556,25 +632,51 @@ func TestService_UpdateComment_RejectsEmpty(t *testing.T) {
 	assert.ErrorIs(t, err, announcement.ErrEmptyBody)
 }
 
-func TestService_UpdateComment_NonAuthorIsForbidden(t *testing.T) {
-	// given
-	h := newHarness(t)
-	id := uuid.New()
-	userID := uuid.New()
-	h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
-	h.repo.EXPECT().
-		UpdateCommentBody(mock.Anything, spec.CommentUpdate{
-			CommentID: id,
-			UserID:    userID,
-			Body:      "x",
-		}).
-		Return(errors.New("not yours"))
+func TestService_CommentWriteFailures(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name     string
+		asAdmin  bool
+		writeErr error
+		wantErr  error
+	}{
+		{name: "a comment the caller does not own is forbidden", writeErr: errMissingRow, wantErr: announcement.ErrForbidden},
+		{name: "a missing comment is not found for an admin", asAdmin: true, writeErr: errMissingRow, wantErr: announcement.ErrCommentNotFound},
+		{name: "a database failure is surfaced, not reported as forbidden", writeErr: boom, wantErr: boom},
+		{name: "a database failure is surfaced for an admin too", asAdmin: true, writeErr: boom, wantErr: boom},
+	}
 
-	// when
-	err := h.svc.UpdateComment(context.Background(), id, userID, "x")
+	for _, tc := range cases {
+		t.Run("editing: "+tc.name, func(t *testing.T) {
+			// given
+			h := newHarness(t)
+			id := uuid.New()
+			userID := uuid.New()
+			h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(tc.asAdmin)
+			h.repo.EXPECT().UpdateCommentBody(mock.Anything, spec.CommentUpdate{CommentID: id, UserID: userID, Body: "x", AsAdmin: tc.asAdmin}).Return(tc.writeErr)
 
-	// then
-	assert.ErrorIs(t, err, announcement.ErrForbidden)
+			// when
+			err := h.svc.UpdateComment(context.Background(), id, userID, "x")
+
+			// then
+			assert.ErrorIs(t, err, tc.wantErr)
+		})
+
+		t.Run("deleting: "+tc.name, func(t *testing.T) {
+			// given
+			h := newHarness(t)
+			id := uuid.New()
+			userID := uuid.New()
+			h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(tc.asAdmin)
+			h.repo.EXPECT().DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{CommentID: id, UserID: userID, AsAdmin: tc.asAdmin}).Return(nil, tc.writeErr)
+
+			// when
+			err := h.svc.DeleteComment(context.Background(), id, userID)
+
+			// then
+			assert.ErrorIs(t, err, tc.wantErr)
+		})
+	}
 }
 
 func TestService_DeleteComment_AsAuthor(t *testing.T) {
@@ -613,34 +715,39 @@ func TestService_DeleteComment_AsAdmin(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestService_DeleteComment_NonAuthorIsForbidden(t *testing.T) {
-	// given
-	h := newHarness(t)
-	id := uuid.New()
-	userID := uuid.New()
-	h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
-	h.repo.EXPECT().
-		DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{CommentID: id, UserID: userID}).
-		Return(nil, errors.New("not yours"))
+func TestService_LikeComment_LookupFailures(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name      string
+		lookupErr error
+		blockErr  error
+		wantErr   error
+	}{
+		{name: "a missing comment is not found", lookupErr: errMissingRow, wantErr: announcement.ErrCommentNotFound},
+		{name: "a failed comment lookup is surfaced, not reported as not found", lookupErr: boom, wantErr: boom},
+		{name: "a failed block check refuses the like", blockErr: boom, wantErr: boom},
+	}
 
-	// when
-	err := h.svc.DeleteComment(context.Background(), id, userID)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h := newHarness(t)
+			commentID := uuid.New()
+			authorID := uuid.New()
+			userID := uuid.New()
+			h.repo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, tc.lookupErr)
+			if tc.lookupErr == nil {
+				h.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, tc.blockErr)
+			}
 
-	// then
-	assert.ErrorIs(t, err, announcement.ErrForbidden)
-}
+			// when
+			err := h.svc.LikeComment(context.Background(), userID, commentID)
 
-func TestService_LikeComment_NotFound(t *testing.T) {
-	// given
-	h := newHarness(t)
-	commentID := uuid.New()
-	h.repo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.Nil, errors.New("not found"))
-
-	// when
-	err := h.svc.LikeComment(context.Background(), uuid.New(), commentID)
-
-	// then
-	assert.ErrorIs(t, err, announcement.ErrCommentNotFound)
+			// then
+			assert.ErrorIs(t, err, tc.wantErr)
+			h.repo.AssertNotCalled(t, "LikeComment", mock.Anything, mock.Anything)
+		})
+	}
 }
 
 func TestService_LikeComment_Blocked(t *testing.T) {
@@ -709,17 +816,31 @@ func TestService_UnlikeComment_Delegates(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestService_UploadCommentMedia_NotFound(t *testing.T) {
-	// given
-	h := newHarness(t)
-	commentID := uuid.New()
-	h.repo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.Nil, errors.New("nope"))
+func TestService_UploadCommentMedia_LookupFailures(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name      string
+		lookupErr error
+		wantErr   error
+	}{
+		{name: "a missing comment is not found", lookupErr: errMissingRow, wantErr: announcement.ErrCommentNotFound},
+		{name: "a failed comment lookup is surfaced, not reported as not found", lookupErr: boom, wantErr: boom},
+	}
 
-	// when
-	_, err := h.svc.UploadCommentMedia(context.Background(), commentID, uuid.New(), "image/png", "photo.png", 10, strings.NewReader("x"), false)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h := newHarness(t)
+			commentID := uuid.New()
+			h.repo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.Nil, tc.lookupErr)
 
-	// then
-	assert.ErrorIs(t, err, announcement.ErrCommentNotFound)
+			// when
+			_, err := h.svc.UploadCommentMedia(context.Background(), commentID, uuid.New(), "image/png", "photo.png", 10, strings.NewReader("x"), false)
+
+			// then
+			assert.ErrorIs(t, err, tc.wantErr)
+		})
+	}
 }
 
 func TestService_UploadCommentMedia_NotAuthor(t *testing.T) {

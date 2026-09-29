@@ -94,7 +94,7 @@ func TestStartWatchParty_ServiceErrors(t *testing.T) {
 		{"not member", chatsvc.ErrNotMember, http.StatusForbidden, "not a member"},
 		{"wrong room type", chatsvc.ErrWatchPartyWrongRoomType, http.StatusBadRequest, "group chat rooms"},
 		{"room not found", chatsvc.ErrRoomNotFound, http.StatusNotFound, "room not found"},
-		{"internal", errors.New("boom"), http.StatusInternalServerError, "watch party request failed"},
+		{"internal does not leak the cause", errors.New("boom"), http.StatusInternalServerError, `{"error":"watch party request failed"}`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

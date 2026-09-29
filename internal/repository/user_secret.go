@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
@@ -31,7 +32,11 @@ func (r *userSecretRepository) Unlock(ctx context.Context, s spec.SecretUnlock, 
 		return err
 	}
 
-	return r.cache.Del(ctx, cache.SecretHolders.Key(s.SecretID), cache.SecretSolved.Key(s.SecretID))
+	if err := r.cache.Del(ctx, cache.SecretHolders.Key(s.SecretID), cache.SecretSolved.Key(s.SecretID)); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Str("secret_id", s.SecretID).Msg("failed to invalidate secret caches after an unlock")
+	}
+
+	return nil
 }
 
 func (r *userSecretRepository) GetUserIDsWithSecret(ctx context.Context, secretID string, tx ...*sql.Tx) ([]uuid.UUID, error) {
@@ -64,5 +69,9 @@ func (r *userSecretRepository) DeleteSecrets(ctx context.Context, secretIDs []st
 		keys = append(keys, cache.SecretHolders.Key(id), cache.SecretSolved.Key(id))
 	}
 
-	return r.cache.Del(ctx, keys...)
+	if err := r.cache.Del(ctx, keys...); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Strs("secret_ids", secretIDs).Msg("failed to invalidate secret caches after deleting secrets")
+	}
+
+	return nil
 }

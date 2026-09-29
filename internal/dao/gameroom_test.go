@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -59,6 +60,27 @@ func TestGameRoomDAO_SetState_OnlyWritesToAnActiveRoom(t *testing.T) {
 			assert.JSONEq(t, tc.wantState, got.StateJSON)
 		})
 	}
+}
+
+func TestGameRoomDAO_GetPlayerSlot_AnOutsiderReadsAsNotFound(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	alice := daotest.CreateUser(t, repos, daotest.WithDisplayName("Alice"))
+	outsider := daotest.CreateUser(t, repos, daotest.WithDisplayName("Outsider"))
+	ctx := context.Background()
+
+	room, err := repos.GameRoom.CreateRoom(ctx, spec.NewGameRoom{GameType: "chess", InitialStateJSON: "{}", CreatedBy: alice.ID})
+	require.NoError(t, err)
+	require.NoError(t, repos.GameRoom.AddPlayer(ctx, spec.NewGameRoomPlayer{RoomID: room.ID, UserID: alice.ID, Slot: 1, Joined: true}))
+
+	// when
+	aliceSlot, aliceErr := repos.GameRoom.GetPlayerSlot(ctx, spec.GameRoomPlayerRef{RoomID: room.ID, UserID: alice.ID})
+	_, outsiderErr := repos.GameRoom.GetPlayerSlot(ctx, spec.GameRoomPlayerRef{RoomID: room.ID, UserID: outsider.ID})
+
+	// then
+	require.NoError(t, aliceErr)
+	assert.Equal(t, 1, aliceSlot)
+	require.ErrorIs(t, outsiderErr, dao.ErrNotFound)
 }
 
 func TestGameRoomRepository_StartWritesStateOntoTheNowActiveRoom(t *testing.T) {

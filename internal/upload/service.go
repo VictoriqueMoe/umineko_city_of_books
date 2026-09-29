@@ -135,7 +135,7 @@ func (s *service) saveMedia(
 	reader io.Reader,
 ) (string, error) {
 	if fileSize > maxSize {
-		return "", fmt.Errorf("file size %dMB exceeds maximum %dMB", fileSize/(1024*1024), maxSize/(1024*1024))
+		return "", fmt.Errorf("%w: file size %dMB exceeds maximum %dMB", ErrFileTooLarge, fileSize/(1024*1024), maxSize/(1024*1024))
 	}
 
 	sniffed, wrapped, err := DetectContentType(reader)
@@ -221,7 +221,7 @@ func (s *service) SaveAudio(_ context.Context, subDir string, id uuid.UUID, file
 
 func (s *service) SaveAttachment(_ context.Context, subDir string, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
 	if fileSize > maxSize {
-		return "", fmt.Errorf("file size %dMB exceeds maximum %dMB", fileSize/(1024*1024), maxSize/(1024*1024))
+		return "", fmt.Errorf("%w: file size %dMB exceeds maximum %dMB", ErrFileTooLarge, fileSize/(1024*1024), maxSize/(1024*1024))
 	}
 
 	sniffed, wrapped, err := DetectContentType(reader)

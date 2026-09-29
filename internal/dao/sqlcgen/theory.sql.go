@@ -14,8 +14,8 @@ import (
 )
 
 const addTheoryEvidence = `-- name: AddTheoryEvidence :exec
-INSERT INTO theory_evidence (theory_id, audio_id, quote_index, note, sort_order)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO theory_evidence (theory_id, audio_id, quote_index, note, sort_order, lang)
+VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type AddTheoryEvidenceParams struct {
@@ -24,6 +24,7 @@ type AddTheoryEvidenceParams struct {
 	QuoteIndex sql.NullInt32
 	Note       string
 	SortOrder  int32
+	Lang       string
 }
 
 func (q *Queries) AddTheoryEvidence(ctx context.Context, arg AddTheoryEvidenceParams) error {
@@ -33,6 +34,7 @@ func (q *Queries) AddTheoryEvidence(ctx context.Context, arg AddTheoryEvidencePa
 		arg.QuoteIndex,
 		arg.Note,
 		arg.SortOrder,
+		arg.Lang,
 	)
 	return err
 }

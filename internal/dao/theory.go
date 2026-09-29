@@ -9,7 +9,6 @@ import (
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
@@ -355,19 +354,19 @@ func (r *theoryDAO) List(ctx context.Context, q spec.TheoryListFilter, tx ...*sq
 
 	voteScores, err := r.theoryVoteScoresBatch(ctx, ids, tx...)
 	if err != nil {
-		logger.Ctx(ctx).Error().Err(err).Msg("failed to get theory vote counts")
+		return nil, 0, fmt.Errorf("theory vote scores: %w", err)
 	}
 
 	sideCounts, err := r.responseSideCountsBatch(ctx, ids, tx...)
 	if err != nil {
-		logger.Ctx(ctx).Error().Err(err).Msg("failed to get response side counts")
+		return nil, 0, fmt.Errorf("theory response side counts: %w", err)
 	}
 
 	var userVotes map[uuid.UUID]int
 	if q.ViewerID != uuid.Nil {
 		userVotes, err = r.userTheoryVotesBatch(ctx, q.ViewerID, ids, tx...)
 		if err != nil {
-			logger.Ctx(ctx).Error().Err(err).Msg("failed to get user theory vote")
+			return nil, 0, fmt.Errorf("viewer theory votes: %w", err)
 		}
 	}
 
@@ -410,7 +409,7 @@ func (r *theoryDAO) UpdateTheory(ctx context.Context, s spec.TheoryUpdate, tx ..
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("theory not found or not owned by user")
+		return fmt.Errorf("theory not found or not owned by user: %w", ErrNotFound)
 	}
 
 	return nil
@@ -430,6 +429,7 @@ func (r *theoryDAO) ReplaceTheoryEvidence(ctx context.Context, s spec.TheoryEvid
 			QuoteIndex: theoryQuoteIndexParam(ev.QuoteIndex),
 			Note:       ev.Note,
 			SortOrder:  int32(i),
+			Lang:       langOrDefault(ev.Lang),
 		})
 		if err != nil {
 			return fmt.Errorf("insert evidence: %w", err)
@@ -449,7 +449,7 @@ func (r *theoryDAO) Delete(ctx context.Context, s spec.OwnedDeletion, tx ...*sql
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("theory not found or not owned by user")
+		return fmt.Errorf("theory not found or not owned by user: %w", ErrNotFound)
 	}
 
 	return nil
@@ -523,7 +523,7 @@ func (r *theoryDAO) DeleteResponse(ctx context.Context, s spec.OwnedDeletion, tx
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("response not found or not owned by user")
+		return fmt.Errorf("response not found or not owned by user: %w", ErrNotFound)
 	}
 
 	return nil
@@ -559,14 +559,14 @@ func (r *theoryDAO) GetResponses(ctx context.Context, q spec.TheoryResponseQuery
 
 	voteScores, err := r.responseVoteScoresBatch(ctx, ids, tx...)
 	if err != nil {
-		logger.Ctx(ctx).Error().Err(err).Msg("failed to get response vote counts")
+		return nil, fmt.Errorf("response vote scores: %w", err)
 	}
 
 	var userVotes map[uuid.UUID]int
 	if q.ViewerID != uuid.Nil {
 		userVotes, err = r.userResponseVotesBatch(ctx, q.ViewerID, ids, tx...)
 		if err != nil {
-			logger.Ctx(ctx).Error().Err(err).Msg("failed to get user response vote")
+			return nil, fmt.Errorf("viewer response votes: %w", err)
 		}
 	}
 
@@ -768,6 +768,9 @@ func (r *theoryDAO) responseSideCountsBatch(ctx context.Context, theoryIDs []uui
 
 func (r *theoryDAO) GetTheoryAuthorID(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	userID, err := genQueries(r.db, tx).GetTheoryAuthorID(ctx, theoryID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return uuid.Nil, fmt.Errorf("get theory author: %w", ErrNotFound)
+	}
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get theory author: %w", err)
 	}
@@ -777,6 +780,9 @@ func (r *theoryDAO) GetTheoryAuthorID(ctx context.Context, theoryID uuid.UUID, t
 
 func (r *theoryDAO) GetResponseInfo(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, uuid.UUID, error) {
 	row, err := genQueries(r.db, tx).GetTheoryResponseInfo(ctx, responseID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return uuid.Nil, uuid.Nil, fmt.Errorf("get response info: %w", ErrNotFound)
+	}
 	if err != nil {
 		return uuid.Nil, uuid.Nil, fmt.Errorf("get response info: %w", err)
 	}
@@ -786,6 +792,9 @@ func (r *theoryDAO) GetResponseInfo(ctx context.Context, responseID uuid.UUID, t
 
 func (r *theoryDAO) GetTheorySeries(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (string, error) {
 	series, err := genQueries(r.db, tx).GetTheorySeries(ctx, theoryID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("get theory series: %w", ErrNotFound)
+	}
 	if err != nil {
 		return "", fmt.Errorf("get theory series: %w", err)
 	}
@@ -795,6 +804,9 @@ func (r *theoryDAO) GetTheorySeries(ctx context.Context, theoryID uuid.UUID, tx 
 
 func (r *theoryDAO) GetTheoryTitle(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (string, error) {
 	title, err := genQueries(r.db, tx).GetTheoryTitle(ctx, theoryID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("get theory title: %w", ErrNotFound)
+	}
 	if err != nil {
 		return "", fmt.Errorf("get theory title: %w", err)
 	}
@@ -921,6 +933,9 @@ func (r *theoryDAO) MarkRefuted(ctx context.Context, s spec.TheoryRefutation, tx
 
 func (r *theoryDAO) GetResponseMeta(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx) (model.ResponseMeta, error) {
 	row, err := genQueries(r.db, tx).GetTheoryResponseMeta(ctx, responseID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return model.ResponseMeta{}, fmt.Errorf("get response meta: %w", ErrNotFound)
+	}
 	if err != nil {
 		return model.ResponseMeta{}, fmt.Errorf("get response meta: %w", err)
 	}

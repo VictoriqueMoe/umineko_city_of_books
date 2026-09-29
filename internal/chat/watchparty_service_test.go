@@ -115,7 +115,7 @@ func TestStartWatchParty_OK(t *testing.T) {
 		HyperbeamSessionID: "hb_sess_1", EmbedURL: "https://hb/embed", Status: "active", Title: "Movie night",
 	}, nil)
 
-	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return(nil, nil).Twice()
+	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return(nil, nil).Once()
 	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: userID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: userID, HasControl: true}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil)
 	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: userID, Body: "Someone is hosting a watch party: Movie night"}).Return(&model.ChatMessageRow{ID: uuid.New()}, nil)
@@ -247,7 +247,7 @@ func TestStartWatchParty_FallsBackToAnotherRegionWhenTheFirstIsFull(t *testing.T
 		HyperbeamSessionID: "hb_sess_1", EmbedURL: "https://hb/embed", Status: "active",
 	}, nil)
 
-	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return(nil, nil).Twice()
+	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return(nil, nil).Once()
 	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: userID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: userID, HasControl: true}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil)
 	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: userID, Body: "Someone is hosting a watch party: Untitled party"}).Return(&model.ChatMessageRow{ID: uuid.New()}, nil)
@@ -334,6 +334,53 @@ func TestJoinWatchParty_OK(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	require.Equal(t, "https://hb.example/sess?token=u", resp.EmbedURL)
+}
+
+func TestJoinWatchParty_AFailedParticipantBadgeLookupIsSurfaced(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name      string
+		roleErr   error
+		vanityErr error
+	}{
+		{name: "the joiner's site role", roleErr: boom},
+		{name: "the joiner's vanity roles", vanityErr: boom},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name+" failing is surfaced instead of rendering the joiner without a badge", func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			roomID := uuid.New()
+			sessionID := uuid.New()
+			joinerID := uuid.New()
+
+			m.hyperbeamSvc.EXPECT().Enabled().Return(true)
+			m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: joinerID}).Return(true, nil)
+			m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&model.ChatWatchPartySessionRow{
+				ID: sessionID, RoomID: roomID, ControllerID: uuid.New(), HyperbeamSessionID: "hb", Status: "active",
+				VMBaseURL: "https://hb.example/sess", EmbedURL: "https://hb.example/sess?token=u",
+			}, nil)
+			m.hyperbeamSvc.EXPECT().GetVMStatus(mock.Anything, "hb").Return(&hyperbeam.VMStatus{SessionID: "hb"}, nil)
+			m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: joinerID}).Return(nil, nil).Once()
+			m.watchPartyRepo.EXPECT().UpsertParticipant(mock.Anything, mock.Anything).Return(nil)
+			m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: sessionID, UserID: joinerID}).Return(true, nil)
+			m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: joinerID}).Return(&model.ChatWatchPartyParticipantRow{
+				SessionID: sessionID, UserID: joinerID, Username: "joiner",
+			}, nil)
+			m.roleRepo.EXPECT().GetRole(mock.Anything, joinerID).Return("", tc.roleErr)
+			if tc.roleErr == nil {
+				m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, joinerID).Return(nil, tc.vanityErr)
+			}
+
+			// when
+			resp, err := svc.JoinWatchParty(context.Background(), roomID, sessionID, joinerID)
+
+			// then
+			require.ErrorIs(t, err, boom)
+			assert.Nil(t, resp)
+		})
+	}
 }
 
 func TestJoinWatchParty_NotFound(t *testing.T) {
@@ -473,6 +520,33 @@ func TestGrantWatchPartyControl_ModCannotReclaimFromAdmin(t *testing.T) {
 
 	// then mod cannot outrank admin
 	require.ErrorIs(t, err, ErrWatchPartyOutranked)
+}
+
+func TestGrantWatchPartyControl_AFailedControllerRoleLookupNeverLetsTheCallerOutrankThem(t *testing.T) {
+	// given a moderator caller and an admin controller whose role cannot be read
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	sessionID := uuid.New()
+	modID := uuid.New()
+	adminID := uuid.New()
+	ownerID := uuid.New()
+	boom := errors.New("role lookup failed")
+
+	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: modID}).Return(true, nil)
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&model.ChatWatchPartySessionRow{
+		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: adminID, HyperbeamSessionID: "hb", Status: "active",
+	}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: modID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: modID, HasControl: false}, nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, modID).Return(role.RoleModerator, nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, adminID).Return("", boom)
+
+	// when
+	err := svc.GrantWatchPartyControl(context.Background(), roomID, sessionID, modID, modID)
+
+	// then the failure is surfaced and control is never transferred
+	require.ErrorIs(t, err, boom)
+	m.watchPartyRepo.AssertNotCalled(t, "TransferControl", mock.Anything, mock.Anything)
 }
 
 func TestGrantWatchPartyControl_SuperAdminControllerIsUntouchable(t *testing.T) {

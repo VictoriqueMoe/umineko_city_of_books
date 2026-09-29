@@ -49,16 +49,27 @@ func (s *moderationService) enforceBannedWords(ctx context.Context, roomID, send
 	}); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("room_id", roomID.String()).Msg("failed to audit word filter hit")
 	}
-	if match.Action == contentfilter.BannedWordActionKick && !s.isBotSender(ctx, senderID) {
-		evicts, err := s.roomEvictsOnBannedWord(ctx, roomID)
+	if match.Action == contentfilter.BannedWordActionKick {
+		isBot, err := s.isBotSender(ctx, senderID)
 		if err != nil {
 			return err
 		}
 
+		evicts := false
+		if !isBot {
+			evicts, err = s.roomEvictsOnBannedWord(ctx, roomID)
+			if err != nil {
+				return err
+			}
+		}
+
 		if evicts {
 			targetName := s.displayNameFor(ctx, senderID, roomID)
+			if err := s.evictUserFromRoom(ctx, roomID, senderID, "the word filter matched a banned word"); err != nil {
+				return fmt.Errorf("word filter kick: %w", err)
+			}
+
 			s.postRoomActionMessage(ctx, roomID, senderID, fmt.Sprintf("%s was kicked by the word filter.", targetName))
-			_ = s.evictUserFromRoom(ctx, roomID, senderID, "the word filter matched a banned word")
 			s.notifyAutomatedKick(roomID, senderID, match.Pattern)
 		}
 	}
@@ -77,13 +88,16 @@ func (s *moderationService) roomEvictsOnBannedWord(ctx context.Context, roomID u
 	return capabilitiesFor(room.Type).evictsOnBannedWord, nil
 }
 
-func (s *moderationService) isBotSender(ctx context.Context, senderID uuid.UUID) bool {
+func (s *moderationService) isBotSender(ctx context.Context, senderID uuid.UUID) (bool, error) {
 	sender, err := s.userRepo.GetByID(ctx, senderID)
-	if err != nil || sender == nil {
-		return false
+	if err != nil {
+		return false, fmt.Errorf("get sender: %w", err)
+	}
+	if sender == nil {
+		return false, nil
 	}
 
-	return sender.IsBot
+	return sender.IsBot, nil
 }
 
 func (s *moderationService) banUserFromRoom(ctx context.Context, roomID, targetID uuid.UUID, actorID *uuid.UUID, reason string) error {
@@ -153,7 +167,10 @@ func (s *moderationService) notifyAutomatedKick(roomID, targetID uuid.UUID, patt
 
 func (s *moderationService) lookupRoomName(ctx context.Context, roomID uuid.UUID) string {
 	row, err := s.chatRepo.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: uuid.Nil})
-	if err != nil || row == nil || row.Name == "" {
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("moderation notice: room name lookup failed")
+	}
+	if row == nil || row.Name == "" {
 		return "the chat room"
 	}
 	return row.Name
@@ -184,11 +201,12 @@ func (s *moderationService) BanMember(ctx context.Context, actorID, roomID, targ
 	} else {
 		message = fmt.Sprintf("%s was banned.", targetName)
 	}
-	s.postRoomActionMessage(ctx, roomID, actorID, message)
 
 	if err := s.banUserFromRoom(ctx, roomID, targetID, &actorID, reason); err != nil {
 		return err
 	}
+
+	s.postRoomActionMessage(ctx, roomID, actorID, message)
 
 	details := fmt.Sprintf("reason=%s", reason)
 	if err := s.auditRepo.Create(ctx, audit.NewEntry{
@@ -518,8 +536,11 @@ func (s *moderationService) updateBannedWord(ctx context.Context, ruleID uuid.UU
 	}
 	s.bannedWordsRule.Invalidate(ruleID)
 	row, err := s.bannedWordRepo.GetByID(ctx, ruleID)
-	if err != nil || row == nil {
+	if err != nil {
 		return nil, fmt.Errorf("fetch updated banned word: %w", err)
+	}
+	if row == nil {
+		return nil, ErrRoomNotFound
 	}
 	return new(bannedWordRowToResponse(*row)), nil
 }

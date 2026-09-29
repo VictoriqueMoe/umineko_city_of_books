@@ -1,15 +1,33 @@
 import { screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
-import type { Chatbot, ChatbotBasePrompt, ChatbotChannelUsage, ChatbotUsage, SiteSettings } from "../../types/api";
+import type {
+    Chatbot,
+    ChatbotBasePrompt,
+    ChatbotChannelUsage,
+    ChatbotPayload,
+    ChatbotUsage,
+    SiteSettings,
+} from "../../types/api";
 import { AdminChatbots } from "./AdminChatbots";
 import styles from "./AdminChatbots.module.css";
+
+type FieldEntry = [label: string, value: string];
 
 const FAILURE_NOTE =
     "Failures are almost always a model id the provider does not recognise, a revoked or expired API key, or a quota that has run out.";
 
-const SAVED_KEY = "********";
+const KEY_SAVED: SiteSettings = { chatbot_api_key: "********" };
+
+const NO_KEY: SiteSettings = {};
+
+const IDENTITY: FieldEntry[] = [
+    ["Username", "beato"],
+    ["Display Name", "Beato"],
+];
+
+const LOCKED_FIELDS = ["Username", "Display Name", "System Prompt", "Model", "Reasoning Effort", "Max Output Tokens"];
 
 const mocks = vi.hoisted(() => ({
     useChatbots: vi.fn(),
@@ -91,10 +109,6 @@ function makeChannel(overrides: Partial<ChatbotChannelUsage> = {}): ChatbotChann
     };
 }
 
-function stubBots(bots: Chatbot[], loading = false) {
-    mocks.useChatbots.mockReturnValue({ bots, loading, refresh: vi.fn() });
-}
-
 function makeBasePrompt(overrides: Partial<ChatbotBasePrompt> = {}): ChatbotBasePrompt {
     return {
         id: "base-1",
@@ -105,6 +119,10 @@ function makeBasePrompt(overrides: Partial<ChatbotBasePrompt> = {}): ChatbotBase
         updated_at: "2026-08-11T00:00:00Z",
         ...overrides,
     };
+}
+
+function stubBots(bots: Chatbot[], loading = false) {
+    mocks.useChatbots.mockReturnValue({ bots, loading, refresh: vi.fn() });
 }
 
 function stubBasePrompts(basePrompts: ChatbotBasePrompt[]) {
@@ -129,6 +147,30 @@ function stubModels(models: string[], loading = false, refresh = vi.fn(), models
 
 function stubSettings(settings: SiteSettings) {
     mocks.useAdminSettings.mockReturnValue({ settings, loading: false, refresh: vi.fn() });
+}
+
+function renderPage(): UserEvent {
+    const user = userEvent.setup();
+    renderWithProviders(<AdminChatbots />);
+
+    return user;
+}
+
+async function renderAndClick(button: string): Promise<UserEvent> {
+    const user = renderPage();
+    await user.click(screen.getByRole("button", { name: button }));
+
+    return user;
+}
+
+async function fillIn(user: UserEvent, typed: FieldEntry[], selected: FieldEntry[] = []): Promise<void> {
+    for (const [label, value] of typed) {
+        await user.type(screen.getByLabelText(label), value);
+    }
+
+    for (const [label, value] of selected) {
+        await user.selectOptions(screen.getByLabelText(label), value);
+    }
 }
 
 function modelOptions(input: HTMLElement): string[] {
@@ -166,175 +208,15 @@ beforeEach(() => {
     mocks.createBase.mockResolvedValue(undefined);
     mocks.updateBase.mockResolvedValue(undefined);
     mocks.removeBase.mockResolvedValue(undefined);
+    stubBots([]);
     stubBasePrompts([]);
     stubUsage(null, true);
     stubModels(["gpt-5.6-luna"]);
-    stubSettings({ chatbot_api_key: SAVED_KEY });
+    stubSettings(KEY_SAVED);
     mocks.checkUsername.mockImplementation((username: string) => Promise.resolve({ username, available: true }));
 });
 
-describe("AdminChatbots base prompts", () => {
-    it("says so when no base prompt has been written yet", () => {
-        // given
-        stubBots([]);
-        stubBasePrompts([]);
-
-        // when
-        renderWithProviders(<AdminChatbots />);
-
-        // then
-        expect(screen.getByText("No base prompts yet.")).toBeInTheDocument();
-    });
-
-    it("lists a base prompt with how many bots extend it", () => {
-        // given
-        stubBots([]);
-        stubBasePrompts([makeBasePrompt({ name: "game witch", bot_count: 3 })]);
-
-        // when
-        renderWithProviders(<AdminChatbots />);
-
-        // then
-        expect(screen.getByText("game witch")).toBeInTheDocument();
-        expect(screen.getByText(/3 bots/)).toBeInTheDocument();
-    });
-
-    it("creates a base prompt from the name and text typed into the form", async () => {
-        // given
-        stubBots([]);
-        stubBasePrompts([]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Create Base Prompt" }));
-        await user.type(screen.getByLabelText("Name"), "game witch");
-        await user.type(screen.getByLabelText("Prompt"), "You are a witch of the game boards.");
-        await user.click(screen.getByRole("button", { name: "Save" }));
-
-        // then
-        expect(mocks.createBase).toHaveBeenCalledWith({
-            name: "game witch",
-            prompt: "You are a witch of the game boards.",
-        });
-    });
-
-    it("saves an edit against the base prompt it came from", async () => {
-        // given
-        stubBots([]);
-        stubBasePrompts([makeBasePrompt({ id: "base-9", name: "game witch" })]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Edit game witch" }));
-        await user.clear(screen.getByLabelText("Name"));
-        await user.type(screen.getByLabelText("Name"), "voyager");
-        await user.click(screen.getByRole("button", { name: "Save" }));
-
-        // then
-        expect(mocks.updateBase).toHaveBeenCalledWith({
-            id: "base-9",
-            data: { name: "voyager", prompt: "You are a witch of the game boards." },
-        });
-    });
-
-    it("refuses to delete a base prompt that bots still extend", async () => {
-        // given
-        stubBots([]);
-        stubBasePrompts([makeBasePrompt({ name: "game witch", bot_count: 2 })]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Delete game witch" }));
-
-        // then
-        expect(mocks.removeBase).not.toHaveBeenCalled();
-        expect(screen.getByText(/still used by 2 bot/)).toBeInTheDocument();
-    });
-
-    it("sends the base prompt chosen on the bot form", async () => {
-        // given
-        stubBots([]);
-        stubBasePrompts([makeBasePrompt({ id: "base-7", name: "game witch" })]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
-        await user.type(screen.getByLabelText("Username"), "beato");
-        await user.type(screen.getByLabelText("Display Name"), "Beato");
-        await user.type(screen.getByLabelText("System Prompt"), "You are the Golden Witch.");
-        await user.selectOptions(screen.getByLabelText("Base Prompt"), "base-7");
-        await user.click(screen.getByRole("button", { name: "Save" }));
-
-        // then
-        expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ base_prompt_id: "base-7" }));
-    });
-
-    it("preloads the base prompt a bot already extends when editing it", async () => {
-        // given
-        stubBots([makeBot({ id: "bot-5", base_prompt_id: "base-7" })]);
-        stubBasePrompts([makeBasePrompt({ id: "base-7", name: "game witch" })]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Edit Beatrice" }));
-
-        // then
-        expect(screen.getByLabelText("Base Prompt")).toHaveValue("base-7");
-    });
-
-    it("asks before deleting an unused base prompt", async () => {
-        // given
-        stubBots([]);
-        stubBasePrompts([makeBasePrompt({ id: "base-4", name: "game witch", bot_count: 0 })]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Delete game witch" }));
-
-        // then
-        expect(screen.getByText('Delete the base prompt "game witch"?')).toBeInTheDocument();
-        expect(mocks.removeBase).not.toHaveBeenCalled();
-    });
-
-    it("deletes an unused base prompt once it is confirmed", async () => {
-        // given
-        stubBots([]);
-        stubBasePrompts([makeBasePrompt({ id: "base-4", bot_count: 0 })]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Delete game witch" }));
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Delete" }));
-
-        // then
-        expect(mocks.removeBase).toHaveBeenCalledWith("base-4");
-    });
-
-    it("leaves the base prompt alone when the delete is cancelled", async () => {
-        // given
-        stubBots([]);
-        stubBasePrompts([makeBasePrompt({ id: "base-4", bot_count: 0 })]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Delete game witch" }));
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Cancel" }));
-
-        // then
-        expect(mocks.removeBase).not.toHaveBeenCalled();
-        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    });
-});
-
-describe("AdminChatbots list", () => {
+describe("AdminChatbots page", () => {
     it("waits while the bots are being fetched", () => {
         // given
         stubBots([], true);
@@ -346,23 +228,28 @@ describe("AdminChatbots list", () => {
         expect(screen.getByText("Loading chatbots...")).toBeInTheDocument();
     });
 
-    it("says so when no bot has been built yet", () => {
+    it("says so when no bot or base prompt exists yet and waits on every usage range", () => {
         // given
         stubBots([]);
+        stubBasePrompts([]);
+        stubUsage(null, true);
 
         // when
         renderWithProviders(<AdminChatbots />);
 
         // then
         expect(screen.getByText("No chatbots yet.")).toBeInTheDocument();
+        expect(screen.getByText("No base prompts yet.")).toBeInTheDocument();
+        expect(screen.getAllByText("Loading...")).toHaveLength(3);
     });
 
-    it("lists each bot with its name, handle and enabled state", () => {
+    it("lists every bot and base prompt, naming each row control after the bot it acts on", () => {
         // given
         stubBots([
             makeBot({ display_name: "Beatrice", username: "beatrice", enabled: true }),
             makeBot({ id: "bot-2", display_name: "Bernkastel", username: "bern", enabled: false }),
         ]);
+        stubBasePrompts([makeBasePrompt({ name: "game witch", bot_count: 3 })]);
 
         // when
         renderWithProviders(<AdminChatbots />);
@@ -374,69 +261,129 @@ describe("AdminChatbots list", () => {
         expect(screen.getByText("@bern")).toBeInTheDocument();
         expect(screen.getByRole("switch", { name: "Enabled Beatrice" })).toHaveAttribute("aria-checked", "true");
         expect(screen.getByRole("switch", { name: "Enabled Bernkastel" })).toHaveAttribute("aria-checked", "false");
-    });
-
-    it("names every row control after the bot it acts on", () => {
-        // given
-        stubBots([makeBot({ display_name: "Beatrice" }), makeBot({ id: "bot-2", display_name: "Bernkastel" })]);
-
-        // when
-        renderWithProviders(<AdminChatbots />);
-
-        // then
         expect(screen.getByRole("button", { name: "Edit Beatrice" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Delete Beatrice" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Edit Bernkastel" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Delete Bernkastel" })).toBeInTheDocument();
+        expect(screen.getByText("game witch")).toBeInTheDocument();
+        expect(screen.getByText(/3 bots/)).toBeInTheDocument();
     });
+});
 
-    it("switches a bot off without opening the form", async () => {
+describe("AdminChatbots base prompts", () => {
+    it("creates a base prompt from the name and text typed into the form", async () => {
         // given
-        stubBots([makeBot({ id: "bot-7", model: "gpt-5", reasoning_effort: "high", max_output_tokens: 2048 })]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-
-        // when
-        await user.click(screen.getByRole("switch", { name: "Enabled Beatrice" }));
-
-        // then
-        expect(mocks.update).toHaveBeenCalledWith({
-            id: "bot-7",
-            data: expect.objectContaining({
-                username: "beatrice",
-                model: "gpt-5",
-                reasoning_effort: "high",
-                max_output_tokens: 2048,
-                enabled: false,
-            }),
-        });
-    });
-
-    it("switches the bot that was clicked and no other", async () => {
-        // given
-        stubBots([
-            makeBot({ id: "bot-1", display_name: "Beatrice", enabled: true }),
-            makeBot({ id: "bot-2", display_name: "Bernkastel", username: "bern", enabled: false }),
+        const user = await renderAndClick("Create Base Prompt");
+        await fillIn(user, [
+            ["Name", "game witch"],
+            ["Prompt", "You are a witch of the game boards."],
         ]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
 
         // when
-        await user.click(screen.getByRole("switch", { name: "Enabled Bernkastel" }));
+        await user.click(screen.getByRole("button", { name: "Save" }));
 
         // then
-        expect(mocks.update).toHaveBeenCalledWith({
-            id: "bot-2",
-            data: expect.objectContaining({ username: "bern", enabled: true }),
+        expect(mocks.createBase).toHaveBeenCalledWith({
+            name: "game witch",
+            prompt: "You are a witch of the game boards.",
         });
     });
+
+    it("saves an edit against the base prompt it came from", async () => {
+        // given
+        stubBasePrompts([makeBasePrompt({ id: "base-9", name: "game witch" })]);
+        const user = await renderAndClick("Edit game witch");
+        await user.clear(screen.getByLabelText("Name"));
+        await user.type(screen.getByLabelText("Name"), "voyager");
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        // then
+        expect(mocks.updateBase).toHaveBeenCalledWith({
+            id: "base-9",
+            data: { name: "voyager", prompt: "You are a witch of the game boards." },
+        });
+    });
+
+    it("refuses to delete a base prompt that bots still extend", async () => {
+        // given
+        stubBasePrompts([makeBasePrompt({ name: "game witch", bot_count: 2 })]);
+        const user = renderPage();
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Delete game witch" }));
+
+        // then
+        expect(mocks.removeBase).not.toHaveBeenCalled();
+        expect(screen.getByText(/still used by 2 bot/)).toBeInTheDocument();
+    });
+});
+
+describe("AdminChatbots switching a bot on and off", () => {
+    const toggleCases = [
+        {
+            name: "an enabled bot off, keeping its overrides",
+            bots: [makeBot({ id: "bot-7", model: "gpt-5", reasoning_effort: "high", max_output_tokens: 2048 })],
+            settings: KEY_SAVED,
+            models: ["gpt-5.6-luna"],
+            clicked: "Beatrice",
+            sent: {
+                id: "bot-7",
+                data: expect.objectContaining({
+                    username: "beatrice",
+                    model: "gpt-5",
+                    reasoning_effort: "high",
+                    max_output_tokens: 2048,
+                    enabled: false,
+                }),
+            },
+        },
+        {
+            name: "the clicked bot and no other, turning a disabled one back on",
+            bots: [
+                makeBot({ id: "bot-1", display_name: "Beatrice", enabled: true }),
+                makeBot({ id: "bot-2", display_name: "Bernkastel", username: "bern", enabled: false }),
+            ],
+            settings: KEY_SAVED,
+            models: ["gpt-5.6-luna"],
+            clicked: "Bernkastel",
+            sent: { id: "bot-2", data: expect.objectContaining({ username: "bern", enabled: true }) },
+        },
+        {
+            name: "a bot off while no API key is saved and the form is locked",
+            bots: [makeBot({ id: "bot-4", display_name: "Beatrice", enabled: true })],
+            settings: NO_KEY,
+            models: [],
+            clicked: "Beatrice",
+            sent: { id: "bot-4", data: expect.objectContaining({ enabled: false }) },
+        },
+    ];
+
+    it.each(toggleCases)(
+        "switches $name without opening the form",
+        async ({ bots, settings, models, clicked, sent }) => {
+            // given
+            stubBots(bots);
+            stubSettings(settings);
+            stubModels(models);
+            const user = renderPage();
+
+            // when
+            await user.click(screen.getByRole("switch", { name: `Enabled ${clicked}` }));
+
+            // then
+            expect(mocks.update).toHaveBeenCalledExactlyOnceWith(sent);
+            expect(screen.getByRole("button", { name: `Delete ${clicked}` })).toBeEnabled();
+            expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        },
+    );
 
     it("says which bot could not be switched", async () => {
         // given
         stubBots([makeBot({ display_name: "Beatrice" })]);
         mocks.update.mockRejectedValue(new Error("the model is unreachable"));
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
+        const user = renderPage();
 
         // when
         await user.click(screen.getByRole("switch", { name: "Enabled Beatrice" }));
@@ -447,225 +394,187 @@ describe("AdminChatbots list", () => {
 });
 
 describe("AdminChatbots creating", () => {
-    it("refuses to save a bot with no handle or name", async () => {
+    it("opens a blank, unlocked form with every field labelled and every provider model suggested", async () => {
         // given
-        stubBots([]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
-
-        // then
-        expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-    });
-
-    it("labels every form field", async () => {
-        // given
-        stubBots([]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
-
-        // then
-        expect(screen.getByLabelText("Username")).toBeInTheDocument();
-        expect(screen.getByLabelText("Display Name")).toBeInTheDocument();
-        expect(screen.getByLabelText("Avatar URL")).toBeInTheDocument();
-        expect(screen.getByLabelText("System Prompt")).toBeInTheDocument();
-        expect(screen.getByLabelText("Model")).toBeInTheDocument();
-        expect(screen.getByLabelText("Reasoning Effort")).toBeInTheDocument();
-        expect(screen.getByLabelText("Max Output Tokens")).toBeInTheDocument();
-    });
-
-    it("keeps the hint text out of a field name and in its description", async () => {
-        // given
-        stubBots([]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
+        stubModels(["gpt-5.6-luna", "gpt-5.6-terra", "o5-mini"]);
+        const user = renderPage();
 
         // when
         await user.click(screen.getByRole("button", { name: "Create Bot" }));
 
         // then
         const username = screen.getByLabelText("Username");
+        const model = screen.getByLabelText("Model");
+        const maxTokens = screen.getByLabelText("Max Output Tokens");
+        expect(screen.queryByText(/stays locked/)).not.toBeInTheDocument();
+        expect(username).toBeEnabled();
+        expect(username).toHaveValue("");
         expect(username).toHaveAccessibleName("Username");
         expect(username).toHaveAccessibleDescription(
             "The handle members type to reach the bot. It has to be free, exactly like a human account.",
         );
+        expect(screen.getByLabelText("Display Name")).toHaveValue("");
+        expect(screen.getByLabelText("Avatar URL")).toHaveValue("");
+        expect(screen.getByLabelText("System Prompt")).toHaveValue("");
+        expect(screen.getByLabelText("Base Prompt")).toHaveValue("");
+        expect(model).toBeEnabled();
+        expect(model).toHaveValue("");
+        expect(model).toHaveAttribute("placeholder", "Inherit the site default model");
+        expect(modelOptions(model)).toEqual(["gpt-5.6-luna", "gpt-5.6-terra", "o5-mini"]);
+        expect(screen.getByLabelText("Reasoning Effort")).toHaveValue("");
+        expect(maxTokens).toHaveValue(null);
+        expect(maxTokens).toHaveAttribute("placeholder", "Inherit the site default cap");
+        expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     });
 
-    it("checks the handle when the username field loses focus", async () => {
+    const usernameAllowedCases = [
+        {
+            name: "checks the trimmed handle when the username field loses focus and says it is free",
+            answer: { username: "beato", available: true },
+            hint: "@beato is free.",
+        },
+        {
+            name: "lets the save proceed when the availability check itself fails",
+            answer: new Error("network down"),
+            hint: "Could not check that handle just now. Saving will still tell you if it is taken.",
+        },
+    ];
+
+    it.each(usernameAllowedCases)("$name", async ({ answer, hint }) => {
         // given
-        stubBots([]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
-        await user.type(screen.getByLabelText("Username"), "  beato  ");
+        if (answer instanceof Error) {
+            mocks.checkUsername.mockRejectedValue(answer);
+        } else {
+            mocks.checkUsername.mockResolvedValue(answer);
+        }
+
+        const user = await renderAndClick("Create Bot");
+        await fillIn(user, [
+            ["Display Name", "Beato"],
+            ["Username", "  beato  "],
+        ]);
 
         // when
         await user.tab();
 
         // then
         expect(mocks.checkUsername).toHaveBeenCalledWith("beato");
-        expect(await screen.findByText("@beato is free.", undefined, { timeout: 5000 })).toBeInTheDocument();
+        expect(await screen.findByText(hint, undefined, { timeout: 5000 })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
     });
 
     it("refuses to save a handle the server says is taken", async () => {
         // given
-        stubBots([]);
         mocks.checkUsername.mockResolvedValue({ username: "beato", available: false });
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
-        await user.type(screen.getByLabelText("Username"), "beato");
-        await user.type(screen.getByLabelText("Display Name"), "Beato");
+        const user = await renderAndClick("Create Bot");
+        await fillIn(user, [
+            ["Display Name", "Beato"],
+            ["Username", "  beato  "],
+        ]);
 
         // when
-        await user.click(screen.getByLabelText("Display Name"));
+        await user.tab();
 
         // then
+        expect(mocks.checkUsername).toHaveBeenCalledWith("beato");
         expect(
             await screen.findByText("@beato is already taken. Pick another.", undefined, { timeout: 5000 }),
         ).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     });
 
-    it("lets the save proceed when the availability check itself fails", async () => {
+    const createCases: {
+        name: string;
+        basePrompts: ChatbotBasePrompt[];
+        typed: FieldEntry[];
+        selected: FieldEntry[];
+        payload: ChatbotPayload;
+    }[] = [
+        {
+            name: "the trimmed identity typed into the form, leaving every override to inherit",
+            basePrompts: [],
+            typed: [
+                ["Username", "  beato  "],
+                ["Display Name", "Beato"],
+                ["Avatar URL", "https://example.com/beato.png"],
+                ["System Prompt", "You are the Golden Witch."],
+            ],
+            selected: [],
+            payload: {
+                username: "beato",
+                display_name: "Beato",
+                avatar_url: "https://example.com/beato.png",
+                system_prompt: "You are the Golden Witch.",
+                base_prompt_id: null,
+                model: "",
+                reasoning_effort: "",
+                verbosity: "",
+                max_output_tokens: 0,
+                enabled: true,
+            },
+        },
+        {
+            name: "a chosen base prompt and per-bot overrides, including a model the provider never listed",
+            basePrompts: [makeBasePrompt({ id: "base-7", name: "game witch" })],
+            typed: [
+                ["Username", "beato"],
+                ["Display Name", "Beato"],
+                ["System Prompt", "You are the Golden Witch."],
+                ["Model", "gpt-6-unreleased"],
+                ["Max Output Tokens", "2048"],
+            ],
+            selected: [
+                ["Base Prompt", "base-7"],
+                ["Reasoning Effort", "high"],
+            ],
+            payload: {
+                username: "beato",
+                display_name: "Beato",
+                avatar_url: "",
+                system_prompt: "You are the Golden Witch.",
+                base_prompt_id: "base-7",
+                model: "gpt-6-unreleased",
+                reasoning_effort: "high",
+                verbosity: "",
+                max_output_tokens: 2048,
+                enabled: true,
+            },
+        },
+    ];
+
+    it.each(createCases)("creates a bot from $name", async ({ basePrompts, typed, selected, payload }) => {
         // given
-        stubBots([]);
-        mocks.checkUsername.mockRejectedValue(new Error("network down"));
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
-        await user.type(screen.getByLabelText("Username"), "beato");
-        await user.type(screen.getByLabelText("Display Name"), "Beato");
-
-        // when
-        await user.click(screen.getByLabelText("Display Name"));
-
-        // then
-        expect(
-            await screen.findByText(
-                "Could not check that handle just now. Saving will still tell you if it is taken.",
-                undefined,
-                { timeout: 5000 },
-            ),
-        ).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
-    });
-
-    it("does not offer to change the handle of an existing bot", async () => {
-        // given
-        stubBots([makeBot({ username: "bern", display_name: "Bernkastel" })]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Edit Bernkastel" }));
-
-        // then
-        expect(screen.getByLabelText("Username")).toBeDisabled();
-        expect(screen.getByText("A bot's handle cannot be changed after it is created.")).toBeInTheDocument();
-        expect(mocks.checkUsername).not.toHaveBeenCalled();
-    });
-
-    it("creates a bot from the values typed into the form", async () => {
-        // given
-        stubBots([]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
-        await user.type(screen.getByLabelText("Username"), "  beato  ");
-        await user.type(screen.getByLabelText("Display Name"), "Beato");
-        await user.type(screen.getByLabelText("Avatar URL"), "https://example.com/beato.png");
-        await user.type(screen.getByLabelText("System Prompt"), "You are the Golden Witch.");
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Save" }));
-
-        // then
-        expect(mocks.create).toHaveBeenCalledWith({
-            username: "beato",
-            display_name: "Beato",
-            avatar_url: "https://example.com/beato.png",
-            system_prompt: "You are the Golden Witch.",
-            base_prompt_id: null,
-            model: "",
-            reasoning_effort: "",
-            verbosity: "",
-            max_output_tokens: 0,
-            enabled: true,
-        });
-    });
-
-    it("carries the per-bot overrides into the new bot", async () => {
-        // given
-        stubBots([]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
-        await user.type(screen.getByLabelText("Username"), "beato");
-        await user.type(screen.getByLabelText("Display Name"), "Beato");
-        await user.type(screen.getByLabelText("Model"), "gpt-5");
-        await user.selectOptions(screen.getByLabelText("Reasoning Effort"), "high");
-        await user.type(screen.getByLabelText("Max Output Tokens"), "2048");
+        stubBasePrompts(basePrompts);
+        const user = await renderAndClick("Create Bot");
+        await fillIn(user, typed, selected);
 
         // when
         await user.click(screen.getByRole("button", { name: "Save" }));
 
         // then
-        expect(mocks.create).toHaveBeenCalledWith(
-            expect.objectContaining({ model: "gpt-5", reasoning_effort: "high", max_output_tokens: 2048 }),
-        );
+        expect(mocks.create).toHaveBeenCalledWith(payload);
     });
 
-    it("reports why a bot could not be saved", async () => {
+    it("reports why a bot could not be saved inside the form, not behind it", async () => {
         // given
-        stubBots([]);
         mocks.create.mockRejectedValue(new Error("that username is already taken"));
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
-        await user.type(screen.getByLabelText("Username"), "beato");
-        await user.type(screen.getByLabelText("Display Name"), "Beato");
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Save" }));
-
-        // then
-        expect(await screen.findByText("Could not save the bot: that username is already taken")).toBeInTheDocument();
-    });
-
-    it("shows the save failure inside the form, not behind it", async () => {
-        // given
-        stubBots([]);
-        mocks.create.mockRejectedValue(new Error("a chatbot needs a username, a display name and a system prompt"));
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
-        await user.type(screen.getByLabelText("Username"), "beato");
-        await user.type(screen.getByLabelText("Display Name"), "Beato");
+        const user = await renderAndClick("Create Bot");
+        await fillIn(user, IDENTITY);
 
         // when
         await user.click(screen.getByRole("button", { name: "Save" }));
 
         // then
         const alert = await screen.findByRole("alert");
-        expect(alert).toHaveTextContent(/a chatbot needs a username/);
+        expect(alert).toHaveTextContent(/^Could not save the bot: that username is already taken$/);
         expect(screen.getByRole("dialog")).toContainElement(alert);
     });
 
     it("clears a previous save failure when the form is reopened", async () => {
         // given
-        stubBots([]);
         mocks.create.mockRejectedValue(new Error("boom"));
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
-        await user.type(screen.getByLabelText("Username"), "beato");
-        await user.type(screen.getByLabelText("Display Name"), "Beato");
+        const user = await renderAndClick("Create Bot");
+        await fillIn(user, IDENTITY);
         await user.click(screen.getByRole("button", { name: "Save" }));
         await screen.findByRole("alert");
         await user.click(screen.getByRole("button", { name: "Cancel" }));
@@ -679,72 +588,70 @@ describe("AdminChatbots creating", () => {
 });
 
 describe("AdminChatbots editing", () => {
-    it("loads a bot into the form for editing", async () => {
-        // given
-        stubBots([
-            makeBot({
+    const editCases: { name: string; bot: Chatbot; values: [label: string, value: string | number | null][] }[] = [
+        {
+            name: "a bot with every override set",
+            bot: makeBot({
                 username: "bern",
                 display_name: "Bernkastel",
                 avatar_url: "https://example.com/bern.png",
                 system_prompt: "You are the Witch of Miracles.",
+                base_prompt_id: "base-7",
                 model: "gpt-5",
                 reasoning_effort: "high",
                 max_output_tokens: 2048,
             }),
-        ]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
+            values: [
+                ["Username", "bern"],
+                ["Display Name", "Bernkastel"],
+                ["Avatar URL", "https://example.com/bern.png"],
+                ["System Prompt", "You are the Witch of Miracles."],
+                ["Base Prompt", "base-7"],
+                ["Model", "gpt-5"],
+                ["Reasoning Effort", "high"],
+                ["Max Output Tokens", 2048],
+            ],
+        },
+        {
+            name: "a bot that inherits every override, leaving the token limit blank",
+            bot: makeBot({ max_output_tokens: 0 }),
+            values: [
+                ["Username", "beatrice"],
+                ["Display Name", "Beatrice"],
+                ["Avatar URL", ""],
+                ["System Prompt", "You are the Golden Witch."],
+                ["Base Prompt", ""],
+                ["Model", ""],
+                ["Reasoning Effort", ""],
+                ["Max Output Tokens", null],
+            ],
+        },
+    ];
+
+    it.each(editCases)("loads $name into the form without offering to change its handle", async ({ bot, values }) => {
+        // given
+        stubBots([bot]);
+        stubBasePrompts([makeBasePrompt({ id: "base-7", name: "game witch" })]);
+        const user = renderPage();
 
         // when
-        await user.click(screen.getByRole("button", { name: "Edit Bernkastel" }));
+        await user.click(screen.getByRole("button", { name: `Edit ${bot.display_name}` }));
 
         // then
         expect(screen.getByText("Edit Chatbot")).toBeInTheDocument();
-        expect(screen.getByLabelText("Username")).toHaveValue("bern");
-        expect(screen.getByLabelText("Display Name")).toHaveValue("Bernkastel");
-        expect(screen.getByLabelText("Avatar URL")).toHaveValue("https://example.com/bern.png");
-        expect(screen.getByLabelText("System Prompt")).toHaveValue("You are the Witch of Miracles.");
-        expect(screen.getByLabelText("Model")).toHaveValue("gpt-5");
-        expect(screen.getByLabelText("Reasoning Effort")).toHaveValue("high");
-        expect(screen.getByLabelText("Max Output Tokens")).toHaveValue(2048);
-    });
+        for (const [label, value] of values) {
+            expect(screen.getByLabelText(label)).toHaveValue(value);
+        }
 
-    it("leaves the token limit blank when the bot inherits it", async () => {
-        // given
-        stubBots([makeBot({ max_output_tokens: 0 })]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Edit Beatrice" }));
-
-        // then
-        expect(screen.getByLabelText("Max Output Tokens")).toHaveValue(null);
-    });
-
-    it("tells the two inherit-the-default fields apart by their placeholder", async () => {
-        // given
-        stubBots([]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
-
-        // then
-        expect(screen.getByLabelText("Model")).toHaveAttribute("placeholder", "Inherit the site default model");
-        expect(screen.getByLabelText("Max Output Tokens")).toHaveAttribute(
-            "placeholder",
-            "Inherit the site default cap",
-        );
+        expect(screen.getByLabelText("Username")).toBeDisabled();
+        expect(screen.getByText("A bot's handle cannot be changed after it is created.")).toBeInTheDocument();
+        expect(mocks.checkUsername).not.toHaveBeenCalled();
     });
 
     it("saves an edit against the bot it came from and keeps it switched off", async () => {
         // given
         stubBots([makeBot({ id: "bot-9", enabled: false })]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Edit Beatrice" }));
+        const user = await renderAndClick("Edit Beatrice");
         await user.clear(screen.getByLabelText("Display Name"));
         await user.type(screen.getByLabelText("Display Name"), "Beato");
 
@@ -772,9 +679,7 @@ describe("AdminChatbots editing", () => {
     it("clears the form when an edit is abandoned", async () => {
         // given
         stubBots([makeBot()]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Edit Beatrice" }));
+        const user = await renderAndClick("Edit Beatrice");
 
         // when
         await user.click(screen.getByRole("button", { name: "Cancel" }));
@@ -785,204 +690,141 @@ describe("AdminChatbots editing", () => {
     });
 });
 
-describe("AdminChatbots model picker", () => {
-    it("suggests every model the provider returned", async () => {
-        // given
-        stubBots([]);
-        stubModels(["gpt-5.6-luna", "gpt-5.6-terra", "o5-mini"]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
-
-        // then
-        expect(modelOptions(screen.getByLabelText("Model"))).toEqual(["gpt-5.6-luna", "gpt-5.6-terra", "o5-mini"]);
-    });
-
-    it("saves a model that the provider never listed", async () => {
-        // given
-        stubBots([]);
-        stubModels(["gpt-5.6-luna"]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
-        await user.type(screen.getByLabelText("Username"), "beato");
-        await user.type(screen.getByLabelText("Display Name"), "Beato");
-        await user.type(screen.getByLabelText("Model"), "gpt-6-unreleased");
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Save" }));
-
-        // then
-        expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ model: "gpt-6-unreleased" }));
-    });
-
-    it("suggests nothing while the provider list is empty", async () => {
-        // given
-        stubBots([]);
-        stubModels([]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
-
-        // then
-        expect(screen.getByLabelText("Model")).not.toHaveAttribute("list");
-        expect(document.querySelector("datalist")).toBeNull();
-    });
-});
-
 describe("AdminChatbots key gate", () => {
-    it("locks the form until an API key is saved", async () => {
-        // given
-        stubBots([]);
-        stubSettings({});
-        stubModels([]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
+    const lockCases = [
+        {
+            name: "until an API key is saved",
+            bots: [],
+            settings: NO_KEY,
+            modelsError: "",
+            opener: "Create Bot",
+            message: /No OpenAI API key is saved yet/,
+            model: "",
+            retryButtons: 0,
+        },
+        {
+            name: "on an existing bot whose saved key the provider refuses, without hiding what is already there",
+            bots: [makeBot({ display_name: "Bernkastel", model: "gpt-5" })],
+            settings: KEY_SAVED,
+            modelsError: "OpenAI answered 401: Incorrect API key provided.",
+            opener: "Edit Bernkastel",
+            message: /OpenAI answered 401: Incorrect API key provided\./,
+            model: "gpt-5",
+            retryButtons: 1,
+        },
+    ];
 
-        // when
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
+    it.each(lockCases)(
+        "locks the form $name",
+        async ({ bots, settings, modelsError, opener, message, model, retryButtons }) => {
+            // given
+            stubBots(bots);
+            stubSettings(settings);
+            stubModels([], false, vi.fn(), modelsError);
+            const user = renderPage();
 
-        // then
-        expect(screen.getByText(/No OpenAI API key is saved yet/)).toBeInTheDocument();
-        expect(screen.getByLabelText("Username")).toBeDisabled();
-        expect(screen.getByLabelText("Display Name")).toBeDisabled();
-        expect(screen.getByLabelText("System Prompt")).toBeDisabled();
-        expect(screen.getByLabelText("Model")).toBeDisabled();
-        expect(screen.getByLabelText("Reasoning Effort")).toBeDisabled();
-        expect(screen.getByLabelText("Max Output Tokens")).toBeDisabled();
-        expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-        expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
-    });
+            // when
+            await user.click(screen.getByRole("button", { name: opener }));
 
-    it("locks the edit form too, without hiding what is already there", async () => {
-        // given
-        stubBots([makeBot({ display_name: "Bernkastel", model: "gpt-5" })]);
-        stubSettings({ chatbot_api_key: SAVED_KEY });
-        stubModels([], false, vi.fn(), "OpenAI answered 401: Incorrect API key provided.");
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
+            // then
+            expect(screen.getByText(message)).toBeInTheDocument();
+            for (const label of LOCKED_FIELDS) {
+                expect(screen.getByLabelText(label)).toBeDisabled();
+            }
 
-        // when
-        await user.click(screen.getByRole("button", { name: "Edit Bernkastel" }));
+            expect(screen.getByLabelText("Model")).toHaveValue(model);
+            expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+            expect(screen.queryAllByRole("button", { name: "Try again" })).toHaveLength(retryButtons);
+        },
+    );
 
-        // then
-        expect(screen.getByText(/OpenAI answered 401: Incorrect API key provided\./)).toBeInTheDocument();
-        expect(screen.getByLabelText("Model")).toHaveValue("gpt-5");
-        expect(screen.getByLabelText("Model")).toBeDisabled();
-        expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-    });
-
-    it("offers to fetch the model list again from the locked form", async () => {
+    it("offers to fetch the model list again from the locked form, suggesting nothing meanwhile", async () => {
         // given
         const refresh = vi.fn();
-        stubBots([]);
-        stubSettings({ chatbot_api_key: SAVED_KEY });
         stubModels([], false, refresh);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
+        const user = await renderAndClick("Create Bot");
 
         // when
         await user.click(screen.getByRole("button", { name: "Try again" }));
 
         // then
         expect(refresh).toHaveBeenCalledOnce();
-    });
-
-    it("unlocks the form once the key answers with a model list", async () => {
-        // given
-        stubBots([]);
-        stubSettings({ chatbot_api_key: SAVED_KEY });
-        stubModels(["gpt-5.6-luna"]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Create Bot" }));
-
-        // then
-        expect(screen.queryByText(/stays locked/)).not.toBeInTheDocument();
-        expect(screen.getByLabelText("Username")).toBeEnabled();
-        expect(screen.getByLabelText("Model")).toBeEnabled();
-    });
-
-    it("leaves the row controls usable so a bot can still be switched off", async () => {
-        // given
-        stubBots([makeBot({ id: "bot-4", display_name: "Beatrice", enabled: true })]);
-        stubSettings({});
-        stubModels([]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-
-        // when
-        await user.click(screen.getByRole("switch", { name: "Enabled Beatrice" }));
-
-        // then
-        expect(mocks.update).toHaveBeenCalledWith({
-            id: "bot-4",
-            data: expect.objectContaining({ enabled: false }),
-        });
-        expect(screen.getByRole("button", { name: "Delete Beatrice" })).toBeEnabled();
+        expect(screen.getByLabelText("Model")).not.toHaveAttribute("list");
+        expect(document.querySelector("datalist")).toBeNull();
     });
 });
 
 describe("AdminChatbots deleting", () => {
-    it("asks before deleting a bot", async () => {
+    const deleteCases = [
+        {
+            name: "a bot",
+            bots: [makeBot({ id: "bot-3" })],
+            basePrompts: [],
+            rowButton: "Delete Beatrice",
+            question: "Delete Beatrice (@beatrice)? The bot account and its replies go with it.",
+            remove: mocks.remove,
+            id: "bot-3",
+        },
+        {
+            name: "an unused base prompt",
+            bots: [],
+            basePrompts: [makeBasePrompt({ id: "base-4", name: "game witch", bot_count: 0 })],
+            rowButton: "Delete game witch",
+            question: 'Delete the base prompt "game witch"?',
+            remove: mocks.removeBase,
+            id: "base-4",
+        },
+    ];
+
+    it.each(deleteCases)("asks before deleting $name", async ({ bots, basePrompts, rowButton, question, remove }) => {
         // given
-        stubBots([makeBot()]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
+        stubBots(bots);
+        stubBasePrompts(basePrompts);
+        const user = renderPage();
 
         // when
-        await user.click(screen.getByRole("button", { name: "Delete Beatrice" }));
+        await user.click(screen.getByRole("button", { name: rowButton }));
 
         // then
-        expect(
-            screen.getByText("Delete Beatrice (@beatrice)? The bot account and its replies go with it."),
-        ).toBeInTheDocument();
-        expect(mocks.remove).not.toHaveBeenCalled();
+        expect(screen.getByText(question)).toBeInTheDocument();
+        expect(remove).not.toHaveBeenCalled();
     });
 
-    it("leaves the bot alone when the delete is cancelled", async () => {
+    it.each(deleteCases)("deletes $name once confirmed", async ({ bots, basePrompts, rowButton, remove, id }) => {
         // given
-        stubBots([makeBot()]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Delete Beatrice" }));
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Cancel" }));
-
-        // then
-        expect(mocks.remove).not.toHaveBeenCalled();
-        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    });
-
-    it("deletes the bot once confirmed", async () => {
-        // given
-        stubBots([makeBot({ id: "bot-3" })]);
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Delete Beatrice" }));
+        stubBots(bots);
+        stubBasePrompts(basePrompts);
+        const user = await renderAndClick(rowButton);
 
         // when
         await user.click(screen.getByRole("button", { name: "Delete" }));
 
         // then
-        expect(mocks.remove).toHaveBeenCalledWith("bot-3");
+        expect(remove).toHaveBeenCalledWith(id);
     });
+
+    it.each(deleteCases)(
+        "leaves $name alone when the delete is cancelled",
+        async ({ bots, basePrompts, rowButton, remove }) => {
+            // given
+            stubBots(bots);
+            stubBasePrompts(basePrompts);
+            const user = await renderAndClick(rowButton);
+
+            // when
+            await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+            // then
+            expect(remove).not.toHaveBeenCalled();
+            expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        },
+    );
 
     it("says which bot could not be deleted", async () => {
         // given
         stubBots([makeBot({ display_name: "Beatrice" })]);
         mocks.remove.mockRejectedValue(new Error("the bot still owns messages"));
-        const user = userEvent.setup();
-        renderWithProviders(<AdminChatbots />);
-        await user.click(screen.getByRole("button", { name: "Delete Beatrice" }));
+        const user = await renderAndClick("Delete Beatrice");
 
         // when
         await user.click(screen.getByRole("button", { name: "Delete" }));
@@ -993,10 +835,9 @@ describe("AdminChatbots deleting", () => {
 });
 
 describe("AdminChatbots usage", () => {
-    it("counts the replies and tokens spent over each range", () => {
+    it("counts the replies, tokens, failures and quota blocks over a range, flagging and explaining the failures", () => {
         // given
-        stubBots([]);
-        stubUsage(makeUsage());
+        stubUsage(makeUsage({ failed: 17, quota: 4, billed_usd: null }));
 
         // when
         renderWithProviders(<AdminChatbots />);
@@ -1008,98 +849,16 @@ describe("AdminChatbots usage", () => {
         expect(within(panel).getByText("48,000")).toBeInTheDocument();
         expect(within(panel).getByText("7,800")).toBeInTheDocument();
         expect(within(panel).getByText("900")).toBeInTheDocument();
-    });
-
-    it("gives each range the figures fetched for that range", () => {
-        // given
-        stubBots([]);
-        stubUsagePerRange({
-            1: makeUsage({ invocations: 11, prompt_tokens: 100 }),
-            7: makeUsage({ invocations: 222, prompt_tokens: 2000 }),
-            30: makeUsage({ invocations: 3333, prompt_tokens: 30000 }),
-        });
-
-        // when
-        renderWithProviders(<AdminChatbots />);
-
-        // then
-        expect(within(usagePanel("Last 24 hours")).getByText("11 replies")).toBeInTheDocument();
-        expect(within(usagePanel("Last 24 hours")).getByText("100")).toBeInTheDocument();
-        expect(within(usagePanel("Last 7 days")).getByText("222 replies")).toBeInTheDocument();
-        expect(within(usagePanel("Last 7 days")).getByText("2,000")).toBeInTheDocument();
-        expect(within(usagePanel("Last 30 days")).getByText("3,333 replies")).toBeInTheDocument();
-        expect(within(usagePanel("Last 30 days")).getByText("30,000")).toBeInTheDocument();
-    });
-
-    it("waits on only the ranges that are still loading", () => {
-        // given
-        stubBots([]);
-        stubUsagePerRange({ 1: makeUsage({ invocations: 11 }) });
-
-        // when
-        renderWithProviders(<AdminChatbots />);
-
-        // then
-        expect(within(usagePanel("Last 24 hours")).getByText("11 replies")).toBeInTheDocument();
-        expect(within(usagePanel("Last 7 days")).getByText("Loading...")).toBeInTheDocument();
-        expect(within(usagePanel("Last 30 days")).getByText("Loading...")).toBeInTheDocument();
-    });
-
-    it("hides the billed figure when no admin key can price the calls", () => {
-        // given
-        stubBots([]);
-        stubUsage(makeUsage({ billed_usd: null }));
-
-        // when
-        renderWithProviders(<AdminChatbots />);
-
-        // then
-        expect(screen.queryByText(/^Billed/)).not.toBeInTheDocument();
-    });
-
-    it("shows the billed figure once the calls are priced", () => {
-        // given
-        stubBots([]);
-        stubUsage(makeUsage({ billed_usd: 12.3 }));
-
-        // when
-        renderWithProviders(<AdminChatbots />);
-
-        // then
-        expect(within(usagePanel("Last 30 days")).getByText("Billed $12.30")).toBeInTheDocument();
-    });
-
-    it("counts the calls that failed and the ones a quota turned away", () => {
-        // given
-        stubBots([]);
-        stubUsage(makeUsage({ failed: 17, quota: 4 }));
-
-        // when
-        renderWithProviders(<AdminChatbots />);
-
-        // then
-        const panel = usagePanel("Last 7 days");
         expect(within(panel).getByText("Failed")).toBeInTheDocument();
-        expect(within(panel).getByText("17")).toBeInTheDocument();
+        expect(within(panel).getByText("17")).toHaveClass(styles.error);
         expect(within(panel).getByText("Quota blocked")).toBeInTheDocument();
         expect(within(panel).getByText("4")).toBeInTheDocument();
-    });
-
-    it("marks the failure count once anything has failed", () => {
-        // given
-        stubBots([]);
-        stubUsage(makeUsage({ failed: 17 }));
-
-        // when
-        renderWithProviders(<AdminChatbots />);
-
-        // then
-        expect(within(usagePanel("Last 7 days")).getByText("17")).toHaveClass(styles.error);
+        expect(within(panel).getByText(FAILURE_NOTE)).toBeInTheDocument();
+        expect(screen.queryByText(/^Billed/)).not.toBeInTheDocument();
     });
 
     it("leaves the failure count unmarked while nothing has failed", () => {
         // given
-        stubBots([]);
         stubUsage(makeUsage({ failed: 0, quota: 0 }));
 
         // when
@@ -1111,115 +870,116 @@ describe("AdminChatbots usage", () => {
         expect(within(panel).queryByText(FAILURE_NOTE)).not.toBeInTheDocument();
     });
 
-    it("explains what a failure usually means once one shows up", () => {
+    const rangeCases: { name: string; byDays: Record<number, ChatbotUsage>; shown: Record<string, string[]> }[] = [
+        {
+            name: "gives each range the figures fetched for that range, billed once the calls are priced",
+            byDays: {
+                1: makeUsage({ invocations: 11, prompt_tokens: 100 }),
+                7: makeUsage({ invocations: 222, prompt_tokens: 2000 }),
+                30: makeUsage({ invocations: 3333, prompt_tokens: 30000, billed_usd: 12.3 }),
+            },
+            shown: {
+                "Last 24 hours": ["11 replies", "100"],
+                "Last 7 days": ["222 replies", "2,000"],
+                "Last 30 days": ["3,333 replies", "30,000", "Billed $12.30"],
+            },
+        },
+        {
+            name: "waits on only the ranges that are still loading",
+            byDays: { 1: makeUsage({ invocations: 11 }) },
+            shown: {
+                "Last 24 hours": ["11 replies"],
+                "Last 7 days": ["Loading..."],
+                "Last 30 days": ["Loading..."],
+            },
+        },
+    ];
+
+    it.each(rangeCases)("$name", ({ byDays, shown }) => {
         // given
-        stubBots([]);
-        stubUsage(makeUsage({ failed: 17 }));
+        stubUsagePerRange(byDays);
 
         // when
         renderWithProviders(<AdminChatbots />);
 
         // then
-        expect(within(usagePanel("Last 7 days")).getByText(FAILURE_NOTE)).toBeInTheDocument();
+        for (const [label, texts] of Object.entries(shown)) {
+            for (const text of texts) {
+                expect(within(usagePanel(label)).getByText(text)).toBeInTheDocument();
+            }
+        }
     });
 
-    it("splits the replies and tokens by the channel they came from", () => {
-        // given
-        stubBots([]);
-        stubUsage(
-            makeUsage({
+    const channelCases: { name: string; usage: ChatbotUsage; rows: [string, string, string][] }[] = [
+        {
+            name: "every known channel sent out of order, then one it has never heard of rather than dropping it",
+            usage: makeUsage({
                 channels: [
-                    makeChannel({
-                        channel: "group",
-                        invocations: 180,
-                        prompt_tokens: 700000,
-                        completion_tokens: 12000,
-                    }),
-                    makeChannel({ channel: "dm", invocations: 62, prompt_tokens: 400000, completion_tokens: 10000 }),
-                    makeChannel({ channel: "post", invocations: 18, prompt_tokens: 88000, completion_tokens: 2000 }),
+                    makeChannel({ channel: "carrier_pigeon", invocations: 3 }),
                     makeChannel({
                         channel: "post_comment",
                         invocations: 5,
                         prompt_tokens: 21000,
                         completion_tokens: 1000,
                     }),
+                    makeChannel({ channel: "post", invocations: 18, prompt_tokens: 88000, completion_tokens: 2000 }),
+                    makeChannel({ channel: "dm", invocations: 62, prompt_tokens: 400000, completion_tokens: 10000 }),
+                    makeChannel({
+                        channel: "group",
+                        invocations: 180,
+                        prompt_tokens: 700000,
+                        completion_tokens: 12000,
+                    }),
                 ],
             }),
-        );
-
-        // when
-        renderWithProviders(<AdminChatbots />);
-
-        // then
-        const panel = usagePanel("Last 7 days");
-        expect(within(panel).getByRole("row", { name: "Group chats 180 712,000" })).toBeInTheDocument();
-        expect(within(panel).getByRole("row", { name: "DMs 62 410,000" })).toBeInTheDocument();
-        expect(within(panel).getByRole("row", { name: "Posts 18 90,000" })).toBeInTheDocument();
-        expect(within(panel).getByRole("row", { name: "Post comments 5 22,000" })).toBeInTheDocument();
-    });
-
-    it("lists the channels in the same order whatever order the server sent them", () => {
-        // given
-        stubBots([]);
-        stubUsage(
-            makeUsage({
+            rows: [
+                ["Group chats", "180", "712,000"],
+                ["DMs", "62", "410,000"],
+                ["Posts", "18", "90,000"],
+                ["Post comments", "5", "22,000"],
+                ["carrier_pigeon", "3", "1,200"],
+            ],
+        },
+        {
+            name: "only some channels, sent in reverse order",
+            usage: makeUsage({
                 channels: [
                     makeChannel({ channel: "post_comment", invocations: 90 }),
                     makeChannel({ channel: "dm", invocations: 40 }),
                 ],
             }),
-        );
+            rows: [
+                ["Group chats", "0", "0"],
+                ["DMs", "40", "1,200"],
+                ["Posts", "0", "0"],
+                ["Post comments", "90", "1,200"],
+            ],
+        },
+        {
+            name: "an idle range, keeping every channel on the card at zero so the three ranges stay the same height",
+            usage: makeUsage({ invocations: 0, channels: [] }),
+            rows: [
+                ["Group chats", "0", "0"],
+                ["DMs", "0", "0"],
+                ["Posts", "0", "0"],
+                ["Post comments", "0", "0"],
+            ],
+        },
+    ];
 
-        // when
-        renderWithProviders(<AdminChatbots />);
-
-        // then
-        const rows = within(usagePanel("Last 7 days")).getAllByRole("row");
-        expect(rows[1]).toHaveTextContent("Group chats");
-        expect(rows[2]).toHaveTextContent("DMs");
-        expect(rows[3]).toHaveTextContent("Posts");
-        expect(rows[4]).toHaveTextContent("Post comments");
-    });
-
-    it("names a channel it has never heard of rather than dropping the row", () => {
+    it.each(channelCases)("splits the replies and tokens by channel in a fixed order for $name", ({ usage, rows }) => {
         // given
-        stubBots([]);
-        stubUsage(makeUsage({ channels: [makeChannel({ channel: "carrier_pigeon", invocations: 3 })] }));
+        stubUsage(usage);
 
         // when
         renderWithProviders(<AdminChatbots />);
 
         // then
-        const panel = usagePanel("Last 7 days");
-        expect(within(panel).getByRole("rowheader", { name: "carrier_pigeon" })).toBeInTheDocument();
-        expect(within(panel).getAllByRole("row")).toHaveLength(6);
-    });
-
-    it("keeps every channel on the card at zero so the three ranges stay the same height", () => {
-        // given
-        stubBots([]);
-        stubUsage(makeUsage({ invocations: 0, channels: [] }));
-
-        // when
-        renderWithProviders(<AdminChatbots />);
-
-        // then
-        const panel = usagePanel("Last 7 days");
-        expect(within(panel).getByRole("row", { name: "Group chats 0 0" })).toBeInTheDocument();
-        expect(within(panel).getByRole("row", { name: "DMs 0 0" })).toBeInTheDocument();
-        expect(within(panel).getByRole("row", { name: "Posts 0 0" })).toBeInTheDocument();
-        expect(within(panel).getByRole("row", { name: "Post comments 0 0" })).toBeInTheDocument();
-    });
-
-    it("waits while the usage is being fetched", () => {
-        // given
-        stubBots([]);
-        stubUsage(null, true);
-
-        // when
-        renderWithProviders(<AdminChatbots />);
-
-        // then
-        expect(screen.getAllByText("Loading...")).toHaveLength(3);
+        const bodyRows = within(usagePanel("Last 7 days")).getAllByRole("row").slice(1);
+        expect(bodyRows).toHaveLength(rows.length);
+        for (const [index, [channel, replies, tokens]] of rows.entries()) {
+            expect(within(bodyRows[index]).getByRole("rowheader", { name: channel })).toBeInTheDocument();
+            expect(bodyRows[index]).toHaveAccessibleName(`${channel} ${replies} ${tokens}`);
+        }
     });
 });

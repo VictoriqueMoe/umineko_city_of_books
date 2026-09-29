@@ -20,7 +20,7 @@ func TestUploadAttachment_MysteryNotFound(t *testing.T) {
 	svc, m := newTestService(t)
 	mid := uuid.New()
 	userID := uuid.New()
-	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errors.New("boom"))
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errMissingRow)
 
 	// when
 	_, err := svc.UploadAttachment(context.Background(), mid, userID, "f.txt", 10, bytes.NewReader(nil))
@@ -72,7 +72,7 @@ func TestUploadAttachment_DuplicateName(t *testing.T) {
 	_, err := svc.UploadAttachment(context.Background(), mid, userID, "f.txt", 10, bytes.NewReader(nil))
 
 	// then
-	require.Error(t, err)
+	require.ErrorIs(t, err, ErrDuplicateAttachment)
 }
 
 func TestUploadAttachment_SaveAttachmentError(t *testing.T) {
@@ -135,7 +135,7 @@ func TestDeleteAttachment_MysteryNotFound(t *testing.T) {
 	svc, m := newTestService(t)
 	mid := uuid.New()
 	userID := uuid.New()
-	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errors.New("boom"))
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errMissingRow)
 
 	// when
 	err := svc.DeleteAttachment(context.Background(), 1, mid, userID)
@@ -183,7 +183,7 @@ func TestDeleteAttachment_OK_DeletesFile(t *testing.T) {
 	stubAuthor(m, mid, userID)
 	m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(attachments, nil)
 	m.repo.EXPECT().DeleteAttachment(mock.Anything, spec.MysteryAttachmentDeletion{ID: 1, MysteryID: mid}).Return(nil)
-	m.uploadSvc.EXPECT().GetUploadDir().Return("/tmp/nonexistent-dir")
+	m.uploadSvc.EXPECT().Delete([]string{"/uploads/mystery-attachments/abc/f.txt"}).Return()
 
 	// when
 	err := svc.DeleteAttachment(context.Background(), 1, mid, userID)
@@ -192,12 +192,68 @@ func TestDeleteAttachment_OK_DeletesFile(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestMysteryFiles_AFailedExistingFilesLookupIsSurfaced(t *testing.T) {
+	cases := []struct {
+		name   string
+		expect func(m *testMocks, mid uuid.UUID, boom error)
+		call   func(s *service, mid, userID uuid.UUID) error
+	}{
+		{
+			name: "an attachment upload is refused instead of skipping the duplicate name check",
+			expect: func(m *testMocks, mid uuid.UUID, boom error) {
+				m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(nil, boom)
+			},
+			call: func(s *service, mid, userID uuid.UUID) error {
+				_, err := s.UploadAttachment(context.Background(), mid, userID, "f.txt", 10, bytes.NewReader(nil))
+				return err
+			},
+		},
+		{
+			name: "an attachment delete is refused instead of leaving its file behind",
+			expect: func(m *testMocks, mid uuid.UUID, boom error) {
+				m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(nil, boom)
+			},
+			call: func(s *service, mid, userID uuid.UUID) error {
+				return s.DeleteAttachment(context.Background(), 1, mid, userID)
+			},
+		},
+		{
+			name: "a media upload is refused instead of reusing a sort position",
+			expect: func(m *testMocks, mid uuid.UUID, boom error) {
+				m.repo.EXPECT().GetMedia(mock.Anything, mid).Return(nil, boom)
+			},
+			call: func(s *service, mid, userID uuid.UUID) error {
+				_, err := s.UploadMedia(context.Background(), mid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil), false)
+				return err
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			mid := uuid.New()
+			userID := uuid.New()
+			boom := errors.New("boom")
+			stubAuthor(m, mid, userID)
+			tc.expect(m, mid, boom)
+
+			// when
+			err := tc.call(svc, mid, userID)
+
+			// then
+			require.ErrorIs(t, err, boom)
+		})
+	}
+}
+
 func TestUploadMedia_MysteryNotFound(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	mid := uuid.New()
 	userID := uuid.New()
-	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errors.New("boom"))
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errMissingRow)
 
 	// when
 	_, err := svc.UploadMedia(context.Background(), mid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil), false)
@@ -225,7 +281,7 @@ func TestDeleteMedia_MysteryNotFound(t *testing.T) {
 	svc, m := newTestService(t)
 	mid := uuid.New()
 	userID := uuid.New()
-	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errors.New("boom"))
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errMissingRow)
 
 	// when
 	err := svc.DeleteMedia(context.Background(), 1, mid, userID)

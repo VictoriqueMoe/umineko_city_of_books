@@ -2,6 +2,7 @@ package oc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -155,6 +157,53 @@ func (s *service) writeAudit(ctx context.Context, entry audit.NewEntry) {
 	}
 }
 
+func (s *service) ocAuthor(ctx context.Context, ocID uuid.UUID) (uuid.UUID, error) {
+	authorID, err := s.ocRepo.GetAuthorID(ctx, ocID)
+	if errors.Is(err, dao.ErrNotFound) {
+		return uuid.Nil, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return authorID, nil
+}
+
+func (s *service) ocCommentAuthor(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
+	authorID, err := s.ocRepo.GetCommentAuthorID(ctx, commentID)
+	if errors.Is(err, dao.ErrNotFound) {
+		return uuid.Nil, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return authorID, nil
+}
+
+func (s *service) assertNotBlocked(ctx context.Context, userID, authorID uuid.UUID) error {
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
+		return block.ErrUserBlocked
+	}
+
+	return nil
+}
+
+func (s *service) sendOwnerOCUpdated(ctx context.Context, ocID, ownerID uuid.UUID) {
+	row, err := s.ocRepo.GetByID(ctx, spec.OCByID{ID: ocID, ViewerID: ownerID})
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("oc_id", ocID.String()).Msg("oc updated event skipped, reload failed")
+
+		return
+	}
+
+	s.sendOwnerOCEvent(ownerID, "updated", row)
+}
+
 func validateSeries(series string, customSeriesName string) (string, string, error) {
 	series = strings.ToLower(strings.TrimSpace(series))
 	customSeriesName = strings.TrimSpace(customSeriesName)
@@ -260,22 +309,35 @@ func (s *service) GetOC(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (
 		return nil, ErrNotFound
 	}
 
-	gallery, _ := s.ocRepo.GetGallery(ctx, id)
-	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	gallery, err := s.ocRepo.GetGallery(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("oc gallery: %w", err)
+	}
 
-	comments, _, _ := s.ocRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
+	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("blocked users: %w", err)
+	}
+
+	comments, _, err := s.ocRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
 		TargetID:       id,
 		ViewerID:       viewerID,
 		Limit:          500,
 		Offset:         0,
 		ExcludeUserIDs: blockedIDs,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("oc comments: %w", err)
+	}
 
 	commentIDs := make([]uuid.UUID, len(comments))
 	for i, c := range comments {
 		commentIDs[i] = c.ID
 	}
-	commentMediaMap, _ := s.ocRepo.GetCommentMediaBatch(ctx, commentIDs)
+	commentMediaMap, err := s.ocRepo.GetCommentMediaBatch(ctx, commentIDs)
+	if err != nil {
+		return nil, fmt.Errorf("oc comment media: %w", err)
+	}
 
 	flatComments := make([]dto.OCCommentResponse, len(comments))
 	for i, c := range comments {
@@ -289,7 +351,10 @@ func (s *service) GetOC(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (
 
 	viewerBlocked := false
 	if viewerID != uuid.Nil {
-		viewerBlocked, _ = s.blockSvc.IsBlockedEither(ctx, viewerID, row.UserID)
+		viewerBlocked, err = s.blockSvc.IsBlockedEither(ctx, viewerID, row.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("viewer block check: %w", err)
+		}
 	}
 
 	return &dto.OCDetailResponse{
@@ -327,17 +392,21 @@ func (s *service) UpdateOC(ctx context.Context, id uuid.UUID, userID uuid.UUID, 
 	}
 
 	ownerID, err := s.ocRepo.GetAuthorID(ctx, id)
-	if err == nil {
-		row, _ := s.ocRepo.GetByID(ctx, spec.OCByID{ID: id, ViewerID: ownerID})
-		s.sendOwnerOCEvent(ownerID, "updated", row)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("oc_id", id.String()).Msg("oc updated event skipped, owner lookup failed")
+
+		return nil
 	}
+
+	s.sendOwnerOCUpdated(ctx, id, ownerID)
+
 	return nil
 }
 
 func (s *service) DeleteOC(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	ownerID, err := s.ocRepo.GetAuthorID(ctx, id)
+	ownerID, err := s.ocAuthor(ctx, id)
 	if err != nil {
-		return ErrNotFound
+		return err
 	}
 
 	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
@@ -385,7 +454,10 @@ func (s *service) ListOCs(
 	ownerID uuid.UUID,
 	page bounds.Page,
 ) (*dto.OCListResponse, error) {
-	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("blocked users: %w", err)
+	}
 
 	rows, total, err := s.ocRepo.List(ctx, spec.OCListFilter{
 		ViewerID:         viewerID,
@@ -402,7 +474,7 @@ func (s *service) ListOCs(
 		return nil, err
 	}
 
-	return s.buildOCList(ctx, rows, total, page.Limit(), page.Offset()), nil
+	return s.buildOCList(ctx, rows, total, page.Limit(), page.Offset())
 }
 
 func (s *service) ListOCsByUser(
@@ -421,15 +493,18 @@ func (s *service) ListOCsByUser(
 		return nil, err
 	}
 
-	return s.buildOCList(ctx, rows, total, page.Limit(), page.Offset()), nil
+	return s.buildOCList(ctx, rows, total, page.Limit(), page.Offset())
 }
 
-func (s *service) buildOCList(ctx context.Context, rows []model.OCRow, total, limit, offset int) *dto.OCListResponse {
+func (s *service) buildOCList(ctx context.Context, rows []model.OCRow, total, limit, offset int) (*dto.OCListResponse, error) {
 	ocIDs := make([]uuid.UUID, len(rows))
 	for i, r := range rows {
 		ocIDs[i] = r.ID
 	}
-	galleryMap, _ := s.ocRepo.GetGalleryBatch(ctx, ocIDs)
+	galleryMap, err := s.ocRepo.GetGalleryBatch(ctx, ocIDs)
+	if err != nil {
+		return nil, fmt.Errorf("oc galleries: %w", err)
+	}
 
 	ocs := make([]dto.OCResponse, len(rows))
 	for i, r := range rows {
@@ -441,7 +516,7 @@ func (s *service) buildOCList(ctx context.Context, rows []model.OCRow, total, li
 		Total:  total,
 		Limit:  limit,
 		Offset: offset,
-	}
+	}, nil
 }
 
 func (s *service) ListOCSummariesByUser(ctx context.Context, userID uuid.UUID) ([]dto.OCSummary, error) {
@@ -457,12 +532,12 @@ func (s *service) ListOCSummariesByUser(ctx context.Context, userID uuid.UUID) (
 }
 
 func (s *service) UploadOCImage(ctx context.Context, ocID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error) {
-	authorID, err := s.ocRepo.GetAuthorID(ctx, ocID)
+	authorID, err := s.ocAuthor(ctx, ocID)
 	if err != nil {
-		return "", ErrNotFound
+		return "", err
 	}
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
-		return "", fmt.Errorf("not the oc owner")
+		return "", ErrNotOwner
 	}
 
 	mediaID := uuid.New()
@@ -476,8 +551,8 @@ func (s *service) UploadOCImage(ctx context.Context, ocID uuid.UUID, userID uuid
 		return "", err
 	}
 
-	row, _ := s.ocRepo.GetByID(ctx, spec.OCByID{ID: ocID, ViewerID: authorID})
-	s.sendOwnerOCEvent(authorID, "updated", row)
+	s.sendOwnerOCUpdated(ctx, ocID, authorID)
+
 	return urlPath, nil
 }
 
@@ -490,17 +565,22 @@ func (s *service) AddGalleryImage(
 	fileSize int64,
 	reader io.Reader,
 ) (*dto.OCImage, error) {
-	authorID, err := s.ocRepo.GetAuthorID(ctx, ocID)
+	authorID, err := s.ocAuthor(ctx, ocID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, err
 	}
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
-		return nil, fmt.Errorf("not the oc owner")
+		return nil, ErrNotOwner
 	}
 
 	caption = strings.TrimSpace(caption)
 	if err := s.contentFilter.Check(ctx, caption); err != nil {
 		return nil, err
+	}
+
+	existing, err := s.ocRepo.GetGallery(ctx, ocID)
+	if err != nil {
+		return nil, fmt.Errorf("oc gallery: %w", err)
 	}
 
 	mediaID := uuid.New()
@@ -510,7 +590,6 @@ func (s *service) AddGalleryImage(
 		return nil, err
 	}
 
-	existing, _ := s.ocRepo.GetGallery(ctx, ocID)
 	id, err := s.ocRepo.AddGalleryImage(ctx, spec.NewOCGalleryImage{
 		OCID:         ocID,
 		ImageURL:     urlPath,
@@ -531,12 +610,12 @@ func (s *service) AddGalleryImage(
 }
 
 func (s *service) UpdateGalleryImage(ctx context.Context, ocID uuid.UUID, imageID int64, userID uuid.UUID, req dto.UpdateOCImageRequest) error {
-	authorID, err := s.ocRepo.GetAuthorID(ctx, ocID)
+	authorID, err := s.ocAuthor(ctx, ocID)
 	if err != nil {
-		return ErrNotFound
+		return err
 	}
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
-		return fmt.Errorf("not the oc owner")
+		return ErrNotOwner
 	}
 	if req.Caption != nil {
 		trimmed := strings.TrimSpace(*req.Caption)
@@ -559,34 +638,34 @@ func (s *service) UpdateGalleryImage(ctx context.Context, ocID uuid.UUID, imageI
 }
 
 func (s *service) DeleteGalleryImage(ctx context.Context, ocID uuid.UUID, imageID int64, userID uuid.UUID) error {
-	authorID, err := s.ocRepo.GetAuthorID(ctx, ocID)
+	authorID, err := s.ocAuthor(ctx, ocID)
 	if err != nil {
-		return ErrNotFound
+		return err
 	}
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
-		return fmt.Errorf("not the oc owner")
+		return ErrNotOwner
 	}
 	return s.ocRepo.DeleteGalleryImage(ctx, spec.MediaDeletion{ID: imageID, TargetID: ocID})
 }
 
 func (s *service) Vote(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, value int) error {
-	authorID, err := s.ocRepo.GetAuthorID(ctx, ocID)
+	authorID, err := s.ocAuthor(ctx, ocID)
 	if err != nil {
-		return ErrNotFound
+		return err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
-		return block.ErrUserBlocked
+	if err := s.assertNotBlocked(ctx, userID, authorID); err != nil {
+		return err
 	}
 	return s.ocRepo.Vote(ctx, spec.Vote{UserID: userID, TargetID: ocID, Value: value})
 }
 
 func (s *service) ToggleFavourite(ctx context.Context, userID uuid.UUID, ocID uuid.UUID) (bool, error) {
-	authorID, err := s.ocRepo.GetAuthorID(ctx, ocID)
+	authorID, err := s.ocAuthor(ctx, ocID)
 	if err != nil {
-		return false, ErrNotFound
+		return false, err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
-		return false, block.ErrUserBlocked
+	if err := s.assertNotBlocked(ctx, userID, authorID); err != nil {
+		return false, err
 	}
 
 	row, err := s.ocRepo.GetByID(ctx, spec.OCByID{ID: ocID, ViewerID: userID})
@@ -614,7 +693,12 @@ func (s *service) ToggleFavourite(ctx context.Context, userID uuid.UUID, ocID uu
 		}
 		bgCtx := context.Background()
 		actor, err := s.userRepo.GetByID(bgCtx, userID)
-		if err != nil || actor == nil {
+		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("user_id", userID.String()).Msg("oc favourite notification skipped, actor lookup failed")
+
+			return
+		}
+		if actor == nil {
 			return
 		}
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
@@ -642,12 +726,12 @@ func (s *service) CreateComment(ctx context.Context, ocID uuid.UUID, userID uuid
 		return uuid.Nil, err
 	}
 
-	authorID, err := s.ocRepo.GetAuthorID(ctx, ocID)
+	authorID, err := s.ocAuthor(ctx, ocID)
 	if err != nil {
-		return uuid.Nil, ErrNotFound
+		return uuid.Nil, err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
-		return uuid.Nil, block.ErrUserBlocked
+	if err := s.assertNotBlocked(ctx, userID, authorID); err != nil {
+		return uuid.Nil, err
 	}
 
 	id, err := s.mentionSvc.CreateComment(ctx, mention.CommentSpec{
@@ -664,7 +748,12 @@ func (s *service) CreateComment(ctx context.Context, ocID uuid.UUID, userID uuid
 	go func() {
 		bgCtx := context.Background()
 		actor, err := s.userRepo.GetByID(bgCtx, userID)
-		if err != nil || actor == nil {
+		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("user_id", userID.String()).Msg("oc comment notification skipped, actor lookup failed")
+
+			return
+		}
+		if actor == nil {
 			return
 		}
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
@@ -680,7 +769,12 @@ func (s *service) CreateComment(ctx context.Context, ocID uuid.UUID, userID uuid
 
 		if req.ParentID != nil {
 			parentAuthor, err := s.ocRepo.GetCommentAuthorID(bgCtx, *req.ParentID)
-			if err == nil && parentAuthor != authorID {
+			if err != nil {
+				logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", req.ParentID.String()).Msg("oc reply notification skipped, parent lookup failed")
+
+				return
+			}
+			if parentAuthor != authorID {
 				_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 					RecipientID:   parentAuthor,
 					Type:          dto.NotifOCCommentReply,
@@ -707,9 +801,9 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 		return err
 	}
 
-	authorID, err := s.ocRepo.GetCommentAuthorID(ctx, id)
+	authorID, err := s.ocCommentAuthor(ctx, id)
 	if err != nil {
-		return ErrNotFound
+		return err
 	}
 
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyComment)
@@ -756,12 +850,12 @@ func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.U
 }
 
 func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	commentAuthorID, err := s.ocRepo.GetCommentAuthorID(ctx, commentID)
+	commentAuthorID, err := s.ocCommentAuthor(ctx, commentID)
 	if err != nil {
 		return err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
-		return block.ErrUserBlocked
+	if err := s.assertNotBlocked(ctx, userID, commentAuthorID); err != nil {
+		return err
 	}
 	if err := s.ocRepo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID}); err != nil {
 		return err
@@ -774,6 +868,8 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 		bgCtx := context.Background()
 		ocID, err := s.ocRepo.GetCommentEntityID(bgCtx, commentID)
 		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", commentID.String()).Msg("oc comment like notification skipped, oc lookup failed")
+
 			return
 		}
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
@@ -805,12 +901,12 @@ func (s *service) UploadCommentMedia(
 	reader io.Reader,
 	isSpoiler bool,
 ) (*dto.PostMediaResponse, error) {
-	authorID, err := s.ocRepo.GetCommentAuthorID(ctx, commentID)
+	authorID, err := s.ocCommentAuthor(ctx, commentID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, err
 	}
 	if authorID != userID {
-		return nil, fmt.Errorf("not the comment author")
+		return nil, authz.ErrNotCommentAuthor
 	}
 
 	return s.uploader.SaveAndRecord(ctx, "ocs", contentType, filename, fileSize, reader, isSpoiler,

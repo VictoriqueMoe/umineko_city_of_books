@@ -3,8 +3,10 @@ package gameroom
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -193,21 +195,35 @@ func TestResign_RejectsARoomThatIsNotActive(t *testing.T) {
 	require.ErrorIs(t, err, ErrRoomNotActive)
 }
 
-func TestResign_RejectsANonParticipant(t *testing.T) {
-	// given
-	m := newTestService(t)
-	roomID := uuid.New()
-	outsider := uuid.New()
-	row := pendingRow(roomID, uuid.New())
-	row.Status = string(dto.GameStatusActive)
-	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
-	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: outsider}).Return(0, errors.New("not a player"))
+func TestResign_PlayerSlotLookup(t *testing.T) {
+	dbDown := errors.New("db down")
 
-	// when
-	_, err := m.svc.Resign(context.Background(), roomID, outsider)
+	cases := []struct {
+		name    string
+		slotErr error
+		wantErr error
+	}{
+		{name: "a user with no slot is not a participant", slotErr: fmt.Errorf("player not in room: %w", dao.ErrNotFound), wantErr: ErrNotParticipant},
+		{name: "a failed lookup is returned, not read as a non participant", slotErr: dbDown, wantErr: dbDown},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			m := newTestService(t)
+			roomID := uuid.New()
+			outsider := uuid.New()
+			row := pendingRow(roomID, uuid.New())
+			row.Status = string(dto.GameStatusActive)
+			m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
+			m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: outsider}).Return(0, tc.slotErr)
 
-	// then
-	require.ErrorIs(t, err, ErrNotParticipant)
+			// when
+			_, err := m.svc.Resign(context.Background(), roomID, outsider)
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+		})
+	}
 }
 
 func TestCountLive_ReportsTheRepositoryCount(t *testing.T) {

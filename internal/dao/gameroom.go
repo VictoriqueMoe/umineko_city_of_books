@@ -156,7 +156,7 @@ func (r *gameRoomDAO) GetPlayerSlot(ctx context.Context, s spec.GameRoomPlayerRe
 		UserID: s.UserID,
 	})
 	if errors.Is(err, sql.ErrNoRows) {
-		return 0, fmt.Errorf("player not in room")
+		return 0, fmt.Errorf("player not in room: %w", ErrNotFound)
 	}
 	if err != nil {
 		return 0, fmt.Errorf("get player slot: %w", err)

@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
-	"strings"
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
@@ -16,18 +14,21 @@ import (
 )
 
 func (s *service) UploadAttachment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, reader io.Reader) (*dto.MysteryAttachment, error) {
-	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	authorID, err := s.mysteryAuthor(ctx, mysteryID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, err
 	}
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return nil, ErrNotAuthor
 	}
 
-	existing, _ := s.mysteryRepo.GetAttachments(ctx, mysteryID)
+	existing, err := s.mysteryRepo.GetAttachments(ctx, mysteryID)
+	if err != nil {
+		return nil, fmt.Errorf("existing attachments: %w", err)
+	}
 	for _, a := range existing {
 		if a.FileName == fileName {
-			return nil, fmt.Errorf("a file named %q is already attached", fileName)
+			return nil, fmt.Errorf("%w: %q", ErrDuplicateAttachment, fileName)
 		}
 	}
 
@@ -67,15 +68,18 @@ func (s *service) UploadMedia(
 	reader io.Reader,
 	isSpoiler bool,
 ) (*dto.PostMediaResponse, error) {
-	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	authorID, err := s.mysteryAuthor(ctx, mysteryID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, err
 	}
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return nil, ErrNotAuthor
 	}
 
-	existing, _ := s.mysteryRepo.GetMedia(ctx, mysteryID)
+	existing, err := s.mysteryRepo.GetMedia(ctx, mysteryID)
+	if err != nil {
+		return nil, fmt.Errorf("existing media: %w", err)
+	}
 	sortOrder := len(existing)
 
 	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, filename, fileSize, reader, isSpoiler,
@@ -100,9 +104,9 @@ func (s *service) UploadMedia(
 }
 
 func (s *service) DeleteMedia(ctx context.Context, mediaID int64, mysteryID uuid.UUID, userID uuid.UUID) error {
-	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	authorID, err := s.mysteryAuthor(ctx, mysteryID)
 	if err != nil {
-		return ErrNotFound
+		return err
 	}
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return ErrNotAuthor
@@ -118,15 +122,18 @@ func (s *service) DeleteMedia(ctx context.Context, mediaID int64, mysteryID uuid
 }
 
 func (s *service) DeleteAttachment(ctx context.Context, attachmentID int64, mysteryID uuid.UUID, userID uuid.UUID) error {
-	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	authorID, err := s.mysteryAuthor(ctx, mysteryID)
 	if err != nil {
-		return ErrNotFound
+		return err
 	}
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return ErrNotAuthor
 	}
 
-	attachments, _ := s.mysteryRepo.GetAttachments(ctx, mysteryID)
+	attachments, err := s.mysteryRepo.GetAttachments(ctx, mysteryID)
+	if err != nil {
+		return fmt.Errorf("existing attachments: %w", err)
+	}
 	var fileURL string
 	for _, a := range attachments {
 		if int64(a.ID) == attachmentID {
@@ -140,8 +147,7 @@ func (s *service) DeleteAttachment(ctx context.Context, attachmentID int64, myst
 	}
 
 	if fileURL != "" {
-		diskPath := s.uploadSvc.GetUploadDir() + strings.TrimPrefix(fileURL, "/uploads")
-		os.Remove(diskPath)
+		s.uploadSvc.Delete(fileURL)
 	}
 
 	return nil

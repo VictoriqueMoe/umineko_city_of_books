@@ -94,18 +94,53 @@ func TestCreateAttempt_EmptyBody(t *testing.T) {
 	require.ErrorIs(t, err, ErrEmptyBody)
 }
 
-func TestCreateAttempt_MysteryNotFound(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	mid := uuid.New()
-	userID := uuid.New()
-	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errors.New("boom"))
+func TestCreateAttempt_LookupFailures(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name      string
+		authorErr error
+		pausedErr error
+		blockErr  error
+		parentErr error
+		wantErr   error
+	}{
+		{name: "a missing mystery is not found", authorErr: errMissingRow, wantErr: ErrNotFound},
+		{name: "a failed author lookup is surfaced, not reported as not found", authorErr: boom, wantErr: boom},
+		{name: "a failed paused check refuses the attempt", pausedErr: boom, wantErr: boom},
+		{name: "a failed block check refuses the attempt", blockErr: boom, wantErr: boom},
+		{name: "a missing reply parent is not found", parentErr: errMissingRow, wantErr: ErrNotFound},
+		{name: "a failed reply parent lookup is surfaced, not reported as not found", parentErr: boom, wantErr: boom},
+	}
 
-	// when
-	_, err := svc.CreateAttempt(context.Background(), mid, userID, dto.CreateAttemptRequest{Body: "body"})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			mid := uuid.New()
+			userID := uuid.New()
+			authorID := uuid.New()
+			parentID := uuid.New()
+			m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(authorID, tc.authorErr)
+			if tc.authorErr == nil {
+				m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(false, nil)
+				m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, spec.MysterySolverQuery{MysteryID: mid, UserID: userID}).Return(false, nil)
+				m.repo.EXPECT().IsPaused(mock.Anything, mid).Return(false, tc.pausedErr)
+			}
+			if tc.authorErr == nil && tc.pausedErr == nil {
+				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, tc.blockErr)
+			}
+			if tc.authorErr == nil && tc.pausedErr == nil && tc.blockErr == nil {
+				m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, parentID).Return(uuid.Nil, tc.parentErr)
+			}
 
-	// then
-	require.ErrorIs(t, err, ErrNotFound)
+			// when
+			_, err := svc.CreateAttempt(context.Background(), mid, userID, dto.CreateAttemptRequest{Body: "body", ParentID: &parentID})
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+			m.repo.AssertNotCalled(t, "CreateAttempt", mock.Anything, mock.Anything)
+		})
+	}
 }
 
 func TestCreateAttempt_IsSolvedError(t *testing.T) {
@@ -175,27 +210,6 @@ func TestCreateAttempt_Blocked(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, block.ErrUserBlocked)
-}
-
-func TestCreateAttempt_ReplyParentNotFound(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	mid := uuid.New()
-	userID := uuid.New()
-	authorID := uuid.New()
-	parentID := uuid.New()
-	stubAuthor(m, mid, authorID)
-	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(false, nil)
-	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, spec.MysterySolverQuery{MysteryID: mid, UserID: userID}).Return(false, nil)
-	m.repo.EXPECT().IsPaused(mock.Anything, mid).Return(false, nil)
-	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, parentID).Return(uuid.Nil, errors.New("boom"))
-
-	// when
-	_, err := svc.CreateAttempt(context.Background(), mid, userID, dto.CreateAttemptRequest{Body: "body", ParentID: &parentID})
-
-	// then
-	require.ErrorIs(t, err, ErrNotFound)
 }
 
 func TestCreateAttempt_ReplyByOtherUser_NotAllowed(t *testing.T) {
@@ -352,19 +366,33 @@ func TestDeleteAttempt_ModeratorDeletingOwnAttempt_WritesNoAuditRow(t *testing.T
 	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 }
 
-func TestDeleteAttempt_AttemptNotFound(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	id := uuid.New()
-	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
-	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, id).Return(uuid.Nil, errors.New("boom"))
+func TestDeleteAttempt_AdminLookupFailures(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name      string
+		lookupErr error
+		wantErr   error
+	}{
+		{name: "a missing attempt is not found", lookupErr: errMissingRow, wantErr: ErrNotFound},
+		{name: "a failed attempt lookup is surfaced, not reported as not found", lookupErr: boom, wantErr: boom},
+	}
 
-	// when
-	err := svc.DeleteAttempt(context.Background(), id, userID)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			id := uuid.New()
+			userID := uuid.New()
+			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
+			m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, id).Return(uuid.Nil, tc.lookupErr)
 
-	// then
-	require.ErrorIs(t, err, ErrNotFound)
+			// when
+			err := svc.DeleteAttempt(context.Background(), id, userID)
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+		})
+	}
 }
 
 func TestDeleteAttempt_NonAdmin(t *testing.T) {
@@ -393,18 +421,39 @@ func TestVoteAttempt_InvalidValue(t *testing.T) {
 	require.ErrorIs(t, err, ErrInvalidVote)
 }
 
-func TestVoteAttempt_AttemptNotFound(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	aid := uuid.New()
-	userID := uuid.New()
-	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, aid).Return(uuid.Nil, errors.New("boom"))
+func TestVoteAttempt_LookupFailures(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name      string
+		lookupErr error
+		blockErr  error
+		wantErr   error
+	}{
+		{name: "a missing attempt is not found", lookupErr: errMissingRow, wantErr: ErrNotFound},
+		{name: "a failed attempt lookup is surfaced, not reported as not found", lookupErr: boom, wantErr: boom},
+		{name: "a failed block check refuses the vote", blockErr: boom, wantErr: boom},
+	}
 
-	// when
-	err := svc.VoteAttempt(context.Background(), aid, userID, 1)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			aid := uuid.New()
+			userID := uuid.New()
+			authorID := uuid.New()
+			m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, aid).Return(authorID, tc.lookupErr)
+			if tc.lookupErr == nil {
+				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, tc.blockErr)
+			}
 
-	// then
-	require.ErrorIs(t, err, ErrNotFound)
+			// when
+			err := svc.VoteAttempt(context.Background(), aid, userID, 1)
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+			m.repo.AssertNotCalled(t, "VoteAttempt", mock.Anything, mock.Anything)
+		})
+	}
 }
 
 func TestVoteAttempt_Blocked(t *testing.T) {

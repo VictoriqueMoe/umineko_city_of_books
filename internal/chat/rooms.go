@@ -37,7 +37,12 @@ func (r *roomsService) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID,
 		if memberID == creatorID {
 			continue
 		}
-		if blocked, _ := r.blockSvc.IsBlockedEither(ctx, creatorID, memberID); blocked {
+
+		blocked, err := r.blockSvc.IsBlockedEither(ctx, creatorID, memberID)
+		if err != nil {
+			return nil, fmt.Errorf("block check: %w", err)
+		}
+		if blocked {
 			continue
 		}
 
@@ -237,7 +242,11 @@ func (r *roomsService) ListPublicRooms(ctx context.Context, search string, isRPO
 	limit = page.Limit()
 	offset = page.Offset()
 
-	blockedIDs, _ := r.blockSvc.GetBlockedIDs(ctx, viewerID)
+	blockedIDs, err := r.blockSvc.GetBlockedIDs(ctx, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("blocked users: %w", err)
+	}
+
 	tag = strings.ToLower(strings.TrimSpace(tag))
 	rows, total, err := r.chatRepo.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{
 		ChatRoomFilter: spec.ChatRoomFilter{
@@ -255,7 +264,11 @@ func (r *roomsService) ListPublicRooms(ctx context.Context, search string, isRPO
 		return nil, fmt.Errorf("list public rooms: %w", err)
 	}
 
-	bannedRoomIDs, _ := r.banRepo.BannedRoomIDsForUser(ctx, viewerID)
+	bannedRoomIDs, err := r.banRepo.BannedRoomIDsForUser(ctx, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("room bans: %w", err)
+	}
+
 	bannedSet := make(map[uuid.UUID]struct{}, len(bannedRoomIDs))
 	for _, id := range bannedRoomIDs {
 		bannedSet[id] = struct{}{}
@@ -363,7 +376,11 @@ func (r *roomsService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, g
 		return r.buildRoomResponse(ctx, roomID, userID)
 	}
 
-	if blocked, _ := r.blockSvc.IsBlockedEither(ctx, userID, row.CreatedBy); blocked {
+	blocked, err := r.blockSvc.IsBlockedEither(ctx, userID, row.CreatedBy)
+	if err != nil {
+		return nil, fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return nil, ErrUserBlocked
 	}
 
@@ -372,7 +389,10 @@ func (r *roomsService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, g
 		return nil, ErrRoomFull
 	}
 
-	joiner, _ := r.userRepo.GetByID(ctx, userID)
+	joiner, err := r.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get joiner: %w", err)
+	}
 
 	actionBody := ""
 	if joiner != nil && !ghost {
@@ -394,7 +414,10 @@ func (r *roomsService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, g
 		return nil, err
 	}
 
-	members, _ := r.chatRepo.GetRoomMembers(ctx, roomID)
+	members, err := r.chatRepo.GetRoomMembers(ctx, roomID)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("join announcement audience lookup failed")
+	}
 	if joiner != nil {
 		event := ws.Message{
 			Type: "chat_member_joined",
@@ -418,6 +441,8 @@ func (r *roomsService) broadcastToStaff(ctx context.Context, memberIDs []uuid.UU
 	for _, mid := range memberIDs {
 		role, err := r.authzSvc.GetRole(ctx, mid)
 		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("user_id", mid.String()).Msg("staff broadcast: role lookup failed, withholding the ghost event")
+
 			continue
 		}
 		if role.IsSiteStaff() {
@@ -450,9 +475,21 @@ func (r *roomsService) departRoom(ctx context.Context, roomID uuid.UUID, roomTyp
 	var audience []uuid.UUID
 	var wasGhost bool
 	if caps.announcesDepartures {
-		audience, _ = r.chatRepo.GetRoomMembers(ctx, roomID)
-		if hasGhost, _ := r.chatRepo.HasGhostMembers(ctx, roomID); hasGhost {
-			wasGhost, _ = r.chatRepo.IsGhostMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID})
+		var err error
+		audience, err = r.chatRepo.GetRoomMembers(ctx, roomID)
+		if err != nil {
+			return fmt.Errorf("departure audience: %w", err)
+		}
+
+		hasGhost, err := r.chatRepo.HasGhostMembers(ctx, roomID)
+		if err != nil {
+			return fmt.Errorf("room ghost check: %w", err)
+		}
+		if hasGhost {
+			wasGhost, err = r.chatRepo.IsGhostMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID})
+			if err != nil {
+				return fmt.Errorf("leaver ghost check: %w", err)
+			}
 		}
 	}
 
@@ -473,7 +510,10 @@ func (r *roomsService) departRoom(ctx context.Context, roomID uuid.UUID, roomTyp
 }
 
 func (r *roomsService) announceDeparture(ctx context.Context, roomID, userID uuid.UUID, audience []uuid.UUID, wasGhost bool) {
-	leaver, _ := r.userRepo.GetByID(ctx, userID)
+	leaver, err := r.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("user_id", userID.String()).Msg("departure announcement: leaver lookup failed")
+	}
 	if leaver == nil {
 		return
 	}
@@ -587,9 +627,12 @@ func (r *roomsService) DeleteChat(ctx context.Context, roomID, userID uuid.UUID)
 }
 
 func (r *roomsService) destroyRoom(ctx context.Context, roomID uuid.UUID, row *model.ChatRoomRow, actorID uuid.UUID) error {
-	r.endWatchPartiesForRoom(ctx, roomID, "room_deleted")
+	members, err := r.chatRepo.GetRoomMembers(ctx, roomID)
+	if err != nil {
+		return fmt.Errorf("room members: %w", err)
+	}
 
-	members, _ := r.chatRepo.GetRoomMembers(ctx, roomID)
+	r.endWatchPartiesForRoom(ctx, roomID, "room_deleted")
 
 	paths, err := r.chatRepo.DeleteRoomWithMessages(ctx, roomID)
 	if err != nil {
@@ -718,17 +761,24 @@ func (r *roomsService) ClearRoomAvatar(ctx context.Context, roomID, userID uuid.
 	}
 
 	rows, err := r.chatRepo.GetRoomMembersDetailed(ctx, roomID)
-	if err == nil {
-		for _, row := range rows {
-			if row.UserID == userID && row.MemberAvatarURL != "" {
-				r.uploadSvc.Delete(row.MemberAvatarURL)
-				break
-			}
+	if err != nil {
+		return nil, fmt.Errorf("current member avatar: %w", err)
+	}
+
+	previous := ""
+	for _, row := range rows {
+		if row.UserID == userID {
+			previous = row.MemberAvatarURL
+			break
 		}
 	}
 
 	if err := r.chatRepo.SetMemberAvatar(ctx, spec.ChatMemberAvatarUpdate{RoomID: roomID, UserID: userID, AvatarURL: ""}); err != nil {
 		return nil, fmt.Errorf("clear member avatar: %w", err)
+	}
+
+	if previous != "" {
+		r.uploadSvc.Delete(previous)
 	}
 
 	return r.broadcastAndBuildMember(ctx, roomID, userID)

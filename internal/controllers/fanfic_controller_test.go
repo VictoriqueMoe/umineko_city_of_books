@@ -2,20 +2,42 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+)
+
+type (
+	fanficCtlOutcome struct {
+		name     string
+		svcErr   error
+		wantCode int
+		wantBody string
+	}
+
+	fanficCtlWrite struct {
+		name     string
+		method   string
+		route    string
+		body     any
+		expect   func(fs *fanficsvc.MockService, userID, targetID, newID uuid.UUID, err error)
+		outcomes []fanficCtlOutcome
+	}
 )
 
 func newFanficHarness(t *testing.T) (*testutil.Harness, *fanficsvc.MockService) {
@@ -27,39 +49,402 @@ func newFanficHarness(t *testing.T) (*testutil.Harness, *fanficsvc.MockService) 
 		AuthSession:   h.SessionManager,
 		AuthzService:  h.AuthzService,
 	}
+
 	for _, setup := range s.getAllFanficRoutes() {
 		setup(h.App)
 	}
+
 	return h, fs
 }
 
-func defaultFanficListParams() fanficparams.ListParams {
-	return fanficparams.ListParams{
-		Sort:   "updated",
-		Limit:  25,
-		Offset: 0,
+func fanficCtlResult[T any](value T, err error) T {
+	if err != nil {
+		var zero T
+		return zero
+	}
+
+	return value
+}
+
+func fanficCtlGet(h *testutil.Harness, path string, authed bool) (*testutil.Request, uuid.UUID) {
+	req := h.NewRequest("GET", path)
+	if !authed {
+		return req, uuid.Nil
+	}
+
+	viewerID := uuid.New()
+	h.ExpectValidSession("valid-cookie", viewerID)
+
+	return req.WithCookie("valid-cookie"), viewerID
+}
+
+func fanficCtlWriteRequest(h *testutil.Harness, ep fanficCtlWrite, id string) *testutil.Request {
+	req := h.NewRequest(ep.method, strings.Replace(ep.route, ":id", id, 1)).WithCookie("valid-cookie")
+	if ep.body != nil {
+		req = req.WithJSONBody(ep.body)
+	}
+
+	return req
+}
+
+func fanficCtlWriteEndpoints() []fanficCtlWrite {
+	boom := errors.New("boom")
+	createFanfic := dto.CreateFanficRequest{Title: "The Golden Witch", Summary: "a tale", Rating: "teen"}
+	updateFanfic := dto.UpdateFanficRequest{Title: "Updated"}
+	createChapter := dto.CreateChapterRequest{Title: "Ch1", Body: "body"}
+	updateChapter := dto.UpdateChapterRequest{Title: "Updated", Body: "body"}
+	createComment := dto.CreateCommentRequest{Body: "nice"}
+	updateComment := dto.UpdateCommentRequest{Body: "edited"}
+
+	created := fanficCtlOutcome{"created", nil, http.StatusCreated, ""}
+	noContent := fanficCtlOutcome{"no content", nil, http.StatusNoContent, ""}
+	notAuthor := fanficCtlOutcome{"not author", fanficsvc.ErrNotAuthor, http.StatusForbidden, fanficsvc.ErrNotAuthor.Error()}
+	emptyBody := fanficCtlOutcome{"empty body", fanficsvc.ErrEmptyBody, http.StatusBadRequest, fanficsvc.ErrEmptyBody.Error()}
+	blocked := fanficCtlOutcome{"blocked", block.ErrUserBlocked, http.StatusForbidden, "user is blocked"}
+	fanficValidation := []fanficCtlOutcome{
+		{"empty title", fanficsvc.ErrEmptyTitle, http.StatusBadRequest, fanficsvc.ErrEmptyTitle.Error()},
+		{"too many genres", fanficsvc.ErrTooManyGenres, http.StatusBadRequest, fanficsvc.ErrTooManyGenres.Error()},
+		{"too many tags", fanficsvc.ErrTooManyTags, http.StatusBadRequest, fanficsvc.ErrTooManyTags.Error()},
+		{"tag too long", fanficsvc.ErrTagTooLong, http.StatusBadRequest, fanficsvc.ErrTagTooLong.Error()},
+		{"invalid rating", fanficsvc.ErrInvalidRating, http.StatusBadRequest, fanficsvc.ErrInvalidRating.Error()},
+	}
+
+	return []fanficCtlWrite{
+		{
+			name: "create fanfic", method: "POST", route: "/fanfics", body: createFanfic,
+			expect: func(fs *fanficsvc.MockService, userID, _, newID uuid.UUID, err error) {
+				fs.EXPECT().CreateFanfic(mock.Anything, userID, createFanfic).Return(newID, err)
+			},
+			outcomes: append([]fanficCtlOutcome{
+				created,
+				{"internal", boom, http.StatusInternalServerError, "failed to create fanfic"},
+			}, fanficValidation...),
+		},
+		{
+			name: "update fanfic", method: "PUT", route: "/fanfics/:id", body: updateFanfic,
+			expect: func(fs *fanficsvc.MockService, userID, targetID, _ uuid.UUID, err error) {
+				fs.EXPECT().UpdateFanfic(mock.Anything, targetID, userID, updateFanfic).Return(err)
+			},
+			outcomes: append([]fanficCtlOutcome{
+				noContent,
+				notAuthor,
+				{"not found", fanficsvc.ErrNotFound, http.StatusNotFound, "fanfic not found"},
+				{"internal", boom, http.StatusInternalServerError, "failed to update fanfic"},
+			}, fanficValidation...),
+		},
+		{
+			name: "delete fanfic", method: "DELETE", route: "/fanfics/:id",
+			expect: func(fs *fanficsvc.MockService, userID, targetID, _ uuid.UUID, err error) {
+				fs.EXPECT().DeleteFanfic(mock.Anything, targetID, userID).Return(err)
+			},
+			outcomes: []fanficCtlOutcome{
+				noContent,
+				notAuthor,
+				{"not found", fanficsvc.ErrNotFound, http.StatusNotFound, "fanfic not found"},
+				{"internal", boom, http.StatusInternalServerError, "failed to delete fanfic"},
+			},
+		},
+		{name: "upload cover", method: "POST", route: "/fanfics/:id/cover"},
+		{
+			name: "delete cover", method: "DELETE", route: "/fanfics/:id/cover",
+			expect: func(fs *fanficsvc.MockService, userID, targetID, _ uuid.UUID, err error) {
+				fs.EXPECT().RemoveCoverImage(mock.Anything, targetID, userID).Return(err)
+			},
+			outcomes: []fanficCtlOutcome{
+				noContent,
+				notAuthor,
+				{"not found", fanficsvc.ErrNotFound, http.StatusNotFound, "fanfic not found"},
+				{"a server failure is a 500, not a 400 carrying the database error", errors.New("pq: connection refused"), http.StatusInternalServerError, "failed to remove the cover"},
+			},
+		},
+		{
+			name: "create chapter", method: "POST", route: "/fanfics/:id/chapters", body: createChapter,
+			expect: func(fs *fanficsvc.MockService, userID, targetID, newID uuid.UUID, err error) {
+				fs.EXPECT().CreateChapter(mock.Anything, targetID, userID, createChapter).Return(newID, err)
+			},
+			outcomes: []fanficCtlOutcome{
+				created,
+				notAuthor,
+				emptyBody,
+				{"not found", fanficsvc.ErrNotFound, http.StatusNotFound, "fanfic not found"},
+				{"internal", boom, http.StatusInternalServerError, "failed to create chapter"},
+			},
+		},
+		{
+			name: "update chapter", method: "PUT", route: "/fanfic-chapters/:id", body: updateChapter,
+			expect: func(fs *fanficsvc.MockService, userID, targetID, _ uuid.UUID, err error) {
+				fs.EXPECT().UpdateChapter(mock.Anything, targetID, userID, updateChapter).Return(err)
+			},
+			outcomes: []fanficCtlOutcome{
+				noContent,
+				notAuthor,
+				emptyBody,
+				{"not found", fanficsvc.ErrNotFound, http.StatusNotFound, "chapter not found"},
+				{"internal", boom, http.StatusInternalServerError, "failed to update chapter"},
+			},
+		},
+		{
+			name: "delete chapter", method: "DELETE", route: "/fanfic-chapters/:id",
+			expect: func(fs *fanficsvc.MockService, userID, targetID, _ uuid.UUID, err error) {
+				fs.EXPECT().DeleteChapter(mock.Anything, targetID, userID).Return(err)
+			},
+			outcomes: []fanficCtlOutcome{
+				noContent,
+				notAuthor,
+				{"not found", fanficsvc.ErrNotFound, http.StatusNotFound, "chapter not found"},
+				{"internal", boom, http.StatusInternalServerError, "failed to delete chapter"},
+			},
+		},
+		{
+			name: "favourite", method: "POST", route: "/fanfics/:id/favourite",
+			expect: func(fs *fanficsvc.MockService, userID, targetID, _ uuid.UUID, err error) {
+				fs.EXPECT().Favourite(mock.Anything, userID, targetID).Return(err)
+			},
+			outcomes: []fanficCtlOutcome{
+				noContent,
+				blocked,
+				{"not found", fanficsvc.ErrNotFound, http.StatusNotFound, "fanfic not found"},
+				{"internal", boom, http.StatusInternalServerError, "failed to favourite fanfic"},
+			},
+		},
+		{
+			name: "unfavourite", method: "DELETE", route: "/fanfics/:id/favourite",
+			expect: func(fs *fanficsvc.MockService, userID, targetID, _ uuid.UUID, err error) {
+				fs.EXPECT().Unfavourite(mock.Anything, userID, targetID).Return(err)
+			},
+			outcomes: []fanficCtlOutcome{
+				noContent,
+				{"internal", boom, http.StatusInternalServerError, "failed to unfavourite fanfic"},
+			},
+		},
+		{
+			name: "create comment", method: "POST", route: "/fanfics/:id/comments", body: createComment,
+			expect: func(fs *fanficsvc.MockService, userID, targetID, newID uuid.UUID, err error) {
+				fs.EXPECT().CreateComment(mock.Anything, targetID, userID, createComment).Return(newID, err)
+			},
+			outcomes: []fanficCtlOutcome{
+				created,
+				blocked,
+				emptyBody,
+				{"not found", fanficsvc.ErrNotFound, http.StatusNotFound, "fanfic not found"},
+				{"internal", boom, http.StatusInternalServerError, "failed to create comment"},
+			},
+		},
+		{
+			name: "update comment", method: "PUT", route: "/fanfic-comments/:id", body: updateComment,
+			expect: func(fs *fanficsvc.MockService, userID, targetID, _ uuid.UUID, err error) {
+				fs.EXPECT().UpdateComment(mock.Anything, targetID, userID, updateComment).Return(err)
+			},
+			outcomes: []fanficCtlOutcome{
+				noContent,
+				emptyBody,
+				{"not found", fanficsvc.ErrNotFound, http.StatusNotFound, "comment not found"},
+				{"not owned", errors.Join(errors.New("comment not found or not owned"), dao.ErrNotFound), http.StatusForbidden, "cannot update this comment"},
+				{"internal", boom, http.StatusInternalServerError, "failed to update comment"},
+			},
+		},
+		{
+			name: "delete comment", method: "DELETE", route: "/fanfic-comments/:id",
+			expect: func(fs *fanficsvc.MockService, userID, targetID, _ uuid.UUID, err error) {
+				fs.EXPECT().DeleteComment(mock.Anything, targetID, userID).Return(err)
+			},
+			outcomes: []fanficCtlOutcome{
+				noContent,
+				{"internal", boom, http.StatusInternalServerError, "failed to delete comment"},
+			},
+		},
+		{
+			name: "like comment", method: "POST", route: "/fanfic-comments/:id/like",
+			expect: func(fs *fanficsvc.MockService, userID, targetID, _ uuid.UUID, err error) {
+				fs.EXPECT().LikeComment(mock.Anything, userID, targetID).Return(err)
+			},
+			outcomes: []fanficCtlOutcome{
+				noContent,
+				blocked,
+				{"not found", fanficsvc.ErrNotFound, http.StatusNotFound, "comment not found"},
+				{"internal", boom, http.StatusInternalServerError, "failed to like comment"},
+			},
+		},
+		{
+			name: "unlike comment", method: "DELETE", route: "/fanfic-comments/:id/like",
+			expect: func(fs *fanficsvc.MockService, userID, targetID, _ uuid.UUID, err error) {
+				fs.EXPECT().UnlikeComment(mock.Anything, userID, targetID).Return(err)
+			},
+			outcomes: []fanficCtlOutcome{
+				noContent,
+				{"internal", boom, http.StatusInternalServerError, "failed to unlike comment"},
+			},
+		},
+		{name: "upload comment media", method: "POST", route: "/fanfic-comments/:id/media"},
 	}
 }
 
-func TestListFanfics_Anonymous_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	expected := &dto.FanficListResponse{Total: 0, Limit: 25, Offset: 0}
-	fs.EXPECT().ListFanfics(mock.Anything, uuid.Nil, defaultFanficListParams()).Return(expected, nil)
+func TestUploadFanficCover(t *testing.T) {
+	cases := []fanficCtlOutcome{
+		{"not found", fanficsvc.ErrNotFound, http.StatusNotFound, "fanfic not found"},
+		{"not author", fanficsvc.ErrNotAuthor, http.StatusForbidden, fanficsvc.ErrNotAuthor.Error()},
+		{"too large", fmt.Errorf("%w: file size 9MB exceeds maximum 5MB", upload.ErrFileTooLarge), http.StatusBadRequest, "exceeds maximum 5MB"},
+		{"a server failure is a 500, not a 400 carrying the database error", errors.New("pq: connection refused"), http.StatusInternalServerError, "failed to upload the cover"},
+	}
 
-	// when
-	status, body := h.NewRequest("GET", "/fanfics").Do()
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, fs := newFanficHarness(t)
+			userID := uuid.New()
+			fanficID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			form, contentType := testutil.MediaForm(t, "image", nil)
+			fs.EXPECT().UploadCoverImage(mock.Anything, fanficID, userID, "image/png", mock.AnythingOfType("int64"), mock.Anything).Return("", tc.svcErr)
 
-	// then
-	require.Equal(t, http.StatusOK, status)
-	got := testutil.UnmarshalJSON[dto.FanficListResponse](t, body)
-	assert.Equal(t, expected.Total, got.Total)
+			// when
+			status, body := h.NewRequest("POST", "/fanfics/"+fanficID.String()+"/cover").WithCookie("valid-cookie").WithRawBody(form, contentType).Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+			assert.NotContains(t, string(body), "pq:")
+		})
+	}
 }
 
-func TestListFanfics_CustomQuery_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	params := fanficparams.ListParams{
+func TestFanficWrites_AuthFailures(t *testing.T) {
+	for _, ep := range fanficCtlWriteEndpoints() {
+		t.Run(ep.name, func(t *testing.T) {
+			testutil.RunAuthFailureSuite(t, newFanficHarness, ep.method, strings.Replace(ep.route, ":id", uuid.NewString(), 1), ep.body)
+		})
+	}
+}
+
+func TestFanficWrites_InvalidID(t *testing.T) {
+	for _, ep := range fanficCtlWriteEndpoints() {
+		if !strings.Contains(ep.route, ":id") {
+			continue
+		}
+
+		t.Run(ep.name, func(t *testing.T) {
+			// given
+			h, _ := newFanficHarness(t)
+			h.ExpectValidSession("valid-cookie", uuid.New())
+
+			// when
+			status, body := fanficCtlWriteRequest(h, ep, "not-a-uuid").Do()
+
+			// then
+			require.Equal(t, http.StatusBadRequest, status)
+			assert.Contains(t, string(body), "invalid id")
+		})
+	}
+}
+
+func TestFanficWrites_BadJSON_BadRequest(t *testing.T) {
+	for _, ep := range fanficCtlWriteEndpoints() {
+		if ep.body == nil {
+			continue
+		}
+
+		t.Run(ep.name, func(t *testing.T) {
+			// given
+			h, _ := newFanficHarness(t)
+			h.ExpectValidSession("valid-cookie", uuid.New())
+
+			// when
+			status, body := h.NewRequest(ep.method, strings.Replace(ep.route, ":id", uuid.NewString(), 1)).
+				WithCookie("valid-cookie").
+				WithRawBody("not json", "application/json").
+				Do()
+
+			// then
+			require.Equal(t, http.StatusBadRequest, status)
+			assert.Contains(t, string(body), "invalid request body")
+		})
+	}
+}
+
+func TestFanficWrites_ServiceOutcomes(t *testing.T) {
+	for _, ep := range fanficCtlWriteEndpoints() {
+		for _, oc := range ep.outcomes {
+			t.Run(ep.name+"/"+oc.name, func(t *testing.T) {
+				// given
+				h, fs := newFanficHarness(t)
+				userID := uuid.New()
+				targetID := uuid.New()
+				newID := fanficCtlResult(uuid.New(), oc.svcErr)
+				h.ExpectValidSession("valid-cookie", userID)
+				ep.expect(fs, userID, targetID, newID, oc.svcErr)
+
+				// when
+				status, body := fanficCtlWriteRequest(h, ep, targetID.String()).Do()
+
+				// then
+				require.Equal(t, oc.wantCode, status)
+				assert.Contains(t, string(body), oc.wantBody)
+				if oc.wantCode == http.StatusCreated {
+					resp := testutil.UnmarshalJSON[map[string]string](t, body)
+					assert.Equal(t, newID.String(), resp["id"])
+				}
+			})
+		}
+	}
+}
+
+func TestFanficUploads_NoFile_BadRequest(t *testing.T) {
+	cases := []struct {
+		name     string
+		path     string
+		wantBody string
+	}{
+		{"cover", "/fanfics/" + uuid.NewString() + "/cover", "no image file provided"},
+		{"comment media", "/fanfic-comments/" + uuid.NewString() + "/media", "no media file provided"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, _ := newFanficHarness(t)
+			h.ExpectValidSession("valid-cookie", uuid.New())
+
+			// when
+			status, body := h.NewRequest("POST", tc.path).WithCookie("valid-cookie").Do()
+
+			// then
+			require.Equal(t, http.StatusBadRequest, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestFanficReads_InvalidPathParam_BadRequest(t *testing.T) {
+	cases := []struct {
+		name     string
+		path     string
+		wantBody string
+	}{
+		{"get fanfic", "/fanfics/not-a-uuid", "invalid id"},
+		{"get chapter", "/fanfics/not-a-uuid/chapters/1", "invalid id"},
+		{"get chapter zero", "/fanfics/" + uuid.NewString() + "/chapters/0", "invalid chapter number"},
+		{"list user fanfics", "/users/not-a-uuid/fanfics", "invalid id"},
+		{"list user favourites", "/users/not-a-uuid/fanfic-favourites", "invalid id"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, _ := newFanficHarness(t)
+
+			// when
+			status, body := h.NewRequest("GET", tc.path).Do()
+
+			// then
+			require.Equal(t, http.StatusBadRequest, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestListFanfics(t *testing.T) {
+	defaults := fanficparams.ListParams{Sort: "updated", Limit: 25, Offset: 0}
+	custom := fanficparams.ListParams{
 		Sort:       "top",
 		Series:     "umineko",
 		Rating:     "teen",
@@ -78,1450 +463,239 @@ func TestListFanfics_CustomQuery_OK(t *testing.T) {
 		Limit:      10,
 		Offset:     5,
 	}
-	fs.EXPECT().ListFanfics(mock.Anything, uuid.Nil, params).Return(&dto.FanficListResponse{}, nil)
-
-	// when
-	status, _ := h.NewRequest("GET", "/fanfics?sort=top&series=umineko&rating=teen&genre_a=romance&genre_b=mystery&language=en&status=complete&tag=fluff&char_a=beatrice&char_b=battler&char_c=rosa&char_d=maria&pairing=true&lemons=true&search=witch&limit=10&offset=5").Do()
-
-	// then
-	require.Equal(t, http.StatusOK, status)
-}
-
-func TestListFanfics_Authenticated_PassesViewerID(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	fs.EXPECT().ListFanfics(mock.Anything, userID, defaultFanficListParams()).Return(&dto.FanficListResponse{}, nil)
-
-	// when
-	status, _ := h.NewRequest("GET", "/fanfics").WithCookie("valid-cookie").Do()
-
-	// then
-	require.Equal(t, http.StatusOK, status)
-}
-
-func TestListFanfics_InternalError(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	fs.EXPECT().ListFanfics(mock.Anything, uuid.Nil, defaultFanficListParams()).Return(nil, errors.New("boom"))
-
-	// when
-	status, body := h.NewRequest("GET", "/fanfics").Do()
-
-	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-	assert.Contains(t, string(body), "failed to list fanfics")
-}
-
-func TestGetFanfic_Anonymous_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	fanficID := uuid.New()
-	expected := &dto.FanficDetailResponse{FanficResponse: dto.FanficResponse{ID: fanficID, Title: "The Golden Witch"}}
-	fs.EXPECT().GetFanfic(mock.Anything, fanficID, uuid.Nil, mock.AnythingOfType("string")).Return(expected, nil)
-
-	// when
-	status, body := h.NewRequest("GET", "/fanfics/"+fanficID.String()).Do()
-
-	// then
-	require.Equal(t, http.StatusOK, status)
-	got := testutil.UnmarshalJSON[dto.FanficDetailResponse](t, body)
-	assert.Equal(t, fanficID, got.ID)
-}
-
-func TestGetFanfic_Authenticated_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	fanficID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	fs.EXPECT().GetFanfic(mock.Anything, fanficID, userID, mock.AnythingOfType("string")).
-		Return(&dto.FanficDetailResponse{FanficResponse: dto.FanficResponse{ID: fanficID}}, nil)
-
-	// when
-	status, _ := h.NewRequest("GET", "/fanfics/"+fanficID.String()).WithCookie("valid-cookie").Do()
-
-	// then
-	require.Equal(t, http.StatusOK, status)
-}
-
-func TestGetFanfic_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-
-	// when
-	status, body := h.NewRequest("GET", "/fanfics/not-a-uuid").Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestGetFanfic_NotFound(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	fanficID := uuid.New()
-	fs.EXPECT().GetFanfic(mock.Anything, fanficID, uuid.Nil, mock.AnythingOfType("string")).
-		Return(nil, fanficsvc.ErrNotFound)
-
-	// when
-	status, _ := h.NewRequest("GET", "/fanfics/"+fanficID.String()).Do()
-
-	// then
-	require.Equal(t, http.StatusNotFound, status)
-}
-
-func TestGetFanfic_InternalError(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	fanficID := uuid.New()
-	fs.EXPECT().GetFanfic(mock.Anything, fanficID, uuid.Nil, mock.AnythingOfType("string")).
-		Return(nil, errors.New("boom"))
-
-	// when
-	status, _ := h.NewRequest("GET", "/fanfics/"+fanficID.String()).Do()
-
-	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-}
-
-func TestCreateFanfic_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newFanficHarness, "POST", "/fanfics", dto.CreateFanficRequest{Title: "x"})
-}
-
-func TestCreateFanfic_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	newID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	req := dto.CreateFanficRequest{Title: "The Golden Witch", Summary: "a tale", Rating: "teen"}
-	fs.EXPECT().CreateFanfic(mock.Anything, userID, req).Return(newID, nil)
-
-	// when
-	status, body := h.NewRequest("POST", "/fanfics").
-		WithCookie("valid-cookie").
-		WithJSONBody(req).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusCreated, status)
-	resp := testutil.UnmarshalJSON[map[string]string](t, body)
-	assert.Equal(t, newID.String(), resp["id"])
-}
-
-func TestCreateFanfic_BadJSON_BadRequest(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, _ := h.NewRequest("POST", "/fanfics").
-		WithCookie("valid-cookie").
-		WithRawBody("not json", "application/json").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-}
-
-func TestCreateFanfic_ServiceErrors(t *testing.T) {
+	customQuery := "?sort=top&series=umineko&rating=teen&genre_a=romance&genre_b=mystery&language=en&status=complete&tag=fluff&char_a=beatrice&char_b=battler&char_c=rosa&char_d=maria&pairing=true&lemons=true&search=witch&limit=10&offset=5"
 	cases := []struct {
 		name     string
+		query    string
+		authed   bool
+		params   fanficparams.ListParams
 		svcErr   error
 		wantCode int
+		errBody  string
 	}{
-		{"empty title", fanficsvc.ErrEmptyTitle, http.StatusBadRequest},
-		{"too many genres", fanficsvc.ErrTooManyGenres, http.StatusBadRequest},
-		{"too many tags", fanficsvc.ErrTooManyTags, http.StatusBadRequest},
-		{"tag too long", fanficsvc.ErrTagTooLong, http.StatusBadRequest},
-		{"invalid rating", fanficsvc.ErrInvalidRating, http.StatusBadRequest},
-		{"internal", errors.New("boom"), http.StatusInternalServerError},
+		{name: "anonymous uses the default params", params: defaults, wantCode: http.StatusOK},
+		{name: "authenticated passes the viewer id", authed: true, params: defaults, wantCode: http.StatusOK},
+		{name: "every query parameter is mapped", query: customQuery, params: custom, wantCode: http.StatusOK},
+		{name: "internal error", params: defaults, svcErr: errors.New("boom"), wantCode: http.StatusInternalServerError, errBody: "failed to list fanfics"},
 	}
+
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			h, fs := newFanficHarness(t)
-			userID := uuid.New()
-			h.ExpectValidSession("valid-cookie", userID)
-			req := dto.CreateFanficRequest{Title: "x"}
-			fs.EXPECT().CreateFanfic(mock.Anything, userID, req).Return(uuid.Nil, tc.svcErr)
+			req, viewerID := fanficCtlGet(h, "/fanfics"+tc.query, tc.authed)
+			fs.EXPECT().ListFanfics(mock.Anything, viewerID, tc.params).
+				Return(fanficCtlResult(&dto.FanficListResponse{Total: 3}, tc.svcErr), tc.svcErr)
 
 			// when
-			status, _ := h.NewRequest("POST", "/fanfics").
-				WithCookie("valid-cookie").
-				WithJSONBody(req).
-				Do()
+			status, body := req.Do()
 
 			// then
 			require.Equal(t, tc.wantCode, status)
+			if tc.svcErr != nil {
+				assert.Contains(t, string(body), tc.errBody)
+			} else {
+				got := testutil.UnmarshalJSON[dto.FanficListResponse](t, body)
+				assert.Equal(t, 3, got.Total)
+			}
 		})
 	}
 }
 
-func TestUpdateFanfic_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newFanficHarness, "PUT", "/fanfics/"+uuid.NewString(), dto.UpdateFanficRequest{Title: "x"})
-}
-
-func TestUpdateFanfic_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("PUT", "/fanfics/not-a-uuid").
-		WithCookie("valid-cookie").
-		WithJSONBody(dto.UpdateFanficRequest{Title: "x"}).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestUpdateFanfic_BadJSON_BadRequest(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, _ := h.NewRequest("PUT", "/fanfics/"+uuid.NewString()).
-		WithCookie("valid-cookie").
-		WithRawBody("not json", "application/json").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-}
-
-func TestUpdateFanfic_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
+func TestGetFanfic(t *testing.T) {
 	fanficID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	req := dto.UpdateFanficRequest{Title: "Updated"}
-	fs.EXPECT().UpdateFanfic(mock.Anything, fanficID, userID, req).Return(nil)
-
-	// when
-	status, _ := h.NewRequest("PUT", "/fanfics/"+fanficID.String()).
-		WithCookie("valid-cookie").
-		WithJSONBody(req).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusNoContent, status)
-}
-
-func TestUpdateFanfic_ServiceErrors(t *testing.T) {
 	cases := []struct {
 		name     string
+		authed   bool
 		svcErr   error
 		wantCode int
+		errBody  string
 	}{
-		{"empty title", fanficsvc.ErrEmptyTitle, http.StatusBadRequest},
-		{"too many genres", fanficsvc.ErrTooManyGenres, http.StatusBadRequest},
-		{"too many tags", fanficsvc.ErrTooManyTags, http.StatusBadRequest},
-		{"tag too long", fanficsvc.ErrTagTooLong, http.StatusBadRequest},
-		{"invalid rating", fanficsvc.ErrInvalidRating, http.StatusBadRequest},
-		{"not author", fanficsvc.ErrNotAuthor, http.StatusForbidden},
-		{"not found", fanficsvc.ErrNotFound, http.StatusNotFound},
-		{"internal", errors.New("boom"), http.StatusInternalServerError},
+		{name: "anonymous", wantCode: http.StatusOK},
+		{name: "authenticated passes the viewer id", authed: true, wantCode: http.StatusOK},
+		{name: "not found", svcErr: fanficsvc.ErrNotFound, wantCode: http.StatusNotFound, errBody: "fanfic not found"},
+		{name: "internal error", svcErr: errors.New("boom"), wantCode: http.StatusInternalServerError, errBody: "failed to get fanfic"},
 	}
+
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			h, fs := newFanficHarness(t)
-			userID := uuid.New()
+			req, viewerID := fanficCtlGet(h, "/fanfics/"+fanficID.String(), tc.authed)
+			detail := &dto.FanficDetailResponse{FanficResponse: dto.FanficResponse{ID: fanficID, Title: "The Golden Witch"}}
+			fs.EXPECT().GetFanfic(mock.Anything, fanficID, viewerID, mock.AnythingOfType("string")).
+				Return(fanficCtlResult(detail, tc.svcErr), tc.svcErr)
+
+			// when
+			status, body := req.Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			if tc.svcErr != nil {
+				assert.Contains(t, string(body), tc.errBody)
+			} else {
+				got := testutil.UnmarshalJSON[dto.FanficDetailResponse](t, body)
+				assert.Equal(t, fanficID, got.ID)
+			}
+		})
+	}
+}
+
+func TestGetFanficChapter(t *testing.T) {
+	cases := []struct {
+		name     string
+		number   int
+		svcErr   error
+		wantCode int
+		errBody  string
+	}{
+		{name: "anonymous", number: 1, wantCode: http.StatusOK},
+		{name: "not found", number: 2, svcErr: fanficsvc.ErrNotFound, wantCode: http.StatusNotFound, errBody: "chapter not found"},
+		{name: "internal error", number: 1, svcErr: errors.New("boom"), wantCode: http.StatusInternalServerError, errBody: "failed to get chapter"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, fs := newFanficHarness(t)
 			fanficID := uuid.New()
-			h.ExpectValidSession("valid-cookie", userID)
-			req := dto.UpdateFanficRequest{Title: "x"}
-			fs.EXPECT().UpdateFanfic(mock.Anything, fanficID, userID, req).Return(tc.svcErr)
+			chapter := &dto.FanficChapterResponse{ID: uuid.New(), ChapterNum: tc.number, Title: "Prologue"}
+			fs.EXPECT().GetChapter(mock.Anything, fanficID, tc.number, uuid.Nil).
+				Return(fanficCtlResult(chapter, tc.svcErr), tc.svcErr)
 
 			// when
-			status, _ := h.NewRequest("PUT", "/fanfics/"+fanficID.String()).
-				WithCookie("valid-cookie").
-				WithJSONBody(req).
-				Do()
+			status, body := h.NewRequest("GET", fmt.Sprintf("/fanfics/%s/chapters/%d", fanficID, tc.number)).Do()
 
 			// then
 			require.Equal(t, tc.wantCode, status)
+			if tc.svcErr != nil {
+				assert.Contains(t, string(body), tc.errBody)
+			} else {
+				got := testutil.UnmarshalJSON[dto.FanficChapterResponse](t, body)
+				assert.Equal(t, tc.number, got.ChapterNum)
+			}
 		})
 	}
 }
 
-func TestDeleteFanfic_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newFanficHarness, "DELETE", "/fanfics/"+uuid.NewString(), nil)
-}
+func TestListUserFanficsAndFavourites(t *testing.T) {
+	endpoints := []struct {
+		name    string
+		suffix  string
+		errBody string
+		expect  func(fs *fanficsvc.MockService, targetID, viewerID uuid.UUID, page bounds.Page, resp *dto.FanficListResponse, err error)
+	}{
+		{
+			name: "fanfics", suffix: "/fanfics", errBody: "failed to list user fanfics",
+			expect: func(fs *fanficsvc.MockService, targetID, viewerID uuid.UUID, page bounds.Page, resp *dto.FanficListResponse, err error) {
+				fs.EXPECT().ListFanficsByUser(mock.Anything, targetID, viewerID, page).Return(resp, err)
+			},
+		},
+		{
+			name: "favourites", suffix: "/fanfic-favourites", errBody: "failed to list favourites",
+			expect: func(fs *fanficsvc.MockService, targetID, viewerID uuid.UUID, page bounds.Page, resp *dto.FanficListResponse, err error) {
+				fs.EXPECT().ListFavourites(mock.Anything, targetID, viewerID, page).Return(resp, err)
+			},
+		},
+	}
 
-func TestDeleteFanfic_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("DELETE", "/fanfics/not-a-uuid").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestDeleteFanfic_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	fanficID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	fs.EXPECT().DeleteFanfic(mock.Anything, fanficID, userID).Return(nil)
-
-	// when
-	status, _ := h.NewRequest("DELETE", "/fanfics/"+fanficID.String()).
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusNoContent, status)
-}
-
-func TestDeleteFanfic_InternalError(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	fanficID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	fs.EXPECT().DeleteFanfic(mock.Anything, fanficID, userID).Return(errors.New("boom"))
-
-	// when
-	status, _ := h.NewRequest("DELETE", "/fanfics/"+fanficID.String()).
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-}
-
-func TestUploadFanficCover_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newFanficHarness, "POST", "/fanfics/"+uuid.NewString()+"/cover", nil)
-}
-
-func TestUploadFanficCover_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("POST", "/fanfics/not-a-uuid/cover").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestUploadFanficCover_NoFile_BadRequest(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("POST", "/fanfics/"+uuid.NewString()+"/cover").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "no image file provided")
-}
-
-func TestDeleteFanficCover_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newFanficHarness, "DELETE", "/fanfics/"+uuid.NewString()+"/cover", nil)
-}
-
-func TestDeleteFanficCover_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("DELETE", "/fanfics/not-a-uuid/cover").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestDeleteFanficCover_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	fanficID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	fs.EXPECT().RemoveCoverImage(mock.Anything, fanficID, userID).Return(nil)
-
-	// when
-	status, _ := h.NewRequest("DELETE", "/fanfics/"+fanficID.String()+"/cover").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusNoContent, status)
-}
-
-func TestDeleteFanficCover_ServiceError(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	fanficID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	fs.EXPECT().RemoveCoverImage(mock.Anything, fanficID, userID).Return(errors.New("not author"))
-
-	// when
-	status, body := h.NewRequest("DELETE", "/fanfics/"+fanficID.String()+"/cover").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "not author")
-}
-
-func TestGetFanficChapter_Anonymous_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	fanficID := uuid.New()
-	expected := &dto.FanficChapterResponse{ID: uuid.New(), ChapterNum: 1, Title: "Prologue"}
-	fs.EXPECT().GetChapter(mock.Anything, fanficID, 1, uuid.Nil).Return(expected, nil)
-
-	// when
-	status, body := h.NewRequest("GET", "/fanfics/"+fanficID.String()+"/chapters/1").Do()
-
-	// then
-	require.Equal(t, http.StatusOK, status)
-	got := testutil.UnmarshalJSON[dto.FanficChapterResponse](t, body)
-	assert.Equal(t, 1, got.ChapterNum)
-}
-
-func TestGetFanficChapter_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-
-	// when
-	status, body := h.NewRequest("GET", "/fanfics/not-a-uuid/chapters/1").Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestGetFanficChapter_InvalidChapterNumber(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	fanficID := uuid.New()
-
-	// when
-	status, body := h.NewRequest("GET", "/fanfics/"+fanficID.String()+"/chapters/0").Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid chapter number")
-}
-
-func TestGetFanficChapter_NotFound(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	fanficID := uuid.New()
-	fs.EXPECT().GetChapter(mock.Anything, fanficID, 2, uuid.Nil).Return(nil, fanficsvc.ErrNotFound)
-
-	// when
-	status, _ := h.NewRequest("GET", "/fanfics/"+fanficID.String()+"/chapters/2").Do()
-
-	// then
-	require.Equal(t, http.StatusNotFound, status)
-}
-
-func TestGetFanficChapter_InternalError(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	fanficID := uuid.New()
-	fs.EXPECT().GetChapter(mock.Anything, fanficID, 1, uuid.Nil).Return(nil, errors.New("boom"))
-
-	// when
-	status, _ := h.NewRequest("GET", "/fanfics/"+fanficID.String()+"/chapters/1").Do()
-
-	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-}
-
-func TestCreateFanficChapter_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newFanficHarness, "POST", "/fanfics/"+uuid.NewString()+"/chapters", dto.CreateChapterRequest{Body: "b"})
-}
-
-func TestCreateFanficChapter_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("POST", "/fanfics/not-a-uuid/chapters").
-		WithCookie("valid-cookie").
-		WithJSONBody(dto.CreateChapterRequest{Body: "b"}).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestCreateFanficChapter_BadJSON_BadRequest(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, _ := h.NewRequest("POST", "/fanfics/"+uuid.NewString()+"/chapters").
-		WithCookie("valid-cookie").
-		WithRawBody("not json", "application/json").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-}
-
-func TestCreateFanficChapter_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	fanficID := uuid.New()
-	newID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	req := dto.CreateChapterRequest{Title: "Ch1", Body: "body"}
-	fs.EXPECT().CreateChapter(mock.Anything, fanficID, userID, req).Return(newID, nil)
-
-	// when
-	status, body := h.NewRequest("POST", "/fanfics/"+fanficID.String()+"/chapters").
-		WithCookie("valid-cookie").
-		WithJSONBody(req).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusCreated, status)
-	resp := testutil.UnmarshalJSON[map[string]string](t, body)
-	assert.Equal(t, newID.String(), resp["id"])
-}
-
-func TestCreateFanficChapter_ServiceErrors(t *testing.T) {
-	cases := []struct {
+	scenarios := []struct {
 		name     string
+		query    string
+		authed   bool
+		page     bounds.Page
 		svcErr   error
 		wantCode int
 	}{
-		{"not author", fanficsvc.ErrNotAuthor, http.StatusForbidden},
-		{"empty body", fanficsvc.ErrEmptyBody, http.StatusBadRequest},
-		{"not found", fanficsvc.ErrNotFound, http.StatusNotFound},
-		{"internal", errors.New("boom"), http.StatusInternalServerError},
+		{name: "anonymous uses the default page", page: bounds.NewPage(20, 0), wantCode: http.StatusOK},
+		{name: "authenticated passes the viewer id", authed: true, page: bounds.NewPage(20, 0), wantCode: http.StatusOK},
+		{name: "custom paging", query: "?limit=5&offset=10", page: bounds.NewPage(5, 10), wantCode: http.StatusOK},
+		{name: "internal error", page: bounds.NewPage(20, 0), svcErr: errors.New("boom"), wantCode: http.StatusInternalServerError},
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			h, fs := newFanficHarness(t)
-			userID := uuid.New()
-			fanficID := uuid.New()
-			h.ExpectValidSession("valid-cookie", userID)
-			req := dto.CreateChapterRequest{Body: "x"}
-			fs.EXPECT().CreateChapter(mock.Anything, fanficID, userID, req).Return(uuid.Nil, tc.svcErr)
 
-			// when
-			status, _ := h.NewRequest("POST", "/fanfics/"+fanficID.String()+"/chapters").
-				WithCookie("valid-cookie").
-				WithJSONBody(req).
-				Do()
+	for _, ep := range endpoints {
+		for _, sc := range scenarios {
+			t.Run(ep.name+"/"+sc.name, func(t *testing.T) {
+				// given
+				h, fs := newFanficHarness(t)
+				targetID := uuid.New()
+				req, viewerID := fanficCtlGet(h, "/users/"+targetID.String()+ep.suffix+sc.query, sc.authed)
+				ep.expect(fs, targetID, viewerID, sc.page, fanficCtlResult(&dto.FanficListResponse{}, sc.svcErr), sc.svcErr)
 
-			// then
-			require.Equal(t, tc.wantCode, status)
-		})
+				// when
+				status, body := req.Do()
+
+				// then
+				require.Equal(t, sc.wantCode, status)
+				if sc.svcErr != nil {
+					assert.Contains(t, string(body), ep.errBody)
+				}
+			})
+		}
 	}
 }
 
-func TestUpdateFanficChapter_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newFanficHarness, "PUT", "/fanfic-chapters/"+uuid.NewString(), dto.UpdateChapterRequest{Body: "b"})
-}
-
-func TestUpdateFanficChapter_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("PUT", "/fanfic-chapters/not-a-uuid").
-		WithCookie("valid-cookie").
-		WithJSONBody(dto.UpdateChapterRequest{Body: "b"}).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestUpdateFanficChapter_BadJSON_BadRequest(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, _ := h.NewRequest("PUT", "/fanfic-chapters/"+uuid.NewString()).
-		WithCookie("valid-cookie").
-		WithRawBody("not json", "application/json").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-}
-
-func TestUpdateFanficChapter_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	chapterID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	req := dto.UpdateChapterRequest{Title: "Updated", Body: "body"}
-	fs.EXPECT().UpdateChapter(mock.Anything, chapterID, userID, req).Return(nil)
-
-	// when
-	status, _ := h.NewRequest("PUT", "/fanfic-chapters/"+chapterID.String()).
-		WithCookie("valid-cookie").
-		WithJSONBody(req).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusNoContent, status)
-}
-
-func TestUpdateFanficChapter_ServiceErrors(t *testing.T) {
+func TestFanficLookups(t *testing.T) {
 	cases := []struct {
-		name     string
-		svcErr   error
-		wantCode int
+		name    string
+		path    string
+		key     string
+		result  []string
+		errBody string
+		expect  func(fs *fanficsvc.MockService, result []string, err error)
 	}{
-		{"not author", fanficsvc.ErrNotAuthor, http.StatusForbidden},
-		{"empty body", fanficsvc.ErrEmptyBody, http.StatusBadRequest},
-		{"not found", fanficsvc.ErrNotFound, http.StatusNotFound},
-		{"internal", errors.New("boom"), http.StatusInternalServerError},
+		{
+			name: "languages", path: "/fanfic-languages", key: "languages", result: []string{"en", "ja"}, errBody: "failed to get languages",
+			expect: func(fs *fanficsvc.MockService, result []string, err error) {
+				fs.EXPECT().GetLanguages(mock.Anything).Return(result, err)
+			},
+		},
+		{
+			name: "series", path: "/fanfic-series", key: "series", result: []string{"umineko", "higurashi"}, errBody: "failed to get series",
+			expect: func(fs *fanficsvc.MockService, result []string, err error) {
+				fs.EXPECT().GetSeries(mock.Anything).Return(result, err)
+			},
+		},
+		{
+			name: "oc characters", path: "/fanfic-oc-characters?q=bea", key: "characters", result: []string{"beatrice"}, errBody: "failed to search characters",
+			expect: func(fs *fanficsvc.MockService, result []string, err error) {
+				fs.EXPECT().SearchOCCharacters(mock.Anything, "bea").Return(result, err)
+			},
+		},
+		{
+			name: "oc characters without a query", path: "/fanfic-oc-characters", key: "characters", result: []string{}, errBody: "failed to search characters",
+			expect: func(fs *fanficsvc.MockService, result []string, err error) {
+				fs.EXPECT().SearchOCCharacters(mock.Anything, "").Return(result, err)
+			},
+		},
 	}
+
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name+"/ok", func(t *testing.T) {
 			// given
 			h, fs := newFanficHarness(t)
-			userID := uuid.New()
-			chapterID := uuid.New()
-			h.ExpectValidSession("valid-cookie", userID)
-			req := dto.UpdateChapterRequest{Body: "x"}
-			fs.EXPECT().UpdateChapter(mock.Anything, chapterID, userID, req).Return(tc.svcErr)
+			tc.expect(fs, tc.result, nil)
 
 			// when
-			status, _ := h.NewRequest("PUT", "/fanfic-chapters/"+chapterID.String()).
-				WithCookie("valid-cookie").
-				WithJSONBody(req).
-				Do()
+			status, body := h.NewRequest("GET", tc.path).Do()
 
 			// then
-			require.Equal(t, tc.wantCode, status)
+			require.Equal(t, http.StatusOK, status)
+			got := testutil.UnmarshalJSON[map[string][]string](t, body)
+			assert.Equal(t, tc.result, got[tc.key])
 		})
-	}
-}
 
-func TestDeleteFanficChapter_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newFanficHarness, "DELETE", "/fanfic-chapters/"+uuid.NewString(), nil)
-}
-
-func TestDeleteFanficChapter_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("DELETE", "/fanfic-chapters/not-a-uuid").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestDeleteFanficChapter_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	chapterID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	fs.EXPECT().DeleteChapter(mock.Anything, chapterID, userID).Return(nil)
-
-	// when
-	status, _ := h.NewRequest("DELETE", "/fanfic-chapters/"+chapterID.String()).
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusNoContent, status)
-}
-
-func TestDeleteFanficChapter_ServiceErrors(t *testing.T) {
-	cases := []struct {
-		name     string
-		svcErr   error
-		wantCode int
-	}{
-		{"not author", fanficsvc.ErrNotAuthor, http.StatusForbidden},
-		{"not found", fanficsvc.ErrNotFound, http.StatusNotFound},
-		{"internal", errors.New("boom"), http.StatusInternalServerError},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name+"/internal error", func(t *testing.T) {
 			// given
 			h, fs := newFanficHarness(t)
-			userID := uuid.New()
-			chapterID := uuid.New()
-			h.ExpectValidSession("valid-cookie", userID)
-			fs.EXPECT().DeleteChapter(mock.Anything, chapterID, userID).Return(tc.svcErr)
+			tc.expect(fs, nil, errors.New("boom"))
 
 			// when
-			status, _ := h.NewRequest("DELETE", "/fanfic-chapters/"+chapterID.String()).
-				WithCookie("valid-cookie").
-				Do()
+			status, body := h.NewRequest("GET", tc.path).Do()
 
 			// then
-			require.Equal(t, tc.wantCode, status)
+			require.Equal(t, http.StatusInternalServerError, status)
+			assert.Contains(t, string(body), tc.errBody)
 		})
 	}
-}
-
-func TestFavouriteFanfic_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newFanficHarness, "POST", "/fanfics/"+uuid.NewString()+"/favourite", nil)
-}
-
-func TestFavouriteFanfic_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("POST", "/fanfics/not-a-uuid/favourite").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestFavouriteFanfic_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	fanficID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	fs.EXPECT().Favourite(mock.Anything, userID, fanficID).Return(nil)
-
-	// when
-	status, _ := h.NewRequest("POST", "/fanfics/"+fanficID.String()+"/favourite").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusNoContent, status)
-}
-
-func TestFavouriteFanfic_ServiceErrors(t *testing.T) {
-	cases := []struct {
-		name     string
-		svcErr   error
-		wantCode int
-	}{
-		{"blocked", block.ErrUserBlocked, http.StatusForbidden},
-		{"internal", errors.New("boom"), http.StatusInternalServerError},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			h, fs := newFanficHarness(t)
-			userID := uuid.New()
-			fanficID := uuid.New()
-			h.ExpectValidSession("valid-cookie", userID)
-			fs.EXPECT().Favourite(mock.Anything, userID, fanficID).Return(tc.svcErr)
-
-			// when
-			status, _ := h.NewRequest("POST", "/fanfics/"+fanficID.String()+"/favourite").
-				WithCookie("valid-cookie").
-				Do()
-
-			// then
-			require.Equal(t, tc.wantCode, status)
-		})
-	}
-}
-
-func TestUnfavouriteFanfic_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newFanficHarness, "DELETE", "/fanfics/"+uuid.NewString()+"/favourite", nil)
-}
-
-func TestUnfavouriteFanfic_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("DELETE", "/fanfics/not-a-uuid/favourite").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestUnfavouriteFanfic_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	fanficID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	fs.EXPECT().Unfavourite(mock.Anything, userID, fanficID).Return(nil)
-
-	// when
-	status, _ := h.NewRequest("DELETE", "/fanfics/"+fanficID.String()+"/favourite").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusNoContent, status)
-}
-
-func TestUnfavouriteFanfic_InternalError(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	fanficID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	fs.EXPECT().Unfavourite(mock.Anything, userID, fanficID).Return(errors.New("boom"))
-
-	// when
-	status, _ := h.NewRequest("DELETE", "/fanfics/"+fanficID.String()+"/favourite").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-}
-
-func TestCreateFanficComment_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newFanficHarness, "POST", "/fanfics/"+uuid.NewString()+"/comments", dto.CreateCommentRequest{Body: "b"})
-}
-
-func TestCreateFanficComment_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("POST", "/fanfics/not-a-uuid/comments").
-		WithCookie("valid-cookie").
-		WithJSONBody(dto.CreateCommentRequest{Body: "b"}).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestCreateFanficComment_BadJSON_BadRequest(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, _ := h.NewRequest("POST", "/fanfics/"+uuid.NewString()+"/comments").
-		WithCookie("valid-cookie").
-		WithRawBody("not json", "application/json").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-}
-
-func TestCreateFanficComment_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	fanficID := uuid.New()
-	newID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	req := dto.CreateCommentRequest{Body: "nice"}
-	fs.EXPECT().CreateComment(mock.Anything, fanficID, userID, req).Return(newID, nil)
-
-	// when
-	status, body := h.NewRequest("POST", "/fanfics/"+fanficID.String()+"/comments").
-		WithCookie("valid-cookie").
-		WithJSONBody(req).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusCreated, status)
-	resp := testutil.UnmarshalJSON[map[string]string](t, body)
-	assert.Equal(t, newID.String(), resp["id"])
-}
-
-func TestCreateFanficComment_ServiceErrors(t *testing.T) {
-	cases := []struct {
-		name     string
-		svcErr   error
-		wantCode int
-	}{
-		{"blocked", block.ErrUserBlocked, http.StatusForbidden},
-		{"empty body", fanficsvc.ErrEmptyBody, http.StatusBadRequest},
-		{"internal", errors.New("boom"), http.StatusInternalServerError},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			h, fs := newFanficHarness(t)
-			userID := uuid.New()
-			fanficID := uuid.New()
-			h.ExpectValidSession("valid-cookie", userID)
-			req := dto.CreateCommentRequest{Body: "x"}
-			fs.EXPECT().CreateComment(mock.Anything, fanficID, userID, req).Return(uuid.Nil, tc.svcErr)
-
-			// when
-			status, _ := h.NewRequest("POST", "/fanfics/"+fanficID.String()+"/comments").
-				WithCookie("valid-cookie").
-				WithJSONBody(req).
-				Do()
-
-			// then
-			require.Equal(t, tc.wantCode, status)
-		})
-	}
-}
-
-func TestUpdateFanficComment_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newFanficHarness, "PUT", "/fanfic-comments/"+uuid.NewString(), dto.UpdateCommentRequest{Body: "b"})
-}
-
-func TestUpdateFanficComment_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("PUT", "/fanfic-comments/not-a-uuid").
-		WithCookie("valid-cookie").
-		WithJSONBody(dto.UpdateCommentRequest{Body: "b"}).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestUpdateFanficComment_BadJSON_BadRequest(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, _ := h.NewRequest("PUT", "/fanfic-comments/"+uuid.NewString()).
-		WithCookie("valid-cookie").
-		WithRawBody("not json", "application/json").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-}
-
-func TestUpdateFanficComment_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	commentID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	req := dto.UpdateCommentRequest{Body: "edited"}
-	fs.EXPECT().UpdateComment(mock.Anything, commentID, userID, req).Return(nil)
-
-	// when
-	status, _ := h.NewRequest("PUT", "/fanfic-comments/"+commentID.String()).
-		WithCookie("valid-cookie").
-		WithJSONBody(req).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusNoContent, status)
-}
-
-func TestUpdateFanficComment_ServiceErrors(t *testing.T) {
-	cases := []struct {
-		name     string
-		svcErr   error
-		wantCode int
-	}{
-		{"empty body", fanficsvc.ErrEmptyBody, http.StatusBadRequest},
-		{"internal", errors.New("boom"), http.StatusInternalServerError},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			h, fs := newFanficHarness(t)
-			userID := uuid.New()
-			commentID := uuid.New()
-			h.ExpectValidSession("valid-cookie", userID)
-			req := dto.UpdateCommentRequest{Body: "x"}
-			fs.EXPECT().UpdateComment(mock.Anything, commentID, userID, req).Return(tc.svcErr)
-
-			// when
-			status, _ := h.NewRequest("PUT", "/fanfic-comments/"+commentID.String()).
-				WithCookie("valid-cookie").
-				WithJSONBody(req).
-				Do()
-
-			// then
-			require.Equal(t, tc.wantCode, status)
-		})
-	}
-}
-
-func TestDeleteFanficComment_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newFanficHarness, "DELETE", "/fanfic-comments/"+uuid.NewString(), nil)
-}
-
-func TestDeleteFanficComment_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("DELETE", "/fanfic-comments/not-a-uuid").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestDeleteFanficComment_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	commentID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	fs.EXPECT().DeleteComment(mock.Anything, commentID, userID).Return(nil)
-
-	// when
-	status, _ := h.NewRequest("DELETE", "/fanfic-comments/"+commentID.String()).
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusNoContent, status)
-}
-
-func TestDeleteFanficComment_InternalError(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	commentID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	fs.EXPECT().DeleteComment(mock.Anything, commentID, userID).Return(errors.New("boom"))
-
-	// when
-	status, _ := h.NewRequest("DELETE", "/fanfic-comments/"+commentID.String()).
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-}
-
-func TestLikeFanficComment_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newFanficHarness, "POST", "/fanfic-comments/"+uuid.NewString()+"/like", nil)
-}
-
-func TestLikeFanficComment_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("POST", "/fanfic-comments/not-a-uuid/like").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestLikeFanficComment_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	commentID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	fs.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(nil)
-
-	// when
-	status, _ := h.NewRequest("POST", "/fanfic-comments/"+commentID.String()+"/like").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusNoContent, status)
-}
-
-func TestLikeFanficComment_ServiceErrors(t *testing.T) {
-	cases := []struct {
-		name     string
-		svcErr   error
-		wantCode int
-	}{
-		{"blocked", block.ErrUserBlocked, http.StatusForbidden},
-		{"internal", errors.New("boom"), http.StatusInternalServerError},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			h, fs := newFanficHarness(t)
-			userID := uuid.New()
-			commentID := uuid.New()
-			h.ExpectValidSession("valid-cookie", userID)
-			fs.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(tc.svcErr)
-
-			// when
-			status, _ := h.NewRequest("POST", "/fanfic-comments/"+commentID.String()+"/like").
-				WithCookie("valid-cookie").
-				Do()
-
-			// then
-			require.Equal(t, tc.wantCode, status)
-		})
-	}
-}
-
-func TestUnlikeFanficComment_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newFanficHarness, "DELETE", "/fanfic-comments/"+uuid.NewString()+"/like", nil)
-}
-
-func TestUnlikeFanficComment_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("DELETE", "/fanfic-comments/not-a-uuid/like").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestUnlikeFanficComment_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	commentID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	fs.EXPECT().UnlikeComment(mock.Anything, userID, commentID).Return(nil)
-
-	// when
-	status, _ := h.NewRequest("DELETE", "/fanfic-comments/"+commentID.String()+"/like").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusNoContent, status)
-}
-
-func TestUnlikeFanficComment_InternalError(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	userID := uuid.New()
-	commentID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	fs.EXPECT().UnlikeComment(mock.Anything, userID, commentID).Return(errors.New("boom"))
-
-	// when
-	status, _ := h.NewRequest("DELETE", "/fanfic-comments/"+commentID.String()+"/like").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-}
-
-func TestUploadFanficCommentMedia_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newFanficHarness, "POST", "/fanfic-comments/"+uuid.NewString()+"/media", nil)
-}
-
-func TestUploadFanficCommentMedia_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("POST", "/fanfic-comments/not-a-uuid/media").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestUploadFanficCommentMedia_NoFile_BadRequest(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("POST", "/fanfic-comments/"+uuid.NewString()+"/media").
-		WithCookie("valid-cookie").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "no media file provided")
-}
-
-func TestGetFanficLanguages_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	fs.EXPECT().GetLanguages(mock.Anything).Return([]string{"en", "ja"}, nil)
-
-	// when
-	status, body := h.NewRequest("GET", "/fanfic-languages").Do()
-
-	// then
-	require.Equal(t, http.StatusOK, status)
-	got := testutil.UnmarshalJSON[map[string][]string](t, body)
-	assert.Equal(t, []string{"en", "ja"}, got["languages"])
-}
-
-func TestGetFanficLanguages_InternalError(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	fs.EXPECT().GetLanguages(mock.Anything).Return(nil, errors.New("boom"))
-
-	// when
-	status, body := h.NewRequest("GET", "/fanfic-languages").Do()
-
-	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-	assert.Contains(t, string(body), "failed to get languages")
-}
-
-func TestGetFanficSeries_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	fs.EXPECT().GetSeries(mock.Anything).Return([]string{"umineko", "higurashi"}, nil)
-
-	// when
-	status, body := h.NewRequest("GET", "/fanfic-series").Do()
-
-	// then
-	require.Equal(t, http.StatusOK, status)
-	got := testutil.UnmarshalJSON[map[string][]string](t, body)
-	assert.Equal(t, []string{"umineko", "higurashi"}, got["series"])
-}
-
-func TestGetFanficSeries_InternalError(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	fs.EXPECT().GetSeries(mock.Anything).Return(nil, errors.New("boom"))
-
-	// when
-	status, body := h.NewRequest("GET", "/fanfic-series").Do()
-
-	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-	assert.Contains(t, string(body), "failed to get series")
-}
-
-func TestSearchOCCharacters_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	fs.EXPECT().SearchOCCharacters(mock.Anything, "bea").Return([]string{"beatrice"}, nil)
-
-	// when
-	status, body := h.NewRequest("GET", "/fanfic-oc-characters?q=bea").Do()
-
-	// then
-	require.Equal(t, http.StatusOK, status)
-	got := testutil.UnmarshalJSON[map[string][]string](t, body)
-	assert.Equal(t, []string{"beatrice"}, got["characters"])
-}
-
-func TestSearchOCCharacters_EmptyQuery_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	fs.EXPECT().SearchOCCharacters(mock.Anything, "").Return([]string{}, nil)
-
-	// when
-	status, _ := h.NewRequest("GET", "/fanfic-oc-characters").Do()
-
-	// then
-	require.Equal(t, http.StatusOK, status)
-}
-
-func TestSearchOCCharacters_InternalError(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	fs.EXPECT().SearchOCCharacters(mock.Anything, "").Return(nil, errors.New("boom"))
-
-	// when
-	status, body := h.NewRequest("GET", "/fanfic-oc-characters").Do()
-
-	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-	assert.Contains(t, string(body), "failed to search characters")
-}
-
-func TestListUserFanfics_Anonymous_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	targetUserID := uuid.New()
-	fs.EXPECT().ListFanficsByUser(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(20, 0)).Return(&dto.FanficListResponse{}, nil)
-
-	// when
-	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/fanfics").Do()
-
-	// then
-	require.Equal(t, http.StatusOK, status)
-}
-
-func TestListUserFanfics_Authenticated_PassesViewerID(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	viewerID := uuid.New()
-	targetUserID := uuid.New()
-	h.ExpectValidSession("valid-cookie", viewerID)
-	fs.EXPECT().ListFanficsByUser(mock.Anything, targetUserID, viewerID, bounds.NewPage(20, 0)).Return(&dto.FanficListResponse{}, nil)
-
-	// when
-	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/fanfics").WithCookie("valid-cookie").Do()
-
-	// then
-	require.Equal(t, http.StatusOK, status)
-}
-
-func TestListUserFanfics_CustomPaging(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	targetUserID := uuid.New()
-	fs.EXPECT().ListFanficsByUser(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(5, 10)).Return(&dto.FanficListResponse{}, nil)
-
-	// when
-	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/fanfics?limit=5&offset=10").Do()
-
-	// then
-	require.Equal(t, http.StatusOK, status)
-}
-
-func TestListUserFanfics_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-
-	// when
-	status, body := h.NewRequest("GET", "/users/not-a-uuid/fanfics").Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestListUserFanfics_InternalError(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	targetUserID := uuid.New()
-	fs.EXPECT().ListFanficsByUser(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(20, 0)).Return(nil, errors.New("boom"))
-
-	// when
-	status, body := h.NewRequest("GET", "/users/"+targetUserID.String()+"/fanfics").Do()
-
-	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-	assert.Contains(t, string(body), "failed to list user fanfics")
-}
-
-func TestListUserFanficFavourites_Anonymous_OK(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	targetUserID := uuid.New()
-	fs.EXPECT().ListFavourites(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(20, 0)).Return(&dto.FanficListResponse{}, nil)
-
-	// when
-	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/fanfic-favourites").Do()
-
-	// then
-	require.Equal(t, http.StatusOK, status)
-}
-
-func TestListUserFanficFavourites_Authenticated_PassesViewerID(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	viewerID := uuid.New()
-	targetUserID := uuid.New()
-	h.ExpectValidSession("valid-cookie", viewerID)
-	fs.EXPECT().ListFavourites(mock.Anything, targetUserID, viewerID, bounds.NewPage(20, 0)).Return(&dto.FanficListResponse{}, nil)
-
-	// when
-	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/fanfic-favourites").WithCookie("valid-cookie").Do()
-
-	// then
-	require.Equal(t, http.StatusOK, status)
-}
-
-func TestListUserFanficFavourites_CustomPaging(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	targetUserID := uuid.New()
-	fs.EXPECT().ListFavourites(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(5, 10)).Return(&dto.FanficListResponse{}, nil)
-
-	// when
-	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/fanfic-favourites?limit=5&offset=10").Do()
-
-	// then
-	require.Equal(t, http.StatusOK, status)
-}
-
-func TestListUserFanficFavourites_InvalidID(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
-
-	// when
-	status, body := h.NewRequest("GET", "/users/not-a-uuid/fanfic-favourites").Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid id")
-}
-
-func TestListUserFanficFavourites_InternalError(t *testing.T) {
-	// given
-	h, fs := newFanficHarness(t)
-	targetUserID := uuid.New()
-	fs.EXPECT().ListFavourites(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(20, 0)).Return(nil, errors.New("boom"))
-
-	// when
-	status, body := h.NewRequest("GET", "/users/"+targetUserID.String()+"/fanfic-favourites").Do()
-
-	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-	assert.Contains(t, string(body), "failed to list favourites")
 }

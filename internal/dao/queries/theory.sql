@@ -81,8 +81,8 @@ VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id, audio_id, quote_index, note, sort_order, lang;
 
 -- name: AddTheoryEvidence :exec
-INSERT INTO theory_evidence (theory_id, audio_id, quote_index, note, sort_order)
-VALUES ($1, $2, $3, $4, $5);
+INSERT INTO theory_evidence (theory_id, audio_id, quote_index, note, sort_order, lang)
+VALUES ($1, $2, $3, $4, $5, $6);
 
 -- name: DeleteTheoryEvidenceByTheory :exec
 DELETE FROM theory_evidence WHERE theory_id = $1;

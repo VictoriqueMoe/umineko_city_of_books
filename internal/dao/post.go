@@ -72,7 +72,7 @@ type (
 		IncrementShareCount(ctx context.Context, ref model.SharedContentRef, tx ...*sql.Tx) error
 		DecrementShareCount(ctx context.Context, ref model.SharedContentRef, tx ...*sql.Tx) error
 		GetSharedContentFields(ctx context.Context, postID uuid.UUID, tx ...*sql.Tx) (*string, *string, error)
-		GetSharedContentPreviews(refs []model.SharedContentRef, tx ...*sql.Tx) map[string]*dto.SharedContentPreview
+		GetSharedContentPreviews(ctx context.Context, refs []model.SharedContentRef, tx ...*sql.Tx) (map[string]*dto.SharedContentPreview, error)
 
 		CreatePoll(ctx context.Context, s spec.NewPostPoll, tx ...*sql.Tx) (*model.PollRow, error)
 		AddPollOption(ctx context.Context, s spec.NewPostPollOption, tx ...*sql.Tx) error
@@ -228,7 +228,7 @@ func (r *postDAO) UpdatePost(ctx context.Context, s spec.PostUpdate, tx ...*sql.
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("post not found or not owned")
+		return fmt.Errorf("post not found or not owned: %w", ErrNotFound)
 	}
 
 	return nil
@@ -544,13 +544,11 @@ func (r *postDAO) GetSharedContentFields(ctx context.Context, postID uuid.UUID, 
 	return contentID, contentType, nil
 }
 
-func (r *postDAO) GetSharedContentPreviews(refs []model.SharedContentRef, tx ...*sql.Tx) map[string]*dto.SharedContentPreview {
+func (r *postDAO) GetSharedContentPreviews(ctx context.Context, refs []model.SharedContentRef, tx ...*sql.Tx) (map[string]*dto.SharedContentPreview, error) {
 	result := make(map[string]*dto.SharedContentPreview)
 	if len(refs) == 0 {
-		return result
+		return result, nil
 	}
-
-	ctx := context.Background()
 
 	grouped := make(map[string][]string)
 	for _, ref := range refs {
@@ -558,19 +556,23 @@ func (r *postDAO) GetSharedContentPreviews(refs []model.SharedContentRef, tx ...
 	}
 
 	for contentType, ids := range grouped {
+		var err error
 		switch contentType {
 		case "post":
-			r.fetchPostPreviews(ctx, ids, result, tx...)
+			err = r.fetchPostPreviews(ctx, ids, result, tx...)
 		case "art":
-			r.fetchArtPreviews(ctx, ids, result, tx...)
+			err = r.fetchArtPreviews(ctx, ids, result, tx...)
 		case "ship":
-			r.fetchShipPreviews(ctx, ids, result, tx...)
+			err = r.fetchShipPreviews(ctx, ids, result, tx...)
 		case "mystery":
-			r.fetchMysteryPreviews(ctx, ids, result, tx...)
+			err = r.fetchMysteryPreviews(ctx, ids, result, tx...)
 		case "theory":
-			r.fetchTheoryPreviews(ctx, ids, result, tx...)
+			err = r.fetchTheoryPreviews(ctx, ids, result, tx...)
 		case "fanfic":
-			r.fetchFanficPreviews(ctx, ids, result, tx...)
+			err = r.fetchFanficPreviews(ctx, ids, result, tx...)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("shared %s previews: %w", contentType, err)
 		}
 	}
 
@@ -586,7 +588,7 @@ func (r *postDAO) GetSharedContentPreviews(refs []model.SharedContentRef, tx ...
 		}
 	}
 
-	return result
+	return result, nil
 }
 
 func contentURL(contentType, id string) string {
@@ -617,13 +619,13 @@ func truncateBody(body string, maxLen int) string {
 	return clipped + "..."
 }
 
-func (r *postDAO) fetchPostPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) {
+func (r *postDAO) fetchPostPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) error {
 	queries := genQueries(r.db, tx)
 	joined := strings.Join(ids, ",")
 
 	rows, err := queries.ListSharedPostPreviews(ctx, joined)
 	if err != nil {
-		return
+		return err
 	}
 
 	for _, row := range rows {
@@ -648,7 +650,7 @@ func (r *postDAO) fetchPostPreviews(ctx context.Context, ids []string, result ma
 
 	mediaRows, err := queries.ListSharedPostPreviewMedia(ctx, joined)
 	if err != nil {
-		return
+		return fmt.Errorf("media: %w", err)
 	}
 
 	for _, row := range mediaRows {
@@ -665,12 +667,14 @@ func (r *postDAO) fetchPostPreviews(ctx context.Context, ids []string, result ma
 			IsSpoiler:    row.IsSpoiler,
 		})
 	}
+
+	return nil
 }
 
-func (r *postDAO) fetchArtPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) {
+func (r *postDAO) fetchArtPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) error {
 	rows, err := genQueries(r.db, tx).ListSharedArtPreviews(ctx, strings.Join(ids, ","))
 	if err != nil {
-		return
+		return err
 	}
 
 	for _, row := range rows {
@@ -697,12 +701,14 @@ func (r *postDAO) fetchArtPreviews(ctx context.Context, ids []string, result map
 			Corner: row.Corner,
 		}
 	}
+
+	return nil
 }
 
-func (r *postDAO) fetchShipPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) {
+func (r *postDAO) fetchShipPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) error {
 	rows, err := genQueries(r.db, tx).ListSharedShipPreviews(ctx, strings.Join(ids, ","))
 	if err != nil {
-		return
+		return err
 	}
 
 	for _, row := range rows {
@@ -729,12 +735,14 @@ func (r *postDAO) fetchShipPreviews(ctx context.Context, ids []string, result ma
 			VoteScore: int(row.VoteScore),
 		}
 	}
+
+	return nil
 }
 
-func (r *postDAO) fetchMysteryPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) {
+func (r *postDAO) fetchMysteryPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) error {
 	rows, err := genQueries(r.db, tx).ListSharedMysteryPreviews(ctx, strings.Join(ids, ","))
 	if err != nil {
-		return
+		return err
 	}
 
 	for _, row := range rows {
@@ -756,12 +764,14 @@ func (r *postDAO) fetchMysteryPreviews(ctx context.Context, ids []string, result
 			URL: "/mystery/" + id,
 		}
 	}
+
+	return nil
 }
 
-func (r *postDAO) fetchTheoryPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) {
+func (r *postDAO) fetchTheoryPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) error {
 	rows, err := genQueries(r.db, tx).ListSharedTheoryPreviews(ctx, strings.Join(ids, ","))
 	if err != nil {
-		return
+		return err
 	}
 
 	for _, row := range rows {
@@ -783,12 +793,14 @@ func (r *postDAO) fetchTheoryPreviews(ctx context.Context, ids []string, result 
 			URL: "/theory/" + id,
 		}
 	}
+
+	return nil
 }
 
-func (r *postDAO) fetchFanficPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) {
+func (r *postDAO) fetchFanficPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) error {
 	rows, err := genQueries(r.db, tx).ListSharedFanficPreviews(ctx, strings.Join(ids, ","))
 	if err != nil {
-		return
+		return err
 	}
 
 	for _, row := range rows {
@@ -818,6 +830,8 @@ func (r *postDAO) fetchFanficPreviews(ctx context.Context, ids []string, result 
 			URL: "/fanfiction/" + id,
 		}
 	}
+
+	return nil
 }
 
 func (r *postDAO) CreatePoll(ctx context.Context, s spec.NewPostPoll, tx ...*sql.Tx) (*model.PollRow, error) {
@@ -875,6 +889,9 @@ func (r *postDAO) GetPollByPostID(ctx context.Context, q spec.PostPollQuery, tx 
 			PollID: pollRow.ID,
 			UserID: q.ViewerID,
 		})
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, nil, fmt.Errorf("get poll vote: %w", err)
+		}
 		if err == nil {
 			votedOption = new(int(optionID))
 		}
@@ -951,7 +968,7 @@ func (r *postDAO) VotePoll(ctx context.Context, s spec.PostPollVote, tx ...*sql.
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("already voted")
+		return ErrAlreadyVoted
 	}
 
 	return nil

@@ -413,9 +413,12 @@ export function useMysteryBoard(mysteryId: string): MysteryBoard {
                 return;
             }
 
+            setAttachmentError("");
             try {
                 await deleteAttachmentMutation.mutateAsync(attachment.id);
-            } catch {}
+            } catch (e) {
+                setAttachmentError(errorMessage(e, "Failed to delete attachment"));
+            }
         },
         [deleteAttachmentMutation],
     );
@@ -459,9 +462,12 @@ export function useMysteryBoard(mysteryId: string): MysteryBoard {
                 return;
             }
 
+            setMediaError("");
             try {
                 await deleteMediaMutation.mutateAsync(mediaId);
-            } catch {}
+            } catch (e) {
+                setMediaError(errorMessage(e, "Failed to remove image"));
+            }
         },
         [deleteMediaMutation],
     );

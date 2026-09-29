@@ -39,7 +39,7 @@ func (c *commentDAO[K]) UpdateComment(ctx context.Context, s spec.CommentUpdate,
 	}
 
 	if n == 0 {
-		return fmt.Errorf("comment not found or not owned")
+		return fmt.Errorf("comment not found or not owned: %w", ErrNotFound)
 	}
 
 	return nil

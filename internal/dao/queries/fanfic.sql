@@ -180,7 +180,10 @@ ORDER BY f.favourite_count DESC, f.updated_at DESC
 LIMIT sqlc.arg(row_limit)::int OFFSET sqlc.arg(row_offset)::int;
 
 -- name: CountFanficFavourites :one
-SELECT COUNT(*) FROM fanfic_favourites WHERE user_id = $1;
+SELECT COUNT(*)
+FROM fanfic_favourites fav
+JOIN fanfics f ON f.id = fav.fanfic_id
+WHERE fav.user_id = sqlc.arg(user_id)::uuid AND (f.status != 'draft' OR f.user_id = sqlc.arg(viewer_id)::uuid);
 
 -- name: ListFanficFavourites :many
 SELECT f.id, f.user_id, f.title, f.summary, f.series, f.rating, f.language, f.status,

@@ -92,7 +92,7 @@ func (s *Service) listTheories(ctx fiber.Ctx) error {
 	p := params.NewListParams(sort, episode, authorID, search, series, limit, offset)
 	result, err := s.TheoryService.ListTheories(ctx.Context(), p, userID)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to list theories")
+		return utils.InternalError(ctx, "failed to list theories", err)
 	}
 
 	return ctx.JSON(result)
@@ -120,7 +120,7 @@ func (s *Service) createTheory(ctx fiber.Ctx) error {
 				"error": "daily theory limit reached",
 			})
 		}
-		return utils.InternalError(ctx, "failed to create theory")
+		return utils.InternalError(ctx, "failed to create theory", err)
 	}
 
 	if req.Series != "" {
@@ -138,7 +138,7 @@ func (s *Service) getTheory(ctx fiber.Ctx) error {
 
 	result, err := s.TheoryService.GetTheoryDetail(ctx.Context(), id, userID)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to get theory")
+		return utils.InternalError(ctx, "failed to get theory", err)
 	}
 	if result == nil {
 		return utils.NotFound(ctx, "theory not found")
@@ -163,7 +163,13 @@ func (s *Service) updateTheory(ctx fiber.Ctx) error {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
-		return utils.Forbidden(ctx, "cannot update this theory")
+		if errors.Is(err, theory.ErrTheoryNotFound) {
+			return utils.NotFound(ctx, "theory not found")
+		}
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot update this theory")
+		}
+		return utils.InternalError(ctx, "failed to update theory", err)
 	}
 
 	return utils.OK(ctx)
@@ -177,7 +183,13 @@ func (s *Service) deleteTheory(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
 	if err := s.TheoryService.DeleteTheory(ctx.Context(), id, userID); err != nil {
-		return utils.Forbidden(ctx, "cannot delete this theory")
+		if errors.Is(err, theory.ErrTheoryNotFound) {
+			return utils.NotFound(ctx, "theory not found")
+		}
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot delete this theory")
+		}
+		return utils.InternalError(ctx, "failed to delete theory", err)
 	}
 
 	return utils.OK(ctx)
@@ -207,7 +219,13 @@ func (s *Service) vote(ctx fiber.Ctx, voteFunc func(context.Context, uuid.UUID, 
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return utils.InternalError(ctx, "failed to vote")
+		if errors.Is(err, theory.ErrTheoryNotFound) {
+			return utils.NotFound(ctx, "theory not found")
+		}
+		if errors.Is(err, theory.ErrResponseNotFound) {
+			return utils.NotFound(ctx, "response not found")
+		}
+		return utils.InternalError(ctx, "failed to vote", err)
 	}
 
 	return utils.OK(ctx)
@@ -249,7 +267,10 @@ func (s *Service) createResponse(ctx fiber.Ctx) error {
 				"error": "daily response limit reached",
 			})
 		}
-		return utils.InternalError(ctx, "failed to create response")
+		if errors.Is(err, theory.ErrTheoryNotFound) {
+			return utils.NotFound(ctx, "theory not found")
+		}
+		return utils.InternalError(ctx, "failed to create response", err)
 	}
 
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
@@ -263,7 +284,13 @@ func (s *Service) deleteResponse(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
 	if err := s.TheoryService.DeleteResponse(ctx.Context(), id, userID); err != nil {
-		return utils.Forbidden(ctx, "cannot delete this response")
+		if errors.Is(err, theory.ErrResponseNotFound) {
+			return utils.NotFound(ctx, "response not found")
+		}
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot delete this response")
+		}
+		return utils.InternalError(ctx, "failed to delete response", err)
 	}
 
 	return utils.OK(ctx)
@@ -300,7 +327,7 @@ func (s *Service) refuteTheory(ctx fiber.Ctx) error {
 			errors.Is(err, theory.ErrCannotRefuteWithOwn) || errors.Is(err, dao.ErrRefutationRejected) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to refute theory")
+		return utils.InternalError(ctx, "failed to refute theory", err)
 	}
 
 	return utils.OK(ctx)

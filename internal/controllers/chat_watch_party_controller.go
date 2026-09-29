@@ -113,7 +113,7 @@ func mapWatchPartyError(ctx fiber.Ctx, err error) error {
 			return utils.Forbidden(ctx, "you cannot mute participants here")
 		}
 	}
-	return utils.InternalError(ctx, "watch party request failed: "+err.Error(), err)
+	return utils.InternalError(ctx, "watch party request failed", err)
 }
 
 func (s *Service) listWatchParties(ctx fiber.Ctx) error {

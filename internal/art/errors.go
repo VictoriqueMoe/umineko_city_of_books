@@ -1,9 +1,15 @@
 package art
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+
+	"umineko_city_of_books/internal/dao"
+)
 
 var (
-	ErrNotFound    = errors.New("art not found")
+	ErrNotFound    = fmt.Errorf("art not found: %w", dao.ErrNotFound)
 	ErrEmptyTitle  = errors.New("art title cannot be empty")
+	ErrEmptyBody   = errors.New("comment body cannot be empty")
 	ErrRateLimited = errors.New("you have reached your daily art upload limit")
 )

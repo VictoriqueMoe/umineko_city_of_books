@@ -37,9 +37,17 @@ func (m *membersService) InviteMembers(ctx context.Context, hostID, roomID uuid.
 	cap := m.settingsSvc.GetInt(ctx, config.SettingMaxChatRoomMembers)
 	memberCount := row.MemberCount
 
-	existingMembers, _ := m.chatRepo.GetRoomMembers(ctx, roomID)
+	existingMembers, err := m.chatRepo.GetRoomMembers(ctx, roomID)
+	if err != nil {
+		return nil, fmt.Errorf("room members: %w", err)
+	}
+
+	inviter, err := m.userRepo.GetByID(ctx, hostID)
+	if err != nil {
+		return nil, fmt.Errorf("get inviter: %w", err)
+	}
 	inviterName := "Someone"
-	if inviter, err := m.userRepo.GetByID(ctx, hostID); err == nil && inviter != nil {
+	if inviter != nil {
 		inviterName = inviter.DisplayName
 	}
 
@@ -78,12 +86,19 @@ func (m *membersService) InviteMembers(ctx context.Context, hostID, roomID uuid.
 		}
 
 		target, err := m.userRepo.GetByID(ctx, targetID)
-		if err != nil || target == nil {
+		if err != nil {
+			return nil, fmt.Errorf("invitee profile: %w", err)
+		}
+		if target == nil {
 			skipped++
 			continue
 		}
 
-		if blocked, _ := m.blockSvc.IsBlockedEither(ctx, hostID, targetID); blocked {
+		blocked, err := m.blockSvc.IsBlockedEither(ctx, hostID, targetID)
+		if err != nil {
+			return nil, fmt.Errorf("block check: %w", err)
+		}
+		if blocked {
 			skipped++
 			continue
 		}
@@ -296,18 +311,25 @@ func (m *membersService) GetMembers(ctx context.Context, viewerID, roomID uuid.U
 		}
 	}
 	if hasGhost {
-		r, _ := m.authzSvc.GetRole(ctx, viewerID)
+		r, err := m.authzSvc.GetRole(ctx, viewerID)
+		if err != nil {
+			return nil, fmt.Errorf("viewer site role: %w", err)
+		}
 		viewerIsStaff = r.IsSiteStaff()
 	}
 
 	userIDs := make([]uuid.UUID, 0, len(rows))
-	for i := range rows {
-		if rows[i].Ghost && !viewerIsStaff {
+	for _, row := range rows {
+		if row.Ghost && !viewerIsStaff {
 			continue
 		}
-		userIDs = append(userIDs, rows[i].UserID)
+		userIDs = append(userIDs, row.UserID)
 	}
-	vanityMap, _ := m.vanityRoleRepo.GetRolesForUsersBatch(ctx, userIDs)
+
+	vanityMap, err := m.vanityRoleRepo.GetRolesForUsersBatch(ctx, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("member vanity roles: %w", err)
+	}
 	presence := m.hub.GetRoomPresence(roomID)
 
 	members := make([]dto.ChatRoomMemberResponse, 0, len(rows))
