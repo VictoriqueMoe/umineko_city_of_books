@@ -80,7 +80,7 @@ type (
 			isSpoiler bool,
 		) (*dto.PostMediaResponse, error)
 
-		ListCharacters(series quotefinder.Series) ([]dto.CharacterListEntry, error)
+		ListCharacters(ctx context.Context, series quotefinder.Series) ([]dto.CharacterListEntry, error)
 	}
 
 	service struct {
@@ -664,8 +664,8 @@ func (s *service) UploadCommentMedia(
 	)
 }
 
-func (s *service) ListCharacters(series quotefinder.Series) ([]dto.CharacterListEntry, error) {
-	chars, err := s.quoteClient.ListCharacters(series)
+func (s *service) ListCharacters(ctx context.Context, series quotefinder.Series) ([]dto.CharacterListEntry, error) {
+	chars, err := s.quoteClient.ListCharacters(ctx, series)
 	if err != nil {
 		return nil, err
 	}

@@ -864,7 +864,7 @@ func TestListCharacters_OK(t *testing.T) {
 	// given
 	h, ss := newShipHarness(t)
 	expected := []dto.CharacterListEntry{{ID: "beato", Name: "Beatrice"}}
-	ss.EXPECT().ListCharacters(mock.AnythingOfType("quotefinder.Series")).Return(expected, nil)
+	ss.EXPECT().ListCharacters(mock.Anything, mock.AnythingOfType("quotefinder.Series")).Return(expected, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/characters/umineko").Do()
@@ -892,7 +892,7 @@ func TestListCharacters_InvalidSeries(t *testing.T) {
 func TestListCharacters_InternalError(t *testing.T) {
 	// given
 	h, ss := newShipHarness(t)
-	ss.EXPECT().ListCharacters(mock.AnythingOfType("quotefinder.Series")).Return(nil, errors.New("boom"))
+	ss.EXPECT().ListCharacters(mock.Anything, mock.AnythingOfType("quotefinder.Series")).Return(nil, errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("GET", "/characters/umineko").Do()

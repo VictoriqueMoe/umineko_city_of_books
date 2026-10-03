@@ -168,6 +168,7 @@ export function ShipDetailPage() {
 
     const { canEdit, canDelete } = contentPermissions(user, { family: "ship", authorId: ship.author.id });
     const userVote = ship.user_vote ?? 0;
+    const saveDisabled = saving || !editTitle.trim() || editChars.length < 2;
 
     return (
         <div className={styles.page}>
@@ -223,18 +224,20 @@ export function ShipDetailPage() {
                             </div>
                             <div className={styles.formSection}>
                                 <label className={styles.formLabel}>Why do you ship it?</label>
-                                <MentionTextArea value={editDesc} onChange={setEditDesc} rows={5} showColours />
+                                <MentionTextArea
+                                    value={editDesc}
+                                    onChange={setEditDesc}
+                                    rows={5}
+                                    showColours
+                                    onSubmitShortcut={saveDisabled ? undefined : saveEdit}
+                                />
                             </div>
                             {editError && <ErrorBanner message={editError} />}
                             <div className={styles.formActions}>
                                 <Button variant="ghost" onClick={cancelEdit} disabled={saving}>
                                     Cancel
                                 </Button>
-                                <Button
-                                    variant="primary"
-                                    onClick={saveEdit}
-                                    disabled={saving || !editTitle.trim() || editChars.length < 2}
-                                >
+                                <Button variant="primary" onClick={saveEdit} disabled={saveDisabled}>
                                     {saving ? "Saving..." : "Save"}
                                 </Button>
                             </div>

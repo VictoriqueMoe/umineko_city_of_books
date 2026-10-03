@@ -103,6 +103,48 @@ func (ns NullChatbotInvocationStatus) Value() (driver.Value, error) {
 	return string(ns.ChatbotInvocationStatus), nil
 }
 
+type StorageBackend string
+
+const (
+	StorageBackendLocal StorageBackend = "local"
+	StorageBackendS3    StorageBackend = "s3"
+)
+
+func (e *StorageBackend) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = StorageBackend(s)
+	case string:
+		*e = StorageBackend(s)
+	default:
+		return fmt.Errorf("unsupported scan type for StorageBackend: %T", src)
+	}
+	return nil
+}
+
+type NullStorageBackend struct {
+	StorageBackend StorageBackend
+	Valid          bool // Valid is true if StorageBackend is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullStorageBackend) Scan(value interface{}) error {
+	if value == nil {
+		ns.StorageBackend, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.StorageBackend.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullStorageBackend) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.StorageBackend), nil
+}
+
 type StreamDefaultMode string
 
 const (
@@ -1197,6 +1239,14 @@ type SiteSetting struct {
 	Value     string
 	UpdatedAt time.Time
 	UpdatedBy *uuid.UUID
+}
+
+type StoredFile struct {
+	Key       string
+	Backend   StorageBackend
+	Location  string
+	Size      int64
+	CreatedAt time.Time
 }
 
 type StreamCredential struct {

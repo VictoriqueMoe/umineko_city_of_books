@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -33,6 +34,8 @@ type (
 
 	EmailProvider string
 
+	StorageBackend string
+
 	SiteSettingDef struct {
 		Key     SiteSettingKey
 		Default string
@@ -57,6 +60,11 @@ const (
 )
 
 const (
+	StorageBackendLocal StorageBackend = "local"
+	StorageBackendS3    StorageBackend = "s3"
+)
+
+const (
 	SecretMask = "********"
 )
 
@@ -66,6 +74,14 @@ var (
 	Version = "dev"
 
 	SettingUploadDir               = &SiteSettingDef{"upload_dir", "uploads", TypeString, false}
+	SettingStorageBackend          = &SiteSettingDef{"storage_backend", string(StorageBackendLocal), TypeString, false}
+	SettingS3Endpoint              = &SiteSettingDef{"s3_endpoint", "", TypeString, false}
+	SettingS3Region                = &SiteSettingDef{"s3_region", "", TypeString, false}
+	SettingS3Bucket                = &SiteSettingDef{"s3_bucket", "", TypeString, false}
+	SettingS3Prefix                = &SiteSettingDef{"s3_prefix", "", TypeString, false}
+	SettingS3AccessKeyID           = &SiteSettingDef{"s3_access_key_id", "", TypeString, false}
+	SettingS3SecretAccessKey       = &SiteSettingDef{"s3_secret_access_key", "", TypeString, true}
+	SettingS3ForcePathStyle        = &SiteSettingDef{"s3_force_path_style", "false", TypeBool, false}
 	SettingBaseURL                 = &SiteSettingDef{"base_url", "http://localhost:4323", TypeString, false}
 	SettingLogLevel                = &SiteSettingDef{"log_level", "info", TypeString, false}
 	SettingOTLPEndpoint            = &SiteSettingDef{"otlp_endpoint", "", TypeString, false}
@@ -173,6 +189,14 @@ var (
 
 	AllSiteSettings = []*SiteSettingDef{
 		SettingUploadDir,
+		SettingStorageBackend,
+		SettingS3Endpoint,
+		SettingS3Region,
+		SettingS3Bucket,
+		SettingS3Prefix,
+		SettingS3AccessKeyID,
+		SettingS3SecretAccessKey,
+		SettingS3ForcePathStyle,
 		SettingBaseURL,
 		SettingLogLevel,
 		SettingOTLPEndpoint,
@@ -469,6 +493,20 @@ func ValidateSettings(all map[SiteSettingKey]string) error {
 	if emailProvider == EmailProviderCloudflare {
 		if all[SettingCloudflareAccountID.Key] == "" || all[SettingCloudflareAPIToken.Key] == "" || all[SettingCloudflareEmailFrom.Key] == "" {
 			return fmt.Errorf("cloudflare email requires account ID, API token and from address")
+		}
+	}
+
+	storageBackend := StorageBackend(strings.TrimSpace(all[SettingStorageBackend.Key]))
+	if storageBackend != StorageBackendLocal && storageBackend != StorageBackendS3 {
+		return fmt.Errorf("storage backend must be '%s' or '%s'", StorageBackendLocal, StorageBackendS3)
+	}
+
+	if storageBackend == StorageBackendS3 {
+		required := []*SiteSettingDef{SettingS3Region, SettingS3Bucket, SettingS3AccessKeyID, SettingS3SecretAccessKey}
+		if slices.ContainsFunc(required, func(def *SiteSettingDef) bool {
+			return strings.TrimSpace(all[def.Key]) == ""
+		}) {
+			return fmt.Errorf("s3 storage requires region, bucket, access key ID and secret access key")
 		}
 	}
 

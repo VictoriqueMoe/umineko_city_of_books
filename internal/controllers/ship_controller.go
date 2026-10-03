@@ -299,7 +299,7 @@ func (s *Service) listCharacters(ctx fiber.Ctx) error {
 	if err != nil {
 		return utils.BadRequest(ctx, err.Error())
 	}
-	chars, err := s.ShipService.ListCharacters(series)
+	chars, err := s.ShipService.ListCharacters(ctx.Context(), series)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list characters")
 	}

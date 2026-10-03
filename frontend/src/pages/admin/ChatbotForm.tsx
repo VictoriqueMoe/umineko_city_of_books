@@ -58,6 +58,8 @@ export function ChatbotForm({
 
     const locked = !apiKeySaved || models.length === 0;
     const promptTokenEstimate = estimateTokens(fields.prompt);
+    const saveDisabled =
+        saving || locked || usernameKnownTaken || !fields.username.trim() || !fields.displayName.trim();
 
     function fieldID(name: string) {
         return `${baseID}-${name}`;
@@ -156,6 +158,7 @@ export function ChatbotForm({
                         placeholder="You are Beatrice, the Golden Witch of Rokkenjima. You speak with..."
                         aria-describedby={`${fieldID("system-prompt-hint")} ${fieldID("system-prompt-caching")} ${fieldID("system-prompt-count")}`}
                         disabled={locked}
+                        onSubmitShortcut={saveDisabled ? undefined : onSave}
                     />
                     <span id={fieldID("system-prompt-hint")} className={styles.fieldHint}>
                         This is the entire personality. There is no fine-tuning and no training step behind it, so
@@ -271,18 +274,7 @@ export function ChatbotForm({
                     <Button variant="ghost" size="small" onClick={onClose}>
                         Cancel
                     </Button>
-                    <Button
-                        variant="primary"
-                        size="small"
-                        onClick={onSave}
-                        disabled={
-                            saving ||
-                            locked ||
-                            usernameKnownTaken ||
-                            !fields.username.trim() ||
-                            !fields.displayName.trim()
-                        }
-                    >
+                    <Button variant="primary" size="small" onClick={onSave} disabled={saveDisabled}>
                         {saving ? "Saving..." : "Save"}
                     </Button>
                 </div>

@@ -5,6 +5,7 @@ import { useAuth } from "../../../hooks/useAuth";
 import { useSyncedState } from "../../../hooks/useResetOnChange";
 import { can } from "../../../domain/permissions";
 import { extractGif } from "../../../utils/gif";
+import { isSubmitShortcut } from "../../../utils/submitShortcut";
 import { renderRich } from "../../richText/richText";
 import { GifEmbed } from "../../GifEmbed/GifEmbed";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
@@ -164,6 +165,14 @@ function SingleComment({
                         className={styles.editTextarea}
                         value={editBody}
                         onChange={e => setEditBody(e.target.value)}
+                        onKeyDown={e => {
+                            if (!isSubmitShortcut(e.nativeEvent)) {
+                                return;
+                            }
+
+                            e.preventDefault();
+                            handleSaveEdit();
+                        }}
                         rows={2}
                     />
                     <div className={styles.editActions}>

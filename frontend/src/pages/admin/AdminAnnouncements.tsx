@@ -11,6 +11,7 @@ import {
     useUpdateAnnouncement,
 } from "../../hooks/mutations/admin";
 import { errorMessage } from "../../utils/errorMessage";
+import { isSubmitShortcut } from "../../utils/submitShortcut";
 import { Button } from "../../components/Button/Button";
 import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog";
 import { Input } from "../../components/Input/Input";
@@ -149,6 +150,12 @@ export function AdminAnnouncements() {
                             placeholder="Write your announcement in Markdown..."
                             value={body}
                             onChange={e => setBody(e.target.value)}
+                            onKeyDown={e => {
+                                if (isSubmitShortcut(e.nativeEvent)) {
+                                    e.preventDefault();
+                                    handleSave();
+                                }
+                            }}
                             rows={12}
                         />
                     )}

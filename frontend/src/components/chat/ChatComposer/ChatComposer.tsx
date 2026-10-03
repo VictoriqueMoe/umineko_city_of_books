@@ -355,6 +355,7 @@ export function ChatComposer({
                     mentionPool={mentionPool}
                     showColours
                     colourBarOpen={showToolbarItems}
+                    onSubmitShortcut={handleSubmit}
                 />
             </div>
             <div className={styles.actions}>

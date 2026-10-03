@@ -8,6 +8,7 @@ import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
 import { Select } from "../../components/Select/Select";
 import { formatFullDateTime } from "../../utils/time";
+import { isSubmitShortcut } from "../../utils/submitShortcut";
 import styles from "./AdminReports.module.css";
 
 function reportTargetPath(report: ReportItem): string | null {
@@ -171,6 +172,12 @@ export function AdminReports() {
                         className={styles.resolveTextarea}
                         value={comment}
                         onChange={e => setComment(e.target.value)}
+                        onKeyDown={e => {
+                            if (isSubmitShortcut(e.nativeEvent)) {
+                                e.preventDefault();
+                                handleResolve();
+                            }
+                        }}
                         placeholder="Let them know what action was taken..."
                         rows={4}
                         maxLength={500}

@@ -25,6 +25,7 @@ export function CreateShipPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const createShipMutation = useCreateShip();
     const uploadImageMutation = useUploadShipImageById();
+    const submitDisabled = submitting || !title.trim() || characters.length < 2;
 
     function addCharacter(character: ShipCharacter) {
         setCharacters(prev => [...prev, { ...character, sort_order: prev.length }]);
@@ -52,6 +53,10 @@ export function CreateShipPage() {
     }
 
     async function handleSubmit() {
+        if (submitDisabled) {
+            return;
+        }
+
         setError("");
         if (!title.trim()) {
             setError("Title is required");
@@ -153,6 +158,7 @@ export function CreateShipPage() {
                     placeholder="Tell us why this pairing works..."
                     rows={5}
                     showColours
+                    onSubmitShortcut={handleSubmit}
                 />
             </div>
 
@@ -182,11 +188,7 @@ export function CreateShipPage() {
                 <Button variant="ghost" onClick={() => navigate("/ships")}>
                     Cancel
                 </Button>
-                <Button
-                    variant="primary"
-                    onClick={handleSubmit}
-                    disabled={submitting || !title.trim() || characters.length < 2}
-                >
+                <Button variant="primary" onClick={handleSubmit} disabled={submitDisabled}>
                     {submitting ? "Creating..." : "Declare Ship"}
                 </Button>
             </div>

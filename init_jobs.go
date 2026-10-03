@@ -14,6 +14,8 @@ import (
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/storage"
+	storageengines "umineko_city_of_books/internal/storage/engines"
 	"umineko_city_of_books/internal/telemetry"
 	"umineko_city_of_books/internal/upload"
 
@@ -31,10 +33,11 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 		logger.Log.Error().Err(err).Msg("ensure system chat rooms at startup")
 	}
 
-	uploadDir := svc.upload.GetUploadDir()
-
 	scheduleJob(stop, wg, "clean orphaned uploads", "cleaned orphaned upload files", 24*time.Hour, func() (int, error) {
-		return upload.CleanOrphanedFiles(repos.Upload, uploadDir), nil
+		return upload.CleanOrphanedFiles(context.Background(), repos.Upload, repos.StoredFile, svc.storage)
+	})
+	scheduleJob(stop, wg, "clean abandoned upload staging", "cleaned abandoned upload staging directories", time.Hour, func() (int, error) {
+		return svc.upload.CleanStaging(time.Hour)
 	})
 	scheduleJob(stop, wg, "prune old notifications", "pruned old notifications", 24*time.Hour, func() (int, error) {
 		return svc.notification.PruneOld(context.Background())
@@ -117,6 +120,7 @@ func registerValidators(settingsSvc settings.Service, svc *services, repos *repo
 	settingsSvc.RegisterValidator(config.SettingChatbotOptInRole, chatbot.OptInRoleValidator(repos.VanityRole, repos.Permission))
 	settingsSvc.RegisterValidator(config.SettingCrawlerFeeds, feed.Validator(svc.crawlerFeeds))
 	settingsSvc.RegisterValidator(config.SettingValkeyURL, engines.ProbeURL)
+	settingsSvc.RegisterBatchValidator(storage.SettingsValidator(repos.StoredFile, storageengines.ProbeS3))
 }
 
 func subscribeToSettingsEvents(settingsSvc settings.Service, app *fiber.App, svc *services, repos *repository.Repositories) {
@@ -134,6 +138,12 @@ func subscribeToSettingsEvents(settingsSvc settings.Service, app *fiber.App, svc
 	for _, candidate := range svc.cache.Engines() {
 		if listener, ok := candidate.(settings.Listener); ok {
 			settingsSvc.Subscribe(listener)
+		}
+	}
+
+	for _, candidate := range svc.storageEngines {
+		if listener, ok := candidate.(settings.BatchListener); ok {
+			settingsSvc.SubscribeBatch(listener)
 		}
 	}
 }

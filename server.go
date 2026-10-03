@@ -58,6 +58,8 @@ import (
 	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/siteinfo"
 	"umineko_city_of_books/internal/sitemap"
+	"umineko_city_of_books/internal/storage"
+	"umineko_city_of_books/internal/storage/engine"
 	"umineko_city_of_books/internal/stream"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/upload"
@@ -108,6 +110,8 @@ type (
 		dronebl         *dronebl.Checker
 		crawlerFeeds    *feed.Service
 		upload          upload.Service
+		storage         storage.Service
+		storageEngines  []engine.Engine
 		hub             *ws.Hub
 		mediaProc       *media.Processor
 		giphy           giphy.Service
@@ -217,6 +221,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		JournalService:        svc.journal,
 		SecretService:         svc.secret,
 		UploadService:         svc.upload,
+		StorageService:        svc.storage,
 		MediaProcessor:        svc.mediaProc,
 		VanityRoleService:     svc.vanityRole,
 		UserSecretService:     svc.userSecret,

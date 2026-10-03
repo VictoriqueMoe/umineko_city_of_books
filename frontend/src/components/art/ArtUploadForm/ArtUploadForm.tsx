@@ -193,6 +193,7 @@ export function ArtUploadForm({
                     placeholder="Describe your art (optional)"
                     value={description}
                     onChange={setDescription}
+                    onSubmitShortcut={handleSubmit}
                     rows={3}
                     showColours
                 />

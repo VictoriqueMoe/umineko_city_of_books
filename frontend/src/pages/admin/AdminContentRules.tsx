@@ -78,6 +78,7 @@ export function AdminContentRules() {
                                     setDraft(prev => ({ ...prev, [page.key]: e.target.value }));
                                     setSuccess("");
                                 }}
+                                onSubmitShortcut={saving ? undefined : handleSave}
                                 rows={5}
                                 placeholder="Enter rules for this section..."
                             />

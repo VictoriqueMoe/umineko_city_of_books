@@ -1,26 +1,28 @@
 package upload
 
 import (
-	"os"
-	"path/filepath"
+	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/storage"
 )
 
 const orphanGracePeriod = time.Hour
 
-func CleanOrphanedFiles(repo repository.UploadRepository, uploadDir string) int {
+func CleanOrphanedFiles(ctx context.Context, repo repository.UploadRepository, storedFiles repository.StoredFileRepository, storageSvc storage.Service) (int, error) {
 	referenced, err := repo.GetAllReferencedFiles()
 	if err != nil {
-		logger.Log.Warn().Err(err).Msg("failed to get referenced files for cleanup")
-		return 0
+		return 0, fmt.Errorf("get referenced files: %w", err)
 	}
 
 	if len(referenced) == 0 {
-		logger.Log.Warn().Msg("orphan cleanup skipped: zero referenced files in DB")
-		return 0
+		logger.Ctx(ctx).Warn().Msg("orphan cleanup skipped: zero referenced files in DB")
+		return 0, nil
 	}
 
 	refSet := make(map[string]bool, len(referenced))
@@ -28,49 +30,32 @@ func CleanOrphanedFiles(repo repository.UploadRepository, uploadDir string) int 
 		refSet[ref] = true
 	}
 
+	stored, err := storedFiles.ListByPrefix(ctx, spec.StoredFilePrefix{})
+	if err != nil {
+		return 0, fmt.Errorf("list stored files: %w", err)
+	}
+
 	cutoff := time.Now().Add(-orphanGracePeriod)
 
 	removed := 0
-	topEntries, err := os.ReadDir(uploadDir)
-	if err != nil {
-		logger.Log.Warn().Err(err).Msg("failed to read upload directory")
-		return 0
-	}
-
-	for _, topEntry := range topEntries {
-		if !topEntry.IsDir() {
-			continue
-		}
-		subDir := topEntry.Name()
-		dir := filepath.Join(uploadDir, subDir)
-		entries, err := os.ReadDir(dir)
-		if err != nil {
+	for _, file := range stored {
+		if strings.Count(file.Key, "/") != 1 || file.CreatedAt.After(cutoff) {
 			continue
 		}
 
-		for _, entry := range entries {
-			if entry.IsDir() {
-				continue
-			}
-			info, err := entry.Info()
-			if err != nil {
-				continue
-			}
-			if info.ModTime().After(cutoff) {
-				continue
-			}
-			urlPath := "/uploads/" + subDir + "/" + entry.Name()
-			if !refSet[urlPath] {
-				fullPath := filepath.Join(dir, entry.Name())
-				if err := os.Remove(fullPath); err != nil {
-					logger.Log.Warn().Err(err).Str("file", fullPath).Msg("failed to remove orphaned file")
-				} else {
-					logger.Log.Info().Str("file", urlPath).Msg("removed orphaned file")
-					removed++
-				}
-			}
+		urlPath := urlPrefix + file.Key
+		if refSet[urlPath] {
+			continue
 		}
+
+		if err := storageSvc.Delete(ctx, file.Key); err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("file", urlPath).Str("backend", string(file.Backend)).Msg("failed to remove orphaned file")
+			continue
+		}
+
+		logger.Ctx(ctx).Info().Str("file", urlPath).Str("backend", string(file.Backend)).Msg("removed orphaned file")
+		removed++
 	}
 
-	return removed
+	return removed, nil
 }

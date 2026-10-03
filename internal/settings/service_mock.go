@@ -323,6 +323,46 @@ func (_c *MockService_Refresh_Call) RunAndReturn(run func(ctx context.Context) e
 	return _c
 }
 
+// RegisterBatchValidator provides a mock function for the type MockService
+func (_mock *MockService) RegisterBatchValidator(validate BatchValidator) {
+	_mock.Called(validate)
+	return
+}
+
+// MockService_RegisterBatchValidator_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RegisterBatchValidator'
+type MockService_RegisterBatchValidator_Call struct {
+	*mock.Call
+}
+
+// RegisterBatchValidator is a helper method to define mock.On call
+//   - validate BatchValidator
+func (_e *MockService_Expecter) RegisterBatchValidator(validate any) *MockService_RegisterBatchValidator_Call {
+	return &MockService_RegisterBatchValidator_Call{Call: _e.mock.On("RegisterBatchValidator", validate)}
+}
+
+func (_c *MockService_RegisterBatchValidator_Call) Run(run func(validate BatchValidator)) *MockService_RegisterBatchValidator_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 BatchValidator
+		if args[0] != nil {
+			arg0 = args[0].(BatchValidator)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_RegisterBatchValidator_Call) Return() *MockService_RegisterBatchValidator_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockService_RegisterBatchValidator_Call) RunAndReturn(run func(validate BatchValidator)) *MockService_RegisterBatchValidator_Call {
+	_c.Run(run)
+	return _c
+}
+
 // RegisterValidator provides a mock function for the type MockService
 func (_mock *MockService) RegisterValidator(setting *config.SiteSettingDef, validate Validator) {
 	_mock.Called(setting, validate)

@@ -1067,7 +1067,7 @@ func (q *Queries) GetChatSystemRoomID(ctx context.Context, systemKind sql.NullSt
 }
 
 const hasActiveChatMemberTimeout = `-- name: HasActiveChatMemberTimeout :one
-SELECT (timeout_until > NOW())::boolean AS active
+SELECT COALESCE(timeout_until > NOW(), FALSE)::boolean AS active
 FROM chat_room_members
 WHERE room_id = $1 AND user_id = $2
 `

@@ -61,6 +61,7 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 	repos.Permission = repository.NewPermissionRepo(dao.NewPermission(db), c)
 	repos.GiphyFavourite = repository.NewGiphyFavouriteRepo(dao.NewGiphyFavourite(db))
 	repos.BannedGiphy = repository.NewBannedGiphyRepo(dao.NewBannedGiphy(db))
+	repos.StoredFile = repository.NewStoredFileRepo(dao.NewStoredFile(db))
 	repos.UserSecret = repository.NewUserSecretRepo(dao.NewUserSecret(db), c)
 	secretDAO, secretComments := dao.NewSecret(db)
 	repos.Secret = repository.NewSecretRepo(db, secretDAO, repos.AuditLog)

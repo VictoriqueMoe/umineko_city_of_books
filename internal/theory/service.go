@@ -484,9 +484,9 @@ func (s *service) resolveEvidenceWeights(ctx context.Context, theoryID uuid.UUID
 	for _, ev := range evidence {
 		var q *quotefinder.Quote
 		if ev.AudioID != "" {
-			q, err = s.quoteClient.GetByAudioID(series, ev.AudioID)
+			q, err = s.quoteClient.GetByAudioID(ctx, series, ev.AudioID)
 		} else if ev.QuoteIndex != nil {
-			q, err = s.quoteClient.GetByIndex(series, *ev.QuoteIndex)
+			q, err = s.quoteClient.GetByIndex(ctx, series, *ev.QuoteIndex)
 		}
 		if err != nil {
 			logger.Ctx(ctx).Warn().Err(err).Int("evidence_id", ev.ID).Msg("failed to resolve quote for truth weight")

@@ -24,6 +24,21 @@ export function FanficDetailsStep({ isEdit, error, submitting, details, onBack, 
     const coverInputRef = useRef<HTMLInputElement>(null);
     const showCustomSeries = fields.series === OTHER_VALUE;
     const showCustomLanguage = fields.language === OTHER_VALUE;
+    const savesDetails = isEdit && !fields.isOneshot;
+    const saveDisabled = submitting || !fields.title.trim();
+
+    function submitFromShortcut() {
+        if (!savesDetails) {
+            details.next();
+            return;
+        }
+
+        if (saveDisabled) {
+            return;
+        }
+
+        details.save();
+    }
 
     function openCoverPicker() {
         coverInputRef.current?.click();
@@ -61,6 +76,7 @@ export function FanficDetailsStep({ isEdit, error, submitting, details, onBack, 
                     onChange={value => setField("summary", value)}
                     placeholder="Brief summary of your story..."
                     rows={3}
+                    onSubmitShortcut={submitFromShortcut}
                 />
             </div>
 
@@ -279,8 +295,8 @@ export function FanficDetailsStep({ isEdit, error, submitting, details, onBack, 
                 <Button variant="ghost" onClick={onCancel}>
                     Cancel
                 </Button>
-                {isEdit && !fields.isOneshot ? (
-                    <Button variant="primary" onClick={details.save} disabled={submitting || !fields.title.trim()}>
+                {savesDetails ? (
+                    <Button variant="primary" onClick={details.save} disabled={saveDisabled}>
                         {submitting ? "Saving..." : "Save Changes"}
                     </Button>
                 ) : (

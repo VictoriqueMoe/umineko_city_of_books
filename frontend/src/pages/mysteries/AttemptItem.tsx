@@ -15,6 +15,7 @@ import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTi
 import { ReportButton } from "../../components/ReportButton/ReportButton";
 import { siteUrl } from "../../platform/siteOrigin";
 import { renderRich } from "../../components/richText/richText";
+import { isSubmitShortcut } from "../../utils/submitShortcut";
 import styles from "./MysteryPages.module.css";
 
 function flattenReplies(attempt: MysteryAttempt): { reply: MysteryAttempt; replyToName: string }[] {
@@ -169,6 +170,14 @@ function SingleAttempt({
                         placeholder="Reply..."
                         value={replyBody}
                         onChange={e => setReplyBody(e.target.value)}
+                        onKeyDown={e => {
+                            if (!isSubmitShortcut(e.nativeEvent)) {
+                                return;
+                            }
+
+                            e.preventDefault();
+                            handleReply();
+                        }}
                         rows={2}
                     />
                     <div className={styles.composerActions}>

@@ -128,6 +128,7 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
                 onChange={setBody}
                 rows={2}
                 onPasteFiles={handlePasteFiles}
+                onSubmitShortcut={handleSubmit}
                 showColours
             />
 

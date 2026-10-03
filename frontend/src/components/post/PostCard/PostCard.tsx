@@ -167,7 +167,12 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
 
             {editing ? (
                 <div className={styles.editArea}>
-                    <MentionTextArea value={editBody} onChange={setEditBody} rows={3} />
+                    <MentionTextArea
+                        value={editBody}
+                        onChange={setEditBody}
+                        rows={3}
+                        onSubmitShortcut={handleSaveEdit}
+                    />
                     {editMedia.length > 0 && (
                         <div className={styles.editMediaList}>
                             {editMedia.map(m => (

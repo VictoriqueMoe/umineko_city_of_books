@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useCreateGallery } from "../../hooks/mutations/art";
 import { Button } from "../../components/Button/Button";
+import { isSubmitShortcut } from "../../utils/submitShortcut";
 import styles from "./ProfilePage.module.css";
 
 export function CreateGalleryInline({ onCreated }: { onCreated: () => void }) {
@@ -60,6 +61,12 @@ export function CreateGalleryInline({ onCreated }: { onCreated: () => void }) {
                 placeholder="Description (optional)"
                 value={description}
                 onChange={e => setDescription(e.target.value)}
+                onKeyDown={e => {
+                    if (isSubmitShortcut(e.nativeEvent)) {
+                        e.preventDefault();
+                        handleCreate();
+                    }
+                }}
                 rows={2}
                 style={{
                     width: "100%",

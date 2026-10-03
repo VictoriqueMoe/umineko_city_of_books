@@ -16,6 +16,7 @@ interface BasePromptSectionProps {
 export function BasePromptSection({ basePrompts }: BasePromptSectionProps) {
     const baseID = useId();
     const editor = useChatbotBasePromptEditor();
+    const saveDisabled = editor.saving || editor.name.trim() === "" || editor.prompt.trim() === "";
 
     function fieldID(name: string) {
         return `${baseID}-${name}`;
@@ -101,6 +102,7 @@ export function BasePromptSection({ basePrompts }: BasePromptSectionProps) {
                             rows={18}
                             value={editor.prompt}
                             onChange={e => editor.setPrompt(e.target.value)}
+                            onSubmitShortcut={saveDisabled ? undefined : editor.save}
                             placeholder="You are a witch of the game boards, and this is the first half of your instructions..."
                             aria-describedby={fieldID("base-prompt-text-hint")}
                         />
@@ -116,12 +118,7 @@ export function BasePromptSection({ basePrompts }: BasePromptSectionProps) {
                         <Button variant="ghost" size="small" onClick={editor.close}>
                             Cancel
                         </Button>
-                        <Button
-                            variant="primary"
-                            size="small"
-                            onClick={editor.save}
-                            disabled={editor.saving || editor.name.trim() === "" || editor.prompt.trim() === ""}
-                        >
+                        <Button variant="primary" size="small" onClick={editor.save} disabled={saveDisabled}>
                             {editor.saving ? "Saving..." : "Save"}
                         </Button>
                     </div>

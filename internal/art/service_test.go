@@ -65,8 +65,6 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		settingsSvc: settings.NewMockService(t),
 	}
 
-	m.uploadSvc.EXPECT().FullDiskPath(mock.Anything).Return("/tmp/does-not-exist-xyz.png").Maybe()
-
 	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifSvc, dao.CommentDAOs{
 		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindArtComment): m.artComments},
 	})
@@ -1227,6 +1225,7 @@ func TestUploadCommentMedia(t *testing.T) {
 				m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 				expectImageSave(m, uploaded, nil)
 				m.artRepo.EXPECT().AddCommentMedia(mock.Anything, mediaRow).Return(int64(0), errDB)
+				m.uploadSvc.EXPECT().Delete([]string{uploaded}).Once()
 			},
 			wantErr: errDB,
 		},

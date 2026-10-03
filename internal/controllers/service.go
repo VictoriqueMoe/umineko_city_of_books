@@ -38,6 +38,7 @@ import (
 	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/siteinfo"
 	"umineko_city_of_books/internal/sitemap"
+	"umineko_city_of_books/internal/storage"
 	"umineko_city_of_books/internal/stream"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/upload"
@@ -73,6 +74,7 @@ type (
 		ShipService           shipsvc.Service
 		OCService             ocsvc.Service
 		UploadService         upload.Service
+		StorageService        storage.Service
 		MediaProcessor        *media.Processor
 		VanityRoleService     vanityrole.Service
 		UserSecretService     usersecret.Service

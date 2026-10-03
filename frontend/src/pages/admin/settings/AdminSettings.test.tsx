@@ -295,6 +295,54 @@ describe("AdminSettings email", () => {
     });
 });
 
+describe("AdminSettings storage", () => {
+    it("stores new uploads on local disk until told otherwise", () => {
+        // given
+        stubSettings({ ...VALID });
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(selectFor("Active Storage")).toHaveValue("local");
+    });
+
+    it("keeps the S3 connection visible while local disk is active so old S3 files stay reachable", () => {
+        // given
+        stubSettings({
+            ...VALID,
+            storage_backend: "local",
+            s3_endpoint: "https://r2.example.com",
+            s3_bucket: "uploads",
+            s3_secret_access_key: SAVED_KEY,
+        });
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(textInput("S3 Endpoint")).toHaveValue("https://r2.example.com");
+        expect(textInput("S3 Bucket")).toHaveValue("uploads");
+        expect(secretInput("S3 Secret Access Key")).toHaveAttribute("type", "password");
+        expect(secretInput("S3 Secret Access Key")).toHaveValue(SAVED_KEY);
+    });
+
+    it("saves S3 as the active storage", async () => {
+        // given
+        stubSettings({ ...VALID, storage_backend: "local" });
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+        await user.selectOptions(selectFor("Active Storage"), "s3");
+        await user.click(screen.getByRole("switch", { name: "S3 Force Path Style" }));
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Save Settings" }));
+
+        // then
+        expect(mocks.update).toHaveBeenCalledWith({ ...VALID, storage_backend: "s3", s3_force_path_style: "true" });
+    });
+});
+
 describe("AdminSettings chatbot model", () => {
     it("suggests every model the provider returned", () => {
         // given
