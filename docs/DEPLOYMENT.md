@@ -25,7 +25,7 @@ Run behind Caddy, Nginx, or similar for TLS. The server sets the right cache hea
 - **Set `CF-Connecting-IP`.** The app is configured with `ProxyHeader: "CF-Connecting-IP"` and trusts loopback and private peers, so behind anything other than Cloudflare the proxy has to set that header itself. Without it every request is attributed to the proxy's own address, and the session IP hash, rate limits and last-seen IP all read it.
 - **Do not expose `/metrics`.** It is unauthenticated and host-authorisation exempt, so block it at the proxy and let Prometheus reach it over the docker network instead. `/debug/pprof/*` needs no such treatment, it is gated behind the `manage_settings` permission.
 
-`/uploads/*` and `/hls/*` are served by the app on the same origin, so they need no extra proxy config. If you enable voice chat, also add a `wss://` route to the `livekit` container (see below).
+`/uploads/*` and `/hls/*` are served by the app on the same origin, so they need no extra proxy config. That stays true with S3 file storage enabled: the app streams bucket objects through `/uploads/*` itself, with range requests and caching headers intact, so the bucket can stay private and the proxy and CDN rules do not change. If you enable voice chat, also add a `wss://` route to the `livekit` container (see below).
 
 ## Voice Chat (LiveKit)
 

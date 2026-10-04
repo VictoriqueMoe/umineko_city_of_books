@@ -355,9 +355,9 @@ Wiring is explicit and split across four files at the repo root. There is no DI 
             → controllers.Service{...} → routes.PublicRoutes(ctrl, app)
      │
      ▼                                                     (init_jobs.go)
-  settings listeners + background jobs (orphaned uploads, notification
-  prune, expired sessions, crawler ranges, journal and room archiving,
-  idle games, voice presence, live-stream reconcile)
+  settings listeners + background jobs (orphaned uploads, upload
+  staging, notification prune, expired sessions, crawler ranges, journal
+  and room archiving, idle games, voice presence, live-stream reconcile)
      │
      ▼
   utils.StartServerWithGracefulShutdown(app, ":4323")         (main.go)
@@ -694,21 +694,23 @@ A notification is both a DB row (so it shows in the notifications page) and a li
                 email.Service.Send(template, deep-link)
 ```
 
-### 6.9 Media Pipeline
+### 6.9 Media Pipeline and File Storage
 
-Every upload lands on disk first, then goes through `media.Processor`, a fixed pool of worker goroutines fed by a buffered channel. Images and video take different routes through it: an image upload waits for its own encode so the caller can persist the final `.webp` URL, while video is recorded at its raw path and transcoded behind the request.
+Every upload is first written to its own staging directory, `<upload_dir>/.staging/upload-<random>/`, because the pixel guard, `cwebp` and `ffmpeg` all need a real file and S3 needs a known length. It then goes through `media.Processor`, a fixed pool of worker goroutines fed by a buffered channel, and only the finished file is committed to storage. Images and video take different routes through it: an image upload waits for its own encode so the caller can persist the final `.webp` URL, while video is stored and recorded at its raw path and transcoded behind the request.
 
 ```
    controller receives multipart upload
          │
          ├── image ──▶ upload.Service.SaveImage
-         │               original bytes land on disk (uploads/<subdir>/)
+         │               original bytes land in a staging directory
          │               pixel guard (max_image_pixels) rejects decode bombs
-         │               enqueue JobImage, then block on the callback
+         │               enqueue JobImage, block on the callback,
+         │               commit the .webp to storage, discard the staging dir
          │
          └── video ──▶ media.Uploader.SaveAndRecord
-                         original bytes land on disk, media row written,
-                         enqueue JobVideo and return to the client
+                         original bytes staged, committed to storage,
+                         media row written, the staged copy handed to
+                         JobVideo and the request returns
                                  │
    ┌─────────────────────────────┴───────────────┐
    │  buffered job channel (cap 256)             │
@@ -725,32 +727,40 @@ Every upload lands on disk first, then goes through `media.Processor`, a fixed p
    └───────┬─────────────────────────────────────┘
            │
            ▼
-   image: caller gets the .webp path, source file removed
-   video: callback repoints the media row at the .mp4, removes the source,
-          then ffmpeg grabs a random frame as a 200px-tall WebP thumbnail
+   image: caller gets the .webp URL, the staging directory is removed
+   video: callback commits the .mp4, repoints the media row at it, deletes
+          the raw upload, then ffmpeg grabs a random frame as a 200px-tall
+          WebP thumbnail which is committed too; the staging dir is removed
 ```
 
 The image path is synchronous on purpose. `SaveImage` enqueues the job and selects on the result, the error, and the request context, so a failed or dropped encode surfaces as a failed upload instead of a media row pointing at a file nobody will serve. A `.webp` upload is re-encoded in place, and an animated one is left alone. The video path is fire and forget: if the transcode fails, the row keeps pointing at the raw upload and the failure is logged.
 
 If the queue is full the job is dropped and its error callback fires immediately rather than back-pressuring the request. Shutdown behaves the same way: the processor stops accepting work, waits up to 15 seconds for in-flight encodes, then fails whatever is still queued.
 
+**Where a committed file lives** is decided by `internal/storage`, which mirrors the WaifuVault layout. `storage/engine` defines the `Engine` interface (`Get` with an optional byte range, `PutFile`, `Head`, `Delete`, `List`), `storage/engines` holds the two implementations, `Local` (the `upload_dir` directory) and `S3` (any S3-compatible provider), `Factory` lists the enabled engines, `ProviderManager` picks the active one from the `storage_backend` site setting, and `storage.Service` is the only thing the rest of the code talks to. Adding a backend means implementing `Engine`, adding a `config.StorageBackend` value plus a goose migration adding it to the `storage_backend` Postgres enum, listing the engine in `storage.NewEngines`, and adding its option to the admin File Storage section.
+
+Switching the active backend never moves anything, because every file is recorded in the `stored_files` registry with the backend that holds it and the exact location it was written to (the local key, or bucket plus full object key for S3). Reads and deletes always go to the recorded location, so a file written to disk keeps being served from disk after the site switches to S3, and changing the S3 bucket or prefix only affects new uploads. Database columns keep storing `/uploads/<key>` URLs, so nothing outside storage knows which backend a file is on. Existing local files are registered at startup by `BackfillLocal`, which is idempotent and skips past unreadable directories rather than stopping. `/uploads/*` and `/og-image/*` stream from storage through `utils.SendStoredObject`, which handles `Range`, `If-Range`, `ETag`, `If-None-Match`, `If-Modified-Since` and `HEAD`, and those paths bypass the global etag middleware so a response is streamed rather than buffered.
+
+S3 settings are checked when they are saved, not when the first upload fails: a batch validator on the settings service probes the bucket with the merged settings and refuses the save if it cannot be reached, and while any file lives in S3 it also refuses an endpoint change or clearing the connection, since either would strand those files. The engine rebuilds its client only when an S3 setting actually changed.
+
 ### 6.10 Background Jobs
 
 Recurring work runs as plain goroutines started at boot by `registerListeners` in `init_jobs.go`. Each job is a `scheduleJob(stop, wg, name, successMsg, interval, fn)`: it runs once immediately, then on a ticker, logs a count only when it actually did something, and stops on the shared `stop` channel at shutdown, with the wait group ensuring a redeploy never kills work halfway through.
 
-| Job                         | Interval   |
-|-----------------------------|------------|
-| Reconcile voice presence    | 30 seconds |
-| Reconcile live streams      | 1 minute   |
-| Cancel idle games           | 5 minutes  |
-| Archive stale journals      | 1 hour     |
-| Archive stale chat rooms    | 1 hour     |
-| Clean orphaned upload files | 24 hours   |
-| Prune old notifications     | 24 hours   |
-| Clean expired sessions      | 24 hours   |
-| Refresh crawler ranges      | 24 hours   |
+| Job                            | Interval   |
+|--------------------------------|------------|
+| Reconcile voice presence       | 30 seconds |
+| Reconcile live streams         | 1 minute   |
+| Cancel idle games              | 5 minutes  |
+| Archive stale journals         | 1 hour     |
+| Archive stale chat rooms       | 1 hour     |
+| Clean abandoned upload staging | 1 hour     |
+| Clean orphaned upload files    | 24 hours   |
+| Prune old notifications        | 24 hours   |
+| Clean expired sessions         | 24 hours   |
+| Refresh crawler ranges         | 24 hours   |
 
-The same function registers the settings listeners that make hot reload work: log level, OTLP endpoint, Pyroscope URL, request body limit, native push credentials, the chatbot opt-in role migrator, the crawler feed list, SMTP, and the chatbot and OpenAI settings blocks. The Valkey URL listener is not named individually: `registerListeners` walks `svc.cache.Engines()` and subscribes any engine that implements `settings.Listener`, so a future engine with its own setting is wired by existing. It also ensures the system chat rooms exist at startup.
+The same function registers the settings listeners that make hot reload work: log level, OTLP endpoint, Pyroscope URL, request body limit, native push credentials, the chatbot opt-in role migrator, the crawler feed list, SMTP, and the chatbot and OpenAI settings blocks. The Valkey URL listener is not named individually: `registerListeners` walks `svc.cache.Engines()` and subscribes any engine that implements `settings.Listener`, so a future engine with its own setting is wired by existing. Storage engines are wired the same way: every engine that implements `settings.BatchListener` is subscribed, which is how the S3 engine picks up new credentials without a restart, and the S3 save-time check is registered as a settings batch validator. It also ensures the system chat rooms exist at startup.
 
 Shutdown drains in order: the chatbot worker pool, then the media processor, then the game-room tickers, then the job tickers, then the cache client, all inside a single 15-second budget.
 
@@ -916,6 +926,8 @@ The backend half first, then the frontend. Section 4 gives the frontend director
   internal/game         one package per game, holding that game's rules and state
   internal/og           the meta resolver and the OG image service
   internal/media        encoding, thumbnails and the processor queue, with internal/upload
+  internal/storage      file storage: the engine interface, the local and S3 engines,
+                        the factory, the provider manager and the stored_files registry
   internal/<domain>     one package per domain service: theory, mystery, art, ship, oc, post,
                         fanfic, journal, chat, chatbot, secret, gameroom, stream, profile,
                         follow, block, report, search, announcement and the rest
