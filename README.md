@@ -152,6 +152,8 @@ At startup the app uppercases every site-setting key and, when an env var of tha
 
 Any site-setting key works this way, not just the rows above, but these are the ones worth setting before the first boot.
 
+File storage follows the same rule. `STORAGE_BACKEND` (`local` or `s3`, default `local`) seeds where new uploads are written, and `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_PREFIX`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` and `S3_FORCE_PATH_STYLE` seed the S3 connection. All of them are normally set from **Admin → Settings → File Storage** instead, which checks the bucket before saving.
+
 > **Hyperbeam moved.** `HYPERBEAM_API_KEY` and `HYPERBEAM_REGION` are now the `hyperbeam_api_key` and `hyperbeam_region` site settings, edited under **Admin → Settings → Watch Parties, Voice & Streaming**, and the env vars survive only as first-boot seeds.
 
 `LOG_FORMAT` is the one observability knob that is a plain env var rather than a site setting. Set `LOG_FORMAT=json` and the logger writes structured JSON to stdout for a collector to parse; leave it unset and you get the human-readable `ConsoleWriter` output. `docker-compose.prod.yml` sets it, the dev compose does not. It is deliberately not hot-reloadable, because changing the stdout format underneath a running collector would break its parse stages mid-stream.
@@ -335,13 +337,15 @@ Two stores hold real site data and need to survive container rebuilds:
 - **Postgres data**, the named docker volume `postgres_data` mounted at `/var/lib/postgresql` inside the postgres container. Survives `docker compose up -d` and image upgrades.
 - **Uploaded media**, the `umineko-city-of-books` service bind-mounts `./data:/app/data` so `data/uploads/` lives on the host. Set `UPLOAD_DIR=data/uploads` in your `.env` so the app reads from this mount. Note that `UPLOAD_DIR` only seeds the initial default of the `upload_dir` site setting; once it has been saved from the admin panel, the stored value wins.
 
+Uploads can also go to any S3-compatible bucket (Amazon S3, Cloudflare R2, Hetzner Object Storage, Backblaze B2, MinIO), chosen under **Admin → Settings → File Storage**. Switching moves nothing: the `stored_files` table records which backend and exact location every file was written to, so files already on disk keep being served from disk and new ones go to the bucket. The local mount is still needed with S3 active, because every upload is staged under `data/uploads/.staging/` while it is checked and converted, and because older files may still live there. Use a bucket or prefix dedicated to this site, since the nightly orphan cleanup deletes unreferenced uploads it finds in it. New provider credentials can take a few minutes to propagate; uploads failing with `403 AccessDenied` straight after creating a key usually means it has not reached every storage node yet.
+
 The container runs as a non-root user (uid `10001`, `cap_drop: ALL`, `no-new-privileges`), so the host `./data` directory has to be writable by that uid. Live HLS segments land under the same mount at `data/hls/`, and the app does the cleanup itself, removing each per-stream directory when the broadcast ends and sweeping orphans on the reconcile pass, so it needs write access there and not only read.
 
 `./fcm-service-account.json` is bind-mounted read-only into the container by both compose files and is gitignored. Create it (or remove the mount) before the first `up`, otherwise Docker creates a directory in its place.
 
 `docker-compose.prod.yml` adds a third named volume, `valkey_data`, for the host-networked LiveKit coordination valkey it runs with `--appendonly yes`. That holds ephemeral SFU coordination state rather than site data, so it does not need backing up.
 
-For backups: a daily `pg_dump | gzip` cron is the recommended path for the database, plus a periodic tarball of `./data/uploads/` for media. Restore via `gunzip -c <dump>.sql.gz | docker compose exec -T postgres psql -U umineko -d umineko_city_of_books`.
+For backups: a daily `pg_dump | gzip` cron is the recommended path for the database, plus a periodic tarball of `./data/uploads/` for media (excluding `.staging/`). With S3 active, back up the bucket with your provider's tooling as well, because the database only records where each file lives. Restore via `gunzip -c <dump>.sql.gz | docker compose exec -T postgres psql -U umineko -d umineko_city_of_books`.
 
 ### Prebuilt image, reverse proxy, voice and streaming
 
