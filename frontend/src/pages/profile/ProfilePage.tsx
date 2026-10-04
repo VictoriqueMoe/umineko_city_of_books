@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useProfilePage, type ProfileTab } from "../../hooks/useProfilePage";
 import { formatDate, formatDOBWithAge, socialEntries, socialHref } from "../../domain/profile";
@@ -39,6 +40,7 @@ export function ProfilePage() {
     const navigate = useNavigate();
     const page = useProfilePage(username ?? "");
     const { profile, viewer, follow, block, activeTab, setActiveTab } = page;
+    const [now] = useState(() => new Date());
 
     if (page.loading) {
         return <div className="loading">Consulting the game board...</div>;
@@ -150,7 +152,7 @@ export function ProfilePage() {
                             </span>
                         )}
                         {profile.dob && (
-                            <span className={styles.metaItem}>Born {formatDOBWithAge(profile.dob, new Date())}</span>
+                            <span className={styles.metaItem}>Born {formatDOBWithAge(profile.dob, now)}</span>
                         )}
                         <span className={styles.metaItem}>Joined {formatDate(profile.created_at)}</span>
                     </div>
