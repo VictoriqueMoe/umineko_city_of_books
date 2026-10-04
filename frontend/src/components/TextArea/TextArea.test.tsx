@@ -99,6 +99,84 @@ describe("TextArea", () => {
         expect(screen.getByPlaceholderText("Say something")).toHaveValue("beat");
     });
 
+    it("calls the submit shortcut on ctrl and enter without adding a newline", async () => {
+        // given
+        const onSubmitShortcut = vi.fn();
+        const user = userEvent.setup();
+        renderWithProviders(<TextArea placeholder="Say something" onSubmitShortcut={onSubmitShortcut} />);
+
+        // when
+        await user.type(screen.getByPlaceholderText("Say something"), "red truth{Control>}{Enter}{/Control}");
+
+        // then
+        expect(onSubmitShortcut).toHaveBeenCalledTimes(1);
+        expect(screen.getByPlaceholderText("Say something")).toHaveValue("red truth");
+    });
+
+    it("calls the submit shortcut on cmd and enter", async () => {
+        // given
+        const onSubmitShortcut = vi.fn();
+        const user = userEvent.setup();
+        renderWithProviders(<TextArea placeholder="Say something" onSubmitShortcut={onSubmitShortcut} />);
+
+        // when
+        await user.type(screen.getByPlaceholderText("Say something"), "{Meta>}{Enter}{/Meta}");
+
+        // then
+        expect(onSubmitShortcut).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not call the submit shortcut on a plain enter", async () => {
+        // given
+        const onSubmitShortcut = vi.fn();
+        const user = userEvent.setup();
+        renderWithProviders(<TextArea placeholder="Say something" onSubmitShortcut={onSubmitShortcut} />);
+
+        // when
+        await user.type(screen.getByPlaceholderText("Say something"), "{Enter}");
+
+        // then
+        expect(onSubmitShortcut).not.toHaveBeenCalled();
+    });
+
+    it("submits the form it sits in on ctrl and enter", async () => {
+        // given
+        const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());
+        const user = userEvent.setup();
+        renderWithProviders(
+            <form onSubmit={onSubmit}>
+                <TextArea placeholder="Say something" />
+                <button type="submit">Post</button>
+            </form>,
+        );
+
+        // when
+        await user.type(screen.getByPlaceholderText("Say something"), "{Control>}{Enter}{/Control}");
+
+        // then
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves the form alone while its submit button is disabled", async () => {
+        // given
+        const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());
+        const user = userEvent.setup();
+        renderWithProviders(
+            <form onSubmit={onSubmit}>
+                <TextArea placeholder="Say something" />
+                <button type="submit" disabled>
+                    Post
+                </button>
+            </form>,
+        );
+
+        // when
+        await user.type(screen.getByPlaceholderText("Say something"), "{Control>}{Enter}{/Control}");
+
+        // then
+        expect(onSubmit).not.toHaveBeenCalled();
+    });
+
     it("keeps a caller supplied class alongside its own classes", () => {
         // given
         const className = "tall-box";

@@ -533,7 +533,7 @@ func (s *Service) adminUploadOGImage(ctx fiber.Ctx) error {
 	}
 
 	filename := fmt.Sprintf("og_default_%d.jpg", time.Now().UnixMilli())
-	url, err := s.UploadService.SaveFile("branding", filename, wrapped)
+	url, err := s.UploadService.SaveFile(ctx.Context(), "branding", filename, wrapped)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to save image", err)
 	}

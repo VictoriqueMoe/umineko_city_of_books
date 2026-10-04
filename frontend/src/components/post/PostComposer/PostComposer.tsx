@@ -134,6 +134,7 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
                 onChange={setBody}
                 rows={3}
                 onPasteFiles={handlePasteFiles}
+                onSubmitShortcut={handleSubmit}
                 showColours
             />
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 	"strconv"
 	"sync"
 
@@ -26,6 +27,8 @@ type (
 
 	Validator func(ctx context.Context, value string) error
 
+	BatchValidator func(ctx context.Context, merged map[config.SiteSettingKey]string, changed []config.SiteSettingKey) error
+
 	Service interface {
 		Get(ctx context.Context, def *config.SiteSettingDef) string
 		GetInt(ctx context.Context, def *config.SiteSettingDef) int
@@ -36,16 +39,18 @@ type (
 		Subscribe(listener Listener)
 		SubscribeBatch(listener BatchListener)
 		RegisterValidator(setting *config.SiteSettingDef, validate Validator)
+		RegisterBatchValidator(validate BatchValidator)
 		Refresh(ctx context.Context) error
 	}
 
 	service struct {
-		repo           repository.SettingsRepository
-		listeners      []Listener
-		batchListeners []BatchListener
-		listenerMu     sync.RWMutex
-		validators     map[config.SiteSettingKey]Validator
-		validatorMu    sync.RWMutex
+		repo            repository.SettingsRepository
+		listeners       []Listener
+		batchListeners  []BatchListener
+		listenerMu      sync.RWMutex
+		validators      map[config.SiteSettingKey]Validator
+		batchValidators []BatchValidator
+		validatorMu     sync.RWMutex
 	}
 )
 
@@ -74,6 +79,31 @@ func (s *service) RegisterValidator(setting *config.SiteSettingDef, validate Val
 	}
 
 	s.validators[setting.Key] = validate
+}
+
+func (s *service) RegisterBatchValidator(validate BatchValidator) {
+	s.validatorMu.Lock()
+	defer s.validatorMu.Unlock()
+
+	s.batchValidators = append(s.batchValidators, validate)
+}
+
+func (s *service) validateBatch(ctx context.Context, merged map[config.SiteSettingKey]string, changed []config.SiteSettingKey) error {
+	if len(changed) == 0 {
+		return nil
+	}
+
+	s.validatorMu.RLock()
+	validators := slices.Clone(s.batchValidators)
+	s.validatorMu.RUnlock()
+
+	for _, validate := range validators {
+		if err := validate(ctx, merged, changed); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (s *service) validatorFor(key config.SiteSettingKey) Validator {
@@ -209,13 +239,21 @@ func (s *service) Set(ctx context.Context, setting *config.SiteSettingDef, value
 		if err := s.validateChanged(ctx, map[config.SiteSettingKey]string{setting.Key: value}); err != nil {
 			return err
 		}
+
+		if err := s.validateBatch(ctx, merged, []config.SiteSettingKey{setting.Key}); err != nil {
+			return err
+		}
 	}
 
 	if err := s.repo.Set(ctx, spec.SettingsUpdate{Key: setting.Key, Value: value, UpdatedBy: updatedBy}); err != nil {
 		return err
 	}
 
-	s.notify(setting.Key, value)
+	if changed {
+		s.notify(setting.Key, value)
+		s.notifyBatch([]config.SiteSettingKey{setting.Key})
+	}
+
 	logger.Ctx(ctx).Info().Str("key", string(setting.Key)).Str("updated_by", updatedBy.String()).Msg("setting updated")
 	return nil
 }
@@ -223,7 +261,7 @@ func (s *service) Set(ctx context.Context, setting *config.SiteSettingDef, value
 func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSettingKey]string, updatedBy uuid.UUID) error {
 	merged := s.GetAll(ctx)
 
-	keys := make([]config.SiteSettingKey, 0, len(values))
+	changedKeys := make([]config.SiteSettingKey, 0, len(values))
 	changed := make(map[config.SiteSettingKey]string)
 
 	for k, v := range values {
@@ -231,10 +269,9 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 			return fmt.Errorf("unknown setting: %s", k)
 		}
 
-		keys = append(keys, k)
-
 		if merged[k] != v {
 			changed[k] = v
+			changedKeys = append(changedKeys, k)
 		}
 	}
 
@@ -248,15 +285,22 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 		return err
 	}
 
+	if err := s.validateBatch(ctx, merged, changedKeys); err != nil {
+		return err
+	}
+
 	if err := s.repo.SetMultiple(ctx, spec.SettingsBulkUpdate{Values: values, UpdatedBy: updatedBy}); err != nil {
 		return err
 	}
 
-	for k, v := range values {
+	for k, v := range changed {
 		s.notify(k, v)
 	}
 
-	s.notifyBatch(keys)
+	if len(changedKeys) > 0 {
+		s.notifyBatch(changedKeys)
+	}
+
 	logger.Ctx(ctx).Info().Int("count", len(values)).Str("updated_by", updatedBy.String()).Msg("settings updated")
 	return nil
 }

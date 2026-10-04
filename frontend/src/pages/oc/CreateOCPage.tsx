@@ -125,6 +125,9 @@ function OCForm({ editing, initial, id }: FormProps) {
     }
 
     async function handleSubmit() {
+        if (submitting) {
+            return;
+        }
         setError("");
         const trimmedName = name.trim();
         if (!trimmedName) {
@@ -239,6 +242,7 @@ function OCForm({ editing, initial, id }: FormProps) {
                     <MentionTextArea
                         value={description}
                         onChange={setDescription}
+                        onSubmitShortcut={handleSubmit}
                         placeholder="Tell us about this OC. **bold**, *italic*, > quotes, [links](url)."
                         rows={5}
                         showColours

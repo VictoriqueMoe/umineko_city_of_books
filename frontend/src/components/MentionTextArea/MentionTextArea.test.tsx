@@ -48,6 +48,7 @@ interface HarnessProps {
     showColours?: boolean;
     colourBarOpen?: boolean;
     onPasteFiles?: (files: File[]) => void;
+    onSubmitShortcut?: () => void;
 }
 
 function Harness({ initial = "", onChange, ...rest }: HarnessProps) {
@@ -192,6 +193,55 @@ describe("MentionTextArea", () => {
         // then
         expect(container.querySelector("img")).toBeNull();
         expect(container.innerHTML).toContain("&lt;img");
+    });
+
+    it("calls the submit shortcut on ctrl and enter without adding a newline", async () => {
+        // given
+        const onSubmitShortcut = vi.fn();
+        const user = userEvent.setup();
+        renderWithProviders(<Harness onSubmitShortcut={onSubmitShortcut} />);
+
+        // when
+        await user.type(box(), "the truth{Control>}{Enter}{/Control}");
+
+        // then
+        expect(onSubmitShortcut).toHaveBeenCalledTimes(1);
+        expect(box()).toHaveValue("the truth");
+    });
+
+    it("submits instead of picking a suggestion when ctrl and enter is pressed with the list open", async () => {
+        // given
+        const onSubmitShortcut = vi.fn();
+        const user = userEvent.setup();
+        renderWithProviders(<Harness mentionPool={POOL} onSubmitShortcut={onSubmitShortcut} />);
+        await user.type(box(), "@bea");
+        await screen.findByText("Beatrice");
+
+        // when
+        await user.type(box(), "{Control>}{Enter}{/Control}");
+
+        // then
+        expect(onSubmitShortcut).toHaveBeenCalledTimes(1);
+        expect(box()).toHaveValue("@bea");
+        expect(suggestions()).toHaveLength(0);
+    });
+
+    it("submits the form it sits in on ctrl and enter", async () => {
+        // given
+        const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());
+        const user = userEvent.setup();
+        renderWithProviders(
+            <form onSubmit={onSubmit}>
+                <Harness />
+                <button type="submit">Post</button>
+            </form>,
+        );
+
+        // when
+        await user.type(box(), "{Control>}{Enter}{/Control}");
+
+        // then
+        expect(onSubmit).toHaveBeenCalledTimes(1);
     });
 
     it("suggests nobody until the trigger character is typed", async () => {

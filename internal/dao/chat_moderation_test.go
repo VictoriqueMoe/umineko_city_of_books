@@ -106,6 +106,40 @@ func TestChatDAO_SetMemberNicknameWithLock_LocksAndUnlocks(t *testing.T) {
 	assert.False(t, detailedAfterUnlock[1].NicknameLocked)
 }
 
+func TestChatDAO_HasActiveMemberTimeout(t *testing.T) {
+	tests := []struct {
+		name  string
+		until string
+		want  bool
+	}{
+		{name: "never timed out", until: "", want: false},
+		{name: "timeout in the future", until: "2099-01-01 00:00:00", want: true},
+		{name: "timeout expired", until: "2000-01-01 00:00:00", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			ctx := context.Background()
+			owner := daotest.CreateUser(t, repos)
+			member := daotest.CreateUser(t, repos)
+			roomID := daotest.CreateChatRoom(t, repos, owner.ID)
+			require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: member.ID, Role: "member", Ghost: false}))
+			if tt.until != "" {
+				require.NoError(t, repos.Chat.SetMemberTimeout(ctx, spec.ChatMemberTimeout{RoomID: roomID, UserID: member.ID, Until: tt.until, ByStaff: false}))
+			}
+
+			// when
+			active, err := repos.Chat.HasActiveMemberTimeout(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: member.ID})
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, active)
+		})
+	}
+}
+
 func TestChatDAO_SetMemberTimeout_SetsAndClears(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)

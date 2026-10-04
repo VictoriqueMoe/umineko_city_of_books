@@ -187,7 +187,7 @@ UPDATE chat_room_members SET timeout_until = $1, timeout_set_by_staff = $2 WHERE
 UPDATE chat_room_members SET timeout_until = NULL, timeout_set_by_staff = FALSE WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL;
 
 -- name: HasActiveChatMemberTimeout :one
-SELECT (timeout_until > NOW())::boolean AS active
+SELECT COALESCE(timeout_until > NOW(), FALSE)::boolean AS active
 FROM chat_room_members
 WHERE room_id = $1 AND user_id = $2;
 

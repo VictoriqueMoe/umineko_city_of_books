@@ -75,7 +75,7 @@ func TestAdminUploadOGImage_OK(t *testing.T) {
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermManageSettings, true)
 	ss.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(10 * 1024 * 1024)
-	us.EXPECT().SaveFile("branding", mock.MatchedBy(func(name string) bool {
+	us.EXPECT().SaveFile(mock.Anything, "branding", mock.MatchedBy(func(name string) bool {
 		return len(name) > 0
 	}), mock.Anything).Return("/uploads/branding/og_default_123.jpg", nil)
 	body, contentType := multipartImageBody(t, encodeJPEG(t))

@@ -3,6 +3,7 @@ import type { User } from "../../types/api";
 import { type MentionSuggestion, useMentionSearch } from "../../hooks/useMentionSearch";
 import { MENTION_SOURCE } from "../../domain/mentions";
 import { COLOUR_CLASS, type ColourTag, colourRegex } from "../richText/colours";
+import { isSubmitShortcut, submitFormLikeEnter } from "../../utils/submitShortcut";
 import { Butterfly } from "../Butterfly/Butterfly";
 import styles from "./MentionTextArea.module.css";
 
@@ -22,6 +23,7 @@ interface MentionTextAreaProps {
     mentionPool?: User[];
     showColours?: boolean;
     colourBarOpen?: boolean;
+    onSubmitShortcut?: () => void;
     ref?: React.Ref<MentionTextAreaHandle>;
 }
 
@@ -117,6 +119,7 @@ export function MentionTextArea({
     mentionPool,
     showColours,
     colourBarOpen = true,
+    onSubmitShortcut,
     ref,
 }: MentionTextAreaProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -271,7 +274,28 @@ export function MentionTextArea({
         }
     }
 
-    function handleKeyDown(e: React.KeyboardEvent) {
+    function handleSubmitShortcut(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+        if (onSubmitShortcut) {
+            e.preventDefault();
+            setShowDropdown(false);
+            onSubmitShortcut();
+            return;
+        }
+
+        const form = e.currentTarget.form;
+        if (form) {
+            e.preventDefault();
+            setShowDropdown(false);
+            submitFormLikeEnter(form);
+        }
+    }
+
+    function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+        if (isSubmitShortcut(e.nativeEvent)) {
+            handleSubmitShortcut(e);
+            return;
+        }
+
         if (!showDropdown || suggestions.length === 0) {
             return;
         }

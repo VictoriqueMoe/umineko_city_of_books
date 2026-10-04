@@ -65,6 +65,7 @@ export function ShareDialog({ isOpen, onClose, contentId, contentType, contentTi
                 <MentionTextArea
                     value={message}
                     onChange={setMessage}
+                    onSubmitShortcut={handleSubmit}
                     placeholder="Add a comment (optional)"
                     rows={3}
                     showColours

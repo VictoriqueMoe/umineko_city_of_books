@@ -1,17 +1,18 @@
 package quotefinder
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
-	"sync"
 	"time"
+	"umineko_city_of_books/internal/cache"
 )
 
 const (
-	DefaultBaseURL    = "https://quotes.auaurora.moe/api/v1"
-	characterCacheTTL = 1 * time.Hour
+	DefaultBaseURL = "https://quotes.auaurora.moe/api/v1"
 )
 
 type (
@@ -33,44 +34,42 @@ type (
 		Additional map[string]string `json:"additional"`
 	}
 
-	cachedCharacters struct {
-		data      []Character
-		expiresAt time.Time
-	}
-
 	Client struct {
-		http     *http.Client
-		baseURL  string
-		charMu   sync.Mutex
-		charMemo map[Series]cachedCharacters
+		http    *http.Client
+		baseURL string
+		cache   *cache.Manager
 	}
 )
 
-func NewClient() *Client {
-	return NewClientWithBaseURL(DefaultBaseURL)
+func NewClient(cacheManager *cache.Manager) *Client {
+	return NewClientWithBaseURL(DefaultBaseURL, cacheManager)
 }
 
-func NewClientWithBaseURL(baseURL string) *Client {
+func NewClientWithBaseURL(baseURL string, cacheManager *cache.Manager) *Client {
 	return &Client{
-		http:     &http.Client{Timeout: 10 * time.Second},
-		baseURL:  baseURL,
-		charMemo: make(map[Series]cachedCharacters),
+		http:    &http.Client{Timeout: 10 * time.Second},
+		baseURL: baseURL,
+		cache:   cacheManager,
 	}
 }
 
-func (c *Client) ListCharacters(series Series) ([]Character, error) {
+func (c *Client) ListCharacters(ctx context.Context, series Series) ([]Character, error) {
 	if !series.Valid() {
 		return nil, fmt.Errorf("unsupported series: %s", series)
 	}
 
-	c.charMu.Lock()
-	if entry, ok := c.charMemo[series]; ok && time.Now().Before(entry.expiresAt) {
-		c.charMu.Unlock()
-		return entry.data, nil
-	}
-	c.charMu.Unlock()
+	return c.cache.Load(ctx, cache.QuoteCharacters, func(ctx context.Context) ([]Character, error) {
+		return c.fetchCharacters(ctx, series)
+	}, string(series))
+}
 
-	resp, err := c.http.Get(fmt.Sprintf("%s/%s/characters", c.baseURL, series))
+func (c *Client) fetchCharacters(ctx context.Context, series Series) ([]Character, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s/characters", c.baseURL, series), nil)
+	if err != nil {
+		return nil, fmt.Errorf("build characters request: %w", err)
+	}
+
+	resp, err := c.http.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetch characters: %w", err)
 	}
@@ -93,80 +92,76 @@ func (c *Client) ListCharacters(series Series) ([]Character, error) {
 		result = append(result, Character{ID: id, Name: name, Group: "additional"})
 	}
 
-	c.charMu.Lock()
-	c.charMemo[series] = cachedCharacters{
-		data:      result,
-		expiresAt: time.Now().Add(characterCacheTTL),
-	}
-	c.charMu.Unlock()
-
 	return result, nil
 }
 
-func (c *Client) GetByAudioID(series Series, audioID string) (*Quote, error) {
+func (c *Client) GetByAudioID(ctx context.Context, series Series, audioID string) (*Quote, error) {
 	if !series.Valid() {
 		series = SeriesUmineko
 	}
+
 	firstID, _, _ := strings.Cut(audioID, ",")
 	firstID = strings.TrimSpace(firstID)
 	if firstID == "" {
 		return nil, nil
 	}
 
-	resp, err := c.http.Get(fmt.Sprintf("%s/%s/quote/%s", c.baseURL, series, firstID))
+	return c.cache.Load(ctx, cache.QuoteByAudioID, func(ctx context.Context) (*Quote, error) {
+		return c.fetchQuote(ctx, fmt.Sprintf("%s/%s/quote/%s", c.baseURL, series, firstID))
+	}, string(series), firstID)
+}
+
+func (c *Client) GetByIndex(ctx context.Context, series Series, index int) (*Quote, error) {
+	if !series.Valid() {
+		series = SeriesUmineko
+	}
+
+	return c.cache.Load(ctx, cache.QuoteByIndex, func(ctx context.Context) (*Quote, error) {
+		return c.fetchQuote(ctx, fmt.Sprintf("%s/%s/quote/index/%d", c.baseURL, series, index))
+	}, string(series), strconv.Itoa(index))
+}
+
+func (c *Client) fetchQuote(ctx context.Context, quoteURL string) (*Quote, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, quoteURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build quote request: %w", err)
+	}
+
+	resp, err := c.http.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetch quote: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode == http.StatusNotFound {
 		return nil, nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("fetch quote: status %d", resp.StatusCode)
 	}
 
 	var q Quote
 	if err := json.NewDecoder(resp.Body).Decode(&q); err != nil {
 		return nil, fmt.Errorf("decode quote: %w", err)
 	}
-	return &q, nil
-}
 
-func (c *Client) GetByIndex(series Series, index int) (*Quote, error) {
-	if !series.Valid() {
-		series = SeriesUmineko
-	}
-	resp, err := c.http.Get(fmt.Sprintf("%s/%s/quote/index/%d", c.baseURL, series, index))
-	if err != nil {
-		return nil, fmt.Errorf("fetch quote by index: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, nil
-	}
-
-	var q Quote
-	if err := json.NewDecoder(resp.Body).Decode(&q); err != nil {
-		return nil, fmt.Errorf("decode quote: %w", err)
-	}
 	return &q, nil
 }
 
 func TruthWeight(q *Quote) float64 {
-	if q == nil {
+	switch {
+	case q == nil:
+		return 1.0
+	case q.HasGoldTruth:
+		return 3.3
+	case q.HasRedTruth:
+		return 3.0
+	case q.HasPurpleTruth:
+		return 2.2
+	case q.HasBlueTruth:
+		return 2.0
+	default:
 		return 1.0
 	}
-
-	if q.HasGoldTruth {
-		return 3.3
-	}
-	if q.HasRedTruth {
-		return 3.0
-	}
-	if q.HasPurpleTruth {
-		return 2.2
-	}
-	if q.HasBlueTruth {
-		return 2.0
-	}
-	return 1.0
 }

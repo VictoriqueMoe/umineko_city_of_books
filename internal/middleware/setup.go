@@ -51,7 +51,7 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 	app.Use(Tracing())
 	app.Use(HostAuthorization(settingsSvc))
 	app.Use(SecurityHeaders())
-	app.Use(etag.New())
+	app.Use(etag.New(etag.Config{Next: isStreamedPath}))
 
 	app.Use(CacheHeaders(settingsSvc))
 
@@ -138,6 +138,12 @@ func redactedQueryString(ctx fiber.Ctx) string {
 	}
 
 	return b.String()
+}
+
+func isStreamedPath(ctx fiber.Ctx) bool {
+	path := ctx.Path()
+
+	return strings.HasPrefix(path, "/uploads/") || strings.HasPrefix(path, "/og-image/") || strings.HasPrefix(path, "/hls/")
 }
 
 func shouldSkipRequestLog(ctx fiber.Ctx) bool {

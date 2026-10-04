@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/middleware"
 
 	"github.com/gofiber/fiber/v3"
@@ -23,10 +24,16 @@ func (s *Service) getAllUploadRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupUploads(r fiber.Router) {
-	r.Get("/uploads/*", static.New(s.UploadService.GetUploadDir(), static.Config{
-		Browse:    false,
-		ByteRange: true,
-	}))
+	r.Get("/uploads/*", s.serveUpload)
+}
+
+func (s *Service) serveUpload(ctx fiber.Ctx) error {
+	info, err := s.StorageService.Stat(ctx.Context(), ctx.Params("*"))
+	if err != nil {
+		return utils.StoredObjectError(ctx, err)
+	}
+
+	return utils.SendStoredObject(ctx, s.StorageService, info)
 }
 
 func (s *Service) getAllHLSRoutes() []FSetupRoute {

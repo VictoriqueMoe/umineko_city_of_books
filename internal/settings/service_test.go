@@ -581,3 +581,100 @@ func TestSet_ValidatorSkippedWhenValueUnchanged(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, ran)
 }
+
+func TestSetMultiple_BatchValidatorSeesMergedValuesAndOnlyChangedKeys(t *testing.T) {
+	// given
+	svc, repo := newTestService(t)
+	primeValidCache(repo)
+	updatedBy := uuid.New()
+	var gotMerged map[config.SiteSettingKey]string
+	var gotChanged []config.SiteSettingKey
+	svc.RegisterBatchValidator(func(_ context.Context, merged map[config.SiteSettingKey]string, changed []config.SiteSettingKey) error {
+		gotMerged = merged
+		gotChanged = changed
+		return nil
+	})
+	values := map[config.SiteSettingKey]string{
+		config.SettingSiteName.Key:         "Renamed",
+		config.SettingRegistrationType.Key: "open",
+	}
+	repo.EXPECT().SetMultiple(mock.Anything, spec.SettingsBulkUpdate{Values: values, UpdatedBy: updatedBy}).Return(nil)
+
+	// when
+	err := svc.SetMultiple(context.Background(), values, updatedBy)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, []config.SiteSettingKey{config.SettingSiteName.Key}, gotChanged)
+	assert.Equal(t, "Renamed", gotMerged[config.SettingSiteName.Key])
+	assert.Equal(t, "8", gotMerged[config.SettingMinPasswordLength.Key], "untouched settings come from the stored values")
+}
+
+func TestSetMultiple_BatchValidatorBlocksWrite(t *testing.T) {
+	// given
+	svc, repo := newTestService(t)
+	primeValidCache(repo)
+	listener := NewMockBatchListener(t)
+	svc.SubscribeBatch(listener)
+	svc.RegisterBatchValidator(func(context.Context, map[config.SiteSettingKey]string, []config.SiteSettingKey) error {
+		return errors.New("bucket unreachable")
+	})
+
+	// when
+	err := svc.SetMultiple(context.Background(), map[config.SiteSettingKey]string{config.SettingSiteName.Key: "Renamed"}, uuid.New())
+
+	// then the strict repo mock proves nothing was written
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "bucket unreachable")
+	listener.AssertNotCalled(t, "OnSettingsBatchChanged", mock.Anything)
+}
+
+func TestSetMultiple_UnchangedValuesNotifyNobody(t *testing.T) {
+	// given
+	svc, repo := newTestService(t)
+	primeValidCache(repo)
+	plain := NewMockListener(t)
+	batch := NewMockBatchListener(t)
+	svc.Subscribe(plain)
+	svc.SubscribeBatch(batch)
+	ran := false
+	svc.RegisterBatchValidator(func(context.Context, map[config.SiteSettingKey]string, []config.SiteSettingKey) error {
+		ran = true
+		return nil
+	})
+	updatedBy := uuid.New()
+	values := map[config.SiteSettingKey]string{config.SettingRegistrationType.Key: "open"}
+	repo.EXPECT().SetMultiple(mock.Anything, spec.SettingsBulkUpdate{Values: values, UpdatedBy: updatedBy}).Return(nil)
+
+	// when
+	err := svc.SetMultiple(context.Background(), values, updatedBy)
+
+	// then
+	require.NoError(t, err)
+	assert.False(t, ran)
+	plain.AssertNotCalled(t, "OnSettingChanged", mock.Anything, mock.Anything)
+	batch.AssertNotCalled(t, "OnSettingsBatchChanged", mock.Anything)
+}
+
+func TestSet_ChangedValueReachesBatchListenersAndValidators(t *testing.T) {
+	// given
+	svc, repo := newTestService(t)
+	primeValidCache(repo)
+	batch := NewMockBatchListener(t)
+	batch.EXPECT().OnSettingsBatchChanged([]config.SiteSettingKey{config.SettingSiteName.Key}).Once()
+	svc.SubscribeBatch(batch)
+	var gotChanged []config.SiteSettingKey
+	svc.RegisterBatchValidator(func(_ context.Context, _ map[config.SiteSettingKey]string, changed []config.SiteSettingKey) error {
+		gotChanged = changed
+		return nil
+	})
+	updatedBy := uuid.New()
+	repo.EXPECT().Set(mock.Anything, spec.SettingsUpdate{Key: config.SettingSiteName.Key, Value: "Single", UpdatedBy: updatedBy}).Return(nil)
+
+	// when
+	err := svc.Set(context.Background(), config.SettingSiteName, "Single", updatedBy)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, []config.SiteSettingKey{config.SettingSiteName.Key}, gotChanged)
+}

@@ -6,6 +6,7 @@ import { useMysteryBoard } from "../../hooks/useMysteryBoard";
 import { useAuth } from "../../hooks/useAuth";
 import { renderRich } from "../../components/richText/richText";
 import { formatSize } from "../../utils/fileValidation";
+import { isSubmitShortcut } from "../../utils/submitShortcut";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
@@ -207,6 +208,14 @@ export function MysteryDetailPage() {
                             placeholder="Add a new red truth clue..."
                             value={board.newClueBody}
                             onChange={e => board.setNewClueBody(e.target.value)}
+                            onKeyDown={async e => {
+                                if (!isSubmitShortcut(e.nativeEvent)) {
+                                    return;
+                                }
+
+                                e.preventDefault();
+                                await board.addGlobalClue();
+                            }}
                             rows={2}
                         />
                         <div className={styles.composerActions}>
@@ -470,6 +479,14 @@ export function MysteryDetailPage() {
                                     placeholder="Declare your blue truth..."
                                     value={board.attemptBody}
                                     onChange={e => board.setAttemptBody(e.target.value)}
+                                    onKeyDown={async e => {
+                                        if (!isSubmitShortcut(e.nativeEvent)) {
+                                            return;
+                                        }
+
+                                        e.preventDefault();
+                                        await board.submitAttempt();
+                                    }}
                                     rows={3}
                                 />
                                 <div className={styles.composerActions}>

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -22,6 +23,9 @@ const (
 	postgresUser      = "umineko"
 	postgresPassword  = "umineko_test"
 	postgresAdminDB   = "postgres"
+
+	dockerSocketOverrideEnv = "TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE"
+	linuxDockerSocket       = "/var/run/docker.sock"
 )
 
 var (
@@ -36,6 +40,15 @@ var (
 
 func ensureContainer() {
 	containerOnce.Do(func() {
+		if runtime.GOOS == "windows" {
+			if _, set := os.LookupEnv(dockerSocketOverrideEnv); !set {
+				if err := os.Setenv(dockerSocketOverrideEnv, linuxDockerSocket); err != nil {
+					containerErr = fmt.Errorf("set %s: %w", dockerSocketOverrideEnv, err)
+					return
+				}
+			}
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 

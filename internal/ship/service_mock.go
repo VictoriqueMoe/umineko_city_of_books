@@ -469,8 +469,8 @@ func (_c *MockService_LikeComment_Call) RunAndReturn(run func(ctx context.Contex
 }
 
 // ListCharacters provides a mock function for the type MockService
-func (_mock *MockService) ListCharacters(series quotefinder.Series) ([]dto.CharacterListEntry, error) {
-	ret := _mock.Called(series)
+func (_mock *MockService) ListCharacters(ctx context.Context, series quotefinder.Series) ([]dto.CharacterListEntry, error) {
+	ret := _mock.Called(ctx, series)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListCharacters")
@@ -478,18 +478,18 @@ func (_mock *MockService) ListCharacters(series quotefinder.Series) ([]dto.Chara
 
 	var r0 []dto.CharacterListEntry
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(quotefinder.Series) ([]dto.CharacterListEntry, error)); ok {
-		return returnFunc(series)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, quotefinder.Series) ([]dto.CharacterListEntry, error)); ok {
+		return returnFunc(ctx, series)
 	}
-	if returnFunc, ok := ret.Get(0).(func(quotefinder.Series) []dto.CharacterListEntry); ok {
-		r0 = returnFunc(series)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, quotefinder.Series) []dto.CharacterListEntry); ok {
+		r0 = returnFunc(ctx, series)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]dto.CharacterListEntry)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(quotefinder.Series) error); ok {
-		r1 = returnFunc(series)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, quotefinder.Series) error); ok {
+		r1 = returnFunc(ctx, series)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -502,19 +502,25 @@ type MockService_ListCharacters_Call struct {
 }
 
 // ListCharacters is a helper method to define mock.On call
+//   - ctx context.Context
 //   - series quotefinder.Series
-func (_e *MockService_Expecter) ListCharacters(series any) *MockService_ListCharacters_Call {
-	return &MockService_ListCharacters_Call{Call: _e.mock.On("ListCharacters", series)}
+func (_e *MockService_Expecter) ListCharacters(ctx any, series any) *MockService_ListCharacters_Call {
+	return &MockService_ListCharacters_Call{Call: _e.mock.On("ListCharacters", ctx, series)}
 }
 
-func (_c *MockService_ListCharacters_Call) Run(run func(series quotefinder.Series)) *MockService_ListCharacters_Call {
+func (_c *MockService_ListCharacters_Call) Run(run func(ctx context.Context, series quotefinder.Series)) *MockService_ListCharacters_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 quotefinder.Series
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(quotefinder.Series)
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 quotefinder.Series
+		if args[1] != nil {
+			arg1 = args[1].(quotefinder.Series)
 		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -525,7 +531,7 @@ func (_c *MockService_ListCharacters_Call) Return(characterListEntrys []dto.Char
 	return _c
 }
 
-func (_c *MockService_ListCharacters_Call) RunAndReturn(run func(series quotefinder.Series) ([]dto.CharacterListEntry, error)) *MockService_ListCharacters_Call {
+func (_c *MockService_ListCharacters_Call) RunAndReturn(run func(ctx context.Context, series quotefinder.Series) ([]dto.CharacterListEntry, error)) *MockService_ListCharacters_Call {
 	_c.Call.Return(run)
 	return _c
 }

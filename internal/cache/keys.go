@@ -12,40 +12,52 @@ type (
 	}
 )
 
+const (
+	noExpiry time.Duration = 0
+	minute                 = time.Minute
+	hour                   = time.Hour
+	day                    = 24 * hour
+	week                   = 7 * day
+)
+
 var (
-	OGMeta  = Namespace{Prefix: "og:meta:", TTL: 5 * time.Minute}
-	OGImage = Namespace{Prefix: "og:image:", TTL: 24 * time.Hour}
+	OGMeta  = Namespace{Prefix: "og:meta:", TTL: 5 * minute}
+	OGImage = Namespace{Prefix: "og:image:", TTL: day}
 
-	HomeEchoes = Namespace{Prefix: "home:echoes:", TTL: 24 * time.Hour}
+	HomeEchoes = Namespace{Prefix: "home:echoes:", TTL: day}
 
-	LinkPreview = Namespace{Prefix: "linkpreview:", TTL: 24 * time.Hour}
+	LinkPreview = Namespace{Prefix: "linkpreview:", TTL: day}
 
-	DroneBL = Namespace{Prefix: "dronebl:", TTL: 24 * time.Hour}
+	QuoteCharacters = Namespace{Prefix: "quote:characters:", TTL: week}
+	QuoteByAudioID  = Namespace{Prefix: "quote:audio:", TTL: week}
+	QuoteByIndex    = Namespace{Prefix: "quote:index:", TTL: week}
+
+	DroneBL = Namespace{Prefix: "dronebl:", TTL: day}
 
 	// CrawlerRanges refilled by a job rather than invalidated by a write, to keep third party fetches off the request path
-	CrawlerRanges = Namespace{Prefix: "dronebl:crawler-ranges", TTL: 0}
+	CrawlerRanges = Namespace{Prefix: "dronebl:crawler-ranges", TTL: noExpiry}
 
-	UserRole = Namespace{Prefix: "role:", TTL: 0}
+	UserRole = Namespace{Prefix: "role:", TTL: noExpiry}
 
-	Setting = Namespace{Prefix: "setting:", TTL: 0}
+	Setting = Namespace{Prefix: "setting:", TTL: noExpiry}
 
-	MysteryTopDetectives = Namespace{Prefix: "mystery:top-detectives", TTL: 0}
-	MysteryTopGMs        = Namespace{Prefix: "mystery:top-gms", TTL: 0}
-	GameTopWinners       = Namespace{Prefix: "game:top-winners:", TTL: 0}
-	VanityAssignments    = Namespace{Prefix: "vanity:assignments", TTL: 0}
+	MysteryTopDetectives = Namespace{Prefix: "mystery:top-detectives", TTL: noExpiry}
+	MysteryTopGMs        = Namespace{Prefix: "mystery:top-gms", TTL: noExpiry}
+	GameTopWinners       = Namespace{Prefix: "game:top-winners:", TTL: noExpiry}
+	VanityAssignments    = Namespace{Prefix: "vanity:assignments", TTL: noExpiry}
 
-	RolePermissions       = Namespace{Prefix: "authz:role-perms", TTL: time.Minute}
-	VanityRolePermissions = Namespace{Prefix: "authz:vanity-perms", TTL: time.Minute}
-	UserVanityRoleIDs     = Namespace{Prefix: "authz:user-vanity:", TTL: time.Minute}
+	RolePermissions       = Namespace{Prefix: "authz:role-perms", TTL: minute}
+	VanityRolePermissions = Namespace{Prefix: "authz:vanity-perms", TTL: minute}
+	UserVanityRoleIDs     = Namespace{Prefix: "authz:user-vanity:", TTL: minute}
 
-	ChatbotBasePrompts    = Namespace{Prefix: "chatbot:base-prompts", TTL: 0}
-	ChatbotBasePromptByID = Namespace{Prefix: "chatbot:base-prompt:", TTL: 0}
+	ChatbotBasePrompts    = Namespace{Prefix: "chatbot:base-prompts", TTL: noExpiry}
+	ChatbotBasePromptByID = Namespace{Prefix: "chatbot:base-prompt:", TTL: noExpiry}
 
-	SecretHolders = Namespace{Prefix: "secret:holders:", TTL: 0}
-	SecretSolved  = Namespace{Prefix: "secret:solved:", TTL: 0}
+	SecretHolders = Namespace{Prefix: "secret:holders:", TTL: noExpiry}
+	SecretSolved  = Namespace{Prefix: "secret:solved:", TTL: noExpiry}
 
-	GiphyResponse = Namespace{Prefix: "giphy:response:", TTL: 0}
-	GiphyGifUser  = Namespace{Prefix: "giphy:gif-user:", TTL: 7 * 24 * time.Hour}
+	GiphyResponse = Namespace{Prefix: "giphy:response:", TTL: noExpiry}
+	GiphyGifUser  = Namespace{Prefix: "giphy:gif-user:", TTL: week}
 )
 
 func (n Namespace) Key(parts ...string) string {

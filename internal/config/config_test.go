@@ -111,3 +111,56 @@ func TestChatbotOptInRoleSettingIsRegistered(t *testing.T) {
 	assert.Empty(t, def.Default)
 	assert.False(t, def.Secret)
 }
+
+func TestValidateSettings_StorageBackend(t *testing.T) {
+	completeS3 := map[*SiteSettingDef]string{
+		SettingS3Region:          "auto",
+		SettingS3Bucket:          "uploads",
+		SettingS3AccessKeyID:     "key",
+		SettingS3SecretAccessKey: "secret",
+	}
+
+	cases := []struct {
+		name    string
+		backend string
+		s3      map[*SiteSettingDef]string
+		wantErr string
+	}{
+		{name: "local needs nothing else", backend: "local"},
+		{name: "s3 with every required field", backend: "s3", s3: completeS3},
+		{name: "s3 without credentials is refused", backend: "s3", s3: map[*SiteSettingDef]string{SettingS3Region: "auto", SettingS3Bucket: "uploads"}, wantErr: "s3 storage requires"},
+		{name: "unknown backend is refused", backend: "ftp", wantErr: "storage backend must be"},
+		{name: "blank backend is refused", backend: "", wantErr: "storage backend must be"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			all := validSettings()
+			all[SettingStorageBackend.Key] = tc.backend
+			for def, value := range tc.s3 {
+				all[def.Key] = value
+			}
+
+			// when
+			err := ValidateSettings(all)
+
+			// then
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantErr)
+		})
+	}
+}
+
+func TestStorageSettingDefinitions(t *testing.T) {
+	// then
+	assert.Equal(t, string(StorageBackendLocal), SettingStorageBackend.Default)
+	assert.True(t, SettingS3SecretAccessKey.Secret)
+	assert.False(t, SettingS3AccessKeyID.Secret)
+	assert.Equal(t, TypeBool, SettingS3ForcePathStyle.Type)
+}

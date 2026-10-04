@@ -11,14 +11,22 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/storage"
 
 	"github.com/google/uuid"
+)
+
+const (
+	stagingDirName = ".staging"
 )
 
 var (
@@ -75,65 +83,92 @@ var (
 
 type (
 	Service interface {
-		SaveFile(subDir string, filename string, reader io.Reader) (string, error)
+		SaveFile(ctx context.Context, subDir string, filename string, reader io.Reader) (string, error)
 		SaveImage(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
-		SaveVideo(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
+		StageMedia(ctx context.Context, mediaType string, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
 		SaveAudio(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
 		SaveAttachment(ctx context.Context, subDir string, fileSize int64, maxSize int64, reader io.Reader) (string, error)
+		Store(ctx context.Context, subDir string, localPath string) (string, error)
+		Discard(localPath string)
 		Delete(urlPaths ...string)
-		DeleteByPrefix(subDir string, prefix string) error
-		GetUploadDir() string
-		FullDiskPath(urlPath string) string
+		DeleteByPrefix(ctx context.Context, subDir string, prefix string) error
+		CleanStaging(olderThan time.Duration) (int, error)
 	}
 
 	service struct {
 		settingsSvc settings.Service
+		storageSvc  storage.Service
+		storedFiles repository.StoredFileRepository
 		mediaProc   *media.Processor
+		liveStaging sync.Map
 	}
 )
 
-func NewService(settingsSvc settings.Service, processors ...*media.Processor) Service {
+func NewService(settingsSvc settings.Service, storageSvc storage.Service, storedFiles repository.StoredFileRepository, processors ...*media.Processor) Service {
 	var mediaProc *media.Processor
 	if len(processors) > 0 {
 		mediaProc = processors[0]
 	}
 
-	return &service{settingsSvc: settingsSvc, mediaProc: mediaProc}
+	return &service{settingsSvc: settingsSvc, storageSvc: storageSvc, storedFiles: storedFiles, mediaProc: mediaProc}
 }
 
-func (s *service) GetUploadDir() string {
-	return s.settingsSvc.Get(context.Background(), config.SettingUploadDir)
-}
-
-func (s *service) SaveFile(subDir string, filename string, reader io.Reader) (string, error) {
-	dir := filepath.Join(s.GetUploadDir(), subDir)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return "", fmt.Errorf("create directory: %w", err)
-	}
-
-	destPath := filepath.Join(dir, filename)
-	dst, err := os.Create(destPath)
+func (s *service) SaveFile(ctx context.Context, subDir string, filename string, reader io.Reader) (string, error) {
+	staged, err := s.stage(filename, reader)
 	if err != nil {
-		return "", fmt.Errorf("create file: %w", err)
+		return "", err
 	}
-	defer dst.Close()
+	defer s.Discard(staged)
 
-	if _, err := io.Copy(dst, reader); err != nil {
-		return "", fmt.Errorf("write file: %w", err)
-	}
-
-	return fmt.Sprintf("/uploads/%s/%s", subDir, filename), nil
+	return s.Store(ctx, subDir, staged)
 }
 
-func (s *service) saveMedia(
+func (s *service) Store(ctx context.Context, subDir string, localPath string) (string, error) {
+	key := subDir + "/" + filepath.Base(localPath)
+	if err := s.storageSvc.Store(ctx, key, localPath); err != nil {
+		return "", fmt.Errorf("store %s: %w", key, err)
+	}
+
+	return urlPrefix + key, nil
+}
+
+func (s *service) Discard(localPath string) {
+	dir := filepath.Dir(localPath)
+	if filepath.Base(filepath.Dir(dir)) != stagingDirName {
+		logger.Log.Error().Str("path", localPath).Msg("refusing to discard a path outside the upload staging area")
+
+		return
+	}
+
+	s.liveStaging.Delete(dir)
+
+	if err := os.RemoveAll(dir); err != nil {
+		logger.Log.Warn().Err(err).Str("dir", dir).Msg("failed to remove staged upload, the staging sweep will retry")
+	}
+}
+
+func (s *service) StageMedia(
+	ctx context.Context,
+	mediaType string,
 	subDir string,
 	id uuid.UUID,
 	fileSize int64,
 	maxSize int64,
-	allowedTypes map[string]string,
-	typeErr error,
 	reader io.Reader,
 ) (string, error) {
+	var allowedTypes map[string]string
+	var typeErr error
+	switch mediaType {
+	case media.MediaTypeImage:
+		allowedTypes, typeErr = AllowedImageTypes, ErrInvalidFileType
+	case media.MediaTypeVideo:
+		allowedTypes, typeErr = AllowedVideoTypes, ErrInvalidVideoType
+	case media.MediaTypeAudio:
+		allowedTypes, typeErr = AllowedAudioTypes, ErrInvalidAudioType
+	default:
+		return "", fmt.Errorf("unknown media type %q", mediaType)
+	}
+
 	if fileSize > maxSize {
 		return "", fmt.Errorf("%w: file size %dMB exceeds maximum %dMB", ErrFileTooLarge, fileSize/(1024*1024), maxSize/(1024*1024))
 	}
@@ -150,33 +185,43 @@ func (s *service) saveMedia(
 	}
 
 	prefix := fmt.Sprintf("%s_", id.String())
-	if err := s.DeleteByPrefix(subDir, prefix); err != nil {
+	if err := s.DeleteByPrefix(ctx, subDir, prefix); err != nil {
 		return "", err
 	}
 
 	filename := fmt.Sprintf("%s_%d%s", id.String(), time.Now().UnixMilli(), ext)
-	return s.SaveFile(subDir, filename, wrapped)
+
+	return s.stage(filename, wrapped)
 }
 
 func (s *service) SaveImage(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
-	urlPath, err := s.saveMedia(subDir, id, fileSize, maxSize, AllowedImageTypes, ErrInvalidFileType, reader)
+	staged, err := s.StageMedia(ctx, media.MediaTypeImage, subDir, id, fileSize, maxSize, reader)
 	if err != nil {
 		return "", err
 	}
+	defer s.Discard(staged)
 
 	maxPixels := s.settingsSvc.GetInt(ctx, config.SettingMaxImagePixels)
-	if err := media.CheckImageFileBounds(s.FullDiskPath(urlPath), maxPixels); err != nil {
-		s.Delete(urlPath)
+	if err := media.CheckImageFileBounds(staged, maxPixels); err != nil {
 		return "", err
 	}
 
 	if s.mediaProc == nil {
-		return urlPath, nil
+		return s.Store(ctx, subDir, staged)
 	}
 
+	encoded, err := s.encodeImage(ctx, subDir, staged)
+	if err != nil {
+		return "", err
+	}
+
+	return s.Store(ctx, subDir, encoded)
+}
+
+func (s *service) encodeImage(ctx context.Context, subDir string, staged string) (string, error) {
 	job := media.Job{
 		Type:      media.JobImage,
-		InputPath: s.FullDiskPath(urlPath),
+		InputPath: staged,
 	}
 	switch subDir {
 	case "avatars":
@@ -202,24 +247,25 @@ func (s *service) SaveImage(ctx context.Context, subDir string, id uuid.UUID, fi
 
 	select {
 	case outputPath := <-result:
-		return fmt.Sprintf("/uploads/%s/%s", subDir, filepath.Base(outputPath)), nil
+		return outputPath, nil
 	case encErr := <-errCh:
-		_ = os.Remove(job.InputPath)
 		return "", encErr
 	case <-ctx.Done():
 		return "", ctx.Err()
 	}
 }
 
-func (s *service) SaveVideo(_ context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
-	return s.saveMedia(subDir, id, fileSize, maxSize, AllowedVideoTypes, ErrInvalidVideoType, reader)
+func (s *service) SaveAudio(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
+	staged, err := s.StageMedia(ctx, media.MediaTypeAudio, subDir, id, fileSize, maxSize, reader)
+	if err != nil {
+		return "", err
+	}
+	defer s.Discard(staged)
+
+	return s.Store(ctx, subDir, staged)
 }
 
-func (s *service) SaveAudio(_ context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
-	return s.saveMedia(subDir, id, fileSize, maxSize, AllowedAudioTypes, ErrInvalidAudioType, reader)
-}
-
-func (s *service) SaveAttachment(_ context.Context, subDir string, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
+func (s *service) SaveAttachment(ctx context.Context, subDir string, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
 	if fileSize > maxSize {
 		return "", fmt.Errorf("%w: file size %dMB exceeds maximum %dMB", ErrFileTooLarge, fileSize/(1024*1024), maxSize/(1024*1024))
 	}
@@ -234,13 +280,13 @@ func (s *service) SaveAttachment(_ context.Context, subDir string, fileSize int6
 		return "", ErrInvalidAttachmentType
 	}
 
-	return s.SaveFile(subDir, uuid.New().String()+ext, wrapped)
+	return s.SaveFile(ctx, subDir, uuid.New().String()+ext, wrapped)
 }
 
 func (s *service) Delete(urlPaths ...string) {
-	for i := range urlPaths {
-		if err := s.delete(urlPaths[i]); err != nil {
-			s.retryDelete(urlPaths[i], err)
+	for _, urlPath := range urlPaths {
+		if err := s.delete(urlPath); err != nil {
+			s.retryDelete(urlPath, err)
 		}
 	}
 }
@@ -262,48 +308,122 @@ func (s *service) retryDelete(urlPath string, first error) {
 }
 
 func (s *service) delete(urlPath string) error {
-	if urlPath == "" {
+	key, ok := keyFromURL(urlPath)
+	if !ok {
 		return nil
 	}
-	path := s.FullDiskPath(urlPath)
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+
+	if err := s.storageSvc.Delete(context.Background(), key); err != nil {
 		return fmt.Errorf("delete file: %w", err)
 	}
+
 	return nil
 }
 
-func (s *service) FullDiskPath(urlPath string) string {
-	rel := filepath.Clean("/" + filepath.FromSlash(strings.TrimPrefix(urlPath, "/uploads/")))
-	return filepath.Join(s.GetUploadDir(), rel)
-}
-
-func (s *service) DeleteByPrefix(subDir string, prefix string) error {
-	dir := filepath.Join(s.GetUploadDir(), subDir)
-	info, err := os.Stat(dir)
+func (s *service) DeleteByPrefix(ctx context.Context, subDir string, prefix string) error {
+	rows, err := s.storedFiles.ListByPrefix(ctx, spec.StoredFilePrefix{Prefix: subDir + "/" + prefix})
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("read directory: %w", err)
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("read directory: path is not a directory: %s", dir)
-	}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return fmt.Errorf("read directory: %w", err)
+		return fmt.Errorf("list stored files: %w", err)
 	}
 
-	var urlPaths []string
-	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), prefix) {
-			urlPaths = append(urlPaths, "/uploads/"+subDir+"/"+entry.Name())
-		}
+	urlPaths := make([]string, 0, len(rows))
+	for _, row := range rows {
+		urlPaths = append(urlPaths, urlPrefix+row.Key)
 	}
 
 	s.Delete(urlPaths...)
 
 	return nil
+}
+
+func (s *service) CleanStaging(olderThan time.Duration) (int, error) {
+	root := filepath.Join(s.settingsSvc.Get(context.Background(), config.SettingUploadDir), stagingDirName)
+
+	entries, err := os.ReadDir(root)
+	if errors.Is(err, os.ErrNotExist) {
+		return 0, nil
+	}
+
+	if err != nil {
+		return 0, fmt.Errorf("read staging directory: %w", err)
+	}
+
+	cutoff := time.Now().Add(-olderThan)
+
+	removed := 0
+	var errs []error
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		dir := filepath.Join(root, entry.Name())
+		if _, live := s.liveStaging.Load(dir); live || info.ModTime().After(cutoff) {
+			continue
+		}
+
+		if err := os.RemoveAll(dir); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		removed++
+	}
+
+	return removed, errors.Join(errs...)
+}
+
+func (s *service) newStagingDir() (string, error) {
+	root := filepath.Join(s.settingsSvc.Get(context.Background(), config.SettingUploadDir), stagingDirName)
+	if err := os.MkdirAll(root, 0755); err != nil {
+		return "", fmt.Errorf("create staging directory: %w", err)
+	}
+
+	dir, err := os.MkdirTemp(root, "upload-")
+	if err != nil {
+		return "", fmt.Errorf("create staging directory: %w", err)
+	}
+
+	s.liveStaging.Store(dir, struct{}{})
+
+	return dir, nil
+}
+
+func (s *service) stage(filename string, reader io.Reader) (string, error) {
+	dir, err := s.newStagingDir()
+	if err != nil {
+		return "", err
+	}
+
+	staged := filepath.Join(dir, filepath.Base(filename))
+
+	dst, err := os.Create(staged)
+	if err != nil {
+		s.Discard(staged)
+
+		return "", fmt.Errorf("create file: %w", err)
+	}
+
+	if _, err := io.Copy(dst, reader); err != nil {
+		_ = dst.Close()
+		s.Discard(staged)
+
+		return "", fmt.Errorf("write file: %w", err)
+	}
+
+	if err := dst.Close(); err != nil {
+		s.Discard(staged)
+
+		return "", fmt.Errorf("close file: %w", err)
+	}
+
+	return staged, nil
 }
 
 func DetectContentType(reader io.Reader) (string, io.Reader, error) {

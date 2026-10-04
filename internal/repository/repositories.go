@@ -37,6 +37,7 @@ type (
 		Permission        PermissionRepository
 		GiphyFavourite    GiphyFavouriteRepository
 		BannedGiphy       BannedGiphyRepository
+		StoredFile        StoredFileRepository
 		UserSecret        UserSecretRepository
 		Secret            SecretRepository
 		ChatRoomBan       ChatRoomBanRepository

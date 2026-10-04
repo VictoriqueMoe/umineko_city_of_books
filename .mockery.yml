@@ -93,6 +93,15 @@ packages:
   umineko_city_of_books/internal/upload:
     interfaces:
       Service:
+  umineko_city_of_books/internal/media:
+    interfaces:
+      uploadSvc:
+  umineko_city_of_books/internal/storage:
+    interfaces:
+      Service:
+  umineko_city_of_books/internal/storage/engine:
+    interfaces:
+      Engine:
   umineko_city_of_books/internal/user:
     interfaces:
       Service:

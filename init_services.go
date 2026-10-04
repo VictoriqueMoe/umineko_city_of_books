@@ -4,8 +4,6 @@ import (
 	"context"
 	"io/fs"
 	"net"
-	"os"
-	"path/filepath"
 	"umineko_city_of_books/internal/notification/push"
 
 	"umineko_city_of_books/internal/admin"
@@ -66,6 +64,8 @@ import (
 	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/siteinfo"
 	"umineko_city_of_books/internal/sitemap"
+	"umineko_city_of_books/internal/storage"
+	"umineko_city_of_books/internal/storage/engine"
 	"umineko_city_of_books/internal/stream"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/upload"
@@ -76,20 +76,23 @@ import (
 )
 
 func initServices(repos *repository.Repositories, settingsSvc settings.Service, cacheManager *cache.Manager) *services {
-	uploadDir := settingsSvc.Get(context.Background(), config.SettingUploadDir)
-	for _, sub := range []string{"avatars", "banners", "posts", "art"} {
-		if err := os.MkdirAll(filepath.Join(uploadDir, sub), 0755); err != nil {
-			logger.Log.Fatal().Err(err).Msgf("failed to create %s directory", sub)
-		}
-	}
-
 	initCache(cacheManager, settingsSvc)
+
+	storageMgr, storageEngines := initStorage(settingsSvc)
+	storageSvc := storage.NewService(storageMgr, repos.StoredFile)
+
+	backfilled, err := storageSvc.BackfillLocal(context.Background())
+	if err != nil {
+		logger.Log.Error().Err(err).Int("registered", backfilled).Msg("some local uploads could not be read and are unregistered, they will 404 until the listed paths are readable by the app")
+	} else if backfilled > 0 {
+		logger.Log.Info().Int("registered", backfilled).Msg("registered existing local uploads in stored_files")
+	}
 
 	sessionMgr := session.NewManager(repos.Session, settingsSvc)
 
 	mediaProc := media.NewProcessor(4)
 
-	uploadSvc := upload.NewService(settingsSvc, mediaProc)
+	uploadSvc := upload.NewService(settingsSvc, storageSvc, repos.StoredFile, mediaProc)
 
 	authzSvc := authz.NewService(repos.Role, repos.User, repos.Permission, settingsSvc)
 
@@ -116,7 +119,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 
 	sessionMgr.SetDisconnector(hub)
 
-	quoteClient := quotefinder.NewClient()
+	quoteClient := quotefinder.NewClient(cacheManager)
 
 	credibilitySvc := credibility.NewService(repos.Theory)
 
@@ -437,7 +440,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 
 	siteInfoSvc := siteinfo.NewService(settingsSvc, mysterySvc, gameRoomSvc, vanityRoleSvc, userSecretSvc, authSvc)
 
-	ogImageSvc := og.NewImageService(cacheManager)
+	ogImageSvc := og.NewImageService(cacheManager, storageSvc)
 
 	crawlerFeeds := feed.New(settingsSvc, cacheManager)
 
@@ -518,6 +521,8 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		crawlerFeeds:    crawlerFeeds,
 		dronebl:         dronebl.New(settingsSvc, cacheManager, net.DefaultResolver, crawlerFeeds),
 		upload:          uploadSvc,
+		storage:         storageSvc,
+		storageEngines:  storageEngines,
 		hub:             hub,
 		mediaProc:       mediaProc,
 		giphy:           giphySvc,
@@ -565,4 +570,41 @@ func initCache(manager *cache.Manager, settingsSvc settings.Service) {
 			logger.Log.Warn().Err(err).Str("engine", candidate.Name()).Msg("cache engine reconfigure failed at startup")
 		}
 	}
+}
+
+func initStorage(settingsSvc settings.Service) (*storage.ProviderManager, []engine.Engine) {
+	ctx := context.Background()
+	factory := storage.NewFactory(storage.NewEngines(settingsSvc)...)
+
+	for _, candidate := range factory.Engines() {
+		configurable, ok := candidate.(interface{ Reconfigure(context.Context) error })
+		if !ok {
+			continue
+		}
+
+		if err := configurable.Reconfigure(ctx); err != nil {
+			logger.Log.Warn().Err(err).Str("engine", string(candidate.ID())).Msg("storage engine reconfigure failed at startup")
+		}
+	}
+
+	enabledEngines := factory.EnabledEngines()
+	enabled := make([]string, 0, len(enabledEngines))
+	for _, candidate := range enabledEngines {
+		enabled = append(enabled, string(candidate.ID()))
+	}
+
+	logger.Log.Info().Strs("engines", enabled).Msg("storage engines enabled")
+
+	manager := storage.NewProviderManager(factory, settingsSvc)
+
+	active, err := manager.Active(ctx)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("active storage engine is unavailable, new uploads will fail until it is configured")
+
+		return manager, factory.Engines()
+	}
+
+	logger.Log.Info().Str("engine", string(active.ID())).Msg("new uploads are stored with this storage engine")
+
+	return manager, factory.Engines()
 }

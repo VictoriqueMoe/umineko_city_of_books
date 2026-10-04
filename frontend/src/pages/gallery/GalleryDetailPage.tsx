@@ -12,6 +12,7 @@ import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { renderRich } from "../../components/richText/richText";
+import { isSubmitShortcut } from "../../utils/submitShortcut";
 import styles from "./GalleryDetailPage.module.css";
 
 export function GalleryDetailPage() {
@@ -123,6 +124,12 @@ export function GalleryDetailPage() {
                                 className={styles.editTextarea}
                                 value={editDesc}
                                 onChange={e => setEditDesc(e.target.value)}
+                                onKeyDown={e => {
+                                    if (isSubmitShortcut(e.nativeEvent)) {
+                                        e.preventDefault();
+                                        saveEdit();
+                                    }
+                                }}
                                 placeholder="Description (optional)"
                                 rows={2}
                             />

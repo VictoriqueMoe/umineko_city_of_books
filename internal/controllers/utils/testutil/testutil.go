@@ -244,6 +244,14 @@ func (r *Request) WithHeader(k, v string) *Request {
 
 func (r *Request) Do() (int, []byte) {
 	r.h.T.Helper()
+	resp := r.DoResponse()
+	data, err := io.ReadAll(resp.Body)
+	require.NoError(r.h.T, err)
+	return resp.StatusCode, data
+}
+
+func (r *Request) DoResponse() *http.Response {
+	r.h.T.Helper()
 	req := httptest.NewRequest(r.method, r.path, r.body)
 	for k, v := range r.headers {
 		req.Header.Set(k, v)
@@ -256,7 +264,8 @@ func (r *Request) Do() (int, []byte) {
 	defer resp.Body.Close()
 	data, err := io.ReadAll(resp.Body)
 	require.NoError(r.h.T, err)
-	return resp.StatusCode, data
+	resp.Body = io.NopCloser(bytes.NewReader(data))
+	return resp
 }
 
 func MediaForm(t *testing.T, field string, values map[string]string) (string, string) {

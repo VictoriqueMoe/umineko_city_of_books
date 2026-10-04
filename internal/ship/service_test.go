@@ -70,12 +70,11 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		uploadSvc:    upload.NewMockService(t),
 		settingsSvc:  settings.NewMockService(t),
 	}
-	m.uploadSvc.EXPECT().FullDiskPath(mock.Anything).Return("/tmp/does-not-exist-xyz.png").Maybe()
 
 	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifSvc, dao.CommentDAOs{
 		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindShipComment): m.shipComments},
 	})
-	svc := NewService(m.shipRepo, m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.uploadSvc, media.NewProcessor(1), m.settingsSvc, quotefinder.NewClient(), contentfilter.New(), nil).(*service)
+	svc := NewService(m.shipRepo, m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.uploadSvc, media.NewProcessor(1), m.settingsSvc, quotefinder.NewClient(nil), contentfilter.New(), nil).(*service)
 
 	return svc, m
 }
@@ -1043,6 +1042,9 @@ func TestUploadCommentMedia(t *testing.T) {
 					}).
 					Return(tc.mediaID, tc.addErr)
 			}
+			if tc.addErr != nil {
+				m.uploadSvc.EXPECT().Delete([]string{savedImageURL}).Once()
+			}
 
 			// when
 			resp, err := svc.UploadCommentMedia(ctx, commentID, userID, "image/png", "photo.png", 100, bytes.NewReader(nil), false)
@@ -1059,7 +1061,7 @@ func TestListCharacters_InvalidSeries(t *testing.T) {
 	svc, _ := newTestService(t)
 
 	// when
-	_, err := svc.ListCharacters("nonsense")
+	_, err := svc.ListCharacters(context.Background(), "nonsense")
 
 	// then
 	require.Error(t, err)

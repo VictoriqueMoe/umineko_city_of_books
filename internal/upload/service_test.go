@@ -3,6 +3,7 @@ package upload
 import (
 	"bytes"
 	"context"
+	"errors"
 	"image"
 	"image/color"
 	"image/gif"
@@ -14,11 +15,17 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/iotest"
+	"time"
 
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/storage"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -26,138 +33,113 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestService(t *testing.T) (*service, *settings.MockService, string) {
+type (
+	storedObject struct {
+		key  string
+		data []byte
+	}
+)
+
+func newTestService(t *testing.T, processors ...*media.Processor) (*service, *storage.MockService, string) {
 	t.Helper()
 	settingsSvc := settings.NewMockService(t)
 	dir := t.TempDir()
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingUploadDir).Return(dir).Maybe()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImagePixels).Return(bounds.FallbackMaxImagePixels).Maybe()
-	svc := NewService(settingsSvc).(*service)
-	return svc, settingsSvc, dir
+	storageSvc := storage.NewMockService(t)
+	storedFiles := repository.NewMockStoredFileRepository(t)
+	svc := NewService(settingsSvc, storageSvc, storedFiles, processors...).(*service)
+	return svc, storageSvc, dir
 }
 
-func TestGetUploadDir_ReturnsSettingValue(t *testing.T) {
-	// given
-	svc, _, dir := newTestService(t)
-
-	// when
-	got := svc.GetUploadDir()
-
-	// then
-	assert.Equal(t, dir, got)
+func storedFilesOf(svc *service) *repository.MockStoredFileRepository {
+	return svc.storedFiles.(*repository.MockStoredFileRepository)
 }
 
-func TestFullDiskPath_StripsUploadsPrefix(t *testing.T) {
-	// given
-	svc, _, dir := newTestService(t)
-
-	// when
-	got := svc.FullDiskPath("/uploads/avatars/pic.png")
-
-	// then
-	assert.Equal(t, filepath.Join(dir, "avatars", "pic.png"), got)
+func captureStore(t *testing.T, storageSvc *storage.MockService) *[]storedObject {
+	t.Helper()
+	stored := new([]storedObject)
+	storageSvc.EXPECT().Store(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, key string, localPath string) error {
+		data, err := os.ReadFile(localPath)
+		require.NoError(t, err)
+		*stored = append(*stored, storedObject{key: key, data: data})
+		return nil
+	})
+	return stored
 }
 
-func TestFullDiskPath_NoPrefixLeftUntouched(t *testing.T) {
-	// given
-	svc, _, dir := newTestService(t)
-
-	// when
-	got := svc.FullDiskPath("custom/path.png")
-
-	// then
-	assert.Equal(t, filepath.Join(dir, "custom/path.png"), got)
+func expectNoPreviousUploads(svc *service, subDir string, id uuid.UUID) {
+	storedFilesOf(svc).EXPECT().ListByPrefix(mock.Anything, spec.StoredFilePrefix{Prefix: subDir + "/" + id.String() + "_"}).Return(nil, nil)
 }
 
-func TestFullDiskPath_CannotEscapeTheUploadDirectory(t *testing.T) {
-	cases := []struct {
-		name    string
-		urlPath string
-		want    string
-	}{
-		{"parent segments are neutralised", "/uploads/../../../../etc/passwd", filepath.Join("etc", "passwd")},
-		{"parent segments without the prefix are neutralised", "../../srv/app/.env", filepath.Join("srv", "app", ".env")},
-		{"a parent segment in the middle still cannot climb out", "/uploads/avatars/../../../secret", "secret"},
-		{"a leading slash does not make it absolute", "/uploads//etc/passwd", filepath.Join("etc", "passwd")},
+func assertStagingEmpty(t *testing.T, dir string) {
+	t.Helper()
+	entries, err := os.ReadDir(filepath.Join(dir, stagingDirName))
+	if errors.Is(err, os.ErrNotExist) {
+		return
 	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, _, dir := newTestService(t)
-
-			// when
-			got := svc.FullDiskPath(tc.urlPath)
-
-			// then
-			assert.Equal(t, filepath.Join(dir, tc.want), got)
-			assert.True(t, strings.HasPrefix(got, dir+string(filepath.Separator)), "resolved path must stay under the upload directory, got %q", got)
-		})
-	}
+	require.NoError(t, err)
+	assert.Empty(t, entries, "staged uploads must be cleaned up")
 }
 
-func TestSaveFile_WritesFileAndReturnsURL(t *testing.T) {
+func TestSaveFile_StoresFileAndReturnsURL(t *testing.T) {
 	// given
-	svc, _, dir := newTestService(t)
+	svc, storageSvc, dir := newTestService(t)
+	stored := captureStore(t, storageSvc)
 	content := "hello world"
 
 	// when
-	url, err := svc.SaveFile("avatars", "a.txt", strings.NewReader(content))
+	url, err := svc.SaveFile(context.Background(), "avatars", "a.txt", strings.NewReader(content))
 
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, "/uploads/avatars/a.txt", url)
-	data, err := os.ReadFile(filepath.Join(dir, "avatars", "a.txt"))
-	require.NoError(t, err)
-	assert.Equal(t, content, string(data))
+	require.Len(t, *stored, 1)
+	assert.Equal(t, "avatars/a.txt", (*stored)[0].key)
+	assert.Equal(t, content, string((*stored)[0].data))
+	assertStagingEmpty(t, dir)
 }
 
-func TestSaveFile_CreateDirectoryError(t *testing.T) {
+func TestSaveFile_StagingDirectoryError(t *testing.T) {
 	// given
 	settingsSvc := settings.NewMockService(t)
-	tmp := t.TempDir()
-	blocker := filepath.Join(tmp, "blocked")
+	blocker := filepath.Join(t.TempDir(), "blocked")
 	require.NoError(t, os.WriteFile(blocker, []byte("x"), 0644))
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingUploadDir).Return(blocker)
-	svc := NewService(settingsSvc).(*service)
+	svc := NewService(settingsSvc, storage.NewMockService(t), repository.NewMockStoredFileRepository(t)).(*service)
 
 	// when
-	_, err := svc.SaveFile("sub", "f.txt", strings.NewReader("data"))
+	_, err := svc.SaveFile(context.Background(), "sub", "f.txt", strings.NewReader("data"))
 
 	// then
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "create directory")
+	assert.Contains(t, err.Error(), "create staging directory")
 }
 
-func TestSaveFile_CreateFileError(t *testing.T) {
+func TestSaveFile_WriteErrorCleansStaging(t *testing.T) {
 	// given
 	svc, _, dir := newTestService(t)
-	require.NoError(t, os.MkdirAll(filepath.Join(dir, "sub", "name"), 0755))
 
 	// when
-	_, err := svc.SaveFile("sub", "name", strings.NewReader("data"))
-
-	// then
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "create file")
-}
-
-type errReader struct{}
-
-func (errReader) Read(_ []byte) (int, error) {
-	return 0, io.ErrUnexpectedEOF
-}
-
-func TestSaveFile_WriteError(t *testing.T) {
-	// given
-	svc, _, _ := newTestService(t)
-
-	// when
-	_, err := svc.SaveFile("sub", "f.txt", errReader{})
+	_, err := svc.SaveFile(context.Background(), "sub", "f.txt", iotest.ErrReader(io.ErrUnexpectedEOF))
 
 	// then
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "write file")
+	assertStagingEmpty(t, dir)
+}
+
+func TestSaveFile_StoreErrorPropagatesAndCleansStaging(t *testing.T) {
+	// given
+	svc, storageSvc, dir := newTestService(t)
+	storageSvc.EXPECT().Store(mock.Anything, "sub/f.txt", mock.Anything).Return(storage.ErrBackendUnavailable)
+
+	// when
+	_, err := svc.SaveFile(context.Background(), "sub", "f.txt", strings.NewReader("data"))
+
+	// then
+	require.ErrorIs(t, err, storage.ErrBackendUnavailable)
+	assertStagingEmpty(t, dir)
 }
 
 var (
@@ -263,54 +245,65 @@ func TestSaveImage_AllAllowedTypes(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			svc, _, dir := newTestService(t)
+			svc, storageSvc, dir := newTestService(t)
 			id := uuid.New()
+			expectNoPreviousUploads(svc, "images", id)
+			stored := captureStore(t, storageSvc)
 
 			// when
 			url, err := svc.SaveImage(context.Background(), "images", id, int64(len(tc.body)), 1024, bytes.NewReader(tc.body))
 
 			// then
 			require.NoError(t, err)
-			assert.True(t, strings.HasPrefix(url, "/uploads/images/"))
+			assert.True(t, strings.HasPrefix(url, "/uploads/images/"+id.String()+"_"))
 			assert.True(t, strings.HasSuffix(url, tc.wantExt))
-			entries, err := os.ReadDir(filepath.Join(dir, "images"))
-			require.NoError(t, err)
-			assert.Len(t, entries, 1)
-			data, err := os.ReadFile(filepath.Join(dir, "images", entries[0].Name()))
-			require.NoError(t, err)
-			assert.Equal(t, tc.body, data, "sniffed stream must still write full original bytes to disk")
+			require.Len(t, *stored, 1)
+			assert.Equal(t, strings.TrimPrefix(url, "/uploads/"), (*stored)[0].key)
+			assert.Equal(t, tc.body, (*stored)[0].data, "sniffed stream must still store the full original bytes")
+			assertStagingEmpty(t, dir)
 		})
 	}
 }
 
 func TestSaveImage_ReplacesExistingFileWithSameIDPrefix(t *testing.T) {
 	// given
-	svc, _, dir := newTestService(t)
+	svc, storageSvc, _ := newTestService(t)
 	id := uuid.New()
-	imagesDir := filepath.Join(dir, "images")
-	require.NoError(t, os.MkdirAll(imagesDir, 0755))
-	oldFile := filepath.Join(imagesDir, id.String()+"_999.png")
-	require.NoError(t, os.WriteFile(oldFile, []byte("old"), 0644))
+	oldKey := "images/" + id.String() + "_999.png"
+	storedFilesOf(svc).EXPECT().ListByPrefix(mock.Anything, spec.StoredFilePrefix{Prefix: "images/" + id.String() + "_"}).Return([]model.StoredFileRow{{Key: oldKey}}, nil)
+	storageSvc.EXPECT().Delete(mock.Anything, []string{oldKey}).Return(nil)
+	stored := captureStore(t, storageSvc)
 
 	// when
 	_, err := svc.SaveImage(context.Background(), "images", id, int64(len(pngMagic)), 1024, bytes.NewReader(pngMagic))
 
 	// then
 	require.NoError(t, err)
-	_, err = os.Stat(oldFile)
-	assert.True(t, os.IsNotExist(err))
-	entries, err := os.ReadDir(imagesDir)
-	require.NoError(t, err)
-	assert.Len(t, entries, 1)
+	require.Len(t, *stored, 1)
+	assert.NotEqual(t, oldKey, (*stored)[0].key)
 }
 
-func TestSaveVideo_TooLarge(t *testing.T) {
+func TestSaveImage_PrefixListingErrorAbortsUpload(t *testing.T) {
+	// given
+	svc, _, _ := newTestService(t)
+	id := uuid.New()
+	storedFilesOf(svc).EXPECT().ListByPrefix(mock.Anything, spec.StoredFilePrefix{Prefix: "images/" + id.String() + "_"}).Return(nil, errors.New("db down"))
+
+	// when
+	_, err := svc.SaveImage(context.Background(), "images", id, int64(len(pngMagic)), 1024, bytes.NewReader(pngMagic))
+
+	// then
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "list stored files")
+}
+
+func TestStageMedia_VideoTooLarge(t *testing.T) {
 	// given
 	svc, _, _ := newTestService(t)
 	id := uuid.New()
 
 	// when
-	_, err := svc.SaveVideo(context.Background(), "videos", id, 200, 100, bytes.NewReader(mp4Magic))
+	_, err := svc.StageMedia(context.Background(), media.MediaTypeVideo, "videos", id, 200, 100, bytes.NewReader(mp4Magic))
 
 	// then
 	require.ErrorIs(t, err, ErrFileTooLarge)
@@ -328,19 +321,47 @@ func TestSaveAttachment_TooLarge(t *testing.T) {
 	require.ErrorIs(t, err, ErrFileTooLarge)
 }
 
-func TestSaveVideo_InvalidType(t *testing.T) {
+func TestSaveAttachment_StoresPDF(t *testing.T) {
+	// given
+	svc, storageSvc, _ := newTestService(t)
+	stored := captureStore(t, storageSvc)
+
+	// when
+	url, err := svc.SaveAttachment(context.Background(), "attachments", int64(len(pdfMagic)), 1024, bytes.NewReader(pdfMagic))
+
+	// then
+	require.NoError(t, err)
+	assert.True(t, strings.HasPrefix(url, "/uploads/attachments/"))
+	assert.True(t, strings.HasSuffix(url, ".pdf"))
+	require.Len(t, *stored, 1)
+	assert.Equal(t, pdfMagic, (*stored)[0].data)
+}
+
+func TestStageMedia_VideoInvalidType(t *testing.T) {
 	// given
 	svc, _, _ := newTestService(t)
 	id := uuid.New()
 
 	// when: image bytes in the video flow
-	_, err := svc.SaveVideo(context.Background(), "videos", id, int64(len(pngMagic)), 1024, bytes.NewReader(pngMagic))
+	_, err := svc.StageMedia(context.Background(), media.MediaTypeVideo, "videos", id, int64(len(pngMagic)), 1024, bytes.NewReader(pngMagic))
 
 	// then
 	require.ErrorIs(t, err, ErrInvalidVideoType)
 }
 
-func TestSaveVideo_AllAllowedTypes(t *testing.T) {
+func TestStageMedia_UnknownMediaType(t *testing.T) {
+	// given
+	svc, _, _ := newTestService(t)
+
+	// when
+	_, err := svc.StageMedia(context.Background(), "hologram", "posts", uuid.New(), 1, 1024, bytes.NewReader(pngMagic))
+
+	// then
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown media type")
+}
+
+func TestStageMedia_AllAllowedVideoTypes(t *testing.T) {
 	cases := []struct {
 		name    string
 		body    []byte
@@ -356,15 +377,22 @@ func TestSaveVideo_AllAllowedTypes(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			svc, _, _ := newTestService(t)
+			svc, _, dir := newTestService(t)
 			id := uuid.New()
+			expectNoPreviousUploads(svc, "videos", id)
 
 			// when
-			url, err := svc.SaveVideo(context.Background(), "videos", id, int64(len(tc.body)), 1024, bytes.NewReader(tc.body))
+			staged, err := svc.StageMedia(context.Background(), media.MediaTypeVideo, "videos", id, int64(len(tc.body)), 1024, bytes.NewReader(tc.body))
 
-			// then
+			// then the caller owns a staged copy with the full bytes until it discards it
 			require.NoError(t, err)
-			assert.True(t, strings.HasSuffix(url, tc.wantExt))
+			assert.True(t, strings.HasSuffix(staged, tc.wantExt))
+			data, err := os.ReadFile(staged)
+			require.NoError(t, err)
+			assert.Equal(t, tc.body, data)
+
+			svc.Discard(staged)
+			assertStagingEmpty(t, dir)
 		})
 	}
 }
@@ -419,113 +447,168 @@ func TestSaveImage_AviAliasNormalizedForVideo(t *testing.T) {
 	// The alias map must normalize so the file is accepted.
 	svc, _, _ := newTestService(t)
 	id := uuid.New()
+	expectNoPreviousUploads(svc, "videos", id)
 
-	url, err := svc.SaveVideo(context.Background(), "videos", id, int64(len(aviMagic)), 1024, bytes.NewReader(aviMagic))
+	staged, err := svc.StageMedia(context.Background(), media.MediaTypeVideo, "videos", id, int64(len(aviMagic)), 1024, bytes.NewReader(aviMagic))
 	require.NoError(t, err)
-	assert.True(t, strings.HasSuffix(url, ".avi"))
+	assert.True(t, strings.HasSuffix(staged, ".avi"))
+	svc.Discard(staged)
 }
 
-func TestDelete_EmptyPathNoOp(t *testing.T) {
-	// given
-	svc, _, _ := newTestService(t)
+func TestDelete_IgnoresPathsThatAreNotUploads(t *testing.T) {
+	cases := []struct {
+		name    string
+		urlPath string
+	}{
+		{"empty path", ""},
+		{"bare prefix", "/uploads/"},
+		{"external url", "https://media.giphy.com/media/abc/giphy.gif"},
+		{"relative path", "avatars/pic.png"},
+	}
 
-	// when
-	err := svc.delete("")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, _, _ := newTestService(t)
 
-	// then
-	require.NoError(t, err)
+			// when
+			err := svc.delete(tc.urlPath)
+
+			// then
+			require.NoError(t, err)
+		})
+	}
 }
 
-func TestDelete_MissingFileNoError(t *testing.T) {
+func TestDelete_DeletesTheStoredKey(t *testing.T) {
 	// given
-	svc, _, _ := newTestService(t)
-
-	// when
-	err := svc.delete("/uploads/images/nonexistent.png")
-
-	// then
-	require.NoError(t, err)
-}
-
-func TestDelete_RemovesFile(t *testing.T) {
-	// given
-	svc, _, dir := newTestService(t)
-	subDir := filepath.Join(dir, "images")
-	require.NoError(t, os.MkdirAll(subDir, 0755))
-	target := filepath.Join(subDir, "pic.png")
-	require.NoError(t, os.WriteFile(target, []byte("x"), 0644))
+	svc, storageSvc, _ := newTestService(t)
+	storageSvc.EXPECT().Delete(mock.Anything, []string{"images/pic.png"}).Return(nil)
 
 	// when
 	svc.Delete("/uploads/images/pic.png")
 
-	// then
-	_, statErr := os.Stat(target)
-	assert.True(t, os.IsNotExist(statErr))
+	// then the strict mock asserts the delete happened
 }
 
-func TestDelete_RemoveErrorWrapped(t *testing.T) {
+func TestDelete_StorageErrorWrapped(t *testing.T) {
 	// given
-	svc, _, dir := newTestService(t)
-	subDir := filepath.Join(dir, "images")
-	require.NoError(t, os.MkdirAll(subDir, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(subDir, "keep.png"), []byte("x"), 0644))
+	svc, storageSvc, _ := newTestService(t)
+	storageSvc.EXPECT().Delete(mock.Anything, []string{"images/pic.png"}).Return(errors.New("bucket gone"))
 
 	// when
-	err := svc.delete("/uploads/images")
+	err := svc.delete("/uploads/images/pic.png")
 
 	// then
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "delete file")
+	assert.Contains(t, err.Error(), "bucket gone")
 }
 
-func TestDeleteByPrefix_MissingDirectoryNoError(t *testing.T) {
+func TestDeleteByPrefix_DeletesEveryMatch(t *testing.T) {
+	// given
+	svc, storageSvc, _ := newTestService(t)
+	storedFilesOf(svc).EXPECT().ListByPrefix(mock.Anything, spec.StoredFilePrefix{Prefix: "images/abc_"}).Return([]model.StoredFileRow{
+		{Key: "images/abc_1.png", Backend: config.StorageBackendLocal},
+		{Key: "images/abc_2.png", Backend: config.StorageBackendS3},
+	}, nil)
+	storageSvc.EXPECT().Delete(mock.Anything, []string{"images/abc_1.png"}).Return(nil)
+	storageSvc.EXPECT().Delete(mock.Anything, []string{"images/abc_2.png"}).Return(nil)
+
+	// when
+	err := svc.DeleteByPrefix(context.Background(), "images", "abc_")
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteByPrefix_NoMatchesIsNoOp(t *testing.T) {
+	// given
+	svc, _, _ := newTestService(t)
+	storedFilesOf(svc).EXPECT().ListByPrefix(mock.Anything, spec.StoredFilePrefix{Prefix: "missing/prefix_"}).Return(nil, nil)
+
+	// when
+	err := svc.DeleteByPrefix(context.Background(), "missing", "prefix_")
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDiscard_RefusesPathsOutsideStaging(t *testing.T) {
+	// given
+	svc, _, _ := newTestService(t)
+	outside := filepath.Join(t.TempDir(), "keep", "file.txt")
+	require.NoError(t, os.MkdirAll(filepath.Dir(outside), 0755))
+	require.NoError(t, os.WriteFile(outside, []byte("x"), 0644))
+
+	// when
+	svc.Discard(outside)
+
+	// then
+	_, err := os.Stat(outside)
+	assert.NoError(t, err)
+}
+
+func TestCleanStaging(t *testing.T) {
+	// given
+	svc, _, dir := newTestService(t)
+	root := filepath.Join(dir, stagingDirName)
+	oldDir := filepath.Join(root, "upload-old")
+	freshDir := filepath.Join(root, "upload-fresh")
+	require.NoError(t, os.MkdirAll(oldDir, 0755))
+	require.NoError(t, os.MkdirAll(freshDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(oldDir, "f"), []byte("x"), 0644))
+	old := time.Now().Add(-2 * time.Hour)
+	require.NoError(t, os.Chtimes(oldDir, old, old))
+
+	// when
+	removed, err := svc.CleanStaging(time.Hour)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 1, removed)
+	_, err = os.Stat(oldDir)
+	assert.True(t, os.IsNotExist(err))
+	_, err = os.Stat(freshDir)
+	assert.NoError(t, err)
+}
+
+func TestCleanStaging_NeverRemovesAStagedFileStillInUse(t *testing.T) {
+	// given a video staged for a transcode that is still queued after the cutoff
+	svc, _, dir := newTestService(t)
+	id := uuid.New()
+	expectNoPreviousUploads(svc, "videos", id)
+	staged, err := svc.StageMedia(context.Background(), media.MediaTypeVideo, "videos", id, int64(len(mp4Magic)), 1024, bytes.NewReader(mp4Magic))
+	require.NoError(t, err)
+	old := time.Now().Add(-2 * time.Hour)
+	require.NoError(t, os.Chtimes(filepath.Dir(staged), old, old))
+
+	// when
+	removed, err := svc.CleanStaging(time.Hour)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 0, removed)
+	_, statErr := os.Stat(staged)
+	assert.NoError(t, statErr)
+
+	// when the job finishes and releases it
+	svc.Discard(staged)
+
+	// then
+	assertStagingEmpty(t, dir)
+}
+
+func TestCleanStaging_MissingRootIsNoOp(t *testing.T) {
 	// given
 	svc, _, _ := newTestService(t)
 
 	// when
-	err := svc.DeleteByPrefix("missing", "prefix_")
+	removed, err := svc.CleanStaging(time.Hour)
 
 	// then
 	require.NoError(t, err)
-}
-
-func TestDeleteByPrefix_RemovesMatchingFilesOnly(t *testing.T) {
-	// given
-	svc, _, dir := newTestService(t)
-	subDir := filepath.Join(dir, "images")
-	require.NoError(t, os.MkdirAll(subDir, 0755))
-	match1 := filepath.Join(subDir, "abc_1.png")
-	match2 := filepath.Join(subDir, "abc_2.png")
-	noMatch := filepath.Join(subDir, "xyz_1.png")
-	require.NoError(t, os.WriteFile(match1, []byte("x"), 0644))
-	require.NoError(t, os.WriteFile(match2, []byte("x"), 0644))
-	require.NoError(t, os.WriteFile(noMatch, []byte("x"), 0644))
-
-	// when
-	err := svc.DeleteByPrefix("images", "abc_")
-
-	// then
-	require.NoError(t, err)
-	_, err = os.Stat(match1)
-	assert.True(t, os.IsNotExist(err))
-	_, err = os.Stat(match2)
-	assert.True(t, os.IsNotExist(err))
-	_, err = os.Stat(noMatch)
-	assert.NoError(t, err)
-}
-
-func TestDeleteByPrefix_ReadDirError(t *testing.T) {
-	// given
-	svc, _, dir := newTestService(t)
-	notADir := filepath.Join(dir, "images")
-	require.NoError(t, os.WriteFile(notADir, []byte("x"), 0644))
-
-	// when
-	err := svc.DeleteByPrefix("images", "abc_")
-
-	// then
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "read directory")
+	assert.Equal(t, 0, removed)
 }
 
 func makeWebP(t *testing.T, width, height int) []byte {
@@ -563,12 +646,10 @@ func makeWebP(t *testing.T, width, height int) []byte {
 func TestSaveImage_WebPAvatarIsResizedNotSkipped(t *testing.T) {
 	// given
 	body := makeWebP(t, 400, 400)
-	settingsSvc := settings.NewMockService(t)
-	dir := t.TempDir()
-	settingsSvc.EXPECT().Get(mock.Anything, config.SettingUploadDir).Return(dir).Maybe()
-	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImagePixels).Return(bounds.FallbackMaxImagePixels).Maybe()
-	svc := NewService(settingsSvc, media.NewProcessor(1)).(*service)
+	svc, storageSvc, dir := newTestService(t, media.NewProcessor(1))
 	id := uuid.New()
+	expectNoPreviousUploads(svc, "avatars", id)
+	stored := captureStore(t, storageSvc)
 
 	// when
 	urlPath, err := svc.SaveImage(context.Background(), "avatars", id, int64(len(body)), 10<<20, bytes.NewReader(body))
@@ -576,15 +657,13 @@ func TestSaveImage_WebPAvatarIsResizedNotSkipped(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	require.True(t, strings.HasSuffix(strings.ToLower(urlPath), ".webp"), "expected a webp, got %q", urlPath)
+	require.Len(t, *stored, 1)
 
-	f, err := os.Open(svc.FullDiskPath(urlPath))
-	require.NoError(t, err)
-	defer f.Close()
-
-	cfg, _, err := image.DecodeConfig(f)
+	cfg, _, err := image.DecodeConfig(bytes.NewReader((*stored)[0].data))
 	require.NoError(t, err)
 	assert.Equal(t, media.AvatarMaxWidth, cfg.Width, "webp avatar should be resized to the avatar cap")
 	assert.Equal(t, media.AvatarMaxWidth, cfg.Height, "webp avatar should be square cropped")
+	assertStagingEmpty(t, dir)
 }
 
 func TestSaveImage_AnimatedWebPIsAcceptedNotRejected(t *testing.T) {
@@ -618,17 +697,15 @@ func TestSaveImage_AnimatedWebPIsAcceptedNotRejected(t *testing.T) {
 	body, err := os.ReadFile(animPath)
 	require.NoError(t, err)
 
-	settingsSvc := settings.NewMockService(t)
-	dir := t.TempDir()
-	settingsSvc.EXPECT().Get(mock.Anything, config.SettingUploadDir).Return(dir).Maybe()
-	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImagePixels).Return(bounds.FallbackMaxImagePixels).Maybe()
-	svc := NewService(settingsSvc, media.NewProcessor(1)).(*service)
+	svc, storageSvc, _ := newTestService(t, media.NewProcessor(1))
+	id := uuid.New()
+	expectNoPreviousUploads(svc, "avatars", id)
+	stored := captureStore(t, storageSvc)
 
 	// when
-	urlPath, err := svc.SaveImage(context.Background(), "avatars", uuid.New(), int64(len(body)), 10<<20, bytes.NewReader(body))
+	_, err = svc.SaveImage(context.Background(), "avatars", id, int64(len(body)), 10<<20, bytes.NewReader(body))
 
 	// then
 	require.NoError(t, err, "animated webp upload must not fail")
-	_, statErr := os.Stat(svc.FullDiskPath(urlPath))
-	require.NoError(t, statErr, "animated webp should still be stored")
+	require.Len(t, *stored, 1, "animated webp should still be stored")
 }

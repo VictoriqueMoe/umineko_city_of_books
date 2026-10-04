@@ -143,7 +143,13 @@ export function ArtDetailPage() {
                             onChange={e => setEditTitle(e.target.value)}
                             placeholder="Title"
                         />
-                        <MentionTextArea value={editDesc} onChange={setEditDesc} placeholder="Description" rows={3} />
+                        <MentionTextArea
+                            value={editDesc}
+                            onChange={setEditDesc}
+                            placeholder="Description"
+                            rows={3}
+                            onSubmitShortcut={saveEdit}
+                        />
                         <TagInput tags={editTags} onChange={setEditTags} />
                         <ToggleSwitch
                             enabled={editSpoiler}

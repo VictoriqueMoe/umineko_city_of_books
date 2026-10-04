@@ -148,6 +148,8 @@ func NewGiphyFavourite(db *sql.DB) GiphyFavouriteDAO {
 
 func NewBannedGiphy(db *sql.DB) BannedGiphyDAO { return &bannedGiphyDAO{db: db} }
 
+func NewStoredFile(db *sql.DB) StoredFileDAO { return &storedFileDAO{db: db} }
+
 func NewUserSecret(db *sql.DB) UserSecretDAO { return &userSecretDAO{db: db} }
 
 func NewSecret(db *sql.DB) (SecretDAO, CommentDAO[string]) {

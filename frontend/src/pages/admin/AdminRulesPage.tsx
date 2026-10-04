@@ -5,6 +5,7 @@ import { useAdminSettings } from "../../hooks/queries/admin";
 import { useUpdateAdminSettings } from "../../hooks/mutations/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { errorMessage } from "../../utils/errorMessage";
+import { isSubmitShortcut } from "../../utils/submitShortcut";
 import { Button } from "../../components/Button/Button";
 import styles from "./AdminAnnouncements.module.css";
 
@@ -80,6 +81,14 @@ export function AdminRulesPage() {
                         onChange={e => {
                             setDraft(e.target.value);
                             setFeedback("");
+                        }}
+                        onKeyDown={async e => {
+                            if (saving || !isSubmitShortcut(e.nativeEvent)) {
+                                return;
+                            }
+
+                            e.preventDefault();
+                            await handleSave();
                         }}
                         rows={18}
                     />
