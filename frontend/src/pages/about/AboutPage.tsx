@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { ageOn, type CalendarDate } from "../../utils/time";
+import creatorPhoto from "./about-creator.webp";
 import styles from "./AboutPage.module.css";
 
 interface Favourite {
@@ -87,7 +88,7 @@ export function AboutPage() {
             <div className={styles.story}>
                 <figure className={styles.photoFigure}>
                     <img
-                        src="/about-creator.webp"
+                        src={creatorPhoto}
                         alt="Victoria"
                         width={900}
                         height={1200}
