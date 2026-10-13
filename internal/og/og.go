@@ -336,6 +336,14 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 		}
 	}
 
+	if len(parts) == 1 && parts[0] == "about" {
+		return &Meta{
+			Title:       formatSiteName("About"),
+			Description: fmt.Sprintf("Who made %s, why, and how.", siteName),
+			URL:         r.baseURL + "/about",
+		}
+	}
+
 	if len(parts) == 2 && parts[0] == "announcements" {
 		if _, err := uuid.Parse(parts[1]); err == nil {
 			return r.announcementMeta(ctx, parts[1])

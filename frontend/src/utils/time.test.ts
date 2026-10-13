@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+    ageOn,
+    type CalendarDate,
     formatActiveLabel,
     formatDate,
     formatDuration,
@@ -608,5 +610,65 @@ describe("formatDuration", () => {
 
         // then
         expect(result).toBe("2 seconds");
+    });
+});
+
+describe("ageOn", () => {
+    const autumnBirth: CalendarDate = { year: 1994, month: 10, day: 4 };
+    const leapDayBirth: CalendarDate = { year: 2000, month: 2, day: 29 };
+
+    const cases: { name: string; birth: CalendarDate; today: Date; expected: number }[] = [
+        {
+            name: "has not had the birthday yet on the day before it",
+            birth: autumnBirth,
+            today: new Date(2026, 9, 3, 23, 59, 0),
+            expected: 31,
+        },
+        {
+            name: "counts the new year of age on the birthday itself",
+            birth: autumnBirth,
+            today: new Date(2026, 9, 4, 0, 0, 0),
+            expected: 32,
+        },
+        {
+            name: "keeps the new year of age on the day after the birthday",
+            birth: autumnBirth,
+            today: new Date(2026, 9, 5, 12, 0, 0),
+            expected: 32,
+        },
+        {
+            name: "has not had the birthday yet in an earlier month",
+            birth: autumnBirth,
+            today: new Date(2027, 0, 1, 12, 0, 0),
+            expected: 32,
+        },
+        {
+            name: "waits until the first of March for a leap day birthday in a common year",
+            birth: leapDayBirth,
+            today: new Date(2025, 1, 28, 12, 0, 0),
+            expected: 24,
+        },
+        {
+            name: "counts a leap day birthday from the first of March in a common year",
+            birth: leapDayBirth,
+            today: new Date(2025, 2, 1, 12, 0, 0),
+            expected: 25,
+        },
+        {
+            name: "counts a leap day birthday on the day itself in a leap year",
+            birth: leapDayBirth,
+            today: new Date(2028, 1, 29, 12, 0, 0),
+            expected: 28,
+        },
+    ];
+
+    it.each(cases)("$name", ({ birth, today, expected }) => {
+        // given the birth date and the local day to measure on, from the table row
+
+        // when
+        const age = ageOn(birth, today);
+
+        // then
+        expect(age).toBe(expected);
     });
 });

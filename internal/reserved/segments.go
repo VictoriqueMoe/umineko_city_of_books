@@ -3,6 +3,7 @@ package reserved
 import "strings"
 
 var pathSegments = map[string]bool{
+	"about":           true,
 	"admin":           true,
 	"announcements":   true,
 	"api":             true,

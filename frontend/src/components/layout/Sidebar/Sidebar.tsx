@@ -180,6 +180,13 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
                             Rules
                         </NavLink>
                     )}
+                    <NavLink
+                        to="/about"
+                        className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                        onClick={onClose}
+                    >
+                        About
+                    </NavLink>
                     <div className={styles.divider} />
                     <NavLink
                         to="/announcements"

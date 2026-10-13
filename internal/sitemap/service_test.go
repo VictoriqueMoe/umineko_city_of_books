@@ -67,6 +67,7 @@ func TestService_StaticEntries_NoRulesPage(t *testing.T) {
 	}
 	assert.True(t, urls[testBaseURL])
 	assert.True(t, urls[testBaseURL+"/login"])
+	assert.True(t, urls[testBaseURL+"/about"])
 	assert.False(t, urls[testBaseURL+"/rules"])
 }
 
@@ -84,6 +85,7 @@ func TestService_StaticEntries_WithRulesPage(t *testing.T) {
 		urls[e.URL] = true
 	}
 	assert.True(t, urls[testBaseURL+"/rules"])
+	assert.True(t, urls[testBaseURL+"/about"])
 }
 
 func TestService_Theories_BuildsURLs(t *testing.T) {

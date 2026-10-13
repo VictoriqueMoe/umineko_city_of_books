@@ -16,6 +16,7 @@ const dateFormat = "2006-01-02"
 var staticPaths = []string{
 	"",
 	"/welcome",
+	"/about",
 	"/theories",
 	"/game-board",
 	"/game-board/umineko",
