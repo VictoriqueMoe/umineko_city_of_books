@@ -196,3 +196,21 @@ export function formatShortDateTime(dateStr: string | null | undefined): string 
     }
     return SHORT_DATE_TIME_FORMAT.format(d);
 }
+
+export interface CalendarDate {
+    year: number;
+    month: number;
+    day: number;
+}
+
+export function ageOn(birth: CalendarDate, today: Date): number {
+    const years = today.getFullYear() - birth.year;
+
+    const month = today.getMonth() + 1;
+    const birthdayStillAhead = month < birth.month || (month === birth.month && today.getDate() < birth.day);
+    if (birthdayStillAhead) {
+        return years - 1;
+    }
+
+    return years;
+}

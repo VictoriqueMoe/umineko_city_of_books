@@ -43,6 +43,7 @@ export const AdminRulesPage = named(() => import("./admin/AdminRulesPage"), "Adm
 
 //  Rules
 export const RulesPage = named(() => import("./rules/RulesPage"), "RulesPage");
+export const AboutPage = named(() => import("./about/AboutPage"), "AboutPage");
 
 //  Announcements
 export const AnnouncementsListPage = named(() => import("./announcements/AnnouncementsPage"), "AnnouncementsPage");

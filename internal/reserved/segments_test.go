@@ -16,6 +16,7 @@ func TestIsPathSegment(t *testing.T) {
 		{name: "a route whose second segment is also live", segment: "games", want: true},
 		{name: "the profile prefix", segment: "user", want: true},
 		{name: "a go wildcard mount", segment: "uploads", want: true},
+		{name: "the about page", segment: "about", want: true},
 		{name: "a hyphenated route", segment: "game-board", want: true},
 		{name: "casing is folded", segment: "Games", want: true},
 		{name: "shouty casing is folded", segment: "LIVE", want: true},

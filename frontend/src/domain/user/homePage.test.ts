@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { HOME_PAGE_FALLBACK, HOME_PAGE_OPTIONS, HOME_PAGE_ROUTES, homePageRoute } from "./homePage";
 
 describe("home page options", () => {
-    it("offers exactly the twenty-one destinations the settings form lists", () => {
+    it("offers exactly the twenty-two destinations the settings form lists", () => {
         // given
         const options = HOME_PAGE_OPTIONS;
 
@@ -10,7 +10,7 @@ describe("home page options", () => {
         const count = options.length;
 
         // then
-        expect(count).toBe(21);
+        expect(count).toBe(22);
     });
 
     it("gives every option a route, so choosing one never lands on the fallback by accident", () => {

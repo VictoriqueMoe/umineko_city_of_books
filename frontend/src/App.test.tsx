@@ -15,6 +15,7 @@ vi.mock("react-router", async importOriginal => {
 vi.mock("./pages/lazyPages", async () => {
     const { Outlet } = await import("react-router");
     const names = [
+        "AboutPage",
         "AdminAnnouncementsPage",
         "AdminAuditLog",
         "AdminBannedGifs",
@@ -342,6 +343,18 @@ describe("App", () => {
 
         // then
         expect(screen.getByTestId("page-SettingsPage")).toBeInTheDocument();
+    });
+
+    it("lets a signed out visitor read the about page", () => {
+        // given
+        const visitor = null;
+
+        // when
+        renderApp("/about", { user: visitor });
+
+        // then
+        expect(screen.getByTestId("page-AboutPage")).toBeInTheDocument();
+        expect(screen.queryByTestId("page-LoginPage")).not.toBeInTheDocument();
     });
 
     it("sends a member without admin rights back to the home page", () => {

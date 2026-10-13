@@ -30,6 +30,7 @@ import { MaintenancePage } from "./pages/maintenance/MaintenancePage";
 import { LandingPage } from "./pages/landing/LandingPage";
 import { renderRich } from "./components/richText/richText";
 import {
+    AboutPage,
     AdminAnnouncementsPage,
     AdminAuditLog,
     AdminBannedGifs,
@@ -285,6 +286,7 @@ function AppLayout() {
                                 <Route path="/announcements" element={<AnnouncementsListPage />} />
                                 <Route path="/announcements/:id" element={<AnnouncementDetailPage />} />
                                 <Route path="/rules" element={<RulesPage />} />
+                                <Route path="/about" element={<AboutPage />} />
                                 <Route path="/suggestions" element={<SuggestionsPage />} />
                                 <Route path="/suggestions/:id" element={<PostDetailPage />} />
                                 <Route path="/mysteries" element={<MysteryListPage />} />

@@ -121,6 +121,28 @@ describe("Sidebar for a signed out visitor", () => {
         expect(screen.getByRole("link", { name: "Rules" })).toHaveAttribute("href", "/rules");
     });
 
+    it("always shows the about link to a signed out visitor", () => {
+        // given
+        const user = null;
+
+        // when
+        renderSidebar({ user });
+
+        // then
+        expect(screen.getByRole("link", { name: "About" })).toHaveAttribute("href", "/about");
+    });
+
+    it("keeps the about link while the site has no rules page", () => {
+        // given
+        const siteInfo = { rules_page: "" };
+
+        // when
+        renderSidebar({ user: null, siteInfo });
+
+        // then
+        expect(screen.getByRole("link", { name: "About" })).toHaveAttribute("href", "/about");
+    });
+
     it("keeps My Games out of the games group for a signed out visitor", () => {
         // given
         const route = "/games/live";
@@ -182,6 +204,17 @@ describe("Sidebar for a signed in member", () => {
 
         // then
         expect(screen.getByRole("link", { name: "My Games" })).toHaveAttribute("href", "/games");
+    });
+
+    it("shows the about link to a signed in member too", () => {
+        // given
+        const user = makeUser();
+
+        // when
+        renderSidebar({ user });
+
+        // then
+        expect(screen.getByRole("link", { name: "About" })).toHaveAttribute("href", "/about");
     });
 
     it("still keeps the staff section away from an ordinary member", () => {

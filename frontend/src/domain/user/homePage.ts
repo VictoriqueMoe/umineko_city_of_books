@@ -8,6 +8,7 @@ export const HOME_PAGE_FALLBACK = "/welcome";
 export const HOME_PAGE_OPTIONS: readonly HomePageOption[] = [
     { value: "landing", label: "Welcome (Landing)" },
     { value: "rules", label: "Rules" },
+    { value: "about", label: "About" },
     { value: "theories", label: "Theories (Umineko)" },
     { value: "theories_higurashi", label: "Theories (Higurashi)" },
     { value: "theories_ciconia", label: "Theories (Ciconia)" },
@@ -32,6 +33,7 @@ export const HOME_PAGE_OPTIONS: readonly HomePageOption[] = [
 export const HOME_PAGE_ROUTES: Readonly<Record<string, string>> = {
     landing: "/welcome",
     rules: "/rules",
+    about: "/about",
     theories: "/theories",
     theories_higurashi: "/theories/higurashi",
     theories_ciconia: "/theories/ciconia",
