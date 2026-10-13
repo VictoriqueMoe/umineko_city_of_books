@@ -103,14 +103,15 @@ export function AboutPage() {
                         Who I am
                     </h2>
                     <p dir="auto" className={styles.storyProse}>
-                        I'm a German girl living in the UK, born on 4 October 1994, which makes me {age}.
+                        I'm a German girl living in the UK, born on 4 October 1994 ({age}).
                     </p>
                     <p dir="auto" className={styles.storyProse}>
                         By day I work in cybersecurity for a fintech company in London. The rest of the time I write
                         code because I love it, and I cosplay.
                     </p>
                     <p dir="auto" className={styles.storyProse}>
-                        I adore Featherine and Victorique de Blois, and I'm not sorry about it.
+                        I love Featherine and Victorique de Blois so much that you can always catch me in my Victorique
+                        cosplay as my usual daily attire!.
                     </p>
                 </section>
 
