@@ -72,6 +72,20 @@ func TestResolver_Resolve_DefaultImage(t *testing.T) {
 	}
 }
 
+func TestResolver_Resolve_AboutPageUsesTheCreatorPhoto(t *testing.T) {
+	// given
+	r := newTestResolver(t, "")
+
+	// when
+	html := r.Resolve(context.Background(), "/about", "")
+
+	// then
+	assert.Contains(t, html, `property="og:url" content="https://example.com/about"`)
+	assert.Contains(t, html, `property="og:image" content="https://example.com/about-creator.jpg"`)
+	assert.Contains(t, html, `name="twitter:image" content="https://example.com/about-creator.jpg"`)
+	assert.NotContains(t, html, "og:image:width")
+}
+
 func TestResolver_Resolve_SiteName(t *testing.T) {
 	// given
 	ss := settings.NewMockService(t)

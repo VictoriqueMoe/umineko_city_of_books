@@ -341,6 +341,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("About"),
 			Description: fmt.Sprintf("Who made %s, why, and how.", siteName),
 			URL:         r.baseURL + "/about",
+			Image:       "/about-creator.jpg",
 		}
 	}
 
