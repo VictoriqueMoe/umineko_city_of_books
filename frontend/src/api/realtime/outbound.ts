@@ -11,6 +11,7 @@ export const REALTIME_COMMANDS = {
     GAME_ROOM_JOIN: "game_room_join",
     GAME_ROOM_LEAVE: "game_room_leave",
     GAME_ROOM_INPUT: "game_room_input",
+    WATCH_POSTS: "watch_posts",
 } as const satisfies Record<string, RealtimeCommandName>;
 
 export interface PingPayload {
@@ -52,6 +53,10 @@ export interface GameRoomInputPayload<P = unknown> {
     payload: P;
 }
 
+export interface WatchPostsPayload {
+    post_ids: string[];
+}
+
 export type RealtimeCommand =
     | { type: "ping"; data: PingPayload }
     | { type: "join_room"; data: JoinRoomPayload }
@@ -62,7 +67,8 @@ export type RealtimeCommand =
     | { type: "secret_leave"; data: SecretLeavePayload }
     | { type: "game_room_join"; data: GameRoomJoinPayload }
     | { type: "game_room_leave"; data: GameRoomLeavePayload }
-    | { type: "game_room_input"; data: GameRoomInputPayload };
+    | { type: "game_room_input"; data: GameRoomInputPayload }
+    | { type: "watch_posts"; data: WatchPostsPayload };
 
 export type RealtimeCommandName = RealtimeCommand["type"];
 

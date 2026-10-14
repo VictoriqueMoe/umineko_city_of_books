@@ -42,13 +42,13 @@ function buildSocketUrl(): string {
     const apiBase = import.meta.env.VITE_API_BASE ?? "";
     const httpOrigin = apiBase || window.location.origin;
     const wsOrigin = httpOrigin.replace(/^http/, "ws");
-    const wsUrl = `${wsOrigin}/api/v1/ws`;
+    const wsUrl = `${wsOrigin}/api/v1/ws?batch=1`;
 
     const token = getAuthToken();
     const cookieWillBeSent = !Capacitor.isNativePlatform() && httpOrigin === window.location.origin;
 
     if (token && !cookieWillBeSent) {
-        return `${wsUrl}?token=${encodeURIComponent(token)}`;
+        return `${wsUrl}&token=${encodeURIComponent(token)}`;
     }
 
     return wsUrl;

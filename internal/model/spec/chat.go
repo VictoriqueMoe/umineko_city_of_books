@@ -76,6 +76,11 @@ type (
 		UserID uuid.UUID
 	}
 
+	ChatRoomMemberSet struct {
+		RoomID  uuid.UUID
+		UserIDs []uuid.UUID
+	}
+
 	ChatRoomViewer struct {
 		RoomID   uuid.UUID
 		ViewerID uuid.UUID

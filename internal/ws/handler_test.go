@@ -3,6 +3,8 @@ package ws
 import (
 	"encoding/json"
 	"errors"
+	"maps"
+	"slices"
 	"testing"
 	"time"
 
@@ -289,6 +291,37 @@ func TestSecretJoin_OnlyRegisteredSecretsCreateTopics(t *testing.T) {
 			joined := hub.IsUserInRoom(TopicUUID("secret:"+tt.secretID), userID)
 			assert.Equal(t, tt.wantJoin, joined)
 			assert.Equal(t, tt.wantJoin, len(hub.rooms) == 1, "unregistered ids must not allocate hub state")
+		})
+	}
+}
+
+func TestWatchPosts_ReplacesTheConnectionsWatchedPosts(t *testing.T) {
+	// given
+	kept := uuid.New()
+	previous := uuid.New()
+
+	tests := []struct {
+		name string
+		data string
+		want []uuid.UUID
+	}{
+		{name: "valid ids are watched", data: `{"post_ids":["` + kept.String() + `"]}`, want: []uuid.UUID{kept}},
+		{name: "unparsable ids are ignored", data: `{"post_ids":["nope","` + kept.String() + `",""]}`, want: []uuid.UUID{kept}},
+		{name: "an empty array clears the set", data: `{"post_ids":[]}`, want: nil},
+		{name: "a malformed payload leaves the set alone", data: `"nope"`, want: []uuid.UUID{previous}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hub := NewHub()
+			client := NewClient(uuid.New(), nil)
+			hub.WatchPosts(client, []uuid.UUID{previous})
+
+			// when
+			handleWSMessage(client, incomingMessage{Type: "watch_posts", Data: json.RawMessage(tt.data)}, hub, nil, nil, nil)
+
+			// then
+			assert.ElementsMatch(t, tt.want, slices.Collect(maps.Keys(client.watchedPosts)))
 		})
 	}
 }

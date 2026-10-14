@@ -502,7 +502,7 @@ The Phase 4 migration exemptions are gone: `migrationExemptions` no longer exist
 One process serves both halves: `//go:embed static/*` (`server.go:77-78`) compiles the built Vite bundle into the binary, so a browser loads the SPA and calls the API on the same origin. Three surfaces cross the line, and nothing else does.
 
 - **JSON under `/api/v1`.** Every API route hangs off one group (`internal/routes/public_routes.go:11`) and answers either with a type from `internal/dto` or with a `fiber.Map` literal. Those shapes are mirrored by hand in `frontend/src/types/api.ts`; nothing generates either side from the other, so a field added in Go is only real to the frontend once it is added there too.
-- **The WebSocket at `/api/v1/ws`.** Same origin and same session cookie, with a `?token=` query parameter for the packaged app, which has no cookie jar (`frontend/src/api/realtime/socket.ts:46-50`). The hub is section 6.7.
+- **The WebSocket at `/api/v1/ws`.** Same origin and same session cookie, with a `token` query parameter for the packaged app, which has no cookie jar, and a `batch=1` query parameter on every connection that lets the server coalesce queued messages into one JSON array frame (`frontend/src/api/realtime/socket.ts:45-54`). The hub is section 6.7.
 - **The HTML document itself.** The SPA catch-all rewrites the meta tags of the embedded `index.html` per path before serving it (section 6.11), which is the one place the server has an opinion about the page the client is about to render.
 
 The mobile app adds no fourth surface. It is the same SPA (section 7.2), crossing the same three with a bearer token instead of a cookie and with FCM instead of a socket while it is backgrounded.

@@ -22,6 +22,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
+const (
+	slowRequestThreshold = 250 * time.Millisecond
+)
+
 var (
 	redactedQueryKeys = map[string]bool{
 		"token":        true,
@@ -85,21 +89,20 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 
 		err := ctx.Next()
 
-		if shouldSkipRequestLog(ctx) {
+		latency := time.Since(start)
+		slow := latency >= slowRequestThreshold && !isStreamedPath(ctx)
+		if !slow && shouldSkipRequestLog(ctx) {
 			return err
 		}
 
-		latency := time.Since(start)
 		status := ctx.Response().StatusCode()
 		ip, _ := ctx.Locals("client_ip").(string)
 
 		reqLogger := appLogger.Ctx(ctx.Context())
 
-		event := reqLogger.Info()
-		if status >= 500 {
-			event = reqLogger.Error()
-		} else if status >= 400 {
-			event = reqLogger.Warn()
+		event := reqLogger.WithLevel(requestLogLevel(status, slow))
+		if slow {
+			event = event.Bool("slow", true)
 		}
 
 		if traceID, _ := ctx.Locals("trace_id").(string); traceID != "" {
@@ -144,6 +147,17 @@ func isStreamedPath(ctx fiber.Ctx) bool {
 	path := ctx.Path()
 
 	return strings.HasPrefix(path, "/uploads/") || strings.HasPrefix(path, "/og-image/") || strings.HasPrefix(path, "/hls/")
+}
+
+func requestLogLevel(status int, slow bool) zerolog.Level {
+	switch {
+	case status >= 500:
+		return zerolog.ErrorLevel
+	case status >= 400 || slow:
+		return zerolog.WarnLevel
+	default:
+		return zerolog.InfoLevel
+	}
 }
 
 func shouldSkipRequestLog(ctx fiber.Ctx) bool {

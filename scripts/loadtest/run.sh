@@ -22,5 +22,18 @@ if ! curl -fs -o /dev/null --max-time 5 "${BASE_URL}/livez"; then
     exit 1
 fi
 
-echo "Load testing ${BASE_URL}..."
-exec k6 run "$@" read-endpoints.js
+script="read-endpoints.js"
+if [ "${SCENARIO:-read}" = "users" ]; then
+    if [ ! -f users.json ]; then
+        echo "No scripts/loadtest/users.json. Seed the load test database first: go run ./scripts/loadtest/seed -users ${USERS:-200}" >&2
+        exit 1
+    fi
+
+    export USERS="${USERS:-200}"
+    export RAMP="${RAMP:-2m}"
+    export HOLD="${HOLD:-5m}"
+    script="user-behaviour.js"
+fi
+
+echo "Load testing ${BASE_URL} with ${script}..."
+exec k6 run "$@" "${script}"

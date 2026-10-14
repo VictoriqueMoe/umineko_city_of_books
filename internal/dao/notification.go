@@ -23,6 +23,7 @@ const (
 type (
 	NotificationDAO interface {
 		Create(ctx context.Context, s spec.NewNotification, tx ...*sql.Tx) (*model.NotificationRow, error)
+		CreateMany(ctx context.Context, s []spec.NewNotification, tx ...*sql.Tx) ([]model.NotificationRow, error)
 		ListByUser(ctx context.Context, q spec.NotificationListing, tx ...*sql.Tx) ([]model.NotificationRow, int, error)
 		GetByID(ctx context.Context, s spec.NotificationLookup, tx ...*sql.Tx) (*model.NotificationRow, error)
 		MarkRead(ctx context.Context, s spec.NotificationLookup, tx ...*sql.Tx) error
@@ -110,6 +111,46 @@ func (r *notificationDAO) Create(ctx context.Context, s spec.NewNotification, tx
 	}
 
 	return &n, nil
+}
+
+func (r *notificationDAO) CreateMany(ctx context.Context, s []spec.NewNotification, tx ...*sql.Tx) ([]model.NotificationRow, error) {
+	if len(s) == 0 {
+		return nil, nil
+	}
+
+	params := sqlcgen.CreateNotificationsParams{
+		UserIds:        make([]string, 0, len(s)),
+		Types:          make([]string, 0, len(s)),
+		ReferenceIds:   make([]string, 0, len(s)),
+		ReferenceTypes: make([]string, 0, len(s)),
+		ActorIds:       make([]string, 0, len(s)),
+		Messages:       make([]string, 0, len(s)),
+	}
+	for _, n := range s {
+		params.UserIds = append(params.UserIds, n.UserID.String())
+		params.Types = append(params.Types, string(n.Type))
+		params.ReferenceIds = append(params.ReferenceIds, n.ReferenceID.String())
+		params.ReferenceTypes = append(params.ReferenceTypes, n.ReferenceType)
+		params.ActorIds = append(params.ActorIds, n.ActorID.String())
+		params.Messages = append(params.Messages, n.Message)
+	}
+
+	rows, err := genQueries(r.db, tx).CreateNotifications(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("insert notifications: %w", err)
+	}
+
+	created := make([]model.NotificationRow, 0, len(rows))
+	for _, row := range rows {
+		n, err := toNotificationRow(notificationJoinRow(row))
+		if err != nil {
+			return nil, err
+		}
+
+		created = append(created, n)
+	}
+
+	return created, nil
 }
 
 func (r *notificationDAO) ListByUser(ctx context.Context, q spec.NotificationListing, tx ...*sql.Tx) ([]model.NotificationRow, int, error) {

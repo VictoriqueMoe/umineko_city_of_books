@@ -1822,6 +1822,40 @@ func (q *Queries) ListChatRoomMessagesBefore(ctx context.Context, arg ListChatRo
 	return items, nil
 }
 
+const listChatRoomMutedMemberIDs = `-- name: ListChatRoomMutedMemberIDs :many
+SELECT user_id FROM chat_room_members
+WHERE room_id = $1 AND muted = TRUE AND left_at IS NULL
+  AND user_id = ANY(string_to_array($2::text, ',')::uuid[])
+`
+
+type ListChatRoomMutedMemberIDsParams struct {
+	RoomID  uuid.UUID
+	Column2 string
+}
+
+func (q *Queries) ListChatRoomMutedMemberIDs(ctx context.Context, arg ListChatRoomMutedMemberIDsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.QueryContext(ctx, listChatRoomMutedMemberIDs, arg.RoomID, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var user_id uuid.UUID
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listChatRoomsByUser = `-- name: ListChatRoomsByUser :many
 SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, cr.archived_at,
        m.last_read_at, m.role AS viewer_role, m.muted AS viewer_muted, m.ghost AS viewer_ghost,

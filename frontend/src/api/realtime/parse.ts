@@ -9,6 +9,8 @@ export type ParseServerEventResult = { ok: true; event: RealtimeEvent } | { ok: 
 
 type ParseFailure = { ok: false; reason: RealtimeParseFailure };
 
+export type DecodeServerFrameResult = { ok: true; values: unknown[] } | ParseFailure;
+
 type DecodedJson = { ok: true; value: unknown };
 
 type Envelope = { ok: true; type: RealtimeEventName; data: unknown };
@@ -49,13 +51,30 @@ function asRealtimeEvent(type: RealtimeEventName, data: unknown): RealtimeEvent 
     return { type, data } as RealtimeEvent;
 }
 
+export function decodeServerFrame(raw: string): DecodeServerFrameResult {
+    const decoded = decodeJson(raw);
+    if (!decoded.ok) {
+        return decoded;
+    }
+
+    if (Array.isArray(decoded.value)) {
+        return { ok: true, values: decoded.value as unknown[] };
+    }
+
+    return { ok: true, values: [decoded.value] };
+}
+
 export function parseServerEvent(raw: string): ParseServerEventResult {
     const decoded = decodeJson(raw);
     if (!decoded.ok) {
         return decoded;
     }
 
-    const envelope = readEnvelope(decoded.value);
+    return parseServerValue(decoded.value);
+}
+
+export function parseServerValue(value: unknown): ParseServerEventResult {
+    const envelope = readEnvelope(value);
     if (!envelope.ok) {
         return envelope;
     }

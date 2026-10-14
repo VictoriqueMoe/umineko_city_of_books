@@ -19,6 +19,11 @@ const (
 	sendBufferSize = 64
 	writeTimeout   = 10 * time.Second
 	pingInterval   = 30 * time.Second
+
+	maxWatchedPosts        = 200
+	maxBatchItems          = 64
+	maxBatchBytes          = 64 * 1024
+	defaultSidebarInterval = time.Second
 )
 
 type (
@@ -28,13 +33,15 @@ type (
 	}
 
 	Client struct {
-		UserID    uuid.UUID
-		Conn      *websocket.Conn
-		send      chan []byte
-		closeCh   chan any
-		closeOnce sync.Once
-		pingAt    atomic.Int64
-		rttPeak   atomic.Int64
+		UserID       uuid.UUID
+		Conn         *websocket.Conn
+		send         chan []byte
+		closeCh      chan any
+		closeOnce    sync.Once
+		pingAt       atomic.Int64
+		rttPeak      atomic.Int64
+		batch        bool
+		watchedPosts map[uuid.UUID]struct{}
 	}
 
 	viewerInfo struct {
@@ -42,15 +49,25 @@ type (
 		state string
 	}
 
+	sidebarThrottle struct {
+		lastSent  time.Time
+		pendingAt time.Time
+		timer     *time.Timer
+	}
+
 	Hub struct {
-		name         string
-		tracer       trace.Tracer
-		clients      map[uuid.UUID][]*Client
-		rooms        map[uuid.UUID]map[uuid.UUID]bool
-		viewers      map[uuid.UUID]map[uuid.UUID]*viewerInfo
-		anon         map[*Client]any
-		alwaysOnline map[uuid.UUID]struct{}
-		mu           sync.RWMutex
+		name            string
+		tracer          trace.Tracer
+		clients         map[uuid.UUID][]*Client
+		rooms           map[uuid.UUID]map[uuid.UUID]bool
+		viewers         map[uuid.UUID]map[uuid.UUID]*viewerInfo
+		anon            map[*Client]any
+		alwaysOnline    map[uuid.UUID]struct{}
+		postWatchers    map[uuid.UUID]map[*Client]struct{}
+		mu              sync.RWMutex
+		sidebarInterval time.Duration
+		sidebar         map[string]*sidebarThrottle
+		sidebarMu       sync.Mutex
 	}
 )
 
@@ -120,7 +137,7 @@ func (c *Client) writeLoop() {
 				return
 			}
 			_ = c.Conn.SetWriteDeadline(time.Now().Add(writeTimeout))
-			if err := c.Conn.WriteMessage(websocket.TextMessage, data); err != nil {
+			if err := c.Conn.WriteMessage(websocket.TextMessage, c.framePayload(data)); err != nil {
 				return
 			}
 		case <-pingTicker.C:
@@ -132,6 +149,57 @@ func (c *Client) writeLoop() {
 		case <-c.closeCh:
 			return
 		}
+	}
+}
+
+func (c *Client) framePayload(first []byte) []byte {
+	if !c.batch {
+		return first
+	}
+
+	items := [][]byte{first}
+	size := len(first)
+	for len(items) < maxBatchItems && size < maxBatchBytes {
+		next, ok := c.tryReceive()
+		if !ok {
+			break
+		}
+
+		items = append(items, next)
+		size += len(next)
+	}
+
+	if len(items) == 1 {
+		return first
+	}
+
+	frame := make([]byte, 0, size+len(items)+1)
+	frame = append(frame, '[')
+	for i, item := range items {
+		if i > 0 {
+			frame = append(frame, ',')
+		}
+		frame = append(frame, item...)
+	}
+
+	return append(frame, ']')
+}
+
+func (c *Client) tryReceive() ([]byte, bool) {
+	select {
+	case data, ok := <-c.send:
+		return data, ok
+	default:
+		return nil, false
+	}
+}
+
+func (c *Client) closed() bool {
+	select {
+	case <-c.closeCh:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -186,13 +254,16 @@ func NewHub(name ...string) *Hub {
 	}
 
 	return &Hub{
-		name:         hubName,
-		tracer:       otel.Tracer(wsTracerName),
-		clients:      make(map[uuid.UUID][]*Client),
-		rooms:        make(map[uuid.UUID]map[uuid.UUID]bool),
-		viewers:      make(map[uuid.UUID]map[uuid.UUID]*viewerInfo),
-		anon:         make(map[*Client]any),
-		alwaysOnline: make(map[uuid.UUID]struct{}),
+		name:            hubName,
+		tracer:          otel.Tracer(wsTracerName),
+		clients:         make(map[uuid.UUID][]*Client),
+		rooms:           make(map[uuid.UUID]map[uuid.UUID]bool),
+		viewers:         make(map[uuid.UUID]map[uuid.UUID]*viewerInfo),
+		anon:            make(map[*Client]any),
+		alwaysOnline:    make(map[uuid.UUID]struct{}),
+		postWatchers:    make(map[uuid.UUID]map[*Client]struct{}),
+		sidebarInterval: defaultSidebarInterval,
+		sidebar:         make(map[string]*sidebarThrottle),
 	}
 }
 
@@ -310,6 +381,8 @@ func (h *Hub) Unregister(client *Client) []uuid.UUID {
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	h.unwatchPostsLocked(client)
 
 	var clearedRooms []uuid.UUID
 	conns := h.clients[client.UserID]
@@ -452,15 +525,123 @@ func (h *Hub) BroadcastPublic(msg Message) {
 	}
 }
 
+func (h *Hub) WatchPosts(client *Client, postIDs []uuid.UUID) {
+	next := make(map[uuid.UUID]struct{}, min(len(postIDs), maxWatchedPosts))
+	for _, postID := range postIDs {
+		if len(next) >= maxWatchedPosts {
+			break
+		}
+		next[postID] = struct{}{}
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.unwatchPostsLocked(client)
+
+	if len(next) == 0 || client.closed() {
+		return
+	}
+
+	client.watchedPosts = next
+	for postID := range next {
+		watchers := h.postWatchers[postID]
+		if watchers == nil {
+			watchers = make(map[*Client]struct{})
+			h.postWatchers[postID] = watchers
+		}
+		watchers[client] = struct{}{}
+	}
+}
+
+func (h *Hub) unwatchPostsLocked(client *Client) {
+	for postID := range client.watchedPosts {
+		watchers := h.postWatchers[postID]
+		delete(watchers, client)
+		if len(watchers) == 0 {
+			delete(h.postWatchers, postID)
+		}
+	}
+
+	client.watchedPosts = nil
+}
+
+func (h *Hub) SendToPostWatchers(postID uuid.UUID, msg Message) {
+	h.mu.RLock()
+	watchers := h.postWatchers[postID]
+	conns := make([]*Client, 0, len(watchers))
+	for client := range watchers {
+		conns = append(conns, client)
+	}
+	h.mu.RUnlock()
+
+	h.sendToConns(conns, msg)
+}
+
 func (h *Hub) BumpSidebarActivity(key string) {
 	if h == nil {
 		return
 	}
+
+	now := time.Now()
+	if !h.claimSidebarSend(key, now) {
+		return
+	}
+
+	h.broadcastSidebarActivity(key, now)
+}
+
+func (h *Hub) claimSidebarSend(key string, now time.Time) bool {
+	h.sidebarMu.Lock()
+	defer h.sidebarMu.Unlock()
+
+	for idleKey, idle := range h.sidebar {
+		if idle.timer == nil && now.Sub(idle.lastSent) >= h.sidebarInterval {
+			delete(h.sidebar, idleKey)
+		}
+	}
+
+	state := h.sidebar[key]
+	if state == nil {
+		state = &sidebarThrottle{}
+		h.sidebar[key] = state
+	}
+
+	state.pendingAt = now
+	if state.timer != nil {
+		return false
+	}
+
+	elapsed := now.Sub(state.lastSent)
+	if elapsed >= h.sidebarInterval {
+		state.lastSent = now
+		return true
+	}
+
+	state.timer = time.AfterFunc(h.sidebarInterval-elapsed, func() {
+		h.flushSidebarActivity(key)
+	})
+
+	return false
+}
+
+func (h *Hub) flushSidebarActivity(key string) {
+	h.sidebarMu.Lock()
+	state := h.sidebar[key]
+	at := state.pendingAt
+	state.timer = nil
+	state.lastSent = time.Now()
+	h.sidebarMu.Unlock()
+
+	h.broadcastSidebarActivity(key, at)
+}
+
+func (h *Hub) broadcastSidebarActivity(key string, at time.Time) {
 	h.Broadcast(Message{
 		Type: "sidebar_activity",
 		Data: map[string]any{
 			"key": key,
-			"at":  time.Now().UTC().Format(time.RFC3339),
+			"at":  at.UTC().Format(time.RFC3339),
 		},
 	})
 }

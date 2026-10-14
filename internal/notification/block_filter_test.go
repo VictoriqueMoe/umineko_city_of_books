@@ -154,3 +154,140 @@ func TestNotify_SystemActorSkipsBlockLookup(t *testing.T) {
 	require.NoError(t, err)
 	blockRepo.AssertNotCalled(t, "IsBlockedEither", mock.Anything, mock.Anything)
 }
+
+func TestNotifyMany_BlockFiltering(t *testing.T) {
+	tests := []struct {
+		name          string
+		notifType     dto.NotificationType
+		systemActor   bool
+		expectLookup  bool
+		blockedIDs    func(blocked, unblocked uuid.UUID) []uuid.UUID
+		lookupErr     error
+		wantBlocked   bool
+		wantUnblocked bool
+		wantNoCreates bool
+	}{
+		{
+			name:         "a recipient in the actor's block set is dropped",
+			notifType:    dto.NotifChatRoomMessage,
+			expectLookup: true,
+			blockedIDs: func(blocked, unblocked uuid.UUID) []uuid.UUID {
+				return []uuid.UUID{blocked}
+			},
+			wantUnblocked: true,
+		},
+		{
+			name:         "every recipient blocked skips the insert entirely",
+			notifType:    dto.NotifChatMention,
+			expectLookup: true,
+			blockedIDs: func(blocked, unblocked uuid.UUID) []uuid.UUID {
+				return []uuid.UUID{blocked, unblocked}
+			},
+			wantNoCreates: true,
+		},
+		{
+			name:          "block lookup failure delivers rather than silently dropping",
+			notifType:     dto.NotifChatRoomMessage,
+			expectLookup:  true,
+			lookupErr:     errors.New("boom"),
+			wantBlocked:   true,
+			wantUnblocked: true,
+		},
+		{
+			name:          "a type that survives blocks skips the lookup and reaches a blocked recipient",
+			notifType:     dto.NotifGameYourTurn,
+			wantBlocked:   true,
+			wantUnblocked: true,
+		},
+		{
+			name:          "a system actor skips the lookup",
+			notifType:     dto.NotifMention,
+			systemActor:   true,
+			wantBlocked:   true,
+			wantUnblocked: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			f := newNotifyManyFixture(t)
+			blocked := uuid.New()
+			unblocked := uuid.New()
+			ref := uuid.New()
+			actor := uuid.New()
+			if tt.systemActor {
+				actor = uuid.Nil
+			}
+			params := []dto.NotifyParams{
+				{RecipientID: blocked, ActorID: actor, Type: tt.notifType, ReferenceID: ref},
+				{RecipientID: unblocked, ActorID: actor, Type: tt.notifType, ReferenceID: ref},
+			}
+
+			if tt.expectLookup {
+				var ids []uuid.UUID
+				if tt.blockedIDs != nil {
+					ids = tt.blockedIDs(blocked, unblocked)
+				}
+				f.blockRepo.EXPECT().GetBlockedIDs(mock.Anything, actor).Return(ids, tt.lookupErr).Once()
+			}
+
+			want := make([]spec.NewNotification, 0, 2)
+			if tt.wantBlocked {
+				want = append(want, spec.NewNotification{UserID: blocked, Type: tt.notifType, ReferenceID: ref, ActorID: actor})
+			}
+			if tt.wantUnblocked {
+				want = append(want, spec.NewNotification{UserID: unblocked, Type: tt.notifType, ReferenceID: ref, ActorID: actor})
+			}
+			if !tt.wantNoCreates {
+				f.notifRepo.EXPECT().CreateMany(mock.Anything, want).Return(createdRows(want), nil).Once()
+				for _, n := range want {
+					f.overlay.EXPECT().DispatchNotification(n.UserID, mock.Anything).Return().Once()
+				}
+			}
+
+			// when
+			f.svc.NotifyMany(context.Background(), params)
+
+			// then
+			if tt.wantNoCreates {
+				f.notifRepo.AssertNotCalled(t, "CreateMany", mock.Anything, mock.Anything)
+			}
+			if !tt.expectLookup {
+				f.blockRepo.AssertNotCalled(t, "GetBlockedIDs", mock.Anything, mock.Anything)
+			}
+			f.blockRepo.AssertNotCalled(t, "IsBlockedEither", mock.Anything, mock.Anything)
+		})
+	}
+}
+
+func TestNotifyMany_LooksUpBlocksOncePerDistinctActor(t *testing.T) {
+	// given
+	f := newNotifyManyFixture(t)
+	firstActor := uuid.New()
+	secondActor := uuid.New()
+	blockedByFirst := uuid.New()
+	sharedRecipient := uuid.New()
+	ref := uuid.New()
+	params := []dto.NotifyParams{
+		{RecipientID: blockedByFirst, ActorID: firstActor, Type: dto.NotifPostLiked, ReferenceID: ref},
+		{RecipientID: sharedRecipient, ActorID: firstActor, Type: dto.NotifPostLiked, ReferenceID: ref},
+		{RecipientID: blockedByFirst, ActorID: secondActor, Type: dto.NotifPostLiked, ReferenceID: ref},
+		{RecipientID: sharedRecipient, ActorID: secondActor, Type: dto.NotifPostLiked, ReferenceID: ref},
+	}
+	f.blockRepo.EXPECT().GetBlockedIDs(mock.Anything, firstActor).Return([]uuid.UUID{blockedByFirst}, nil).Once()
+	f.blockRepo.EXPECT().GetBlockedIDs(mock.Anything, secondActor).Return([]uuid.UUID{}, nil).Once()
+	want := []spec.NewNotification{
+		{UserID: sharedRecipient, Type: dto.NotifPostLiked, ReferenceID: ref, ActorID: firstActor},
+		{UserID: blockedByFirst, Type: dto.NotifPostLiked, ReferenceID: ref, ActorID: secondActor},
+		{UserID: sharedRecipient, Type: dto.NotifPostLiked, ReferenceID: ref, ActorID: secondActor},
+	}
+	f.notifRepo.EXPECT().CreateMany(mock.Anything, want).Return(createdRows(want), nil).Once()
+	f.overlay.EXPECT().DispatchNotification(sharedRecipient, mock.Anything).Return().Twice()
+	f.overlay.EXPECT().DispatchNotification(blockedByFirst, mock.Anything).Return().Once()
+
+	// when
+	f.svc.NotifyMany(context.Background(), params)
+
+	// then
+}

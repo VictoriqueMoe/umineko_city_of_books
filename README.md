@@ -269,6 +269,20 @@ The three security tools are pinned by the `tool` block in `go.mod` like staticc
 
 All of those need `static/` to exist first, because the root package embeds it. See [Running Locally](#running-locally). The repository and DAO tests boot a real Postgres through testcontainers-go, so Docker has to be running for `go test ./...` to pass.
 
+### Load testing
+
+The k6 scripts in `scripts/loadtest` have two scenarios. `read` (the default) hammers five read endpoints as one user. `users` simulates real people: each virtual user is a separate seeded account that keeps a WebSocket open and browses, likes, comments, posts and chats with 2 to 10 seconds of think time between actions. Chat delivery latency is measured from send to receipt over the socket.
+
+The `users` scenario runs against its own database, never your dev one:
+
+```powershell
+go run ./scripts/loadtest/seed -users 2000      # drops, recreates, migrates and seeds umineko_loadtest; writes scripts/loadtest/users.json
+$env:POSTGRES_DB = 'umineko_loadtest'; go run .  # start the app against it (override DATABASE_URL instead if your .env sets it)
+./scripts/loadtest/run.ps1 -Scenario users -Users 2000 -Ramp 3m -Hold 10m
+```
+
+The seeder refuses any database whose name lacks `loadtest` or matches the one the app is configured for. Seeded users get pre-made sessions, so the 10 per minute login limit never applies, and `users.json` holds their tokens (it is gitignored). For a clean dataset before each run, stop the app, rerun the seeder, then start the app again. With thousands of users, run k6 on a different machine from the server so it does not compete for CPU.
+
 ### Generated code
 
 Three categories of Go file in this repository are generated, committed, and must never be hand-edited. Each carries a `Code generated ... DO NOT EDIT.` header.

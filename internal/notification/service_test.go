@@ -22,6 +22,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type (
+	notifyManyFixture struct {
+		svc       *service
+		notifRepo *repository.MockNotificationRepository
+		userRepo  *repository.MockUserRepository
+		blockRepo *repository.MockBlockRepository
+		emailSvc  *email.MockService
+		overlay   *MockOverlayDispatcher
+	}
+)
+
 func newTestService(t *testing.T) (
 	*service,
 	*repository.MockNotificationRepository,
@@ -672,48 +683,193 @@ func TestNotify_DispatchesToOverlay(t *testing.T) {
 	overlay.AssertExpectations(t)
 }
 
-func TestNotifyMany_IteratesAllParamsAndSwallowsErrors(t *testing.T) {
-	// given
-	svc, notifRepo, _, _, _ := newTestService(t)
-	recipient := uuid.New()
-	actor := uuid.New()
-	ref := uuid.New()
-	paramsList := []dto.NotifyParams{
-		{RecipientID: recipient, ActorID: actor, Type: dto.NotifChatMessage, ReferenceID: ref},
-		{RecipientID: recipient, ActorID: actor, Type: dto.NotifChatMessage, ReferenceID: ref},
+func newNotifyManyFixture(t *testing.T) notifyManyFixture {
+	notifRepo := repository.NewMockNotificationRepository(t)
+	userRepo := repository.NewMockUserRepository(t)
+	blockRepo := repository.NewMockBlockRepository(t)
+	emailSvc := email.NewMockService(t)
+	settingsSvc := settings.NewMockService(t)
+	overlay := NewMockOverlayDispatcher(t)
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("Test Site").Maybe()
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://test.example").Maybe()
+
+	svc := NewService(notifRepo, userRepo, blockRepo, ws.NewHub(), emailSvc, nil, settingsSvc, overlay).(*service)
+
+	return notifyManyFixture{
+		svc:       svc,
+		notifRepo: notifRepo,
+		userRepo:  userRepo,
+		blockRepo: blockRepo,
+		emailSvc:  emailSvc,
+		overlay:   overlay,
 	}
-	notifRepo.EXPECT().
-		Create(mock.Anything, spec.NewNotification{
-			UserID:      recipient,
-			Type:        dto.NotifChatMessage,
-			ReferenceID: ref,
-			ActorID:     actor,
-		}).
-		Return(nil, errors.New("boom")).Once()
-	notifRepo.EXPECT().
-		Create(mock.Anything, spec.NewNotification{
-			UserID:      recipient,
-			Type:        dto.NotifChatMessage,
-			ReferenceID: ref,
-			ActorID:     actor,
-		}).
-		Return(&model.NotificationRow{ID: 1}, nil).Once()
+}
+
+func createdRows(batch []spec.NewNotification) []model.NotificationRow {
+	rows := make([]model.NotificationRow, 0, len(batch))
+	for i, n := range batch {
+		rows = append(rows, model.NotificationRow{
+			ID:            i + 1,
+			UserID:        n.UserID,
+			Type:          n.Type,
+			ReferenceID:   n.ReferenceID,
+			ReferenceType: n.ReferenceType,
+			ActorID:       n.ActorID,
+			Message:       n.Message,
+		})
+	}
+
+	return rows
+}
+
+func TestNotifyMany_InsertsEveryRowInOneCreateManyAndPushesEachRow(t *testing.T) {
+	// given
+	f := newNotifyManyFixture(t)
+	actor := uuid.New()
+	roomID := uuid.New()
+	first := uuid.New()
+	second := uuid.New()
+	third := uuid.New()
+	params := []dto.NotifyParams{
+		{RecipientID: first, ActorID: actor, Type: dto.NotifChatRoomMessage, ReferenceID: roomID, ReferenceType: "chat_message:1", Message: "sent a message in Room"},
+		{RecipientID: second, ActorID: actor, Type: dto.NotifChatMention, ReferenceID: roomID, ReferenceType: "chat_message:1"},
+		{RecipientID: third, ActorID: actor, Type: dto.NotifChatReply, ReferenceID: roomID, ReferenceType: "chat_message:1"},
+	}
+	want := []spec.NewNotification{
+		{UserID: first, Type: dto.NotifChatRoomMessage, ReferenceID: roomID, ReferenceType: "chat_message:1", ActorID: actor, Message: "sent a message in Room"},
+		{UserID: second, Type: dto.NotifChatMention, ReferenceID: roomID, ReferenceType: "chat_message:1", ActorID: actor},
+		{UserID: third, Type: dto.NotifChatReply, ReferenceID: roomID, ReferenceType: "chat_message:1", ActorID: actor},
+	}
+	f.blockRepo.EXPECT().GetBlockedIDs(mock.Anything, actor).Return([]uuid.UUID{}, nil).Once()
+	f.notifRepo.EXPECT().CreateMany(mock.Anything, want).Return(createdRows(want), nil).Once()
+	for _, n := range want {
+		f.overlay.EXPECT().DispatchNotification(n.UserID, mock.MatchedBy(func(resp dto.NotificationResponse) bool {
+			return resp.Type == n.Type && resp.ReferenceID == roomID
+		})).Return().Once()
+	}
 
 	// when
-	svc.NotifyMany(context.Background(), paramsList)
+	f.svc.NotifyMany(context.Background(), params)
 
 	// then
-	notifRepo.AssertExpectations(t)
+	f.notifRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+}
+
+func TestNotifyMany_SkipsSelfNotifications(t *testing.T) {
+	// given
+	f := newNotifyManyFixture(t)
+	actor := uuid.New()
+	other := uuid.New()
+	ref := uuid.New()
+	params := []dto.NotifyParams{
+		{RecipientID: actor, ActorID: actor, Type: dto.NotifChatRoomMessage, ReferenceID: ref},
+		{RecipientID: other, ActorID: actor, Type: dto.NotifChatRoomMessage, ReferenceID: ref},
+	}
+	want := []spec.NewNotification{
+		{UserID: other, Type: dto.NotifChatRoomMessage, ReferenceID: ref, ActorID: actor},
+	}
+	f.blockRepo.EXPECT().GetBlockedIDs(mock.Anything, actor).Return([]uuid.UUID{}, nil).Once()
+	f.notifRepo.EXPECT().CreateMany(mock.Anything, want).Return(createdRows(want), nil).Once()
+	f.overlay.EXPECT().DispatchNotification(other, mock.Anything).Return().Once()
+
+	// when
+	f.svc.NotifyMany(context.Background(), params)
+
+	// then
+}
+
+func TestNotifyMany_EmailEligibleParamsGoThroughNotify(t *testing.T) {
+	// given
+	f := newNotifyManyFixture(t)
+	actor := uuid.New()
+	emailRecipient := uuid.New()
+	chatRecipient := uuid.New()
+	emailRef := uuid.New()
+	roomID := uuid.New()
+	emailParams := dto.NotifyParams{
+		RecipientID: emailRecipient,
+		ActorID:     actor,
+		Type:        dto.NotifMysterySolvedAll,
+		ReferenceID: emailRef,
+		EmailActor:  "Battler",
+		EmailAction: "solved a mystery",
+	}
+	chatParams := dto.NotifyParams{
+		RecipientID: chatRecipient,
+		ActorID:     actor,
+		Type:        dto.NotifChatMention,
+		ReferenceID: roomID,
+		EmailAction: "mentioned you",
+	}
+	f.blockRepo.EXPECT().IsBlockedEither(mock.Anything, spec.BlockPairSpec{UserA: emailRecipient, UserB: actor}).Return(false, nil).Once()
+	f.notifRepo.EXPECT().
+		HasRecentDuplicate(mock.Anything, spec.NotificationDuplicateCheck{
+			UserID:      emailRecipient,
+			Type:        dto.NotifMysterySolvedAll,
+			ReferenceID: emailRef,
+			ActorID:     actor,
+		}).
+		Return(false, nil).Once()
+	f.notifRepo.EXPECT().
+		Create(mock.Anything, spec.NewNotification{
+			UserID:      emailRecipient,
+			Type:        dto.NotifMysterySolvedAll,
+			ReferenceID: emailRef,
+			ActorID:     actor,
+		}).
+		Return(&model.NotificationRow{ID: 9, UserID: emailRecipient, Type: dto.NotifMysterySolvedAll}, nil).Once()
+	f.userRepo.EXPECT().GetByID(mock.Anything, emailRecipient).Return(&model.User{
+		Email:              "battler@example.com",
+		EmailNotifications: true,
+	}, nil).Once()
+	f.emailSvc.EXPECT().Send(mock.Anything, "battler@example.com", mock.Anything, mock.Anything).Return(nil).Once()
+	wantBatch := []spec.NewNotification{
+		{UserID: chatRecipient, Type: dto.NotifChatMention, ReferenceID: roomID, ActorID: actor},
+	}
+	f.blockRepo.EXPECT().GetBlockedIDs(mock.Anything, actor).Return([]uuid.UUID{}, nil).Once()
+	f.notifRepo.EXPECT().CreateMany(mock.Anything, wantBatch).Return(createdRows(wantBatch), nil).Once()
+	f.overlay.EXPECT().DispatchNotification(emailRecipient, mock.Anything).Return().Once()
+	f.overlay.EXPECT().DispatchNotification(chatRecipient, mock.Anything).Return().Once()
+
+	// when
+	f.svc.NotifyMany(context.Background(), []dto.NotifyParams{emailParams, chatParams})
+
+	// then
+}
+
+func TestNotifyMany_CreateManyErrorPushesNothing(t *testing.T) {
+	// given
+	f := newNotifyManyFixture(t)
+	actor := uuid.New()
+	recipient := uuid.New()
+	ref := uuid.New()
+	params := []dto.NotifyParams{
+		{RecipientID: recipient, ActorID: actor, Type: dto.NotifChatRoomMessage, ReferenceID: ref},
+	}
+	f.blockRepo.EXPECT().GetBlockedIDs(mock.Anything, actor).Return([]uuid.UUID{}, nil).Once()
+	f.notifRepo.EXPECT().
+		CreateMany(mock.Anything, []spec.NewNotification{
+			{UserID: recipient, Type: dto.NotifChatRoomMessage, ReferenceID: ref, ActorID: actor},
+		}).
+		Return(nil, errors.New("db down")).Once()
+
+	// when
+	f.svc.NotifyMany(context.Background(), params)
+
+	// then
+	f.overlay.AssertNotCalled(t, "DispatchNotification", mock.Anything, mock.Anything)
 }
 
 func TestNotifyMany_EmptyListIsNoop(t *testing.T) {
 	// given
-	svc, _, _, _, _ := newTestService(t)
+	f := newNotifyManyFixture(t)
 
 	// when
-	svc.NotifyMany(context.Background(), nil)
+	f.svc.NotifyMany(context.Background(), nil)
 
 	// then
+	f.notifRepo.AssertNotCalled(t, "CreateMany", mock.Anything, mock.Anything)
+	f.blockRepo.AssertNotCalled(t, "GetBlockedIDs", mock.Anything, mock.Anything)
 }
 
 func TestList_OK(t *testing.T) {

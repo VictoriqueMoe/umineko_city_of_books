@@ -230,11 +230,93 @@ func (s *service) Notify(ctx context.Context, params dto.NotifyParams) error {
 }
 
 func (s *service) NotifyMany(ctx context.Context, params []dto.NotifyParams) {
+	emailEligible := make([]dto.NotifyParams, 0)
+	batchable := make([]dto.NotifyParams, 0, len(params))
 	for _, p := range params {
+		if p.RecipientID == p.ActorID {
+			continue
+		}
+
+		if !isChatRoomNotif(p.Type) && p.EmailAction != "" {
+			emailEligible = append(emailEligible, p)
+
+			continue
+		}
+
+		batchable = append(batchable, p)
+	}
+
+	s.createBatch(ctx, batchable)
+
+	for _, p := range emailEligible {
 		if err := s.Notify(ctx, p); err != nil {
 			logger.Ctx(ctx).Warn().Err(err).Str("type", string(p.Type)).Str("recipient", p.RecipientID.String()).Msg("notify failed")
 		}
 	}
+}
+
+func (s *service) createBatch(ctx context.Context, params []dto.NotifyParams) {
+	blockedByActor := s.blockedIDsByActor(ctx, params)
+
+	batch := make([]spec.NewNotification, 0, len(params))
+	for _, p := range params {
+		if _, blocked := blockedByActor[p.ActorID][p.RecipientID]; blocked && !survivesBlock(p.Type) {
+			continue
+		}
+
+		batch = append(batch, spec.NewNotification{
+			UserID:        p.RecipientID,
+			Type:          p.Type,
+			ReferenceID:   p.ReferenceID,
+			ReferenceType: p.ReferenceType,
+			ActorID:       p.ActorID,
+			Message:       p.Message,
+		})
+	}
+	if len(batch) == 0 {
+		return
+	}
+
+	created, err := s.repo.CreateMany(ctx, batch)
+	if err != nil {
+		logger.Ctx(ctx).Error().Err(err).Int("count", len(batch)).Msg("notifications not saved")
+
+		return
+	}
+
+	for _, row := range created {
+		s.pushNotification(ctx, &row, row.UserID)
+	}
+}
+
+func (s *service) blockedIDsByActor(ctx context.Context, params []dto.NotifyParams) map[uuid.UUID]map[uuid.UUID]struct{} {
+	blockedByActor := make(map[uuid.UUID]map[uuid.UUID]struct{})
+	looked := make(map[uuid.UUID]struct{})
+	for _, p := range params {
+		if p.ActorID == uuid.Nil || survivesBlock(p.Type) {
+			continue
+		}
+
+		if _, done := looked[p.ActorID]; done {
+			continue
+		}
+		looked[p.ActorID] = struct{}{}
+
+		ids, err := s.blockRepo.GetBlockedIDs(ctx, p.ActorID)
+		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("type", string(p.Type)).Str("actor", p.ActorID.String()).Msg("block check failed, delivering notifications")
+
+			continue
+		}
+
+		blocked := make(map[uuid.UUID]struct{}, len(ids))
+		for _, id := range ids {
+			blocked[id] = struct{}{}
+		}
+		blockedByActor[p.ActorID] = blocked
+	}
+
+	return blockedByActor
 }
 
 func (s *service) HasRecentFromActor(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration) bool {

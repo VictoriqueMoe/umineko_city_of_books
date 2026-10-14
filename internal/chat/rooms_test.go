@@ -165,8 +165,8 @@ func TestCreateGroupRoom_SkipsBlockedMembers(t *testing.T) {
 		Return(&model.ChatRoomRow{ID: roomID}, nil)
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: roomID, ViewerID: creator}).Return(&model.ChatRoomRow{Name: "Room"}, nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{creator, memberB}, nil)
-	m.userRepo.EXPECT().GetByID(mock.Anything, creator).Return(sampleUser(creator), nil)
-	m.userRepo.EXPECT().GetByID(mock.Anything, memberB).Return(sampleUser(memberB), nil)
+	m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{creator, memberB}).Return([]model.User{*sampleUser(creator), *sampleUser(memberB)}, nil).Once()
+	m.userRepo.EXPECT().GetByID(mock.Anything, creator).Return(sampleUser(creator), nil).Maybe()
 
 	// when
 	got, err := svc.CreateGroupRoom(context.Background(), creator, req)
@@ -344,6 +344,7 @@ func TestUpdateGroupRoom_RenameAuditsBroadcastsAndStaysSilentInTheRoom(t *testin
 		Run(func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) {
 			memberReads++
 		}).Return(nil, nil)
+	m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID(nil)).Return(nil, nil).Once()
 
 	// when
 	resp, err := svc.UpdateGroupRoom(context.Background(), roomID, actor, editRequest("New name"))
@@ -397,6 +398,7 @@ func TestUpdateGroupRoom_PrivacyChangePostsASystemMessage(t *testing.T) {
 			m.chatRepo.EXPECT().UpdateGroupRoom(mock.Anything, spec.UpdateChatRoom{RoomID: roomID, Name: "Old name", Description: "old description", Tags: []string{"tag"}, IsPublic: tc.nowPublic}).
 				Return(nil)
 			m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil)
+			m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID(nil)).Return(nil, nil).Once()
 			m.userRepo.EXPECT().GetByID(mock.Anything, actor).Return(sampleUser(actor), nil)
 			m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: actor, Body: tc.wantBody}).
 				Return(nil, errors.New("skip"))
@@ -453,8 +455,6 @@ func TestUpdateGroupRoom_ConfirmedRPOffRemovesTheBotAndAppliesTheEdit(t *testing
 	expectEvictionSideEffects(m, roomID)
 	m.chatRepo.EXPECT().UpdateGroupRoom(mock.Anything, spec.UpdateChatRoom{RoomID: roomID, Name: "Old name", Description: "old description", Tags: []string{"tag"}, IsPublic: true}).
 		Return(nil)
-	m.userRepo.EXPECT().GetByID(mock.Anything, human).Return(sampleUser(human), nil)
-	m.userRepo.EXPECT().GetByID(mock.Anything, bot).Return(botUser(bot), nil)
 	m.chatRepo.EXPECT().
 		InsertSystemMessage(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: actor, Body: "Beatrice was removed because this room is no longer a roleplay room."}).
 		Return(nil, errors.New("skip"))
@@ -468,8 +468,10 @@ func TestUpdateGroupRoom_ConfirmedRPOffRemovesTheBotAndAppliesTheEdit(t *testing
 	// then
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+	assert.Len(t, resp.Members, 2)
 	assert.Contains(t, *details, "is_rp=true->false")
 	assert.Contains(t, *details, "bots_removed=1")
+	m.userRepo.AssertNotCalled(t, "GetByID", mock.Anything, mock.Anything)
 	m.chatRepo.AssertCalled(t, "RemoveMember", mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: bot})
 	m.chatRepo.AssertNotCalled(t, "RemoveMember", mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: human})
 }
@@ -669,6 +671,7 @@ func TestJoinRoom_AlreadyMember(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: roomID, ViewerID: userID}).
 		Return(&model.ChatRoomRow{ID: roomID, Type: dto.RoomTypeGroup, IsPublic: true, IsMember: true}, nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil)
+	m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID(nil)).Return(nil, nil).Once()
 
 	// when
 	got, err := svc.JoinRoom(context.Background(), roomID, userID, false)
@@ -691,7 +694,8 @@ func TestJoinRoom_OK(t *testing.T) {
 	m.chatRepo.EXPECT().AddMemberWithSystemMessage(mock.Anything, roomsJoinAnnouncement(roomID, userID)).Return(&model.ChatMessageRow{ID: uuid.New()}, nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, userID).Return(nil, nil)
-	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil).Once()
+	m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{userID}).Return([]model.User{*sampleUser(userID)}, nil).Once()
 
 	// when
 	got, err := svc.JoinRoom(context.Background(), roomID, userID, false)
@@ -722,16 +726,19 @@ func TestJoinRoom_Ghost_StaffAllowedAndSilent(t *testing.T) {
 		Return(&model.ChatRoomRow{ID: roomID, Type: dto.RoomTypeGroup, IsMember: true}, nil).Once()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID, otherMember}, nil)
 	m.chatRepo.EXPECT().HasGhostMembers(mock.Anything, roomID).Return(true, nil)
-	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
-	m.userRepo.EXPECT().GetByID(mock.Anything, otherMember).Return(sampleUser(otherMember), nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil).Once()
+	m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{userID, otherMember}).Return([]model.User{*sampleUser(userID), *sampleUser(otherMember)}, nil).Once()
 	m.authzSvc.EXPECT().GetRole(mock.Anything, otherMember).Return("", nil).Maybe()
 
 	// when
-	_, err := svc.JoinRoom(context.Background(), roomID, userID, true)
+	got, err := svc.JoinRoom(context.Background(), roomID, userID, true)
 
 	// then
 	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Len(t, got.Members, 2, "site staff see every member, ghosts included")
 	m.chatRepo.AssertNotCalled(t, "InsertSystemMessage", mock.Anything, mock.Anything)
+	m.chatRepo.AssertNotCalled(t, "GetRoomMembersDetailed", mock.Anything, roomID)
 }
 
 func TestLeaveRoom_Refusals(t *testing.T) {
@@ -971,7 +978,7 @@ func TestListRooms_ReadsEachRoomsMembers(t *testing.T) {
 				m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, tc.membersErr)
 			}
 			if tc.roomsErr == nil && tc.membersErr == nil {
-				m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
+				m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{userID}).Return([]model.User{*sampleUser(userID)}, nil).Once()
 			}
 
 			// when
@@ -988,6 +995,84 @@ func TestListRooms_ReadsEachRoomsMembers(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, got.Rooms, 1)
 			assert.Equal(t, roomID, got.Rooms[0].ID)
+		})
+	}
+}
+
+func TestListRooms_ResolvesEveryMemberProfileInOneBatch(t *testing.T) {
+	viewerID := uuid.New()
+	memberID := uuid.New()
+	ghostID := uuid.New()
+	roomID := uuid.New()
+	allMembers := []uuid.UUID{viewerID, memberID, ghostID}
+	allProfiles := []model.User{*sampleUser(viewerID), *sampleUser(memberID), *sampleUser(ghostID)}
+
+	cases := []struct {
+		name        string
+		hasGhost    bool
+		viewerRole  role.Role
+		profiles    []model.User
+		wantMembers []uuid.UUID
+	}{
+		{
+			name:        "three members without ghosts come from one profile batch",
+			profiles:    allProfiles,
+			wantMembers: allMembers,
+		},
+		{
+			name:        "a regular viewer has the ghost hidden from the batch",
+			hasGhost:    true,
+			profiles:    allProfiles,
+			wantMembers: []uuid.UUID{viewerID, memberID},
+		},
+		{
+			name:        "site staff see the ghost in the batch",
+			hasGhost:    true,
+			viewerRole:  authz.RoleModerator,
+			profiles:    allProfiles,
+			wantMembers: allMembers,
+		},
+		{
+			name:        "a member with no profile is skipped rather than failing the listing",
+			profiles:    []model.User{*sampleUser(viewerID), *sampleUser(ghostID)},
+			wantMembers: []uuid.UUID{viewerID, ghostID},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			unsetDefaults(&m.chatRepo.Mock, "HasGhostMembers", "IsGhostMember")
+			m.chatRepo.EXPECT().GetRoomsByUser(mock.Anything, viewerID).Return([]model.ChatRoomRow{{ID: roomID, Type: dto.RoomTypeGroup}}, nil)
+			m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(allMembers, nil).Once()
+			m.chatRepo.EXPECT().HasGhostMembers(mock.Anything, roomID).Return(tc.hasGhost, nil).Once()
+			if tc.hasGhost {
+				m.authzSvc.EXPECT().GetRole(mock.Anything, viewerID).Return(tc.viewerRole, nil).Once()
+			}
+			if tc.hasGhost && !tc.viewerRole.IsSiteStaff() {
+				m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]model.ChatRoomMemberRow{
+					{UserID: viewerID},
+					{UserID: memberID},
+					{UserID: ghostID, Ghost: true},
+				}, nil).Once()
+			}
+			m.userRepo.EXPECT().GetByIDs(mock.Anything, allMembers).Return(tc.profiles, nil).Once()
+
+			// when
+			got, err := svc.ListRooms(context.Background(), viewerID)
+
+			// then
+			require.NoError(t, err)
+			require.Len(t, got.Rooms, 1)
+			gotMembers := make([]uuid.UUID, 0, len(got.Rooms[0].Members))
+			for _, member := range got.Rooms[0].Members {
+				gotMembers = append(gotMembers, member.ID)
+			}
+			assert.Equal(t, tc.wantMembers, gotMembers)
+			assert.Equal(t, len(tc.wantMembers), got.Rooms[0].MemberCount)
+			m.userRepo.AssertNotCalled(t, "GetByID", mock.Anything, mock.Anything)
+			m.chatRepo.AssertNotCalled(t, "IsGhostMember", mock.Anything, mock.Anything)
 		})
 	}
 }

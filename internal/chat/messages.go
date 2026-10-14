@@ -438,53 +438,65 @@ func (m *messagesService) dispatchPostSendSideEffects(
 	fallbackType, fallbackMessage := plainMessageNotification(roomRow)
 	caps := sendContextCapabilities(roomRow)
 
+	away := make([]uuid.UUID, 0, len(recipients))
 	for _, memberID := range recipients {
-		inRoom := m.hub.IsUserViewing(roomID, memberID)
-		if inRoom {
+		if m.hub.IsUserViewing(roomID, memberID) {
 			continue
 		}
 
+		away = append(away, memberID)
+	}
+	if len(away) == 0 {
+		return
+	}
+
+	muted := m.mutedRecipients(ctx, roomID, away)
+
+	params := make([]dto.NotifyParams, 0, len(away))
+	for _, memberID := range away {
 		_, isMentioned := mentionedIDs[memberID]
 		isReplyTarget := replyToAuthor != uuid.Nil && memberID == replyToAuthor
-		muted, err := m.chatRepo.IsMuted(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: memberID})
-		if err != nil {
-			logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Str("user_id", memberID.String()).Msg("mute state unknown, treating the recipient as muted")
-			muted = true
-		}
+		_, isMuted := muted[memberID]
 
 		switch {
 		case isMentioned:
-			_ = m.notifSvc.Notify(ctx, dto.NotifyParams{
+			params = append(params, dto.NotifyParams{
 				RecipientID:   memberID,
 				ActorID:       senderID,
 				Type:          dto.NotifChatMention,
 				ReferenceID:   roomID,
 				ReferenceType: msgRef,
 			})
-		case isReplyTarget:
-			if !muted {
-				_ = m.notifSvc.Notify(ctx, dto.NotifyParams{
-					RecipientID:   memberID,
-					ActorID:       senderID,
-					Type:          dto.NotifChatReply,
-					ReferenceID:   roomID,
-					ReferenceType: msgRef,
-				})
-			}
-		default:
-			if !muted {
-				_ = m.notifSvc.Notify(ctx, dto.NotifyParams{
-					RecipientID:   memberID,
-					ActorID:       senderID,
-					Type:          fallbackType,
-					ReferenceID:   roomID,
-					ReferenceType: msgRef,
-					Message:       fallbackMessage,
-				})
-			}
+		case isReplyTarget && !isMuted:
+			params = append(params, dto.NotifyParams{
+				RecipientID:   memberID,
+				ActorID:       senderID,
+				Type:          dto.NotifChatReply,
+				ReferenceID:   roomID,
+				ReferenceType: msgRef,
+			})
+		case !isMuted:
+			params = append(params, dto.NotifyParams{
+				RecipientID:   memberID,
+				ActorID:       senderID,
+				Type:          fallbackType,
+				ReferenceID:   roomID,
+				ReferenceType: msgRef,
+				Message:       fallbackMessage,
+			})
 		}
+	}
 
-		if !caps.countsTowardsUnread || muted {
+	if len(params) > 0 {
+		m.notifSvc.NotifyMany(ctx, params)
+	}
+
+	if !caps.countsTowardsUnread {
+		return
+	}
+
+	for _, memberID := range away {
+		if _, isMuted := muted[memberID]; isMuted {
 			continue
 		}
 
@@ -503,6 +515,22 @@ func (m *messagesService) dispatchPostSendSideEffects(
 			},
 		})
 	}
+}
+
+func (m *messagesService) mutedRecipients(ctx context.Context, roomID uuid.UUID, recipients []uuid.UUID) map[uuid.UUID]struct{} {
+	muted := make(map[uuid.UUID]struct{}, len(recipients))
+
+	ids, err := m.chatRepo.ListMutedMemberIDs(ctx, spec.ChatRoomMemberSet{RoomID: roomID, UserIDs: recipients})
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Int("recipients", len(recipients)).Msg("mute state unknown, treating every recipient as muted")
+		ids = recipients
+	}
+
+	for _, id := range ids {
+		muted[id] = struct{}{}
+	}
+
+	return muted
 }
 
 func (m *messagesService) resolveMentions(ctx context.Context, body string, senderID uuid.UUID, members []uuid.UUID) map[uuid.UUID]struct{} {

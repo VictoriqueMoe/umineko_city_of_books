@@ -1,10 +1,16 @@
 package ws
 
 import (
+	"encoding/json"
+	"maps"
+	"slices"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHub_IsUserInRoom_GatesNonMembers(t *testing.T) {
@@ -344,4 +350,324 @@ func TestHub_IsUserViewing_IsScopedToOneUserAndOneRoom(t *testing.T) {
 	assert.True(t, hub.IsUserViewing(roomID, viewer), "the viewer is viewing the room they opened")
 	assert.False(t, hub.IsUserViewing(roomID, otherMember), "another member of the same room is not viewing it")
 	assert.False(t, hub.IsUserViewing(otherRoomID, viewer), "the viewer is not viewing their other room")
+}
+
+func TestHub_WatchPosts_ReplacesTheWatchedSet(t *testing.T) {
+	// given
+	ids := make([]uuid.UUID, maxWatchedPosts+5)
+	for i := range ids {
+		ids[i] = uuid.New()
+	}
+
+	tests := []struct {
+		name     string
+		previous []uuid.UUID
+		next     []uuid.UUID
+		want     []uuid.UUID
+	}{
+		{name: "a first call watches every id", next: ids[:3], want: ids[:3]},
+		{name: "a later call replaces the set rather than extending it", previous: ids[:3], next: ids[3:5], want: ids[3:5]},
+		{name: "an empty list clears the set", previous: ids[:3], next: []uuid.UUID{}, want: nil},
+		{name: "a repeated id is watched once", next: []uuid.UUID{ids[0], ids[0], ids[1]}, want: ids[:2]},
+		{name: "only the first 200 ids are kept", next: ids, want: ids[:maxWatchedPosts]},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hub := NewHub()
+			client := NewClient(uuid.New(), nil)
+			hub.WatchPosts(client, tt.previous)
+
+			// when
+			hub.WatchPosts(client, tt.next)
+
+			// then
+			assert.ElementsMatch(t, tt.want, slices.Collect(maps.Keys(client.watchedPosts)))
+			assert.ElementsMatch(t, tt.want, slices.Collect(maps.Keys(hub.postWatchers)), "the hub index must hold exactly the watched posts")
+			for _, postID := range tt.want {
+				assert.Contains(t, hub.postWatchers[postID], client)
+			}
+		})
+	}
+}
+
+func TestHub_SendToPostWatchers_ReachesOnlyWatchingConnections(t *testing.T) {
+	// given
+	firstPost := uuid.New()
+	secondPost := uuid.New()
+
+	tests := []struct {
+		name      string
+		target    uuid.UUID
+		wantTabA  int
+		wantTabB  int
+		wantOther int
+		wantIdle  int
+	}{
+		{name: "the first post reaches the tab and the other member watching it", target: firstPost, wantTabA: 1, wantOther: 1},
+		{name: "the second post reaches only the other tab of the same user", target: secondPost, wantTabB: 1},
+		{name: "an unwatched post reaches nobody", target: uuid.New()},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hub := NewHub()
+			userID := uuid.New()
+			tabA := NewClient(userID, nil)
+			tabB := NewClient(userID, nil)
+			other := NewClient(uuid.New(), nil)
+			idle := NewClient(uuid.New(), nil)
+			hub.clients[userID] = []*Client{tabA, tabB}
+			hub.clients[other.UserID] = []*Client{other}
+			hub.clients[idle.UserID] = []*Client{idle}
+			hub.WatchPosts(tabA, []uuid.UUID{firstPost})
+			hub.WatchPosts(tabB, []uuid.UUID{secondPost})
+			hub.WatchPosts(other, []uuid.UUID{firstPost})
+
+			// when
+			hub.SendToPostWatchers(tt.target, Message{Type: "post_like"})
+
+			// then
+			assert.Equal(t, tt.wantTabA, len(tabA.send), "first tab")
+			assert.Equal(t, tt.wantTabB, len(tabB.send), "second tab of the same user")
+			assert.Equal(t, tt.wantOther, len(other.send), "another member")
+			assert.Equal(t, tt.wantIdle, len(idle.send), "a member watching nothing")
+		})
+	}
+}
+
+func TestHub_Unregister_DropsOnlyThatConnectionsWatches(t *testing.T) {
+	// given the same user watching one post from two tabs
+	hub := NewHub()
+	userID := uuid.New()
+	postID := uuid.New()
+	first := NewClient(userID, nil)
+	second := NewClient(userID, nil)
+	hub.clients[userID] = []*Client{first, second}
+	hub.WatchPosts(first, []uuid.UUID{postID})
+	hub.WatchPosts(second, []uuid.UUID{postID})
+
+	// when one tab closes
+	hub.Unregister(first)
+	hub.SendToPostWatchers(postID, Message{Type: "post_comment"})
+
+	// then
+	assert.Equal(t, 0, len(first.send), "the closed tab must not be sent to")
+	assert.Equal(t, 1, len(second.send), "the open tab keeps its watch")
+	assert.NotContains(t, hub.postWatchers[postID], first)
+
+	// when the last tab closes
+	hub.Unregister(second)
+
+	// then
+	assert.Empty(t, hub.postWatchers, "no watcher entries may outlive their connections")
+}
+
+func TestHub_SendToPostWatchers_ReapsAClientWithAFullBuffer(t *testing.T) {
+	// given
+	hub := NewHub()
+	postID := uuid.New()
+	stuck := NewClient(uuid.New(), nil)
+	hub.clients[stuck.UserID] = []*Client{stuck}
+	hub.WatchPosts(stuck, []uuid.UUID{postID})
+	for range sendBufferSize {
+		stuck.send <- []byte("{}")
+	}
+
+	// when
+	hub.SendToPostWatchers(postID, Message{Type: "post_like"})
+
+	// then
+	assert.True(t, isKilled(stuck), "a client that cannot keep up is killed")
+	assert.NotContains(t, hub.clients, stuck.UserID, "a killed client is unregistered")
+	assert.Empty(t, hub.postWatchers, "a killed client's watches are dropped")
+
+	// when its reader still asks to watch before it notices
+	hub.WatchPosts(stuck, []uuid.UUID{postID})
+
+	// then
+	assert.Empty(t, hub.postWatchers, "a killed client cannot watch again")
+}
+
+func TestHub_BumpSidebarActivity_ThrottlesEachKey(t *testing.T) {
+	interval := 100 * time.Millisecond
+
+	tests := []struct {
+		name           string
+		act            func(hub *Hub)
+		wantNow        int
+		wantEventually int
+	}{
+		{
+			name: "a lone bump is sent at once and never repeated",
+			act: func(hub *Hub) {
+				hub.BumpSidebarActivity("ships")
+			},
+			wantNow:        1,
+			wantEventually: 1,
+		},
+		{
+			name: "a burst sends one leading and one trailing message",
+			act: func(hub *Hub) {
+				for range 5 {
+					hub.BumpSidebarActivity("ships")
+				}
+			},
+			wantNow:        1,
+			wantEventually: 2,
+		},
+		{
+			name: "different keys are throttled independently",
+			act: func(hub *Hub) {
+				hub.BumpSidebarActivity("ships")
+				hub.BumpSidebarActivity("journals")
+			},
+			wantNow:        2,
+			wantEventually: 2,
+		},
+		{
+			name: "a bump after the interval has passed is sent at once",
+			act: func(hub *Hub) {
+				hub.BumpSidebarActivity("ships")
+
+				hub.sidebarMu.Lock()
+				hub.sidebar["ships"].lastSent = time.Now().Add(-2 * interval)
+				hub.sidebarMu.Unlock()
+
+				hub.BumpSidebarActivity("ships")
+			},
+			wantNow:        2,
+			wantEventually: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			hub := NewHub()
+			hub.sidebarInterval = interval
+			viewer := NewClient(uuid.New(), nil)
+			hub.clients[viewer.UserID] = []*Client{viewer}
+
+			// when
+			tt.act(hub)
+
+			// then
+			assert.Equal(t, tt.wantNow, len(viewer.send), "leading sends go out immediately")
+			require.Eventually(t, func() bool {
+				return len(viewer.send) == tt.wantEventually
+			}, 10*interval, interval/10)
+			assert.Never(t, func() bool {
+				return len(viewer.send) > tt.wantEventually
+			}, 3*interval, interval/10)
+
+			for range tt.wantEventually {
+				var got Message
+				require.NoError(t, json.Unmarshal(<-viewer.send, &got))
+				assert.Equal(t, "sidebar_activity", got.Type)
+			}
+		})
+	}
+}
+
+func TestHub_BumpSidebarActivity_TrailingSendCarriesTheNewestTimestamp(t *testing.T) {
+	// given
+	hub := NewHub()
+	hub.sidebarInterval = 50 * time.Millisecond
+	viewer := NewClient(uuid.New(), nil)
+	hub.clients[viewer.UserID] = []*Client{viewer}
+	start := time.Now()
+	newest := start.Add(36 * time.Hour)
+
+	// when
+	leading := hub.claimSidebarSend("ships", start)
+	middle := hub.claimSidebarSend("ships", start.Add(time.Millisecond))
+	last := hub.claimSidebarSend("ships", newest)
+
+	// then
+	assert.True(t, leading, "the first bump is sent at once")
+	assert.False(t, middle, "a bump inside the interval waits for the trailing send")
+	assert.False(t, last, "a pending trailing send absorbs later bumps")
+
+	require.Eventually(t, func() bool {
+		return len(viewer.send) == 1
+	}, time.Second, 5*time.Millisecond)
+
+	var got struct {
+		Type string `json:"type"`
+		Data struct {
+			Key string `json:"key"`
+			At  string `json:"at"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(<-viewer.send, &got))
+	assert.Equal(t, "sidebar_activity", got.Type)
+	assert.Equal(t, "ships", got.Data.Key)
+	assert.Equal(t, newest.UTC().Format(time.RFC3339), got.Data.At)
+}
+
+func TestHub_BumpSidebarActivity_ForgetsIdleKeys(t *testing.T) {
+	// given
+	hub := NewHub()
+	hub.sidebarInterval = 50 * time.Millisecond
+	start := time.Now()
+	require.True(t, hub.claimSidebarSend("gallery_old", start))
+
+	// when
+	sent := hub.claimSidebarSend("ships", start.Add(time.Second))
+
+	// then
+	assert.True(t, sent)
+	assert.NotContains(t, hub.sidebar, "gallery_old", "a key with no pending send that is past its interval is dropped")
+	assert.Contains(t, hub.sidebar, "ships", "the key just sent stays throttled")
+}
+
+func TestClient_FramePayload(t *testing.T) {
+	tests := []struct {
+		name          string
+		batch         bool
+		queued        int
+		size          int
+		wantArray     bool
+		wantItems     int
+		wantRemaining int
+	}{
+		{name: "a client without batching gets one message per frame", batch: false, queued: 3, size: 10, wantArray: false, wantItems: 1, wantRemaining: 2},
+		{name: "a batching client with nothing else queued gets the bare message", batch: true, queued: 1, size: 10, wantArray: false, wantItems: 1, wantRemaining: 0},
+		{name: "a batching client gets everything queued folded into one array", batch: true, queued: 5, size: 10, wantArray: true, wantItems: 5, wantRemaining: 0},
+		{name: "a batching client gets a full buffer in one frame", batch: true, queued: sendBufferSize, size: 10, wantArray: true, wantItems: sendBufferSize, wantRemaining: 0},
+		{name: "a batch stops once it reaches the byte cap", batch: true, queued: 10, size: 10 * 1024, wantArray: true, wantItems: 7, wantRemaining: 3},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			client := NewClient(uuid.New(), nil)
+			client.batch = tt.batch
+			queued := make([][]byte, 0, tt.queued)
+			for n := range tt.queued {
+				data, err := json.Marshal(Message{Type: "post_like", Data: map[string]any{"n": n, "pad": strings.Repeat("a", tt.size)}})
+				require.NoError(t, err)
+				queued = append(queued, data)
+				client.send <- data
+			}
+
+			// when
+			frame := client.framePayload(<-client.send)
+
+			// then
+			assert.Equal(t, tt.wantRemaining, len(client.send))
+			if !tt.wantArray {
+				assert.Equal(t, queued[0], frame, "the frame is the bare message, never an array")
+				return
+			}
+
+			var items []json.RawMessage
+			require.NoError(t, json.Unmarshal(frame, &items), "a batched frame must be a JSON array")
+			require.Len(t, items, tt.wantItems)
+			for i, item := range items {
+				assert.JSONEq(t, string(queued[i]), string(item), "items keep their queue order")
+			}
+		})
+	}
 }

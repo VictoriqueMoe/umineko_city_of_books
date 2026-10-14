@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const countRecentDuplicateNotifications = `-- name: CountRecentDuplicateNotifications :one
@@ -157,6 +158,103 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 		&i.ActorRole,
 	)
 	return i, err
+}
+
+const createNotifications = `-- name: CreateNotifications :many
+WITH n AS (
+    INSERT INTO notifications (user_id, type, reference_id, reference_type, actor_id, message)
+    SELECT b.user_id, b.type, b.reference_id, b.reference_type,
+           (SELECT a.id FROM users a WHERE a.id = b.actor_id), b.message
+    FROM (
+        SELECT unnest($1::text[])::uuid AS user_id,
+               unnest($2::text[]) AS type,
+               unnest($3::text[]) AS reference_id,
+               unnest($4::text[]) AS reference_type,
+               unnest($5::text[])::uuid AS actor_id,
+               unnest($6::text[]) AS message
+    ) b
+    WHERE EXISTS (SELECT 1 FROM users r WHERE r.id = b.user_id)
+    RETURNING id, user_id, type, reference_id, reference_type, actor_id, message, read, created_at
+)
+SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id,
+       COALESCE(n.message, '')::text AS message, n.read, n.created_at,
+       COALESCE(u.username, '')::text AS actor_username,
+       COALESCE(u.display_name, '')::text AS actor_display_name,
+       COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
+       COALESCE(ur.role, '')::text AS actor_role
+FROM n
+LEFT JOIN users u ON n.actor_id = u.id
+LEFT JOIN user_roles ur ON n.actor_id = ur.user_id
+ORDER BY n.id
+`
+
+type CreateNotificationsParams struct {
+	UserIds        []string
+	Types          []string
+	ReferenceIds   []string
+	ReferenceTypes []string
+	ActorIds       []string
+	Messages       []string
+}
+
+type CreateNotificationsRow struct {
+	ID               int64
+	UserID           uuid.UUID
+	Type             string
+	ReferenceID      string
+	ReferenceType    string
+	ActorID          *uuid.UUID
+	Message          string
+	Read             bool
+	CreatedAt        time.Time
+	ActorUsername    string
+	ActorDisplayName string
+	ActorAvatarUrl   string
+	ActorRole        string
+}
+
+func (q *Queries) CreateNotifications(ctx context.Context, arg CreateNotificationsParams) ([]CreateNotificationsRow, error) {
+	rows, err := q.db.QueryContext(ctx, createNotifications,
+		pq.Array(arg.UserIds),
+		pq.Array(arg.Types),
+		pq.Array(arg.ReferenceIds),
+		pq.Array(arg.ReferenceTypes),
+		pq.Array(arg.ActorIds),
+		pq.Array(arg.Messages),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CreateNotificationsRow{}
+	for rows.Next() {
+		var i CreateNotificationsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Type,
+			&i.ReferenceID,
+			&i.ReferenceType,
+			&i.ActorID,
+			&i.Message,
+			&i.Read,
+			&i.CreatedAt,
+			&i.ActorUsername,
+			&i.ActorDisplayName,
+			&i.ActorAvatarUrl,
+			&i.ActorRole,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const deleteNotificationsOlderThanBatch = `-- name: DeleteNotificationsOlderThanBatch :execrows

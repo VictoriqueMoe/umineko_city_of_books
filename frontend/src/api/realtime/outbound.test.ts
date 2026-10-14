@@ -65,6 +65,11 @@ const commands: { name: RealtimeCommandName; command: RealtimeCommand; wire: str
         command: { type: "game_room_input", data: { room_id: "room-1", payload: { y: 620, seq: 1 } } },
         wire: '{"type":"game_room_input","data":{"room_id":"room-1","payload":{"y":620,"seq":1}}}',
     },
+    {
+        name: "watch_posts",
+        command: { type: "watch_posts", data: { post_ids: ["post-1", "post-2"] } },
+        wire: '{"type":"watch_posts","data":{"post_ids":["post-1","post-2"]}}',
+    },
 ];
 
 beforeEach(() => {
@@ -141,13 +146,13 @@ describe("realtime command name table", () => {
         expect([...table].sort()).toEqual([...declared].sort());
     });
 
-    it("has ten commands", () => {
+    it("has eleven commands", () => {
         // given
         // when
         const table = Object.values(REALTIME_COMMANDS);
 
         // then
-        expect(table).toHaveLength(10);
-        expect(new Set(table).size).toBe(10);
+        expect(table).toHaveLength(11);
+        expect(new Set(table).size).toBe(11);
     });
 });

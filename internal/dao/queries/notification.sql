@@ -14,6 +14,33 @@ FROM n
 LEFT JOIN users u ON n.actor_id = u.id
 LEFT JOIN user_roles ur ON n.actor_id = ur.user_id;
 
+-- name: CreateNotifications :many
+WITH n AS (
+    INSERT INTO notifications (user_id, type, reference_id, reference_type, actor_id, message)
+    SELECT b.user_id, b.type, b.reference_id, b.reference_type,
+           (SELECT a.id FROM users a WHERE a.id = b.actor_id), b.message
+    FROM (
+        SELECT unnest(sqlc.arg(user_ids)::text[])::uuid AS user_id,
+               unnest(sqlc.arg(types)::text[]) AS type,
+               unnest(sqlc.arg(reference_ids)::text[]) AS reference_id,
+               unnest(sqlc.arg(reference_types)::text[]) AS reference_type,
+               unnest(sqlc.arg(actor_ids)::text[])::uuid AS actor_id,
+               unnest(sqlc.arg(messages)::text[]) AS message
+    ) b
+    WHERE EXISTS (SELECT 1 FROM users r WHERE r.id = b.user_id)
+    RETURNING id, user_id, type, reference_id, reference_type, actor_id, message, read, created_at
+)
+SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id,
+       COALESCE(n.message, '')::text AS message, n.read, n.created_at,
+       COALESCE(u.username, '')::text AS actor_username,
+       COALESCE(u.display_name, '')::text AS actor_display_name,
+       COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
+       COALESCE(ur.role, '')::text AS actor_role
+FROM n
+LEFT JOIN users u ON n.actor_id = u.id
+LEFT JOIN user_roles ur ON n.actor_id = ur.user_id
+ORDER BY n.id;
+
 -- name: CountUserNotifications :one
 SELECT (
     (SELECT COUNT(DISTINCT (g.type, g.reference_id)) FROM notifications g

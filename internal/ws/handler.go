@@ -27,6 +27,7 @@ const (
 	localsUserIDKey       = "ws.user_id"
 	localsTokenKey        = "ws.token"
 	localsAnonKey         = "ws.anon"
+	localsBatchKey        = "ws.batch"
 	sessionRecheckEvery   = 5 * time.Minute
 	maxReportedRTTMS      = 5000
 	reportedRTTSlackMS    = 100
@@ -93,6 +94,10 @@ type (
 
 	gameRoomTopicData struct {
 		RoomID string `json:"room_id"`
+	}
+
+	watchPostsData struct {
+		PostIDs []string `json:"post_ids"`
 	}
 
 	gameRoomInputData struct {
@@ -204,6 +209,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 		logger.Log.Debug().Str("user_id", userID.String()).Msg("ws client connected")
 		conn.SetReadLimit(maxInboundMessageSize)
 		client := NewClient(userID, conn)
+		client.batch, _ = conn.Locals(localsBatchKey).(bool)
 
 		hub.Register(client)
 		joinedGameRooms := make(map[uuid.UUID]bool)
@@ -327,6 +333,8 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 			})
 		}
 
+		ctx.Locals(localsBatchKey, ctx.Query("batch") == "1")
+
 		token := ctx.Cookies(session.CookieName)
 		if token == "" {
 			token = ctx.Query("token")
@@ -357,6 +365,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 
 func runAnonReader(hub *Hub, conn *websocket.Conn) {
 	client := NewClient(uuid.Nil, conn)
+	client.batch, _ = conn.Locals(localsBatchKey).(bool)
 	defer func() { _ = client.Close() }()
 
 	hub.RegisterAnon(client)
@@ -526,6 +535,21 @@ func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, memberChecke
 			return
 		}
 		hub.LeaveTopic("secret:"+data.SecretID, userID)
+
+	case "watch_posts":
+		var data watchPostsData
+		if err := json.Unmarshal(msg.Data, &data); err != nil {
+			return
+		}
+		postIDs := make([]uuid.UUID, 0, len(data.PostIDs))
+		for _, raw := range data.PostIDs {
+			postID, err := uuid.Parse(raw)
+			if err != nil {
+				continue
+			}
+			postIDs = append(postIDs, postID)
+		}
+		hub.WatchPosts(client, postIDs)
 
 	case "game_room_join":
 		if gamePresence == nil {

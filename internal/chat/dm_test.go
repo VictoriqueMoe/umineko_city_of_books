@@ -120,7 +120,7 @@ func TestResolveDMRoom_ExistingRoomRepairsHubMembership(t *testing.T) {
 	m.chatRepo.EXPECT().FindDMRoom(mock.Anything, spec.ChatDMPair{UserA: senderID, UserB: recipientID}).Return(roomID, nil)
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: roomID, ViewerID: senderID}).Return(&model.ChatRoomRow{ID: roomID, Type: "dm"}, nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{senderID, recipientID}, nil)
-	m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(sampleUser(senderID), nil)
+	m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{senderID, recipientID}).Return([]model.User{*sampleUser(senderID), *sampleUser(recipientID)}, nil).Once()
 
 	// when
 	got, err := svc.ResolveDMRoom(context.Background(), senderID, recipientID)
@@ -129,6 +129,7 @@ func TestResolveDMRoom_ExistingRoomRepairsHubMembership(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got.Room)
 	assert.Equal(t, roomID, got.Room.ID)
+	assert.Len(t, got.Room.Members, 2)
 	assert.True(t, m.hub.IsUserInRoom(roomID, senderID))
 	assert.True(t, m.hub.IsUserInRoom(roomID, recipientID))
 }
@@ -196,7 +197,8 @@ func TestSendDMMessage_FirstEverDMJoinsBothPartiesToTheHub(t *testing.T) {
 	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, senderID).Return(nil, nil)
 	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&model.ChatRoomSendContext{Type: "dm"}, nil)
 	m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{recipientID}).Return([]model.User{*sampleUser(recipientID)}, nil)
-	m.chatRepo.EXPECT().IsMuted(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: recipientID}).Return(false, nil)
+	m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{senderID, recipientID}).Return([]model.User{*sampleUser(senderID), *sampleUser(recipientID)}, nil).Once()
+	m.chatRepo.EXPECT().ListMutedMemberIDs(mock.Anything, spec.ChatRoomMemberSet{RoomID: roomID, UserIDs: []uuid.UUID{recipientID}}).Return([]uuid.UUID{}, nil).Once()
 	m.chatRepo.EXPECT().CountUnreadRoomsForUser(mock.Anything, recipientID).Return(1, nil)
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: roomID, ViewerID: senderID}).Return(&model.ChatRoomRow{ID: roomID, Type: "dm"}, nil)
 
