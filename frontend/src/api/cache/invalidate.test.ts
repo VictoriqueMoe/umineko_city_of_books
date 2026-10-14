@@ -65,7 +65,11 @@ describe("invalidateViews", () => {
         },
         {
             domain: "mystery",
-            want: [queryKeys.user.mysteries("u-1", {}), queryKeys.mystery.list({}), queryKeys.profile.byUsername("ange")],
+            want: [
+                queryKeys.user.mysteries("u-1", {}),
+                queryKeys.mystery.list({}),
+                queryKeys.profile.byUsername("ange"),
+            ],
         },
         { domain: "theory", want: [queryKeys.theory.feed({}), queryKeys.profile.byUsername("ange")] },
         { domain: "journal", want: [queryKeys.user.journals("u-1", {})] },
