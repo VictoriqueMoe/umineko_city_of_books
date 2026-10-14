@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { createTestQueryClient, providerWrapper } from "../../test-utils/render";
 import * as endpoints from "../../api/endpoints/post";
@@ -6,6 +6,7 @@ import * as comments from "../../api/endpoints/comments";
 import { ApiError } from "../../api/client";
 import { queryKeys } from "../../api/queryKeys";
 import {
+    type CreatedPost,
     useCreateComment,
     useCreatePost,
     useDeleteComment,
@@ -21,7 +22,6 @@ import {
     useUpdatePost,
     useUploadCommentMedia,
     useUploadPostMedia,
-    useUploadPostMediaById,
     useVotePoll,
 } from "./post";
 
@@ -76,6 +76,7 @@ beforeEach(() => {
             value.mockReset();
         }
     }
+    vi.mocked(endpoints.createPost).mockResolvedValue({ id: postId });
 });
 
 describe("post mutations", () => {
@@ -108,14 +109,6 @@ describe("post mutations", () => {
             endpoint: vi.mocked(endpoints.uploadPostMedia),
             args: [postId, file, false],
             keys: [queryKeys.post.detail(postId)],
-        },
-        {
-            name: "useUploadPostMediaById refreshes the post named in its variables",
-            useHook: () => useUploadPostMediaById(),
-            variables: { id: "p-other", file },
-            endpoint: vi.mocked(endpoints.uploadPostMedia),
-            args: ["p-other", file, false],
-            keys: [queryKeys.post.detail("p-other")],
         },
         {
             name: "useDeletePostMedia deletes a numbered media item from its own post",
@@ -273,13 +266,84 @@ describe("useCreatePost", () => {
         const { result } = setup(() => useCreatePost());
 
         // when
-        let created: { id: string } | undefined;
+        let created: CreatedPost | undefined;
         await act(async () => {
             created = await result.current.mutateAsync({ body: "A new letter" });
         });
 
         // then
-        expect(created).toEqual({ id: "p-new" });
+        expect(created).toEqual({ id: "p-new", failedUploads: [] });
+    });
+
+    it("uploads each attachment to the new post in order with its spoiler flag", async () => {
+        // given
+        const second = new File(["silver"], "epitaph.png", { type: "image/png" });
+        const { result } = setup(() => useCreatePost());
+
+        // when
+        await act(async () => {
+            await result.current.mutateAsync({
+                body: "Look at these",
+                media: [
+                    { file, isSpoiler: true },
+                    { file: second, isSpoiler: false },
+                ],
+            });
+        });
+
+        // then
+        expect(endpoints.uploadPostMedia).toHaveBeenNthCalledWith(1, postId, file, true);
+        expect(endpoints.uploadPostMedia).toHaveBeenNthCalledWith(2, postId, second, false);
+    });
+
+    it("refreshes the post lists once, only after every attachment is saved", async () => {
+        // given
+        let finishUpload: () => void = () => {};
+        vi.mocked(endpoints.uploadPostMedia).mockImplementation(
+            () =>
+                new Promise(resolve => {
+                    finishUpload = () => resolve({} as never);
+                }),
+        );
+        const { result, invalidate } = setup(() => useCreatePost());
+
+        // when the post exists but its image is still uploading
+        let pending: Promise<CreatedPost> = Promise.resolve({ id: "", failedUploads: [] });
+        act(() => {
+            pending = result.current.mutateAsync({ body: "With an image", media: [{ file }] });
+        });
+        await waitFor(() => expect(endpoints.uploadPostMedia).toHaveBeenCalled());
+
+        // then nothing has refreshed the feed yet
+        expect(invalidate).not.toHaveBeenCalled();
+
+        // when the upload finishes
+        await act(async () => {
+            finishUpload();
+            await pending;
+        });
+
+        // then the lists refresh exactly once
+        expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: queryKeys.post.all });
+    });
+
+    it("reports a failed attachment and still uploads the rest", async () => {
+        // given
+        const bad = new File(["lead"], "cursed.png", { type: "image/png" });
+        vi.mocked(endpoints.uploadPostMedia).mockImplementation((_id, upload) =>
+            upload === bad ? Promise.reject(new Error("the media room is sealed")) : Promise.resolve({} as never),
+        );
+        const { result } = setup(() => useCreatePost());
+
+        // when
+        let created: CreatedPost | undefined;
+        await act(async () => {
+            created = await result.current.mutateAsync({ body: "Two images", media: [{ file: bad }, { file }] });
+        });
+
+        // then
+        expect(endpoints.uploadPostMedia).toHaveBeenCalledTimes(2);
+        expect(created).toEqual({ id: postId, failedUploads: [{ file: bad, message: "the media room is sealed" }] });
     });
 
     it("leaves the feed cache alone when the post is rejected", async () => {

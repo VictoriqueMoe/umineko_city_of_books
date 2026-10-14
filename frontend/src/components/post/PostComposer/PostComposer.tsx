@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
 import type { CreatePollPayload } from "../../../types/api";
-import { useCreatePost, useUploadPostMediaById } from "../../../hooks/mutations/post";
+import { useCreatePost } from "../../../hooks/mutations/post";
 import { useStagedMedia } from "../../../hooks/useStagedMedia";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
@@ -29,7 +29,6 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
     const [pollDuration, setPollDuration] = useState(86400);
     const [gifPickerOpen, setGifPickerOpen] = useState(false);
     const createPostMutation = useCreatePost();
-    const uploadMediaMutation = useUploadPostMediaById();
 
     async function handleGifPick(gif: { url: string }) {
         setGifPickerOpen(false);
@@ -70,24 +69,19 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
                     duration_seconds: pollDuration,
                 };
             }
-            const { id } = await createPostMutation.mutateAsync({ body: body.trim(), corner, poll: pollPayload });
-            const mediaErrors: string[] = [];
-            const failedFiles: File[] = [];
-            for (const item of media.staged) {
-                try {
-                    await uploadMediaMutation.mutateAsync({ id, file: item.file, isSpoiler: item.isSpoiler });
-                } catch (err) {
-                    mediaErrors.push(err instanceof Error ? err.message : `Failed to upload ${item.file.name}`);
-                    failedFiles.push(item.file);
-                }
-            }
+            const { id, failedUploads } = await createPostMutation.mutateAsync({
+                body: body.trim(),
+                corner,
+                poll: pollPayload,
+                media: media.staged,
+            });
             setBody("");
-            media.keepOnly(failedFiles);
+            media.keepOnly(failedUploads.map(failed => failed.file));
             setShowPoll(false);
             setPollOptions(["", ""]);
             setPollDuration(86400);
-            if (mediaErrors.length > 0) {
-                setError(mediaErrors.join(", "));
+            if (failedUploads.length > 0) {
+                setError(failedUploads.map(failed => failed.message).join(", "));
             } else {
                 navigate(`/game-board/${id}`);
             }

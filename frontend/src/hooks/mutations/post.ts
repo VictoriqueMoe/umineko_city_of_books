@@ -23,25 +23,58 @@ import type { CreatePollPayload } from "../../types/api";
 import { ApiError } from "../../api/client";
 import { queryKeys } from "../../api/queryKeys";
 
+type PostMediaUpload = {
+    file: File;
+    isSpoiler?: boolean;
+};
+
 type CreatePostInput = {
     body: string;
     corner?: string;
     poll?: CreatePollPayload;
     sharedContentId?: string;
     sharedContentType?: string;
+    media?: readonly PostMediaUpload[];
 };
+
+export type FailedPostMediaUpload = {
+    file: File;
+    message: string;
+};
+
+export type CreatedPost = {
+    id: string;
+    failedUploads: FailedPostMediaUpload[];
+};
+
+async function createPostWithMedia(input: CreatePostInput): Promise<CreatedPost> {
+    const { id } = await createPost(
+        input.body,
+        input.corner ?? "general",
+        input.poll,
+        input.sharedContentId,
+        input.sharedContentType,
+    );
+
+    const failedUploads: FailedPostMediaUpload[] = [];
+    for (const item of input.media ?? []) {
+        try {
+            await uploadPostMedia(id, item.file, item.isSpoiler ?? false);
+        } catch (err) {
+            failedUploads.push({
+                file: item.file,
+                message: err instanceof Error ? err.message : `Failed to upload ${item.file.name}`,
+            });
+        }
+    }
+
+    return { id, failedUploads };
+}
 
 export function useCreatePost() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (input: CreatePostInput) =>
-            createPost(
-                input.body,
-                input.corner ?? "general",
-                input.poll,
-                input.sharedContentId,
-                input.sharedContentType,
-            ),
+        mutationFn: createPostWithMedia,
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.post.all });
         },
@@ -89,17 +122,6 @@ export function useUploadPostMedia(id: string) {
             uploadPostMedia(id, file, isSpoiler ?? false),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.post.detail(id) });
-        },
-    });
-}
-
-export function useUploadPostMediaById() {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({ id, file, isSpoiler }: { id: string; file: File; isSpoiler?: boolean }) =>
-            uploadPostMedia(id, file, isSpoiler ?? false),
-        onSuccess: (_d, vars) => {
-            qc.invalidateQueries({ queryKey: queryKeys.post.detail(vars.id) });
         },
     });
 }

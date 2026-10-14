@@ -6,13 +6,11 @@ import { PostComposer } from "./PostComposer";
 
 const mocks = vi.hoisted(() => ({
     createPost: vi.fn(),
-    uploadMedia: vi.fn(),
     navigate: vi.fn(),
 }));
 
 vi.mock("../../../hooks/mutations/post", () => ({
     useCreatePost: () => ({ mutateAsync: mocks.createPost }),
-    useUploadPostMediaById: () => ({ mutateAsync: mocks.uploadMedia }),
 }));
 
 vi.mock("../../chat/GifPicker/GifPicker", () => ({
@@ -49,8 +47,7 @@ function fileInput(container: HTMLElement): HTMLInputElement {
 }
 
 beforeEach(() => {
-    mocks.createPost.mockResolvedValue({ id: newPostId });
-    mocks.uploadMedia.mockResolvedValue({ id: 1 });
+    mocks.createPost.mockResolvedValue({ id: newPostId, failedUploads: [] });
 });
 
 describe("PostComposer", () => {
@@ -94,6 +91,7 @@ describe("PostComposer", () => {
             body: "without love it cannot be seen",
             corner: "umineko",
             poll: undefined,
+            media: [],
         });
     });
 
@@ -111,6 +109,7 @@ describe("PostComposer", () => {
             body: "hello Rokkenjima",
             corner: "general",
             poll: undefined,
+            media: [],
         });
     });
 
@@ -165,6 +164,7 @@ describe("PostComposer", () => {
                 options: [{ label: "Beatrice" }, { label: "Battler" }],
                 duration_seconds: 3600,
             },
+            media: [],
         });
     });
 
@@ -232,7 +232,7 @@ describe("PostComposer", () => {
         expect(await screen.findByText("Failed to create post")).toBeInTheDocument();
     });
 
-    it("uploads every attached file against the post it just created", async () => {
+    it("sends every attached file with the post it creates", async () => {
         // given
         const user = userEvent.setup();
         const file = makeImage();
@@ -244,11 +244,11 @@ describe("PostComposer", () => {
         await user.click(postButton());
 
         // then
-        expect(mocks.uploadMedia).toHaveBeenCalledWith({ id: newPostId, file, isSpoiler: false });
+        expect(mocks.createPost).toHaveBeenCalledWith(expect.objectContaining({ media: [{ file, isSpoiler: false }] }));
         expect(mocks.navigate).toHaveBeenCalledWith(`/game-board/${newPostId}`);
     });
 
-    it("uploads an attachment the author marked as a spoiler with its flag set", async () => {
+    it("sends an attachment the author marked as a spoiler with its flag set", async () => {
         // given an attached image the author has marked
         const user = userEvent.setup();
         const file = makeImage();
@@ -261,7 +261,7 @@ describe("PostComposer", () => {
         await user.click(postButton());
 
         // then
-        expect(mocks.uploadMedia).toHaveBeenCalledWith({ id: newPostId, file, isSpoiler: true });
+        expect(mocks.createPost).toHaveBeenCalledWith(expect.objectContaining({ media: [{ file, isSpoiler: true }] }));
     });
 
     it("keeps the spoiler flag with its own attachment when they are reordered", async () => {
@@ -279,16 +279,26 @@ describe("PostComposer", () => {
         await user.click(postButton());
 
         // then the flag travelled with its own file
-        expect(mocks.uploadMedia).toHaveBeenNthCalledWith(1, { id: newPostId, file: second, isSpoiler: true });
-        expect(mocks.uploadMedia).toHaveBeenNthCalledWith(2, { id: newPostId, file: first, isSpoiler: false });
+        expect(mocks.createPost).toHaveBeenCalledWith(
+            expect.objectContaining({
+                media: [
+                    { file: second, isSpoiler: true },
+                    { file: first, isSpoiler: false },
+                ],
+            }),
+        );
     });
 
     it("reports a failed upload instead of leaving for the new post", async () => {
         // given
         const user = userEvent.setup();
-        mocks.uploadMedia.mockRejectedValue(new Error("the media room is sealed"));
+        const file = makeImage();
+        mocks.createPost.mockResolvedValue({
+            id: newPostId,
+            failedUploads: [{ file, message: "the media room is sealed" }],
+        });
         const { container } = renderWithProviders(<PostComposer />);
-        fireEvent.change(fileInput(container), { target: { files: [makeImage()] } });
+        fireEvent.change(fileInput(container), { target: { files: [file] } });
 
         // when
         await user.type(bodyField(), "look at this");
@@ -304,11 +314,10 @@ describe("PostComposer", () => {
         const user = userEvent.setup();
         const good = makeImage("good.png");
         const bad = makeImage("bad.png");
-        mocks.uploadMedia.mockImplementation(({ file }: { id: string; file: File }) =>
-            file.name === "bad.png"
-                ? Promise.reject(new Error("the media room is sealed"))
-                : Promise.resolve({ id: 1 }),
-        );
+        mocks.createPost.mockResolvedValue({
+            id: newPostId,
+            failedUploads: [{ file: bad, message: "the media room is sealed" }],
+        });
         const { container } = renderWithProviders(<PostComposer />);
         fireEvent.change(fileInput(container), { target: { files: [good, bad] } });
 
@@ -333,7 +342,7 @@ describe("PostComposer", () => {
         // then
         expect(postButton()).toBeEnabled();
         await user.click(postButton());
-        expect(mocks.createPost).toHaveBeenCalledWith({ body: "", corner: "general", poll: undefined });
+        expect(mocks.createPost).toHaveBeenCalledWith(expect.objectContaining({ body: "", corner: "general" }));
     });
 
     it("rejects an attachment that is over the site image limit", async () => {
@@ -419,10 +428,10 @@ describe("PostComposer", () => {
     it("locks the composer while the post is in flight", async () => {
         // given
         const user = userEvent.setup();
-        let release: (result: { id: string }) => void = () => {};
+        let release: (result: { id: string; failedUploads: [] }) => void = () => {};
         mocks.createPost.mockImplementation(
             () =>
-                new Promise<{ id: string }>(resolve => {
+                new Promise<{ id: string; failedUploads: [] }>(resolve => {
                     release = resolve;
                 }),
         );
@@ -436,7 +445,7 @@ describe("PostComposer", () => {
         expect(screen.getByRole("button", { name: "Posting..." })).toBeDisabled();
         expect(screen.getByRole("button", { name: "+ GIF" })).toBeDisabled();
         await act(async () => {
-            release({ id: newPostId });
+            release({ id: newPostId, failedUploads: [] });
         });
         expect(mocks.createPost).toHaveBeenCalledOnce();
     });
