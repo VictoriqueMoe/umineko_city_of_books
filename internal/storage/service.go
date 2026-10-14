@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"umineko_city_of_books/internal/config"
@@ -91,7 +92,7 @@ func (s *service) Fetch(ctx context.Context, info engine.ObjectInfo, localPath s
 	}
 	defer body.Close()
 
-	out, err := os.Create(localPath)
+	out, err := os.Create(filepath.Clean(localPath))
 	if err != nil {
 		return fmt.Errorf("create %s: %w", localPath, err)
 	}

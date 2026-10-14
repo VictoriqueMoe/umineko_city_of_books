@@ -2,8 +2,9 @@ package media
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	"math/rand/v2"
+	"math/big"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,7 +43,12 @@ func GenerateThumbnail(videoPath string, outputDir string, filename string) (str
 	ts := "1"
 	duration, err := getVideoDuration(ctx, videoPath)
 	if err == nil && duration > 1 {
-		ts = fmt.Sprintf("%.2f", rand.Float64()*duration)
+		centiseconds, randErr := rand.Int(rand.Reader, big.NewInt(int64(duration*100)))
+		if randErr != nil {
+			return "", fmt.Errorf("pick thumbnail frame: %w", randErr)
+		}
+
+		ts = fmt.Sprintf("%.2f", float64(centiseconds.Int64())/100)
 	}
 
 	cmd := exec.CommandContext(ctx, "ffmpeg",

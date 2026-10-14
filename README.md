@@ -265,7 +265,7 @@ go test ./...             # run tests
 ./scripts/security.sh     # govulncheck, gosec and gitleaks; pass one name to run only that check
 ```
 
-The three security tools are pinned by the `tool` block in `go.mod` like staticcheck, so `go tool govulncheck`, `go tool gosec` and `go tool gitleaks` need no separate install. gosec skips G115 (integer conversions) and G118 (goroutines given a fresh context) everywhere, and skips a few rules in specific directories where they flag intended behaviour, such as subprocesses in `internal/media` and file paths in `internal/storage`. That list lives in `scripts/security.sh`. Known gitleaks false positives are listed by fingerprint in `.gitleaksignore`.
+The three security tools are pinned by the `tool` block in `go.mod` like staticcheck, so `go tool govulncheck`, `go tool gosec` and `go tool gitleaks` need no separate install. gosec skips G115 (integer conversions) and G118 (goroutines given a fresh context) everywhere, and skips a few rules in specific files where they flag intended behaviour: the ffmpeg and cwebp subprocesses in `internal/media`, upload directory permissions that other containers read, and the seeded generators in Minesweeper and Pong. That list lives in `scripts/security.sh`. Known gitleaks false positives are listed by fingerprint in `.gitleaksignore`.
 
 All of those need `static/` to exist first, because the root package embeds it. See [Running Locally](#running-locally). The repository and DAO tests boot a real Postgres through testcontainers-go, so Docker has to be running for `go test ./...` to pass.
 

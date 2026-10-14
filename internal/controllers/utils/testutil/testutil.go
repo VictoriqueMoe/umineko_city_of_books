@@ -257,7 +257,7 @@ func (r *Request) DoResponse() *http.Response {
 		req.Header.Set(k, v)
 	}
 	if r.cookie != "" {
-		req.AddCookie(&http.Cookie{Name: session.CookieName, Value: r.cookie})
+		req.AddCookie(&http.Cookie{Name: session.CookieName, Value: r.cookie, Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 	}
 	resp, err := r.h.App.Test(req, fiber.TestConfig{Timeout: testRequestTimeout, FailOnTimeout: true})
 	require.NoError(r.h.T, err)

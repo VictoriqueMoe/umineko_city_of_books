@@ -1,6 +1,7 @@
 package minesweeper
 
 import (
+	crand "crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -127,8 +128,10 @@ func finishResult(s *State, winnerSlot int, reason string) (gameroom.ActionResul
 }
 
 func newRng() *rand.Rand {
-	now := time.Now().UnixNano()
-	return rand.New(rand.NewPCG(uint64(now), uint64(now>>1)))
+	var seed [32]byte
+	_, _ = crand.Read(seed[:])
+
+	return rand.New(rand.NewChaCha8(seed))
 }
 
 func (h *Handler) ValidateAction(stateJSON string, actorSlot int, raw json.RawMessage) (gameroom.ActionResult, error) {

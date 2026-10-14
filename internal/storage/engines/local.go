@@ -48,12 +48,16 @@ func (l *Local) Enabled() bool {
 
 func (l *Local) Get(ctx context.Context, location string, rng *engine.ByteRange) (io.ReadCloser, error) {
 	key := location
-	fullPath, err := l.resolve(ctx, key)
+	if err := engine.ValidateKey(key); err != nil {
+		return nil, err
+	}
+
+	root, err := l.root(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	f, err := os.Open(fullPath)
+	f, err := os.OpenInRoot(root, filepath.FromSlash(key))
 	if err != nil {
 		return nil, mapLocalError(err, key)
 	}
@@ -269,13 +273,13 @@ func mapLocalError(err error, key string) error {
 }
 
 func copyFile(src string, dst string) error {
-	in, err := os.Open(src)
+	in, err := os.Open(filepath.Clean(src))
 	if err != nil {
 		return fmt.Errorf("open source: %w", err)
 	}
 	defer in.Close()
 
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	out, err := os.OpenFile(filepath.Clean(dst), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}

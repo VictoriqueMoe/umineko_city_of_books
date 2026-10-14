@@ -7,6 +7,7 @@ import (
 	_ "image/png"
 	"io"
 	"os"
+	"path/filepath"
 
 	"umineko_city_of_books/internal/bounds"
 
@@ -14,7 +15,7 @@ import (
 )
 
 func CheckImageFileBounds(path string, maxPixels int) error {
-	f, err := os.Open(path)
+	f, err := os.Open(filepath.Clean(path))
 	if err != nil {
 		return nil
 	}
