@@ -60,7 +60,7 @@ func newAuthHarness(t *testing.T) (*testutil.Harness, authDeps) {
 		VanityRoleService: deps.vanityRoleSvc,
 		UserSecretService: deps.userSecretSvc,
 		SettingsService:   h.SettingsService,
-		SiteInfoService:   siteinfo.NewService(h.SettingsService, deps.mysterySvc, deps.gameRoomSvc, deps.vanityRoleSvc, deps.userSecretSvc, deps.authSvc),
+		SiteInfoService:   siteinfo.NewService(h.SettingsService, deps.mysterySvc, deps.gameRoomSvc, deps.vanityRoleSvc, deps.userSecretSvc, deps.authSvc, nil),
 		AuthSession:       h.SessionManager,
 		AuthzService:      h.AuthzService,
 	}

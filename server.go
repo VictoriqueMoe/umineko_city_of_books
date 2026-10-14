@@ -190,8 +190,6 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 
 	middleware.Setup(app, settingsSvc, svc.session, svc.authz, svc.dronebl)
 	app.Use(middleware.Metrics())
-	app.Get("/metrics", middleware.RequireMetricsToken(settingsSvc), middleware.MetricsHandler())
-	registerPprofRoutes(app, svc.session, svc.authz)
 
 	lastSeenIP := middleware.NewLastSeenIP(repos.User, time.Hour)
 	app.Use(middleware.RecordLastSeenIP(lastSeenIP))

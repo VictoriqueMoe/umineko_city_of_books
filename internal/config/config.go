@@ -17,6 +17,7 @@ type (
 		DatabaseURL        string
 		GiphyAPIKey        string
 		FCMCredentialsFile string
+		InternalAddr       string
 	}
 
 	PostgresConfig struct {
@@ -99,7 +100,6 @@ var (
 	SettingDroneBLAllowlist        = &SiteSettingDef{"dronebl_allowlist", "", TypeString, false}
 	SettingDroneBLIgnoredClasses   = &SiteSettingDef{"dronebl_ignored_classes", "", TypeString, false}
 	SettingCrawlerFeeds            = &SiteSettingDef{"crawler_feeds", defaultCrawlerFeeds, TypeString, false}
-	SettingMetricsToken            = &SiteSettingDef{"metrics_token", "", TypeString, true}
 	SettingMaintenanceMode         = &SiteSettingDef{"maintenance_mode", "false", TypeBool, false}
 	SettingMaintenanceTitle        = &SiteSettingDef{"maintenance_title", "", TypeString, false}
 	SettingMaintenanceMessage      = &SiteSettingDef{"maintenance_message", "", TypeString, false}
@@ -214,7 +214,6 @@ var (
 		SettingDroneBLAllowlist,
 		SettingDroneBLIgnoredClasses,
 		SettingCrawlerFeeds,
-		SettingMetricsToken,
 		SettingMaintenanceMode,
 		SettingMaintenanceTitle,
 		SettingMaintenanceMessage,
@@ -533,6 +532,7 @@ func init() {
 		DatabaseURL:        databaseURL,
 		GiphyAPIKey:        giphyKey,
 		FCMCredentialsFile: fcmCredentialsFile,
+		InternalAddr:       envOr("INTERNAL_ADDR", ":9464"),
 	}
 
 	for _, def := range AllSiteSettings {

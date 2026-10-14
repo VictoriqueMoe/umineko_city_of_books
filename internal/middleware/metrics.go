@@ -7,8 +7,6 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/valyala/fasthttp/fasthttpadaptor"
 )
 
 var (
@@ -55,18 +53,8 @@ func Metrics() fiber.Handler {
 	}
 }
 
-func MetricsHandler() fiber.Handler {
-	h := promhttp.Handler()
-	return func(ctx fiber.Ctx) error {
-		fasthttpadaptor.NewFastHTTPHandler(h)(ctx.RequestCtx())
-		return nil
-	}
-}
-
 func isScrapeExempt(path string) bool {
-	return path == "/metrics" ||
-		strings.HasPrefix(path, "/debug/pprof") ||
-		strings.HasPrefix(path, "/static/assets/") ||
+	return strings.HasPrefix(path, "/static/assets/") ||
 		strings.HasPrefix(path, "/assets/") ||
 		strings.HasPrefix(path, "/uploads/")
 }

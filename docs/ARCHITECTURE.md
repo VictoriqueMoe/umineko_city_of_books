@@ -250,7 +250,7 @@ A typical `POST /api/v1/theories` request walks through a fixed global middlewar
  └──────┬──────┘
         ▼
  ┌─────────────┐   Host must match the base_url hostname
- │ host allow  │   (/health, /livez, /metrics, LiveKit webhook exempt)
+ │ host allow  │   (/health, /livez, LiveKit webhook exempt)
  └──────┬──────┘
         ▼
  ┌─────────────┐   helmet: HSTS, nosniff, frame-deny, enforced + report-only CSP
@@ -277,7 +277,7 @@ A typical `POST /api/v1/theories` request walks through a fixed global middlewar
  │ maintenance │   (site-info, login, session, and ws stay reachable)
  └──────┬──────┘
         ▼
- ┌─────────────┐   duration and in-flight histograms exported on /metrics
+ ┌─────────────┐   duration and in-flight histograms, exported on the internal listener
  │   metrics   │
  └──────┬──────┘
         ▼
@@ -351,7 +351,7 @@ Wiring is explicit and split across four files at the repo root. There is no DI 
      │
      ▼                                                        (server.go)
   fiber.New → middleware.Setup(app, settings, session, authz)
-            → metrics + pprof routes
+            → metrics middleware
             → controllers.Service{...} → routes.PublicRoutes(ctrl, app)
      │
      ▼                                                     (init_jobs.go)
@@ -517,7 +517,7 @@ The mobile app adds no fourth surface. It is the same SPA (section 7.2), crossin
 - **Rows, specs and audit vocabulary are leaf packages.** `internal/model` holds every row, read model and enum; `internal/model/spec` holds every input spec, one file per entity; `internal/audit` holds the audit vocabulary (`audit.Action`, `audit.Entry`, `audit.NewEntry`). All three import nothing from `dao` or `repository`, which is what lets the DAO interface sit next to the DAO without a cycle.
 - **Every method takes at most one argument besides `ctx` and `tx`.** Two or more parameters means a spec struct: `Create(ctx, s spec.AnnouncementCreate, tx ...*sql.Tx)`, never `Create(ctx, authorID, title, body, tx ...*sql.Tx)`. Identical shapes are shared rather than duplicated per entity, so one `spec.NewMedia` serves all nine comment systems and one `spec.CommentQuery[K]` serves all nine `GetComments`.
 - **The cache seam is a method that shadows the promoted one.** Because the repository embeds the DAO interface, writing a method on the repository overrides it: read-through on gets, explicit `Del` on writes, and nothing at all written for the methods that are not cached. `internal/repository/permission.go` is the canonical example, with `r.cache.Load(ctx, ns, load)` on the gets and `r.cache.Del(ctx, ns.Key())` on `SetRolePermissions` and `SetVanityRolePermissions`. Section 3.7 sets out why this layer and not one either side of it.
-- **`internal/cache` is a hot-reloadable manager over an ordered list of engines.** The `valkey_url` site setting swaps the Valkey client at runtime; a byte-capped in-memory LRU sits behind it and is always enabled, so clearing the URL degrades the cache to process-local rather than switching it off. The typed surface is four generic methods on `*Manager` (`m.Get[T]`, `m.Set[T]`, `m.SetMany[T]` and `m.Load[T]`), which JSON round-trip any value and pass `string` and `[]byte` through untouched, and namespaces with their TTLs are declared in `internal/cache/keys.go`. A nil `*Manager` is a valid receiver on all four, so a caller never has to know whether caching is switched on. Hits, misses, command latency, and Valkey server stats are exported to Prometheus on `/metrics`. Ten repositories currently take the manager: user, role, settings, mystery, vanity role, permission, user secret, game room, chatbot, and chatbot base prompt.
+- **`internal/cache` is a hot-reloadable manager over an ordered list of engines.** The `valkey_url` site setting swaps the Valkey client at runtime; a byte-capped in-memory LRU sits behind it and is always enabled, so clearing the URL degrades the cache to process-local rather than switching it off. The typed surface is four generic methods on `*Manager` (`m.Get[T]`, `m.Set[T]`, `m.SetMany[T]` and `m.Load[T]`), which JSON round-trip any value and pass `string` and `[]byte` through untouched, and namespaces with their TTLs are declared in `internal/cache/keys.go`. A nil `*Manager` is a valid receiver on all four, so a caller never has to know whether caching is switched on. Hits, misses, command latency, and Valkey server stats are exported to Prometheus on the internal listener's `/metrics`. Ten repositories currently take the manager: user, role, settings, mystery, vanity role, permission, user secret, game room, chatbot, and chatbot base prompt.
 - **Shared DAOs for repeated shapes**: comments, likes, media, and view counters are generic over the parent key (`newCommentDAO[K]`, `newLikeDAO`, `newMediaDAO`, `newViewDAO`) and embedded into each domain DAO by promotion, so nine comment systems share one implementation parameterised by table and foreign-key name.
 - **Transactions are owned by the repository, never by the DAO.** Every DAO and repository method takes an optional trailing `tx ...*sql.Tx`; `db.TxOrDB(db, tx)` in `internal/db/tx.go` runs the statement on that transaction when one is supplied and on the pool otherwise. A repository that needs several writes to be atomic opens the transaction with `db.WithTx(ctx, db, tx, fn)` from `internal/db/tx.go` and threads it through each DAO call, which is how one unit of work can span several DAOs (e.g. `CreateWithCharacters`, `UpdateWithTags`, `MarkSolved`, `CreateBotWithAccount` writing `users`, `user_vanity_roles` and `chatbots` together). `WithTx` joins an inbound transaction rather than nesting, since `database/sql` has no savepoints. **A DAO may only open a transaction whose every statement hits its own table**, which is why only four remain in `internal/dao` (`settings.SetMultiple`, both `permission.Set*Permissions`, and `oc.Update`). Services still do not handle transactions directly.
 - **DAO and repository interfaces are always split.** Every domain declares `XDAO` in `internal/dao` (the database methods) and `XRepository interface { dao.XDAO; ...composites... }` in `internal/repository`, so the type system prevents a DAO from ever implementing an orchestration method. `dao.NewX` returns `dao.XDAO`, never a repository interface, so a DAO physically cannot be handed to a service.
@@ -798,14 +798,14 @@ Adding a new page means adding a branch to `metaForPath()`; see [Adding a New Pa
 
 Five independent signals. Metrics, traces, profiling and health need no redeploy: traces and profiling are pointed at their collector from **Admin → Settings**. Logs are the exception: the app only chooses its stdout format, and collection is owned entirely by the observability stack.
 
-- **Metrics**: a Prometheus registry is served on `/metrics`, and every request is timed by route, method, and status (`http_request_duration_seconds`, `http_requests_in_flight`), with static assets and uploads exempt so the histogram is not swamped. Alongside it sit database pool gauges (`db_pool_*`), WebSocket connection and inbound-frame counters (`ws_*`), cache hit and miss counters plus Valkey command latency and server stats (`cache_*`, with `cache_hits_total` and `cache_misses_total` counted in the manager so they cover whichever engine served the lookup), and chatbot invocation, drop, and token counters (`chatbot_*`). `/metrics`, `/health`, `/livez`, and the LiveKit webhook are exempt from host authorisation so an internal scraper can reach them by IP; `docker-compose.prod.yml` carries the matching `prometheus-*` labels for scrape discovery and runs a `postgres-exporter` sidecar.
+- **Metrics**: a Prometheus registry is served on `/metrics` of a separate internal listener (`INTERNAL_ADDR`, default `:9464`, never published by compose), never on the public app, and every request is timed by route, method, and status (`http_request_duration_seconds`, `http_requests_in_flight`), with static assets and uploads exempt so the histogram is not swamped. Alongside it sit database pool gauges (`db_pool_*`), WebSocket connection and inbound-frame counters (`ws_*`), cache hit and miss counters plus Valkey command latency and server stats (`cache_*`, with `cache_hits_total` and `cache_misses_total` counted in the manager so they cover whichever engine served the lookup), and chatbot invocation, drop, and token counters (`chatbot_*`). `/health`, `/livez`, and the LiveKit webhook are exempt from host authorisation so an internal probe can reach them by IP; `docker-compose.prod.yml` carries the matching `prometheus-*` labels for scrape discovery and runs a `postgres-exporter` sidecar.
 - **Traces**: an OpenTelemetry span for every HTTP request, with W3C trace context extracted from the incoming headers and the trace ID echoed back as `X-Trace-ID`, plus a span per SQL statement through `otelsql` and per Valkey command through the cache hook. Set an **OTLP endpoint** and a batch exporter is registered on the live tracer provider; clear it and the processor is flushed, shut down, and unregistered, all without a restart.
-- **Profiling**: setting a **Pyroscope URL** starts continuous profiling (CPU, alloc objects and space, in-use objects and space, goroutines, mutex, and block) tagged with the hostname, and clearing it stops the profiler. The standard `/debug/pprof/*` handlers are also mounted, gated behind the `manage_settings` permission rather than left open.
+- **Profiling**: setting a **Pyroscope URL** starts continuous profiling (CPU, alloc objects and space, in-use objects and space, goroutines, mutex, and block) tagged with the hostname, and clearing it stops the profiler. The standard `/debug/pprof/*` handlers are served on the internal listener alongside `/metrics`, so they are unreachable from the public site.
 - **Logs**: the app ships nothing itself. With `LOG_FORMAT=json` it writes structured JSON to stdout and Grafana Alloy tails the container from the Docker daemon API into Loki, which is how every other container on the box is collected too. `logger.Ctx(ctx)` stamps `trace_id` and `span_id` on a log event, Alloy lifts both into Loki structured metadata, and the derived field on the Loki datasource jumps to the matching Tempo trace. The **log level** setting still hot-reloads and is the runtime volume lever.
 - **Health**: `/livez` is a bare liveness probe, which is what the container healthcheck hits. `/health` runs real dependency checks and returns 503 when one fails: Postgres is a hard dependency, LiveKit is checked only when voice is configured and is allowed to fail without failing the whole probe.
 
 ```
-   scraper ──▶ GET /metrics ──▶ http_* , db_pool_* , ws_* , cache_* , chatbot_*
+   scraper ──▶ GET :9464/metrics ──▶ http_* , db_pool_* , ws_* , cache_* , chatbot_*
    probe   ──▶ GET /livez   ──▶ 200 always (process is up)
    probe   ──▶ GET /health  ──▶ 200 / 503 (postgres hard, livekit soft)
 
@@ -900,7 +900,7 @@ The backend half first, then the frontend. Section 4 gives the frontend director
   init_db.go            telemetry, database, migrations, seed, repositories, settings
   init_services.go      every service, in dependency order
   init_jobs.go          settings listeners and the background job tickers
-  pprof.go              the pprof handlers, gated on manage_settings
+  internal_server.go    the internal listener: /metrics and the pprof handlers
 
   internal/controllers  the HTTP surface, one file per domain, each with its FSetupRoute list
   internal/routes       mounts GetAPIRoutes under /api/v1 and GetPageRoutes at the app root

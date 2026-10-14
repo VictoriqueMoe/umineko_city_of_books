@@ -6,6 +6,7 @@ import (
 	"maps"
 
 	"umineko_city_of_books/internal/auth"
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/gameroom"
@@ -14,6 +15,8 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/usersecret"
 	"umineko_city_of_books/internal/vanityrole"
+
+	"golang.org/x/sync/singleflight"
 )
 
 type (
@@ -28,6 +31,8 @@ type (
 		vanityRoleSvc vanityrole.Service
 		userSecretSvc usersecret.Service
 		authSvc       auth.Service
+		cache         *cache.Manager
+		group         singleflight.Group
 	}
 )
 
@@ -38,7 +43,19 @@ func NewService(
 	vanityRoleSvc vanityrole.Service,
 	userSecretSvc usersecret.Service,
 	authSvc auth.Service,
+	cacheManager *cache.Manager,
 ) Service {
+	cacheManager.Invalidates(
+		cache.SiteInfo,
+		cache.MysteryTopDetectives,
+		cache.MysteryTopGMs,
+		cache.GameTopWinners,
+		cache.VanityAssignments,
+		cache.SecretHolders,
+		cache.SecretSolved,
+		cache.Setting,
+	)
+
 	return &service{
 		settingsSvc:   settingsSvc,
 		mysterySvc:    mysterySvc,
@@ -46,10 +63,33 @@ func NewService(
 		vanityRoleSvc: vanityRoleSvc,
 		userSecretSvc: userSecretSvc,
 		authSvc:       authSvc,
+		cache:         cacheManager,
 	}
 }
 
 func (s *service) Get(ctx context.Context) (dto.SiteInfoResponse, error) {
+	load := func(ctx context.Context) (dto.SiteInfoResponse, error) {
+		result, err, _ := s.group.Do(cache.SiteInfo.Key(), func() (any, error) {
+			return s.build(context.WithoutCancel(ctx))
+		})
+		if err != nil {
+			return dto.SiteInfoResponse{}, err
+		}
+
+		return result.(dto.SiteInfoResponse), nil
+	}
+
+	info, err := s.cache.Load(ctx, cache.SiteInfo, load)
+	if err != nil {
+		return dto.SiteInfoResponse{}, err
+	}
+
+	info.Version = config.Version
+
+	return info, nil
+}
+
+func (s *service) build(ctx context.Context) (dto.SiteInfoResponse, error) {
 	topDetectives, err := s.mysterySvc.GetTopDetectiveIDs(ctx)
 	if err != nil {
 		return dto.SiteInfoResponse{}, fmt.Errorf("top detectives: %w", err)

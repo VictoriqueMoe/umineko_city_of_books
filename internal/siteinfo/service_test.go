@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/auth"
+	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/gameroom"
 	"umineko_city_of_books/internal/mystery"
@@ -70,7 +72,7 @@ func newTestService(
 	userSecretSvc.EXPECT().IsSolvedByAnyone(mock.Anything, mock.Anything).Return(false, errAt("secret solved")).Maybe()
 	authSvc.EXPECT().EmailEnabled(mock.Anything).Return(false).Maybe()
 
-	return NewService(settingsSvc, mysterySvc, gameRoomSvc, vanityRoleSvc, userSecretSvc, authSvc)
+	return NewService(settingsSvc, mysterySvc, gameRoomSvc, vanityRoleSvc, userSecretSvc, authSvc, nil)
 }
 
 func TestGet_ChatbotMemorySettingsAreExposed(t *testing.T) {
@@ -173,4 +175,41 @@ func TestGet_LeaksNoSecretSetting(t *testing.T) {
 		assert.NotContains(t, body, sentinel, "secret setting %s reached the public site-info payload", key)
 		assert.NotContains(t, body, string(key), "secret setting key %s reached the public site-info payload", key)
 	}
+}
+
+func TestGet_RebuildsOnlyAfterAFeedKeyIsInvalidated(t *testing.T) {
+	// given
+	settingsSvc := settings.NewMockService(t)
+	mysterySvc := mystery.NewMockService(t)
+	gameRoomSvc := gameroom.NewMockService(t)
+	vanityRoleSvc := vanityrole.NewMockService(t)
+	userSecretSvc := usersecret.NewMockService(t)
+	authSvc := auth.NewMockService(t)
+
+	settingsSvc.EXPECT().Get(mock.Anything, mock.Anything).Return("").Maybe()
+	settingsSvc.EXPECT().GetInt(mock.Anything, mock.Anything).Return(0).Maybe()
+	settingsSvc.EXPECT().GetBool(mock.Anything, mock.Anything).Return(false).Maybe()
+	mysterySvc.EXPECT().GetTopDetectiveIDs(mock.Anything).Return(nil, nil).Times(2)
+	mysterySvc.EXPECT().GetTopGMIDs(mock.Anything).Return(nil, nil).Maybe()
+	gameRoomSvc.EXPECT().GetTopWinnerIDs(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	vanityRoleSvc.EXPECT().List(mock.Anything).Return(nil, nil).Maybe()
+	vanityRoleSvc.EXPECT().GetAllAssignments(mock.Anything).Return(nil, nil).Maybe()
+	userSecretSvc.EXPECT().GetUserIDsWithSecret(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	userSecretSvc.EXPECT().IsSolvedByAnyone(mock.Anything, mock.Anything).Return(false, nil).Maybe()
+	authSvc.EXPECT().EmailEnabled(mock.Anything).Return(false).Maybe()
+
+	manager := cache.NewManager(engines.NewInMemory(0))
+	svc := NewService(settingsSvc, mysterySvc, gameRoomSvc, vanityRoleSvc, userSecretSvc, authSvc, manager)
+
+	// when
+	_, firstErr := svc.Get(t.Context())
+	_, secondErr := svc.Get(t.Context())
+	delErr := manager.Del(t.Context(), cache.MysteryTopDetectives.Key())
+	_, thirdErr := svc.Get(t.Context())
+
+	// then
+	require.NoError(t, firstErr)
+	require.NoError(t, secondErr)
+	require.NoError(t, delErr)
+	require.NoError(t, thirdErr)
 }

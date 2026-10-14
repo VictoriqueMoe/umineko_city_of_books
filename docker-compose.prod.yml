@@ -58,7 +58,7 @@ services:
     labels:
       prometheus-scrape: "true"
       prometheus-job: "umineko-city-of-books"
-      prometheus-port: "4323"
+      prometheus-port: "9464"
       prometheus-path: "/metrics"
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4323/livez"]

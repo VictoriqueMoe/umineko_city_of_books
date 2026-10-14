@@ -28,6 +28,12 @@ func run() error {
 	app, cleanup := initServer()
 	defer cleanup()
 
+	if err := startInternalServer(config.Cfg.InternalAddr); err != nil {
+		logger.Log.Err(err).Msg("internal server error")
+		return err
+	}
+
+	logger.Log.Info().Str("addr", config.Cfg.InternalAddr).Msg("starting internal server")
 	logger.Log.Info().Str("addr", ":4323").Msg("starting server")
 
 	err := utils.StartServerWithGracefulShutdown(app, ":4323")

@@ -12,6 +12,7 @@ import (
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
+	"umineko_city_of_books/internal/og"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -238,6 +239,43 @@ func TestStaticController_SPA_ServesEmbeddedAssetForDottedPath(t *testing.T) {
 	// then
 	assert.Equal(t, http.StatusOK, status)
 	assert.Contains(t, string(body), "console.log(1)")
+}
+
+func TestStaticController_SPA_NotFoundPathIsA404WithTheShell(t *testing.T) {
+	tests := []struct {
+		name       string
+		path       string
+		wantStatus int
+	}{
+		{name: "not found page", path: "/not-found", wantStatus: http.StatusNotFound},
+		{name: "page", path: "/rules", wantStatus: http.StatusOK},
+		{name: "path the frontend redirects", path: "/egfwergergh", wantStatus: http.StatusOK},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h := testutil.NewHarness(t)
+			h.SettingsService.EXPECT().Get(mock.Anything, mock.Anything).Return("").Maybe()
+			s := &Service{
+				StaticFS:   fstest.MapFS{},
+				OGResolver: og.NewResolver(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, h.SettingsService, nil, "<html>shell</html>", "https://example.test"),
+			}
+			for _, setup := range s.getAllSPARoutes() {
+				setup(h.App)
+			}
+
+			// when
+			resp := h.NewRequest(http.MethodGet, tc.path).DoResponse()
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+
+			// then
+			assert.Equal(t, tc.wantStatus, resp.StatusCode)
+			assert.Contains(t, resp.Header.Get("Content-Type"), "text/html")
+			assert.Contains(t, string(body), "shell")
+		})
+	}
 }
 
 func TestStaticController_RegistersWebManifestMimeType(t *testing.T) {

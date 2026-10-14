@@ -13,6 +13,10 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/static"
 )
 
+const (
+	notFoundPath = "/not-found"
+)
+
 func init() {
 	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
 }
@@ -86,11 +90,16 @@ func (s *Service) setupSPA(r fiber.Router) {
 			return embeddedStaticHandler(ctx)
 		}
 
+		status := fiber.StatusOK
+		if path == notFoundPath {
+			status = fiber.StatusNotFound
+		}
+
 		if middleware.PrivateGated(ctx) {
 			path = "/"
 		}
 
 		html := s.OGResolver.Resolve(ctx.Context(), path, ctx.Query("party"))
-		return ctx.Type("html").SendString(html)
+		return ctx.Status(status).Type("html").SendString(html)
 	})
 }

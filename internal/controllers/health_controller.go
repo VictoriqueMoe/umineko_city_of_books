@@ -1,8 +1,6 @@
 package controllers
 
 import (
-	"umineko_city_of_books/internal/middleware"
-
 	"github.com/gofiber/fiber/v3"
 	healthgo "github.com/hellofresh/health-go/v5"
 )
@@ -14,7 +12,7 @@ func (s *Service) getAllHealthRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupHealth(r fiber.Router) {
-	r.Get("/health", middleware.RequireMetricsToken(s.SettingsService), s.health)
+	r.Get("/health", s.health)
 	r.Get("/livez", s.livez)
 }
 
