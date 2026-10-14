@@ -740,8 +740,8 @@ func (_c *MockService_LikePost_Call) RunAndReturn(run func(ctx context.Context, 
 }
 
 // ListFeed provides a mock function for the type MockService
-func (_mock *MockService) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error) {
-	ret := _mock.Called(ctx, tab, viewerID, corner, search, sort, seed, page, resolvedFilter)
+func (_mock *MockService) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error) {
+	ret := _mock.Called(ctx, tab, viewerID, corner, search, sort, page, resolvedFilter)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListFeed")
@@ -749,18 +749,18 @@ func (_mock *MockService) ListFeed(ctx context.Context, tab string, viewerID uui
 
 	var r0 *dto.PostListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, string, string, string, int, bounds.Page, string) (*dto.PostListResponse, error)); ok {
-		return returnFunc(ctx, tab, viewerID, corner, search, sort, seed, page, resolvedFilter)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, string, string, string, bounds.Page, string) (*dto.PostListResponse, error)); ok {
+		return returnFunc(ctx, tab, viewerID, corner, search, sort, page, resolvedFilter)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, string, string, string, int, bounds.Page, string) *dto.PostListResponse); ok {
-		r0 = returnFunc(ctx, tab, viewerID, corner, search, sort, seed, page, resolvedFilter)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, string, string, string, bounds.Page, string) *dto.PostListResponse); ok {
+		r0 = returnFunc(ctx, tab, viewerID, corner, search, sort, page, resolvedFilter)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.PostListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, uuid.UUID, string, string, string, int, bounds.Page, string) error); ok {
-		r1 = returnFunc(ctx, tab, viewerID, corner, search, sort, seed, page, resolvedFilter)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, uuid.UUID, string, string, string, bounds.Page, string) error); ok {
+		r1 = returnFunc(ctx, tab, viewerID, corner, search, sort, page, resolvedFilter)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -779,14 +779,13 @@ type MockService_ListFeed_Call struct {
 //   - corner string
 //   - search string
 //   - sort string
-//   - seed int
 //   - page bounds.Page
 //   - resolvedFilter string
-func (_e *MockService_Expecter) ListFeed(ctx any, tab any, viewerID any, corner any, search any, sort any, seed any, page any, resolvedFilter any) *MockService_ListFeed_Call {
-	return &MockService_ListFeed_Call{Call: _e.mock.On("ListFeed", ctx, tab, viewerID, corner, search, sort, seed, page, resolvedFilter)}
+func (_e *MockService_Expecter) ListFeed(ctx any, tab any, viewerID any, corner any, search any, sort any, page any, resolvedFilter any) *MockService_ListFeed_Call {
+	return &MockService_ListFeed_Call{Call: _e.mock.On("ListFeed", ctx, tab, viewerID, corner, search, sort, page, resolvedFilter)}
 }
 
-func (_c *MockService_ListFeed_Call) Run(run func(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, page bounds.Page, resolvedFilter string)) *MockService_ListFeed_Call {
+func (_c *MockService_ListFeed_Call) Run(run func(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, page bounds.Page, resolvedFilter string)) *MockService_ListFeed_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -812,17 +811,13 @@ func (_c *MockService_ListFeed_Call) Run(run func(ctx context.Context, tab strin
 		if args[5] != nil {
 			arg5 = args[5].(string)
 		}
-		var arg6 int
+		var arg6 bounds.Page
 		if args[6] != nil {
-			arg6 = args[6].(int)
+			arg6 = args[6].(bounds.Page)
 		}
-		var arg7 bounds.Page
+		var arg7 string
 		if args[7] != nil {
-			arg7 = args[7].(bounds.Page)
-		}
-		var arg8 string
-		if args[8] != nil {
-			arg8 = args[8].(string)
+			arg7 = args[7].(string)
 		}
 		run(
 			arg0,
@@ -833,7 +828,6 @@ func (_c *MockService_ListFeed_Call) Run(run func(ctx context.Context, tab strin
 			arg5,
 			arg6,
 			arg7,
-			arg8,
 		)
 	})
 	return _c
@@ -844,7 +838,7 @@ func (_c *MockService_ListFeed_Call) Return(postListResponse *dto.PostListRespon
 	return _c
 }
 
-func (_c *MockService_ListFeed_Call) RunAndReturn(run func(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error)) *MockService_ListFeed_Call {
+func (_c *MockService_ListFeed_Call) RunAndReturn(run func(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error)) *MockService_ListFeed_Call {
 	_c.Call.Return(run)
 	return _c
 }

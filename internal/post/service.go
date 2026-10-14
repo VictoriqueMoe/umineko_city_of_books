@@ -40,7 +40,7 @@ type (
 		GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.PostDetailResponse, error)
 		UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdatePostRequest) error
 		DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error)
+		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error)
 		ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.PostListResponse, error)
 		UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
 		DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID int64, userID uuid.UUID) error
@@ -422,7 +422,7 @@ func (s *service) clearPageCache(ctx context.Context, id string) {
 	}
 }
 
-func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error) {
+func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error) {
 	if corner == "" {
 		corner = "general"
 	}
@@ -440,7 +440,6 @@ func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, 
 			UserID:         viewerID,
 			Corner:         corner,
 			Sort:           sort,
-			Seed:           seed,
 			Limit:          page.Limit(),
 			Offset:         page.Offset(),
 			ExcludeUserIDs: blockedIDs,
@@ -451,7 +450,6 @@ func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, 
 			Corner:         corner,
 			Search:         search,
 			Sort:           sort,
-			Seed:           seed,
 			Limit:          page.Limit(),
 			Offset:         page.Offset(),
 			ExcludeUserIDs: blockedIDs,

@@ -765,7 +765,7 @@ func TestListFeed(t *testing.T) {
 			}
 
 			// when
-			got, err := svc.ListFeed(context.Background(), tc.tab, viewer, "", tc.search, "new", 0, bounds.NewPage(tc.limit, 0), tc.resolved)
+			got, err := svc.ListFeed(context.Background(), tc.tab, viewer, "", tc.search, "new", bounds.NewPage(tc.limit, 0), tc.resolved)
 
 			// then
 			if tc.listErr != nil {
@@ -825,7 +825,7 @@ func TestListFeed_AFailedBlockListIsSurfacedBeforeAnythingIsListed(t *testing.T)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, boom)
 
 	// when
-	got, err := svc.ListFeed(context.Background(), "all", viewer, "", "", "new", 0, bounds.NewPage(10, 0), "")
+	got, err := svc.ListFeed(context.Background(), "all", viewer, "", "", "new", bounds.NewPage(10, 0), "")
 
 	// then
 	require.ErrorIs(t, err, boom, "listing without the block list would show blocked users' posts")

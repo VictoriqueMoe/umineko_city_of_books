@@ -227,9 +227,9 @@ describe("query string building", () => {
         },
         {
             name: "listPosts passes its parameters straight through",
-            call: () => api.listPosts({ tab: "all", corner: "general", seed: 5 }),
+            call: () => api.listPosts({ tab: "all", corner: "general", sort: "new" }),
             transport: fetchMock,
-            request: ["/posts?tab=all&corner=general&seed=5"],
+            request: ["/posts?tab=all&corner=general&sort=new"],
         },
     ];
 

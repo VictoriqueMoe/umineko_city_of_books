@@ -1015,6 +1015,7 @@ type Post struct {
 	SharedContentType sql.NullString
 	CreatedAt         time.Time
 	SearchVector      interface{}
+	HotScore          float64
 }
 
 type PostComment struct {

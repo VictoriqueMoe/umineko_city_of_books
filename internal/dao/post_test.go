@@ -313,7 +313,7 @@ func TestPostDAO_ListAll(t *testing.T) {
 		want      []uuid.UUID
 	}{
 		{name: "a corner lists only its own posts", query: spec.PostFeedQuery{Corner: "general", Sort: "new", Limit: 10}, wantTotal: 3, want: []uuid.UUID{apple, banana, blockedPost}},
-		{name: "no sort falls back to seeded relevance over the same posts", query: spec.PostFeedQuery{Corner: "general", Seed: 42, Limit: 10}, wantTotal: 3, want: []uuid.UUID{apple, banana, blockedPost}},
+		{name: "no sort falls back to relevance over the same posts", query: spec.PostFeedQuery{Corner: "general", Limit: 10}, wantTotal: 3, want: []uuid.UUID{apple, banana, blockedPost}},
 		{name: "search matches the body", query: spec.PostFeedQuery{Corner: "general", Search: "apple", Sort: "new", Limit: 10}, wantTotal: 1, want: []uuid.UUID{apple}},
 		{name: "excluded users' posts are hidden from the page and the total", query: spec.PostFeedQuery{Corner: "general", Sort: "new", Limit: 10, ExcludeUserIDs: []uuid.UUID{blocked.ID}}, wantTotal: 2, want: []uuid.UUID{apple, banana}},
 		{name: "the open filter hides resolved suggestions", query: spec.PostFeedQuery{Corner: "suggestions", Sort: "new", Limit: 10, ResolvedFilter: "open"}, wantTotal: 1, want: []uuid.UUID{open}},
@@ -376,6 +376,95 @@ func TestPostDAO_ListAll_Sort(t *testing.T) {
 	}
 }
 
+func postBackdate(t *testing.T, repos *repository.Repositories, postID uuid.UUID, age time.Duration) {
+	t.Helper()
+
+	_, err := repos.DB().ExecContext(context.Background(), "UPDATE posts SET created_at = NOW() - make_interval(secs => $1) WHERE id = $2", age.Seconds(), postID)
+	require.NoError(t, err)
+
+	_, err = repos.DB().ExecContext(context.Background(), "SELECT refresh_post_hot_score($1)", postID)
+	require.NoError(t, err)
+}
+
+func TestPostDAO_ListAll_RelevanceFollowsEngagement(t *testing.T) {
+	tests := []struct {
+		name   string
+		engage func(t *testing.T, repos *repository.Repositories, older, fan uuid.UUID)
+		older  bool
+	}{
+		{
+			name:   "without engagement the newer post ranks first",
+			engage: func(t *testing.T, repos *repository.Repositories, older, fan uuid.UUID) {},
+		},
+		{
+			name: "a like lifts the older post above the newer one",
+			engage: func(t *testing.T, repos *repository.Repositories, older, fan uuid.UUID) {
+				require.NoError(t, repos.Post.Like(context.Background(), spec.Like{UserID: fan, TargetID: older}))
+			},
+			older: true,
+		},
+		{
+			name: "a comment lifts the older post above the newer one",
+			engage: func(t *testing.T, repos *repository.Repositories, older, fan uuid.UUID) {
+				createComment(t, repos, older, fan, nil, "great post")
+			},
+			older: true,
+		},
+		{
+			name: "removing the like drops the older post back down",
+			engage: func(t *testing.T, repos *repository.Repositories, older, fan uuid.UUID) {
+				ctx := context.Background()
+				require.NoError(t, repos.Post.Like(ctx, spec.Like{UserID: fan, TargetID: older}))
+				require.NoError(t, repos.Post.Unlike(ctx, spec.Like{UserID: fan, TargetID: older}))
+			},
+		},
+		{
+			name: "deleting the comment drops the older post back down",
+			engage: func(t *testing.T, repos *repository.Repositories, older, fan uuid.UUID) {
+				commentID := createComment(t, repos, older, fan, nil, "great post")
+				_, err := repos.Post.DeleteCommentWithAudit(context.Background(), spec.PostCommentDelete{
+					CommentDeletion: spec.CommentDeletion{CommentID: commentID, UserID: fan},
+					Audit:           audit.NewEntry{ActorID: fan, Action: audit.ActionPostCommentDelete, TargetType: audit.TargetPostComment, TargetID: commentID.String()},
+				})
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "deleting the liker's account drops the older post back down",
+			engage: func(t *testing.T, repos *repository.Repositories, older, fan uuid.UUID) {
+				ctx := context.Background()
+				require.NoError(t, repos.Post.Like(ctx, spec.Like{UserID: fan, TargetID: older}))
+				require.NoError(t, repos.User.DeleteAccount(ctx, fan))
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			ctx := context.Background()
+			author := daotest.CreateUser(t, repos)
+			fan := daotest.CreateUser(t, repos)
+			older := createPost(t, repos, author.ID, "general", "older")
+			newer := createPost(t, repos, author.ID, "general", "newer")
+			postBackdate(t, repos, older, time.Hour)
+			tc.engage(t, repos, older, fan.ID)
+
+			// when
+			posts, _, err := repos.Post.ListAll(ctx, spec.PostFeedQuery{ViewerID: author.ID, Corner: "general", Limit: 10})
+
+			// then
+			require.NoError(t, err)
+			want := []uuid.UUID{newer, older}
+			if tc.older {
+				want = []uuid.UUID{older, newer}
+			}
+			assert.Equal(t, want, postRowIDs(posts))
+		})
+	}
+}
+
 func TestPostDAO_ListByFollowing(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
@@ -394,7 +483,7 @@ func TestPostDAO_ListByFollowing(t *testing.T) {
 		want  []uuid.UUID
 	}{
 		{name: "the viewer's own and followed users' posts are listed", query: spec.PostFollowingFeedQuery{Sort: "new"}, want: []uuid.UUID{own, followedPost}},
-		{name: "no sort falls back to seeded relevance over the same posts", query: spec.PostFollowingFeedQuery{Seed: 7}, want: []uuid.UUID{own, followedPost}},
+		{name: "no sort falls back to relevance over the same posts", query: spec.PostFollowingFeedQuery{}, want: []uuid.UUID{own, followedPost}},
 		{name: "excluded users' posts are hidden from the page and the total", query: spec.PostFollowingFeedQuery{Sort: "new", ExcludeUserIDs: []uuid.UUID{followed.ID}}, want: []uuid.UUID{own}},
 	}
 

@@ -147,12 +147,11 @@ func (s *Service) listPostFeed(ctx fiber.Ctx) error {
 	corner := ctx.Query("corner", "general")
 	search := ctx.Query("search")
 	sort := ctx.Query("sort")
-	seed := fiber.Query[int](ctx, "seed", 0)
 	page := utils.Page(ctx, 20)
 
 	resolvedFilter := ctx.Query("resolved")
 
-	result, err := s.PostService.ListFeed(ctx.Context(), tab, viewerID, corner, search, sort, seed, page, resolvedFilter)
+	result, err := s.PostService.ListFeed(ctx.Context(), tab, viewerID, corner, search, sort, page, resolvedFilter)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list posts", err)
 	}

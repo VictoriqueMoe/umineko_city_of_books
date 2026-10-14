@@ -58,7 +58,6 @@ type (
 		corner   string
 		search   string
 		sort     string
-		seed     int
 		page     bounds.Page
 		resolved string
 	}
@@ -210,7 +209,7 @@ func TestPostController_RejectsMalformedRequests(t *testing.T) {
 
 func TestListPostFeed(t *testing.T) {
 	defaults := postCtlFeedQuery{tab: "everyone", corner: "general", page: bounds.NewPage(20, 0)}
-	custom := postCtlFeedQuery{tab: "following", corner: "suggestions", search: "search term", sort: "top", seed: 42, page: bounds.NewPage(10, 5), resolved: "open"}
+	custom := postCtlFeedQuery{tab: "following", corner: "suggestions", search: "search term", sort: "top", page: bounds.NewPage(10, 5), resolved: "open"}
 	cases := []struct {
 		name     string
 		url      string
@@ -221,7 +220,7 @@ func TestListPostFeed(t *testing.T) {
 		wantBody string
 	}{
 		{name: "anonymous defaults", url: "/posts", want: defaults, wantCode: http.StatusOK, wantBody: `"total":3,`},
-		{name: "custom query", url: "/posts?tab=following&corner=suggestions&search=search+term&sort=top&seed=42&limit=10&offset=5&resolved=open", want: custom, wantCode: http.StatusOK, wantBody: `"total":3,`},
+		{name: "custom query", url: "/posts?tab=following&corner=suggestions&search=search+term&sort=top&limit=10&offset=5&resolved=open", want: custom, wantCode: http.StatusOK, wantBody: `"total":3,`},
 		{name: "authenticated passes viewer id", url: "/posts", authed: true, want: defaults, wantCode: http.StatusOK, wantBody: `"total":3,`},
 		{name: "internal error", url: "/posts", want: defaults, err: errors.New("boom"), wantCode: http.StatusInternalServerError, wantBody: "failed to list posts"},
 	}
@@ -231,7 +230,7 @@ func TestListPostFeed(t *testing.T) {
 			h, deps := newPostHarness(t)
 			viewerID, cookie := postCtlViewer(h, tc.authed)
 			deps.post.EXPECT().
-				ListFeed(mock.Anything, tc.want.tab, viewerID, tc.want.corner, tc.want.search, tc.want.sort, tc.want.seed, tc.want.page, tc.want.resolved).
+				ListFeed(mock.Anything, tc.want.tab, viewerID, tc.want.corner, tc.want.search, tc.want.sort, tc.want.page, tc.want.resolved).
 				Return(&dto.PostListResponse{Total: 3, Limit: 20}, tc.err)
 
 			// when

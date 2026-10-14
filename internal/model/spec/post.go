@@ -59,7 +59,6 @@ type (
 		Corner         string
 		Search         string
 		Sort           string
-		Seed           int
 		Limit          int
 		Offset         int
 		ExcludeUserIDs []uuid.UUID
@@ -70,7 +69,6 @@ type (
 		UserID         uuid.UUID
 		Corner         string
 		Sort           string
-		Seed           int
 		Limit          int
 		Offset         int
 		ExcludeUserIDs []uuid.UUID

@@ -9,6 +9,7 @@ if ! command -v k6 >/dev/null 2>&1; then
 fi
 
 export BASE_URL="${BASE_URL:-http://localhost:4323}"
+export INTERNAL_URL="${INTERNAL_URL:-http://localhost:9464}"
 export LOADTEST_USER="${LOADTEST_USER:-}"
 export LOADTEST_PASS="${LOADTEST_PASS:-}"
 

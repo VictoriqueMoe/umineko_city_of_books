@@ -88,7 +88,7 @@ A Twitter-style social feed for off-topic posts and discussion.
 - **GIF picker** on the post composer (and every comment box) backed by GIPHY, sends instantly on pick
 - **Quick Reply**: one-click Reply button drops an inline comment composer under the post without leaving the feed, auto-collapses after send
 - **Live comments**: a new comment is pushed over WebSocket and appears on the post page as it is written, with no refresh
-- Relevance-based feed algorithm with deterministic jitter for stable pagination, plus New / Most Liked / Most Replies / Most Viewed sorts. Your chosen sort is remembered on your profile
+- Relevance-based feed ranked by a stored hot score (engagement on a log scale plus a recency bonus, kept current by database triggers on likes and comments), plus New / Most Liked / Most Replies / Most Viewed sorts. Your chosen sort is remembered on your profile
 - Following tab showing only posts from users you follow
 - Unique post view counts
 - Live like counters pushed over WebSocket

@@ -1,12 +1,7 @@
-﻿import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import type { FeedTab, Post } from "../../types/api";
 import { getCornerCounts, getPost, listPosts } from "../../api/endpoints/post";
 import { queryKeys } from "../../api/queryKeys";
-
-function generateSeed(): number {
-    return Math.floor(Math.random() * 1000000);
-}
 
 export function useCornerCounts() {
     const q = useQuery({ queryKey: queryKeys.post.cornerCounts(), queryFn: () => getCornerCounts() });
@@ -23,8 +18,7 @@ export function usePostFeed(
 ) {
     const limit = 20;
     const offset = (page - 1) * limit;
-    const seed = useMemo(() => generateSeed(), []);
-    const params = { tab, corner, search, sort, resolved, offset, limit, seed };
+    const params = { tab, corner, search, sort, resolved, offset, limit };
     const query = useQuery({
         queryKey: queryKeys.post.feed(params),
         queryFn: () =>
@@ -33,7 +27,6 @@ export function usePostFeed(
                 corner,
                 search: search || undefined,
                 sort: sort || undefined,
-                seed,
                 limit,
                 offset,
                 resolved: resolved || undefined,

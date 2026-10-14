@@ -11,7 +11,6 @@ export async function listPosts(params: {
     corner?: string;
     search?: string;
     sort?: string;
-    seed?: number;
     limit?: number;
     offset?: number;
     resolved?: string;

@@ -287,16 +287,7 @@ func (r *postDAO) ListAll(ctx context.Context, q spec.PostFeedQuery, tx ...*sql.
 	case "views":
 		posts, err = mapPostFeedRows(queries.ListPostsFeedByViews(ctx, sqlcgen.ListPostsFeedByViewsParams(params)))
 	default:
-		posts, err = mapPostFeedRows(queries.ListPostsFeedByRelevance(ctx, sqlcgen.ListPostsFeedByRelevanceParams{
-			ViewerID:       params.ViewerID,
-			Corner:         params.Corner,
-			Search:         params.Search,
-			ResolvedFilter: params.ResolvedFilter,
-			ExcludeUserIds: params.ExcludeUserIds,
-			Seed:           int64(q.Seed),
-			RowOffset:      params.RowOffset,
-			RowLimit:       params.RowLimit,
-		}))
+		posts, err = mapPostFeedRows(queries.ListPostsFeedByRelevance(ctx, sqlcgen.ListPostsFeedByRelevanceParams(params)))
 	}
 	if err != nil {
 		return nil, 0, fmt.Errorf("list posts: %w", err)
@@ -339,14 +330,7 @@ func (r *postDAO) ListByFollowing(ctx context.Context, q spec.PostFollowingFeedQ
 	case "views":
 		posts, err = mapPostFeedRows(queries.ListFollowingPostsByViews(ctx, sqlcgen.ListFollowingPostsByViewsParams(params)))
 	default:
-		posts, err = mapPostFeedRows(queries.ListFollowingPostsByRelevance(ctx, sqlcgen.ListFollowingPostsByRelevanceParams{
-			ViewerID:       params.ViewerID,
-			Corner:         params.Corner,
-			ExcludeUserIds: params.ExcludeUserIds,
-			Seed:           int64(q.Seed),
-			RowOffset:      params.RowOffset,
-			RowLimit:       params.RowLimit,
-		}))
+		posts, err = mapPostFeedRows(queries.ListFollowingPostsByRelevance(ctx, sqlcgen.ListFollowingPostsByRelevanceParams(params)))
 	}
 	if err != nil {
 		return nil, 0, fmt.Errorf("list following posts: %w", err)
