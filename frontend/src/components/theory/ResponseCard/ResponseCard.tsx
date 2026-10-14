@@ -41,8 +41,8 @@ function ResponseCard({
     const location = useLocation();
     const isHighlighted = location.hash === `#response-${response.id}`;
 
-    const voteMutation = useVoteResponse(theoryId);
-    const deleteMutation = useDeleteResponse(theoryId);
+    const voteMutation = useVoteResponse();
+    const deleteMutation = useDeleteResponse();
     const voteFn = useCallback(
         async (value: number) => {
             await voteMutation.mutateAsync({ responseId: response.id, value });

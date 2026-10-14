@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestQueryClient, providerWrapper } from "../../test-utils/render";
+import { queryKeys } from "../../api/queryKeys";
 import {
     useCreateArt,
     useCreateArtComment,
@@ -164,7 +165,7 @@ describe("art piece mutations", () => {
         expect(invalidate).toHaveBeenCalledWith({ queryKey: galleryKey });
     });
 
-    it("refreshes only the liked piece rather than the whole gallery", async () => {
+    it("refreshes every view of the art so gallery cards show the new count", async () => {
         // given
         const { qc, invalidate } = client();
 
@@ -173,11 +174,11 @@ describe("art piece mutations", () => {
 
         // then
         expect(mocks.likeArt).toHaveBeenCalledWith(artId);
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["art", "detail", artId] });
-        expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ["art"] });
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.art.all });
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.gallery.root() });
     });
 
-    it("refreshes only the unliked piece", async () => {
+    it("refreshes every view of the art after an unlike", async () => {
         // given
         const { qc, invalidate } = client();
 
@@ -186,7 +187,7 @@ describe("art piece mutations", () => {
 
         // then
         expect(mocks.unlikeArt).toHaveBeenCalledWith(artId);
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["art", "detail", artId] });
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.art.all });
     });
 
     it("fills in the heart before the server has answered", async () => {
@@ -271,7 +272,7 @@ describe("art comment mutations", () => {
         // then
         expect(commentMocks.createArtComment).toHaveBeenCalledWith(artId, "lovely", undefined);
         expect(data).toEqual({ id: "c1" });
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["art", "detail", artId] });
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.art.all });
     });
 
     it("posts a reply against the parent comment it was given", async () => {
@@ -306,7 +307,7 @@ describe("art comment mutations", () => {
 
         // then
         expect(commentMocks.deleteArtComment).toHaveBeenCalledWith("c1");
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["art", "detail", artId] });
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.art.all });
     });
 
     it("likes a comment", async () => {

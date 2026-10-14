@@ -56,7 +56,7 @@ beforeEach(() => {
 });
 
 describe("useRoomsDirectory live updates", () => {
-    it("refreshes the joined and pinned rooms on an invitation", async () => {
+    it("refreshes every room list on an invitation", async () => {
         // given
         const { queryClient } = await renderDirectory();
         const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
@@ -65,8 +65,8 @@ describe("useRoomsDirectory live updates", () => {
         emitRealtimeEvent({ type: "chat_room_invited", data: { room_id: "room-1" } });
 
         // then
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.chat.roomsListJoined() });
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.chat.userRooms() });
+        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.chat.roomsList() });
+        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.chat.rooms() });
     });
 
     it("refreshes every list when the member is kicked", async () => {
@@ -79,7 +79,7 @@ describe("useRoomsDirectory live updates", () => {
 
         // then
         expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.chat.roomsList() });
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.chat.userRooms() });
+        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.chat.rooms() });
     });
 
     it("refreshes every list when a room is renamed or deleted", async () => {
@@ -92,7 +92,7 @@ describe("useRoomsDirectory live updates", () => {
 
         // then
         expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.chat.roomsList() });
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.chat.userRooms() });
+        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.chat.rooms() });
     });
 
     it("reads the pinned rooms from the shared user rooms entry", async () => {

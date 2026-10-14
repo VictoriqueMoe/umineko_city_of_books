@@ -20,6 +20,7 @@ import {
     updateArtComment,
     uploadArtCommentMedia,
 } from "../../api/endpoints/comments";
+import { invalidateViews } from "../../api/cache/invalidate";
 import { queryKeys } from "../../api/queryKeys";
 
 type CreateArtInput = {
@@ -37,11 +38,6 @@ type CreateArtInput = {
 
 type UpdateArtInput = { title: string; description: string; tags: string[]; is_spoiler: boolean };
 
-function invalidateGalleries(qc: QueryClient) {
-    qc.invalidateQueries({ queryKey: queryKeys.gallery.allGalleries() });
-    qc.invalidateQueries({ queryKey: queryKeys.gallery.root() });
-}
-
 function overlayLike(qc: QueryClient, id: string, delta: number, liked: boolean) {
     qc.setQueryData<ArtDetail>(queryKeys.art.detail(id), prev =>
         prev ? { ...prev, user_liked: liked, like_count: prev.like_count + delta } : prev,
@@ -53,8 +49,7 @@ export function useCreateArt() {
     return useMutation({
         mutationFn: (input: CreateArtInput) => createArt(input.metadata, input.imageFile),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.art.all });
-            invalidateGalleries(qc);
+            invalidateViews(qc, "art");
         },
     });
 }
@@ -64,7 +59,7 @@ export function useUpdateArt(id: string) {
     return useMutation({
         mutationFn: (data: UpdateArtInput) => updateArt(id, data),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.art.all });
+            invalidateViews(qc, "art");
         },
     });
 }
@@ -74,8 +69,7 @@ export function useDeleteArt() {
     return useMutation({
         mutationFn: (id: string) => deleteArt(id),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.art.all });
-            invalidateGalleries(qc);
+            invalidateViews(qc, "art");
         },
     });
 }
@@ -90,8 +84,8 @@ export function useLikeArt() {
         onError: (_e, id) => {
             overlayLike(qc, id, -1, false);
         },
-        onSuccess: (_d, id) => {
-            qc.invalidateQueries({ queryKey: queryKeys.art.detail(id) });
+        onSuccess: () => {
+            invalidateViews(qc, "art");
         },
     });
 }
@@ -106,8 +100,8 @@ export function useUnlikeArt() {
         onError: (_e, id) => {
             overlayLike(qc, id, 1, true);
         },
-        onSuccess: (_d, id) => {
-            qc.invalidateQueries({ queryKey: queryKeys.art.detail(id) });
+        onSuccess: () => {
+            invalidateViews(qc, "art");
         },
     });
 }
@@ -118,7 +112,7 @@ export function useCreateArtComment(artId: string) {
         mutationFn: ({ body, parentId }: { body: string; parentId?: string }) =>
             createArtComment(artId, body, parentId),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.art.detail(artId) });
+            invalidateViews(qc, "art");
         },
     });
 }
@@ -133,12 +127,12 @@ export function useUpdateArtComment(artId: string) {
     });
 }
 
-export function useDeleteArtComment(artId: string) {
+export function useDeleteArtComment(_artId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (commentId: string) => deleteArtComment(commentId),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.art.detail(artId) });
+            invalidateViews(qc, "art");
         },
     });
 }
@@ -179,8 +173,7 @@ export function useCreateGallery() {
         mutationFn: ({ name, description }: { name: string; description?: string }) =>
             createGallery(name, description ?? ""),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.art.all });
-            invalidateGalleries(qc);
+            invalidateViews(qc, "art");
         },
     });
 }
@@ -191,8 +184,7 @@ export function useUpdateGallery(id: string) {
         mutationFn: ({ name, description }: { name: string; description?: string }) =>
             updateGallery(id, name, description ?? ""),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.art.all });
-            invalidateGalleries(qc);
+            invalidateViews(qc, "art");
         },
     });
 }
@@ -202,8 +194,7 @@ export function useDeleteGallery() {
     return useMutation({
         mutationFn: (id: string) => deleteGallery(id),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.art.all });
-            invalidateGalleries(qc);
+            invalidateViews(qc, "art");
         },
     });
 }
@@ -213,8 +204,7 @@ export function useSetGalleryCover(id: string) {
     return useMutation({
         mutationFn: (artId: string) => setGalleryCover(id, artId),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.art.all });
-            invalidateGalleries(qc);
+            invalidateViews(qc, "art");
         },
     });
 }
@@ -225,8 +215,7 @@ export function useSetArtGallery() {
         mutationFn: ({ artId, galleryId }: { artId: string; galleryId: string | null }) =>
             setArtGallery(artId, galleryId),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.art.all });
-            invalidateGalleries(qc);
+            invalidateViews(qc, "art");
         },
     });
 }

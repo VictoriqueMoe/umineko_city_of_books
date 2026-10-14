@@ -52,6 +52,7 @@ import {
     updateChatbotBasePrompt,
 } from "../../api/endpoints/chatbot";
 import type { ChatbotBasePromptPayload, ChatbotPayload, CreateBannedWordRequest, SiteSettings } from "../../types/api";
+import { invalidateViews } from "../../api/cache/invalidate";
 import { queryKeys } from "../../api/queryKeys";
 
 export function useSetUserRole() {
@@ -286,8 +287,7 @@ export function useCreateAnnouncement() {
     return useMutation({
         mutationFn: ({ title, body }: { title: string; body: string }) => createAnnouncement(title, body),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.admin.announcements() });
-            qc.invalidateQueries({ queryKey: queryKeys.announcements.all });
+            invalidateViews(qc, "announcement");
         },
     });
 }
@@ -298,8 +298,7 @@ export function useUpdateAnnouncement() {
         mutationFn: ({ id, title, body }: { id: string; title: string; body: string }) =>
             updateAnnouncement(id, title, body),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.admin.announcements() });
-            qc.invalidateQueries({ queryKey: queryKeys.announcements.all });
+            invalidateViews(qc, "announcement");
         },
     });
 }
@@ -309,8 +308,7 @@ export function useDeleteAnnouncement() {
     return useMutation({
         mutationFn: (id: string) => deleteAnnouncement(id),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.admin.announcements() });
-            qc.invalidateQueries({ queryKey: queryKeys.announcements.all });
+            invalidateViews(qc, "announcement");
         },
     });
 }
@@ -320,8 +318,7 @@ export function usePinAnnouncement() {
     return useMutation({
         mutationFn: ({ id, pinned }: { id: string; pinned: boolean }) => pinAnnouncement(id, pinned),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.admin.announcements() });
-            qc.invalidateQueries({ queryKey: queryKeys.announcements.all });
+            invalidateViews(qc, "announcement");
         },
     });
 }

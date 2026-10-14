@@ -300,7 +300,7 @@ describe("mystery mutations", () => {
         // then
         expect(endpoint).toHaveBeenCalledWith(...args);
         expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.mystery.all });
-        expect(invalidate).toHaveBeenCalledTimes(1);
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.profile.all });
     });
 });
 

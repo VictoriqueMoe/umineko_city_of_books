@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     acceptDraw,
     acceptGameInvite,
@@ -12,10 +12,14 @@ import {
     resignGame,
     submitGameAction,
 } from "../../api/endpoints/gameRoom";
-import type { GameType, SpectatorChatResponse, SpectatorMessage } from "../../types/api";
+import type { GameRoom, GameType, SpectatorChatResponse, SpectatorMessage } from "../../types/api";
+import { invalidateViews } from "../../api/cache/invalidate";
 import { queryKeys } from "../../api/queryKeys";
 
-const LIST_KEY = ["gameRoom", "list"] as const;
+function applyRoom(qc: QueryClient, id: string, room: GameRoom): void {
+    qc.setQueryData(queryKeys.gameRoom.detail(id), room);
+    invalidateViews(qc, "gameRooms");
+}
 
 function withMessage(prev: SpectatorChatResponse | undefined, message: SpectatorMessage): SpectatorChatResponse {
     if (!prev) {
@@ -35,7 +39,7 @@ export function useInviteToGame() {
     return useMutation({
         mutationFn: ({ opponentId, gameType }: { opponentId: string; gameType: GameType }) =>
             inviteToGame(opponentId, gameType),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.gameRoom.all }),
+        onSuccess: () => invalidateViews(qc, "gameRooms"),
     });
 }
 
@@ -44,8 +48,7 @@ export function useAcceptGameInvite() {
     return useMutation({
         mutationFn: (id: string) => acceptGameInvite(id),
         onSuccess: (room, id) => {
-            qc.setQueryData(queryKeys.gameRoom.detail(id), room);
-            qc.invalidateQueries({ queryKey: LIST_KEY });
+            applyRoom(qc, id, room);
         },
     });
 }
@@ -54,7 +57,7 @@ export function useDeclineGameInvite() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => declineGameInvite(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.gameRoom.all }),
+        onSuccess: () => invalidateViews(qc, "gameRooms"),
     });
 }
 
@@ -62,7 +65,7 @@ export function useCancelGameInvite() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => cancelGameInvite(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.gameRoom.all }),
+        onSuccess: () => invalidateViews(qc, "gameRooms"),
     });
 }
 
@@ -71,8 +74,7 @@ export function useSubmitGameAction(id: string) {
     return useMutation({
         mutationFn: (action: Record<string, unknown>) => submitGameAction(id, action),
         onSuccess: room => {
-            qc.setQueryData(queryKeys.gameRoom.detail(id), room);
-            qc.invalidateQueries({ queryKey: LIST_KEY });
+            applyRoom(qc, id, room);
         },
     });
 }
@@ -82,8 +84,7 @@ export function useResignGame() {
     return useMutation({
         mutationFn: (id: string) => resignGame(id),
         onSuccess: (room, id) => {
-            qc.setQueryData(queryKeys.gameRoom.detail(id), room);
-            qc.invalidateQueries({ queryKey: LIST_KEY });
+            applyRoom(qc, id, room);
         },
     });
 }
@@ -93,8 +94,7 @@ export function useOfferDraw() {
     return useMutation({
         mutationFn: (id: string) => offerDraw(id),
         onSuccess: (room, id) => {
-            qc.setQueryData(queryKeys.gameRoom.detail(id), room);
-            qc.invalidateQueries({ queryKey: LIST_KEY });
+            applyRoom(qc, id, room);
         },
     });
 }
@@ -104,8 +104,7 @@ export function useAcceptDraw() {
     return useMutation({
         mutationFn: (id: string) => acceptDraw(id),
         onSuccess: (room, id) => {
-            qc.setQueryData(queryKeys.gameRoom.detail(id), room);
-            qc.invalidateQueries({ queryKey: LIST_KEY });
+            applyRoom(qc, id, room);
         },
     });
 }
@@ -115,8 +114,7 @@ export function useDeclineDraw() {
     return useMutation({
         mutationFn: (id: string) => declineDraw(id),
         onSuccess: (room, id) => {
-            qc.setQueryData(queryKeys.gameRoom.detail(id), room);
-            qc.invalidateQueries({ queryKey: LIST_KEY });
+            applyRoom(qc, id, room);
         },
     });
 }

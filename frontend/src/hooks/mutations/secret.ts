@@ -8,7 +8,7 @@ import {
     updateSecretComment,
     uploadSecretCommentMedia,
 } from "../../api/endpoints/comments";
-import { queryKeys } from "../../api/queryKeys";
+import { invalidateViews } from "../../api/cache/invalidate";
 import { commentMutations } from "./comments";
 
 export function useCreateSecretComment(secretId: string) {
@@ -16,11 +16,11 @@ export function useCreateSecretComment(secretId: string) {
     return useMutation({
         mutationFn: ({ body, parentId }: { body: string; parentId?: string }) =>
             createSecretComment(secretId, body, parentId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.secrets.all }),
+        onSuccess: () => invalidateViews(qc, "secret"),
     });
 }
 
-const secretCommentMutations = commentMutations(queryKeys.secrets.all, {
+const secretCommentMutations = commentMutations("secret", {
     update: (id, body) => updateSecretComment(id, body),
     remove: id => deleteSecretComment(id),
     like: id => likeSecretComment(id),
