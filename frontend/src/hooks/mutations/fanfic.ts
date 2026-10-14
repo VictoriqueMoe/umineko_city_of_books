@@ -19,14 +19,14 @@ import {
     updateFanficComment,
     uploadFanficCommentMedia,
 } from "../../api/endpoints/comments";
-import { queryKeys } from "../../api/queryKeys";
+import { invalidateViews } from "../../api/cache/invalidate";
 import { commentMutations } from "./comments";
 
 export function useCreateFanfic() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (data: Parameters<typeof createFanfic>[0]) => createFanfic(data),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
+        onSuccess: () => invalidateViews(qc, "fanfic"),
     });
 }
 
@@ -34,7 +34,7 @@ export function useUpdateFanfic(id: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (data: Parameters<typeof updateFanfic>[1]) => updateFanfic(id, data),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
+        onSuccess: () => invalidateViews(qc, "fanfic"),
     });
 }
 
@@ -42,7 +42,7 @@ export function useDeleteFanfic() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => deleteFanfic(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
+        onSuccess: () => invalidateViews(qc, "fanfic"),
     });
 }
 
@@ -50,7 +50,7 @@ export function useUploadFanficCover(id: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (file: File) => uploadFanficCover(id, file),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
+        onSuccess: () => invalidateViews(qc, "fanfic"),
     });
 }
 
@@ -58,7 +58,7 @@ export function useUploadFanficCoverFor() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ id, file }: { id: string; file: File }) => uploadFanficCover(id, file),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
+        onSuccess: () => invalidateViews(qc, "fanfic"),
     });
 }
 
@@ -66,7 +66,7 @@ export function useDeleteFanficCover(id: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: () => deleteFanficCover(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
+        onSuccess: () => invalidateViews(qc, "fanfic"),
     });
 }
 
@@ -74,7 +74,7 @@ export function useCreateFanficChapter(fanficId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ title, body }: { title: string; body: string }) => createFanficChapter(fanficId, title, body),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
+        onSuccess: () => invalidateViews(qc, "fanfic"),
     });
 }
 
@@ -83,7 +83,7 @@ export function useUpdateFanficChapter(_fanficId: string) {
     return useMutation({
         mutationFn: ({ chapterId, title, body }: { chapterId: string; title: string; body: string }) =>
             updateFanficChapter(chapterId, title, body),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
+        onSuccess: () => invalidateViews(qc, "fanfic"),
     });
 }
 
@@ -91,7 +91,7 @@ export function useDeleteFanficChapter(_fanficId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (chapterId: string) => deleteFanficChapter(chapterId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
+        onSuccess: () => invalidateViews(qc, "fanfic"),
     });
 }
 
@@ -99,7 +99,7 @@ export function useFavouriteFanfic() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => favouriteFanfic(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
+        onSuccess: () => invalidateViews(qc, "fanfic"),
     });
 }
 
@@ -107,7 +107,7 @@ export function useUnfavouriteFanfic() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => unfavouriteFanfic(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
+        onSuccess: () => invalidateViews(qc, "fanfic"),
     });
 }
 
@@ -116,11 +116,11 @@ export function useCreateFanficComment(fanficId: string) {
     return useMutation({
         mutationFn: ({ body, parentId }: { body: string; parentId?: string }) =>
             createFanficComment(fanficId, body, parentId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
+        onSuccess: () => invalidateViews(qc, "fanfic"),
     });
 }
 
-const fanficCommentMutations = commentMutations(queryKeys.fanfic.all, {
+const fanficCommentMutations = commentMutations("fanfic", {
     update: (id, body) => updateFanficComment(id, body),
     remove: id => deleteFanficComment(id),
     like: id => likeFanficComment(id),

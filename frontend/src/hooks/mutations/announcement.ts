@@ -7,7 +7,7 @@ import {
     updateAnnouncementComment,
     uploadAnnouncementCommentMedia,
 } from "../../api/endpoints/comments";
-import { queryKeys } from "../../api/queryKeys";
+import { invalidateViews } from "../../api/cache/invalidate";
 import { commentMutations } from "./comments";
 
 export function useCreateAnnouncementComment(announcementId: string) {
@@ -15,11 +15,11 @@ export function useCreateAnnouncementComment(announcementId: string) {
     return useMutation({
         mutationFn: ({ body, parentId }: { body: string; parentId?: string }) =>
             createAnnouncementComment(announcementId, body, parentId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.announcements.all }),
+        onSuccess: () => invalidateViews(qc, "announcement"),
     });
 }
 
-const announcementCommentMutations = commentMutations(queryKeys.announcements.all, {
+const announcementCommentMutations = commentMutations("announcement", {
     update: (id, body) => updateAnnouncementComment(id, body),
     remove: id => deleteAnnouncementComment(id),
     like: id => likeAnnouncementComment(id),

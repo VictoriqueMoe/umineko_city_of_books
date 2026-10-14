@@ -40,10 +40,8 @@ import type {
     User,
 } from "../../types/api";
 import { ApiError } from "../../api/client";
+import { invalidateViews } from "../../api/cache/invalidate";
 import { queryKeys } from "../../api/queryKeys";
-
-const ROOM_KEY = ["chat", "rooms"] as const;
-const ROOMS_LIST_KEY = ["chat", "rooms-list"] as const;
 
 const NO_ROOM_OPEN = "No chat room is open.";
 
@@ -111,7 +109,7 @@ export function useCreateGroupRoom() {
             member_ids: string[];
         }): Promise<ChatRoom> => createGroupRoom(payload),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ROOM_KEY });
+            invalidateViews(qc, "rooms");
         },
     });
 }
@@ -121,8 +119,7 @@ export function useUpdateChatRoom(roomId: string) {
     return useMutation({
         mutationFn: (payload: UpdateGroupRoomRequest): Promise<ChatRoom> => updateChatRoom(roomId, payload),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ROOM_KEY });
-            qc.invalidateQueries({ queryKey: ROOMS_LIST_KEY });
+            invalidateViews(qc, "rooms");
         },
     });
 }
@@ -132,7 +129,7 @@ export function useJoinChatRoom() {
     return useMutation({
         mutationFn: ({ roomId, ghost }: { roomId: string; ghost?: boolean }) => joinChatRoom(roomId, { ghost }),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ROOM_KEY });
+            invalidateViews(qc, "rooms");
         },
     });
 }
@@ -142,7 +139,7 @@ export function useLeaveChatRoom() {
     return useMutation({
         mutationFn: (roomId: string) => leaveChatRoom(roomId),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ROOM_KEY });
+            invalidateViews(qc, "rooms");
         },
     });
 }
@@ -152,7 +149,7 @@ export function useDeleteChatRoom() {
     return useMutation({
         mutationFn: (roomId: string) => deleteChatRoom(roomId),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ROOM_KEY });
+            invalidateViews(qc, "rooms");
         },
     });
 }
@@ -162,7 +159,7 @@ export function useSetChatRoomMuted() {
     return useMutation({
         mutationFn: ({ roomId, muted }: { roomId: string; muted: boolean }) => setChatRoomMuted(roomId, muted),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ROOM_KEY });
+            invalidateViews(qc, "rooms");
         },
     });
 }

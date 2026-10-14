@@ -47,19 +47,19 @@ vi.mock("../../api/endpoints/comments", () => ({
     uploadCommentMedia: vi.fn(),
 }));
 
-type TestQueryKey = readonly unknown[];
-
 interface MutationCase {
     name: string;
     useHook: () => { mutateAsync: (variables: never) => Promise<unknown> };
     variables: unknown;
     endpoint: Mock;
     args: unknown[];
-    keys: TestQueryKey[];
+    invalidations: unknown[];
 }
 
 const postId = "p-1";
 const file = new File(["gold"], "letter.png", { type: "image/png" });
+const postViews = [{ queryKey: queryKeys.post.all }, { predicate: expect.any(Function) }];
+const detailOnly = [{ queryKey: queryKeys.post.detail(postId) }];
 
 function setup<T>(useHook: () => T) {
     const queryClient = createTestQueryClient();
@@ -92,7 +92,7 @@ describe("post mutations", () => {
             },
             endpoint: vi.mocked(endpoints.createPost),
             args: ["Without love it cannot be seen", "theories", undefined, "art-3", "art"],
-            keys: [queryKeys.post.all],
+            invalidations: postViews,
         },
         {
             name: "useUpdatePost refreshes both its own post and the feed",
@@ -100,7 +100,7 @@ describe("post mutations", () => {
             variables: "an edited body",
             endpoint: vi.mocked(endpoints.updatePost),
             args: [postId, "an edited body"],
-            keys: [queryKeys.post.detail(postId), queryKeys.post.all],
+            invalidations: postViews,
         },
         {
             name: "useUploadPostMedia attaches the file to the post it was built with",
@@ -108,7 +108,7 @@ describe("post mutations", () => {
             variables: { file },
             endpoint: vi.mocked(endpoints.uploadPostMedia),
             args: [postId, file, false],
-            keys: [queryKeys.post.detail(postId)],
+            invalidations: postViews,
         },
         {
             name: "useDeletePostMedia deletes a numbered media item from its own post",
@@ -116,23 +116,23 @@ describe("post mutations", () => {
             variables: 7,
             endpoint: vi.mocked(endpoints.deletePostMedia),
             args: [postId, 7],
-            keys: [queryKeys.post.detail(postId)],
+            invalidations: postViews,
         },
         {
-            name: "useLikePost refreshes only the post that was liked",
+            name: "useLikePost refreshes every view of posts so the feed shows the like",
             useHook: () => useLikePost(),
             variables: postId,
             endpoint: vi.mocked(endpoints.likePost),
             args: [postId],
-            keys: [queryKeys.post.detail(postId)],
+            invalidations: postViews,
         },
         {
-            name: "useUnlikePost refreshes only the post that was unliked",
+            name: "useUnlikePost refreshes every view of posts so the feed drops the like",
             useHook: () => useUnlikePost(),
             variables: postId,
             endpoint: vi.mocked(endpoints.unlikePost),
             args: [postId],
-            keys: [queryKeys.post.detail(postId)],
+            invalidations: postViews,
         },
         {
             name: "useVotePoll sends the chosen option and refreshes the post holding the poll",
@@ -140,7 +140,7 @@ describe("post mutations", () => {
             variables: { postId, optionIdx: 2 },
             endpoint: vi.mocked(endpoints.votePoll),
             args: [postId, 2],
-            keys: [queryKeys.post.detail(postId)],
+            invalidations: postViews,
         },
         {
             name: "useResolveSuggestion sends the chosen status and refreshes the feed",
@@ -148,7 +148,7 @@ describe("post mutations", () => {
             variables: { id: postId, status: "rejected" },
             endpoint: vi.mocked(endpoints.resolveSuggestion),
             args: [postId, "rejected"],
-            keys: [queryKeys.post.all],
+            invalidations: postViews,
         },
         {
             name: "useUnresolveSuggestion reopens the id it is handed and refreshes the feed",
@@ -156,7 +156,7 @@ describe("post mutations", () => {
             variables: postId,
             endpoint: vi.mocked(endpoints.unresolveSuggestion),
             args: [postId],
-            keys: [queryKeys.post.all],
+            invalidations: postViews,
         },
         {
             name: "useCreateComment sends the body and the parent under the post it was built with",
@@ -164,7 +164,7 @@ describe("post mutations", () => {
             variables: { body: "A fine catch", parentId: "c-parent" },
             endpoint: vi.mocked(comments.createComment),
             args: [postId, "A fine catch", "c-parent"],
-            keys: [queryKeys.post.detail(postId)],
+            invalidations: postViews,
         },
         {
             name: "useUpdateComment addresses the comment directly but refreshes its post",
@@ -172,15 +172,15 @@ describe("post mutations", () => {
             variables: { commentId: "c-1", body: "Rewritten" },
             endpoint: vi.mocked(comments.updateComment),
             args: ["c-1", "Rewritten"],
-            keys: [queryKeys.post.detail(postId)],
+            invalidations: detailOnly,
         },
         {
-            name: "useDeleteComment addresses the comment directly but refreshes its post",
+            name: "useDeleteComment addresses the comment directly and refreshes every view of posts",
             useHook: () => useDeleteComment(postId),
             variables: "c-1",
             endpoint: vi.mocked(comments.deleteComment),
             args: ["c-1"],
-            keys: [queryKeys.post.detail(postId)],
+            invalidations: postViews,
         },
         {
             name: "useLikeComment likes the comment id it is handed and refreshes its post",
@@ -188,7 +188,7 @@ describe("post mutations", () => {
             variables: "c-1",
             endpoint: vi.mocked(comments.likeComment),
             args: ["c-1"],
-            keys: [queryKeys.post.detail(postId)],
+            invalidations: detailOnly,
         },
         {
             name: "useUnlikeComment unlikes the comment id it is handed and refreshes its post",
@@ -196,7 +196,7 @@ describe("post mutations", () => {
             variables: "c-1",
             endpoint: vi.mocked(comments.unlikeComment),
             args: ["c-1"],
-            keys: [queryKeys.post.detail(postId)],
+            invalidations: detailOnly,
         },
         {
             name: "useUploadCommentMedia attaches the file to the given comment and refreshes its post",
@@ -204,11 +204,11 @@ describe("post mutations", () => {
             variables: { commentId: "c-1", file },
             endpoint: vi.mocked(comments.uploadCommentMedia),
             args: ["c-1", file, false],
-            keys: [queryKeys.post.detail(postId)],
+            invalidations: detailOnly,
         },
     ];
 
-    it.each(cases)("$name", async ({ useHook, variables, endpoint, args, keys }) => {
+    it.each(cases)("$name", async ({ useHook, variables, endpoint, args, invalidations }) => {
         // given the hook, its variables and the endpoint call they should produce, from the table row
         const { result, invalidate } = setup(useHook);
 
@@ -219,10 +219,7 @@ describe("post mutations", () => {
 
         // then
         expect(endpoint).toHaveBeenCalledWith(...args);
-        for (const key of keys) {
-            expect(invalidate).toHaveBeenCalledWith({ queryKey: key });
-        }
-        expect(invalidate).toHaveBeenCalledTimes(keys.length);
+        expect(invalidate.mock.calls).toEqual(invalidations.map(call => [call]));
     });
 });
 
@@ -323,8 +320,8 @@ describe("useCreatePost", () => {
             await pending;
         });
 
-        // then the lists refresh exactly once
-        expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: queryKeys.post.all });
+        // then every post view refreshes exactly once
+        expect(invalidate.mock.calls).toEqual(postViews.map(call => [call]));
     });
 
     it("reports a failed attachment and still uploads the rest", async () => {
@@ -405,16 +402,7 @@ describe("useDeletePost", () => {
         // then
         expect(endpoints.deletePost).toHaveBeenCalledWith(postId);
         expect(remove).toHaveBeenCalledWith({ queryKey: queryKeys.post.detail(postId) });
-        expect(invalidate).toHaveBeenCalledTimes(1);
-
-        const { queryKey, predicate } = invalidate.mock.calls[0][0] as {
-            queryKey: readonly string[];
-            predicate: (query: { queryKey: readonly unknown[] }) => boolean;
-        };
-        expect(queryKey).toEqual(queryKeys.post.all);
-        expect(predicate({ queryKey: queryKeys.post.detail(postId) })).toBe(false);
-        expect(predicate({ queryKey: queryKeys.post.detail("p-other") })).toBe(true);
-        expect(predicate({ queryKey: queryKeys.post.feed() })).toBe(true);
+        expect(invalidate.mock.calls).toEqual(postViews.map(call => [call]));
     });
 
     it("treats a 404 as an already-deleted post rather than a failure", async () => {

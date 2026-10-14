@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { typingNames as resolveTypingNames } from "../domain/chat/memberRoster";
 import { isTimeoutActive } from "../domain/chat/roomPolicy";
+import { invalidateViews } from "../api/cache/invalidate";
 import { queryKeys } from "../api/queryKeys";
 import { useDeleteChatRoom, useJoinChatRoom, useLeaveChatRoom } from "./mutations/chat";
 import { useResetOnChange } from "./useResetOnChange";
@@ -183,8 +184,7 @@ export function useRoomController() {
                 is_rp: update.is_rp,
             };
         });
-        qc.invalidateQueries({ queryKey: queryKeys.chat.rooms() });
-        qc.invalidateQueries({ queryKey: queryKeys.chat.roomsList() });
+        invalidateViews(qc, "rooms");
     });
 
     useRealtimeEvent(PIN_EVENTS, event => {

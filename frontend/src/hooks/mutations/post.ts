@@ -21,6 +21,7 @@ import {
 } from "../../api/endpoints/comments";
 import type { CreatePollPayload } from "../../types/api";
 import { ApiError } from "../../api/client";
+import { invalidateViews } from "../../api/cache/invalidate";
 import { queryKeys } from "../../api/queryKeys";
 
 type PostMediaUpload = {
@@ -76,7 +77,7 @@ export function useCreatePost() {
     return useMutation({
         mutationFn: createPostWithMedia,
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.post.all });
+            invalidateViews(qc, "post");
         },
     });
 }
@@ -86,8 +87,7 @@ export function useUpdatePost(id: string) {
     return useMutation({
         mutationFn: (body: string) => updatePost(id, body),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.post.detail(id) });
-            qc.invalidateQueries({ queryKey: queryKeys.post.all });
+            invalidateViews(qc, "post");
         },
     });
 }
@@ -107,10 +107,7 @@ export function useDeletePost() {
         },
         onSuccess: (_data, id) => {
             qc.removeQueries({ queryKey: queryKeys.post.detail(id) });
-            qc.invalidateQueries({
-                queryKey: queryKeys.post.all,
-                predicate: query => query.queryKey[1] !== "detail" || query.queryKey[2] !== id,
-            });
+            invalidateViews(qc, "post");
         },
     });
 }
@@ -121,7 +118,7 @@ export function useUploadPostMedia(id: string) {
         mutationFn: ({ file, isSpoiler }: { file: File; isSpoiler?: boolean }) =>
             uploadPostMedia(id, file, isSpoiler ?? false),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.post.detail(id) });
+            invalidateViews(qc, "post");
         },
     });
 }
@@ -131,7 +128,7 @@ export function useDeletePostMedia(id: string) {
     return useMutation({
         mutationFn: (mediaId: number) => deletePostMedia(id, mediaId),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.post.detail(id) });
+            invalidateViews(qc, "post");
         },
     });
 }
@@ -140,8 +137,8 @@ export function useLikePost() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => likePost(id),
-        onSuccess: (_d, id) => {
-            qc.invalidateQueries({ queryKey: queryKeys.post.detail(id) });
+        onSuccess: () => {
+            invalidateViews(qc, "post");
         },
     });
 }
@@ -150,8 +147,8 @@ export function useUnlikePost() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => unlikePost(id),
-        onSuccess: (_d, id) => {
-            qc.invalidateQueries({ queryKey: queryKeys.post.detail(id) });
+        onSuccess: () => {
+            invalidateViews(qc, "post");
         },
     });
 }
@@ -160,8 +157,8 @@ export function useVotePoll() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ postId, optionIdx }: { postId: string; optionIdx: number }) => votePoll(postId, optionIdx),
-        onSuccess: (_d, vars) => {
-            qc.invalidateQueries({ queryKey: queryKeys.post.detail(vars.postId) });
+        onSuccess: () => {
+            invalidateViews(qc, "post");
         },
     });
 }
@@ -171,7 +168,7 @@ export function useResolveSuggestion() {
     return useMutation({
         mutationFn: ({ id, status }: { id: string; status?: string }) => resolveSuggestion(id, status),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.post.all });
+            invalidateViews(qc, "post");
         },
     });
 }
@@ -181,7 +178,7 @@ export function useUnresolveSuggestion() {
     return useMutation({
         mutationFn: (id: string) => unresolveSuggestion(id),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.post.all });
+            invalidateViews(qc, "post");
         },
     });
 }
@@ -191,7 +188,7 @@ export function useCreateComment(postId: string) {
     return useMutation({
         mutationFn: ({ body, parentId }: { body: string; parentId?: string }) => createComment(postId, body, parentId),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.post.detail(postId) });
+            invalidateViews(qc, "post");
         },
     });
 }
@@ -206,12 +203,12 @@ export function useUpdateComment(postId: string) {
     });
 }
 
-export function useDeleteComment(postId: string) {
+export function useDeleteComment(_postId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (commentId: string) => deleteComment(commentId),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.post.detail(postId) });
+            invalidateViews(qc, "post");
         },
     });
 }

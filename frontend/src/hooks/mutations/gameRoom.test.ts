@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestQueryClient, providerWrapper } from "../../test-utils/render";
+import { queryKeys } from "../../api/queryKeys";
 import {
     useAcceptDraw,
     useAcceptGameInvite,
@@ -33,7 +34,12 @@ vi.mock("../../api/endpoints/gameRoom", () => mocks);
 
 const roomId = "11111111-1111-1111-1111-111111111111";
 const allKey = ["gameRoom"];
-const listKey = ["gameRoom", "list"];
+const roomViewCalls = [
+    queryKeys.gameRoom.list(),
+    queryKeys.gameRoom.live(),
+    queryKeys.gameRoom.finishedAll(),
+    queryKeys.gameRoom.scoreboardAll(),
+].map(queryKey => [{ queryKey }]);
 const detailKey = ["gameRoom", "detail", roomId];
 const spectatorChatKey = ["gameRoom", "spectator-chat", roomId];
 const playerChatKey = ["gameRoom", "player-chat", roomId];
@@ -102,7 +108,7 @@ describe("useInviteToGame", () => {
         });
 
         // then
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: allKey });
+        expect(invalidateQueries.mock.calls).toEqual(roomViewCalls);
     });
 
     it("leaves the cached game rooms alone when the invite is rejected", async () => {
@@ -164,7 +170,7 @@ describe("useAcceptGameInvite", () => {
         });
 
         // then
-        expect(invalidateQueries).toHaveBeenCalledExactlyOnceWith({ queryKey: listKey });
+        expect(invalidateQueries.mock.calls).toEqual(roomViewCalls);
     });
 
     it("marks the cached game room list stale rather than the room it just wrote", async () => {
@@ -198,7 +204,7 @@ describe("useDeclineGameInvite", () => {
 
         // then
         expect(mocks.declineGameInvite).toHaveBeenCalledWith(roomId);
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: allKey });
+        expect(invalidateQueries.mock.calls).toEqual(roomViewCalls);
     });
 
     it("leaves the detail cache untouched", async () => {
@@ -229,7 +235,7 @@ describe("useCancelGameInvite", () => {
 
         // then
         expect(mocks.cancelGameInvite).toHaveBeenCalledWith(roomId);
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: allKey });
+        expect(invalidateQueries.mock.calls).toEqual(roomViewCalls);
     });
 });
 
@@ -275,7 +281,7 @@ describe("useSubmitGameAction", () => {
         });
 
         // then
-        expect(invalidateQueries).toHaveBeenCalledExactlyOnceWith({ queryKey: listKey });
+        expect(invalidateQueries.mock.calls).toEqual(roomViewCalls);
     });
 
     it("keeps the cached room as it was when the action is refused", async () => {
@@ -324,7 +330,7 @@ describe("useResignGame", () => {
         });
 
         // then
-        expect(invalidateQueries).toHaveBeenCalledExactlyOnceWith({ queryKey: listKey });
+        expect(invalidateQueries.mock.calls).toEqual(roomViewCalls);
     });
 });
 
@@ -375,7 +381,7 @@ describe("useAcceptDraw", () => {
         });
 
         // then
-        expect(invalidateQueries).toHaveBeenCalledExactlyOnceWith({ queryKey: listKey });
+        expect(invalidateQueries.mock.calls).toEqual(roomViewCalls);
     });
 });
 

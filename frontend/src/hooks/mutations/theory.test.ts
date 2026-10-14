@@ -26,6 +26,7 @@ vi.mock("../../api/endpoints/theory", () => mocks);
 
 const theoryId = "55555555-5555-5555-5555-555555555555";
 const responseId = "66666666-6666-6666-6666-666666666666";
+const theoryViewCalls = [[{ queryKey: ["theory"] }], [{ queryKey: ["profile"] }]];
 
 const theoryPayload: CreateTheoryPayload = {
     title: "the culprit is on the island",
@@ -75,7 +76,7 @@ describe("useCreateTheory", () => {
         expect(result.current.data).toEqual({ id: theoryId });
     });
 
-    it("refreshes every cached theory once the theory is stored", async () => {
+    it("refreshes every cached theory and the profile counts once the theory is stored", async () => {
         // given
         const { result, invalidate } = setup(() => useCreateTheory());
 
@@ -86,8 +87,7 @@ describe("useCreateTheory", () => {
 
         // then
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
-        expect(invalidate).toHaveBeenCalledTimes(1);
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["theory"] });
+        expect(invalidate.mock.calls).toEqual(theoryViewCalls);
     });
 
     it("leaves the cached theories untouched when creation fails", async () => {
@@ -121,7 +121,7 @@ describe("useUpdateTheory", () => {
         expect(mocks.updateTheory).toHaveBeenCalledWith(theoryId, { ...theoryPayload, title: "a revised claim" });
     });
 
-    it("refreshes both the single theory and the theory lists", async () => {
+    it("refreshes every view of theories, the edited one included", async () => {
         // given
         const { result, invalidate } = setup(() => useUpdateTheory(theoryId));
 
@@ -132,9 +132,7 @@ describe("useUpdateTheory", () => {
 
         // then
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
-        expect(invalidate).toHaveBeenCalledTimes(2);
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["theory", "detail", theoryId] });
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["theory"] });
+        expect(invalidate.mock.calls).toEqual(theoryViewCalls);
     });
 });
 
@@ -151,8 +149,7 @@ describe("useDeleteTheory", () => {
         // then
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
         expect(mocks.deleteTheory).toHaveBeenCalledWith(theoryId);
-        expect(invalidate).toHaveBeenCalledTimes(1);
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["theory"] });
+        expect(invalidate.mock.calls).toEqual(theoryViewCalls);
     });
 
     it("leaves the cached theories untouched when the deletion is refused", async () => {
@@ -172,7 +169,7 @@ describe("useDeleteTheory", () => {
 });
 
 describe("useVoteTheory", () => {
-    it("votes on the theory it was built for and refreshes only that theory", async () => {
+    it("votes on the theory it was built for and refreshes every view of theories", async () => {
         // given
         const { result, invalidate } = setup(() => useVoteTheory(theoryId));
 
@@ -184,8 +181,7 @@ describe("useVoteTheory", () => {
         // then
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
         expect(mocks.voteTheory).toHaveBeenCalledWith(theoryId, -1);
-        expect(invalidate).toHaveBeenCalledTimes(1);
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["theory", "detail", theoryId] });
+        expect(invalidate.mock.calls).toEqual(theoryViewCalls);
     });
 });
 
@@ -205,7 +201,7 @@ describe("useCreateResponse", () => {
         expect(result.current.data).toEqual({ id: responseId });
     });
 
-    it("refreshes only the theory the response belongs to", async () => {
+    it("refreshes every view of theories so the feed shows the new response", async () => {
         // given
         const { result, invalidate } = setup(() => useCreateResponse(theoryId));
 
@@ -217,15 +213,14 @@ describe("useCreateResponse", () => {
         // then
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
         expect(mocks.createResponse).toHaveBeenCalledWith(theoryId, { ...responsePayload, parent_id: responseId });
-        expect(invalidate).toHaveBeenCalledTimes(1);
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["theory", "detail", theoryId] });
+        expect(invalidate.mock.calls).toEqual(theoryViewCalls);
     });
 });
 
 describe("useDeleteResponse", () => {
-    it("deletes by the response id while refreshing the theory it was built for", async () => {
+    it("deletes by the response id and refreshes every view of theories", async () => {
         // given
-        const { result, invalidate } = setup(() => useDeleteResponse(theoryId));
+        const { result, invalidate } = setup(() => useDeleteResponse());
 
         // when
         act(() => {
@@ -235,13 +230,13 @@ describe("useDeleteResponse", () => {
         // then
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
         expect(mocks.deleteResponse).toHaveBeenCalledWith(responseId);
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["theory", "detail", theoryId] });
+        expect(invalidate.mock.calls).toEqual(theoryViewCalls);
     });
 
     it("leaves the cached theory untouched when the deletion is refused", async () => {
         // given
         mocks.deleteResponse.mockRejectedValue(new Error("forbidden"));
-        const { result, invalidate } = setup(() => useDeleteResponse(theoryId));
+        const { result, invalidate } = setup(() => useDeleteResponse());
 
         // when
         act(() => {
@@ -257,7 +252,7 @@ describe("useDeleteResponse", () => {
 describe("useVoteResponse", () => {
     it("votes on the response in the payload rather than on the theory", async () => {
         // given
-        const { result, invalidate } = setup(() => useVoteResponse(theoryId));
+        const { result, invalidate } = setup(() => useVoteResponse());
 
         // when
         act(() => {
@@ -267,7 +262,6 @@ describe("useVoteResponse", () => {
         // then
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
         expect(mocks.voteResponse).toHaveBeenCalledWith(responseId, 1);
-        expect(invalidate).toHaveBeenCalledTimes(1);
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["theory", "detail", theoryId] });
+        expect(invalidate.mock.calls).toEqual(theoryViewCalls);
     });
 });

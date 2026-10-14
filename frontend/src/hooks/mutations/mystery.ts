@@ -26,14 +26,14 @@ import {
     updateMysteryComment,
     uploadMysteryCommentMedia,
 } from "../../api/endpoints/comments";
-import { queryKeys } from "../../api/queryKeys";
+import { invalidateViews } from "../../api/cache/invalidate";
 import { commentMutations } from "./comments";
 
 export function useCreateMystery() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (data: Parameters<typeof createMystery>[0]) => createMystery(data),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -41,7 +41,7 @@ export function useUpdateMystery(id: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (data: Parameters<typeof updateMystery>[1]) => updateMystery(id, data),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -49,7 +49,7 @@ export function useDeleteMystery() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => deleteMystery(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -58,7 +58,7 @@ export function useCreateMysteryAttempt(mysteryId: string) {
     return useMutation({
         mutationFn: ({ body, parentId }: { body: string; parentId?: string }) =>
             createMysteryAttempt(mysteryId, body, parentId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -66,7 +66,7 @@ export function useDeleteMysteryAttempt(_mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => deleteMysteryAttempt(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -74,7 +74,7 @@ export function useVoteMysteryAttempt(_mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ id, value }: { id: string; value: number }) => voteMysteryAttempt(id, value),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -82,7 +82,7 @@ export function useMarkMysterySolved(mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (attemptId: string) => markMysterySolved(mysteryId, attemptId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -90,7 +90,7 @@ export function useCloseMystery(mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: () => closeMystery(mysteryId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -98,7 +98,7 @@ export function useSetMysteryPaused(mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (paused: boolean) => setMysteryPaused(mysteryId, paused),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -106,7 +106,7 @@ export function useSetMysteryGmAway(mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (away: boolean) => setMysteryGmAway(mysteryId, away),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -114,7 +114,7 @@ export function useDeleteMysteryClue(mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (clueId: number) => deleteMysteryClue(mysteryId, clueId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -122,7 +122,7 @@ export function useUpdateMysteryClue(mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ clueId, body }: { clueId: number; body: string }) => updateMysteryClue(mysteryId, clueId, body),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -131,7 +131,7 @@ export function useAddMysteryClue(mysteryId: string) {
     return useMutation({
         mutationFn: ({ body, truthType, playerId }: { body: string; truthType: string; playerId?: string }) =>
             addMysteryClue(mysteryId, body, truthType, playerId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -140,11 +140,11 @@ export function useCreateMysteryComment(mysteryId: string) {
     return useMutation({
         mutationFn: ({ body, parentId }: { body: string; parentId?: string }) =>
             createMysteryComment(mysteryId, body, parentId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
-const mysteryCommentMutations = commentMutations(queryKeys.mystery.all, {
+const mysteryCommentMutations = commentMutations("mystery", {
     update: (id, body) => updateMysteryComment(id, body),
     remove: id => deleteMysteryComment(id),
     like: id => likeMysteryComment(id),
@@ -162,7 +162,7 @@ export function useUploadMysteryAttachment(mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (file: File) => uploadMysteryAttachment(mysteryId, file),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -171,7 +171,7 @@ export function useUploadMysteryAttachmentToAny() {
     return useMutation({
         mutationFn: ({ mysteryId, file }: { mysteryId: string; file: File }) =>
             uploadMysteryAttachment(mysteryId, file),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -179,7 +179,7 @@ export function useDeleteMysteryAttachment(mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (attachmentId: number) => deleteMysteryAttachment(mysteryId, attachmentId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -188,7 +188,7 @@ export function useUploadMysteryMedia(mysteryId: string) {
     return useMutation({
         mutationFn: ({ file, isSpoiler }: { file: File; isSpoiler?: boolean }) =>
             uploadMysteryMedia(mysteryId, file, isSpoiler ?? false),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -197,7 +197,7 @@ export function useUploadMysteryMediaToAny() {
     return useMutation({
         mutationFn: ({ mysteryId, file, isSpoiler }: { mysteryId: string; file: File; isSpoiler?: boolean }) =>
             uploadMysteryMedia(mysteryId, file, isSpoiler ?? false),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
@@ -205,6 +205,6 @@ export function useDeleteMysteryMedia(mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (mediaId: number) => deleteMysteryMedia(mysteryId, mediaId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+        onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }

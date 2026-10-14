@@ -41,6 +41,7 @@ export function useRegister() {
 }
 
 export function useLogin() {
+    const qc = useQueryClient();
     return useMutation({
         mutationFn: ({
             username,
@@ -51,6 +52,9 @@ export function useLogin() {
             password: string;
             turnstileToken?: string;
         }) => login(username, password, turnstileToken),
+        onSuccess: () => {
+            qc.resetQueries();
+        },
     });
 }
 

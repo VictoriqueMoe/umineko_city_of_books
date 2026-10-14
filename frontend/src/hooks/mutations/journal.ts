@@ -21,6 +21,7 @@ import {
     uploadJournalCommentMedia,
 } from "../../api/endpoints/comments";
 import type { CreateJournalPayload, JournalDetail, JournalEntryPayload } from "../../types/api";
+import { invalidateViews } from "../../api/cache/invalidate";
 import { queryKeys } from "../../api/queryKeys";
 import { commentMutations } from "./comments";
 
@@ -40,7 +41,7 @@ export function useCreateJournal() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (payload: CreateJournalPayload) => createJournal(payload),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+        onSuccess: () => invalidateViews(qc, "journal"),
     });
 }
 
@@ -48,7 +49,7 @@ export function useUpdateJournal(id: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (payload: CreateJournalPayload) => updateJournal(id, payload),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+        onSuccess: () => invalidateViews(qc, "journal"),
     });
 }
 
@@ -56,7 +57,7 @@ export function useDeleteJournal() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => deleteJournal(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+        onSuccess: () => invalidateViews(qc, "journal"),
     });
 }
 
@@ -70,7 +71,7 @@ export function useSetJournalPaused() {
         onError: (_error, { id, paused }) => {
             patchPaused(qc, id, !paused);
         },
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+        onSuccess: () => invalidateViews(qc, "journal"),
     });
 }
 
@@ -84,7 +85,7 @@ export function useFollowJournal() {
         onError: (_error, id) => {
             patchFollowing(qc, id, false);
         },
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+        onSuccess: () => invalidateViews(qc, "journal"),
     });
 }
 
@@ -98,7 +99,7 @@ export function useUnfollowJournal() {
         onError: (_error, id) => {
             patchFollowing(qc, id, true);
         },
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+        onSuccess: () => invalidateViews(qc, "journal"),
     });
 }
 
@@ -107,7 +108,7 @@ export function useCreateJournalComment(journalId: string, entryId?: string) {
     return useMutation({
         mutationFn: ({ body, parentId }: { body: string; parentId?: string }) =>
             createJournalComment(journalId, body, parentId, entryId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+        onSuccess: () => invalidateViews(qc, "journal"),
     });
 }
 
@@ -115,7 +116,7 @@ export function useCreateJournalEntry(journalId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (payload: JournalEntryPayload) => createJournalEntry(journalId, payload),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+        onSuccess: () => invalidateViews(qc, "journal"),
     });
 }
 
@@ -123,7 +124,7 @@ export function useUpdateJournalEntry(_journalId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ id, payload }: { id: string; payload: JournalEntryPayload }) => updateJournalEntry(id, payload),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+        onSuccess: () => invalidateViews(qc, "journal"),
     });
 }
 
@@ -131,11 +132,11 @@ export function useDeleteJournalEntry(_journalId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => deleteJournalEntry(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+        onSuccess: () => invalidateViews(qc, "journal"),
     });
 }
 
-const journalCommentMutations = commentMutations(queryKeys.journal.all, {
+const journalCommentMutations = commentMutations("journal", {
     update: (id, body) => updateJournalComment(id, body),
     remove: id => deleteJournalComment(id),
     like: id => likeJournalComment(id),
@@ -154,7 +155,7 @@ export function useUploadJournalEntryMedia(_journalId: string) {
     return useMutation({
         mutationFn: ({ entryId, file, isSpoiler }: { entryId: string; file: File; isSpoiler?: boolean }) =>
             uploadJournalEntryMedia(entryId, file, isSpoiler ?? false),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+        onSuccess: () => invalidateViews(qc, "journal"),
     });
 }
 
@@ -163,6 +164,6 @@ export function useDeleteJournalEntryMedia(_journalId: string) {
     return useMutation({
         mutationFn: ({ entryId, mediaId }: { entryId: string; mediaId: number }) =>
             deleteJournalEntryMedia(entryId, mediaId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+        onSuccess: () => invalidateViews(qc, "journal"),
     });
 }

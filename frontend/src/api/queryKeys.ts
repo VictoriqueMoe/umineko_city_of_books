@@ -73,8 +73,10 @@ export const queryKeys = {
         list: (filters: Record<string, unknown> = {}) => ["gameRoom", "list", filters] as const,
         live: (gameType?: string) =>
             gameType ? (["gameRoom", "live", gameType] as const) : (["gameRoom", "live"] as const),
+        finishedAll: () => ["gameRoom", "finished"] as const,
         finished: (gameType: string, page: Record<string, unknown>) =>
             ["gameRoom", "finished", gameType, page] as const,
+        scoreboardAll: () => ["gameRoom", "scoreboard"] as const,
         scoreboard: (gameType: string) => ["gameRoom", "scoreboard", gameType] as const,
         spectatorChat: (id: string) => ["gameRoom", "spectator-chat", id] as const,
         playerChat: (id: string) => ["gameRoom", "player-chat", id] as const,

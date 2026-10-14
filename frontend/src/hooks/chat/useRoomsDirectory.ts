@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { REALTIME_EVENTS } from "../../api/realtime/events";
 import { useRealtimeEvent } from "../../api/realtime/useRealtime";
+import { invalidateViews } from "../../api/cache/invalidate";
 import { queryKeys, type RoomsListParams, type RoomsListScope } from "../../api/queryKeys";
 import type { ChatRoom } from "../../types/api";
 import { useAuth } from "../useAuth";
@@ -122,13 +123,11 @@ export function useRoomsDirectory(): UseRoomsDirectoryResult {
     }, [searchInput]);
 
     useRealtimeEvent(REALTIME_EVENTS.CHAT_ROOM_INVITED, () => {
-        queryClient.invalidateQueries({ queryKey: queryKeys.chat.roomsListJoined() });
-        queryClient.invalidateQueries({ queryKey: queryKeys.chat.userRooms() });
+        invalidateViews(queryClient, "rooms");
     });
 
     useRealtimeEvent(ROOM_MEMBERSHIP_EVENTS, () => {
-        queryClient.invalidateQueries({ queryKey: queryKeys.chat.roomsList() });
-        queryClient.invalidateQueries({ queryKey: queryKeys.chat.userRooms() });
+        invalidateViews(queryClient, "rooms");
     });
 
     useRealtimeEvent(REALTIME_EVENTS.VOICE_PRESENCE, () => {
@@ -146,8 +145,6 @@ export function useRoomsDirectory(): UseRoomsDirectoryResult {
         try {
             const joinedRoom = await joinRoomMutation.mutateAsync({ roomId: room.id, ghost });
 
-            queryClient.invalidateQueries({ queryKey: queryKeys.chat.roomsListJoined() });
-            queryClient.invalidateQueries({ queryKey: queryKeys.chat.roomsListDiscover() });
             navigate(`/rooms/${joinedRoom.id}`);
         } catch (err) {
             setJoinError(err instanceof Error ? err.message : "Could not join that room.");
@@ -157,7 +154,6 @@ export function useRoomsDirectory(): UseRoomsDirectoryResult {
     }
 
     function onCreated(room: ChatRoom): void {
-        queryClient.invalidateQueries({ queryKey: queryKeys.chat.roomsListHosted() });
         navigate(`/rooms/${room.id}`);
     }
 
