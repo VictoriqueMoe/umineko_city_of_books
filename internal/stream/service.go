@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"umineko_city_of_books/internal/coalesce"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
@@ -69,6 +70,7 @@ type (
 		bitrateMu   sync.Mutex
 		bitrates    map[uuid.UUID]int
 		ogCache     *og.Resolver
+		viewers     *coalesce.Keyed[uuid.UUID, int]
 	}
 )
 
@@ -125,7 +127,7 @@ func NewService(
 	hub *ws.Hub,
 	ogCache *og.Resolver,
 ) Service {
-	return &service{
+	s := &service{
 		repo:        repo,
 		creds:       creds,
 		followRepo:  followRepo,
@@ -138,6 +140,9 @@ func NewService(
 		bitrates:    make(map[uuid.UUID]int),
 		ogCache:     ogCache,
 	}
+	s.viewers = coalesce.NewKeyed(defaultViewerFlushInterval, coalesce.Sum[int], s.writeViewers)
+
+	return s
 }
 
 func (s *service) SetChatBinder(chat ChatBinder) {
@@ -784,7 +789,7 @@ func (s *service) HandleWebhook(ctx context.Context, authHeader string, body []b
 			s.broadcastLive(ctx, stream.ID)
 			go s.notifyFollowersLive(context.Background(), stream)
 		} else if !isMonitor {
-			s.adjustViewers(ctx, stream.ID, 1)
+			s.viewers.Add(ctx, stream.ID, 1)
 		}
 
 	case livekit.EventTrackPublished:
@@ -796,7 +801,7 @@ func (s *service) HandleWebhook(ctx context.Context, authHeader string, body []b
 		if isBroadcaster {
 			s.teardown(ctx, stream)
 		} else if !isMonitor {
-			s.adjustViewers(ctx, stream.ID, -1)
+			s.viewers.Add(ctx, stream.ID, -1)
 		}
 
 	case livekit.EventRoomFinished:
@@ -811,6 +816,7 @@ func (s *service) HandleWebhook(ctx context.Context, authHeader string, body []b
 
 func (s *service) teardown(ctx context.Context, stream *model.LiveStreamRow) bool {
 	s.clearBitrate(stream.ID)
+	s.viewers.Forget(stream.ID)
 
 	transitioned, err := s.repo.MarkOffline(ctx, stream.ID)
 	if err != nil {
@@ -840,22 +846,6 @@ func (s *service) teardown(ctx context.Context, stream *model.LiveStreamRow) boo
 	})
 
 	return true
-}
-
-func (s *service) adjustViewers(ctx context.Context, id uuid.UUID, delta int) {
-	count, ok, err := s.repo.AdjustViewerCount(ctx, spec.LiveStreamViewerAdjustment{ID: id, Delta: delta})
-	if err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Str("stream_id", id.String()).Msg("adjust viewer count failed")
-		return
-	}
-	if !ok {
-		return
-	}
-
-	s.hub.BroadcastPublic(ws.Message{
-		Type: wsStreamViewers,
-		Data: dto.StreamViewersEvent{StreamID: id, ViewerCount: count},
-	})
 }
 
 func (s *service) ReconcileOnce(ctx context.Context) (int, error) {

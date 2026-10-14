@@ -1,11 +1,30 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
+import type { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { queryKeys } from "../api/queryKeys";
 import { dispatch } from "../api/realtime/bus";
 import type { RealtimeEvent } from "../api/realtime/events";
+import type * as OutboundModule from "../api/realtime/outbound";
 import { makeUser } from "../test-utils/fixtures";
-import { providerWrapper } from "../test-utils/render";
+import { expectInvalidated } from "../test-utils/query";
+import { createTestQueryClient, providerWrapper } from "../test-utils/render";
+import { makeWSHarness, type WSHarness } from "../test-utils/ws";
 import type { MysteryAttempt, MysteryDetail, UserProfile } from "../types/api";
 import { useMysteryBoard } from "./useMysteryBoard";
+
+const holder = vi.hoisted(() => ({ ws: null as unknown as WSHarness }));
+
+vi.mock("../api/realtime/pipeline", () => ({
+    ensureRealtimePipeline: () => {},
+    getRealtimeEpoch: () => holder.ws.getEpoch(),
+    subscribeRealtimeEpoch: (listener: () => void) => holder.ws.subscribeEpoch(listener),
+}));
+
+vi.mock("../api/realtime/outbound", async importOriginal => {
+    const actual = await importOriginal<typeof OutboundModule>();
+
+    return { ...actual, sendRealtime: (command: OutboundModule.RealtimeCommand) => holder.ws.sendRealtime(command) };
+});
 
 const mocked = vi.hoisted(() => ({
     useMystery: vi.fn(),
@@ -135,6 +154,7 @@ interface BoardOptions {
     loading?: boolean;
     viewer?: UserProfile | null;
     mysteryId?: string;
+    queryClient?: QueryClient;
 }
 
 function renderBoard(options: BoardOptions = {}) {
@@ -146,7 +166,7 @@ function renderBoard(options: BoardOptions = {}) {
     });
 
     const rendered = renderHook(() => useMysteryBoard(options.mysteryId ?? "mystery-1"), {
-        wrapper: providerWrapper({ user: options.viewer ?? null }),
+        wrapper: providerWrapper({ user: options.viewer ?? null, queryClient: options.queryClient }),
     });
 
     return { ...rendered, refresh };
@@ -174,6 +194,7 @@ function attemptCreated(mysteryId: string, authorId: string): RealtimeEvent {
 }
 
 beforeEach(() => {
+    holder.ws = makeWSHarness();
     for (const mutation of ALL_MUTATIONS) {
         mutation.mockResolvedValue({});
     }
@@ -807,6 +828,57 @@ describe("useMysteryBoard", () => {
         expect(mocked.createAttempt).toHaveBeenCalled();
         expect(mocked.closeMystery).toHaveBeenCalled();
         expect(refresh).not.toHaveBeenCalled();
+    });
+
+    it("joins the mystery's realtime topic once the socket is up and leaves it on unmount", () => {
+        // given
+        const { unmount } = renderBoard({ viewer: playerUser });
+        expect(holder.ws.sendRealtime).not.toHaveBeenCalled();
+
+        // when
+        holder.ws.reconnect();
+        unmount();
+
+        // then
+        expect(holder.ws.sendRealtime.mock.calls.map(([command]) => command)).toEqual([
+            { type: "mystery_join", data: { mystery_id: "mystery-1" } },
+            { type: "mystery_leave", data: { mystery_id: "mystery-1" } },
+        ]);
+    });
+
+    it("joins again and refetches the board after the socket reconnects", () => {
+        // given
+        const queryClient = createTestQueryClient();
+        vi.spyOn(queryClient, "invalidateQueries");
+        renderBoard({ viewer: playerUser, queryClient });
+        holder.ws.reconnect();
+        expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
+
+        // when
+        holder.ws.reconnect();
+
+        // then
+        expect(holder.ws.sendRealtime.mock.calls.map(([command]) => command)).toEqual([
+            { type: "mystery_join", data: { mystery_id: "mystery-1" } },
+            { type: "mystery_leave", data: { mystery_id: "mystery-1" } },
+            { type: "mystery_join", data: { mystery_id: "mystery-1" } },
+        ]);
+        expectInvalidated(queryClient, queryKeys.mystery.detail("mystery-1"));
+    });
+
+    it("refetches when the game master replies inside the reader's own thread", async () => {
+        // given
+        const mystery = makeMysteryDetail({ attempts: [makeAttempt({ id: "attempt-1" })] });
+        const { refresh } = renderBoard({ mystery, viewer: playerUser });
+        const event = attemptCreated("mystery-1", "gm-1");
+
+        // when
+        emit({ ...event, data: { ...event.data, parent_id: "attempt-1" } } as RealtimeEvent);
+
+        // then
+        await waitFor(() => {
+            expect(refresh).toHaveBeenCalledTimes(1);
+        });
     });
 
     it("hands the comment section an adapter for every operation", () => {

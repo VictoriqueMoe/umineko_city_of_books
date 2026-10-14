@@ -10,6 +10,7 @@ var (
 	ErrInvalidUsername          = errors.New("username must be 3-30 characters and contain only letters, numbers, underscores, or hyphens")
 	ErrReservedUsername         = errors.New("that username is reserved by the site and cannot be used")
 	ErrUserBanned               = errors.New("your account has been banned")
+	ErrInvalidSession           = errors.New("invalid or expired session")
 	ErrUserNotFound             = errors.New("user not found")
 	ErrNoEmailAddress           = errors.New("user has no email set")
 	ErrEmailDisabled            = errors.New("password reset is not available")

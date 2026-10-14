@@ -54,6 +54,7 @@ func newMysteryHarness(t *testing.T) (*testutil.Harness, *mysterysvc.MockService
 	s := &Service{
 		MysteryService: ms,
 		AuthSession:    h.SessionManager,
+		AuthService:    h.AuthService,
 		AuthzService:   h.AuthzService,
 	}
 	for _, setup := range s.getAllMysteryRoutes() {

@@ -80,6 +80,7 @@ func newPostHarness(t *testing.T) (*testutil.Harness, postDeps) {
 		PostService:   deps.post,
 		FollowService: deps.follow,
 		AuthSession:   h.SessionManager,
+		AuthService:   h.AuthService,
 		AuthzService:  h.AuthzService,
 	}
 	for _, setup := range s.getAllPostRoutes() {

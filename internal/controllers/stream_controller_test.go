@@ -22,6 +22,7 @@ func newStreamHarness(t *testing.T) (*testutil.Harness, *stream.MockService) {
 	s := &Service{
 		StreamService: ss,
 		AuthSession:   h.SessionManager,
+		AuthService:   h.AuthService,
 		AuthzService:  h.AuthzService,
 	}
 	for _, setup := range s.getAllStreamRoutes() {

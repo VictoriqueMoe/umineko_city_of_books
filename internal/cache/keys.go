@@ -48,9 +48,17 @@ var (
 
 	SiteInfo = Namespace{Prefix: "siteinfo", TTL: minute}
 
+	PostCornerCounts = Namespace{Prefix: "post:corner-counts", TTL: noExpiry}
+	ArtCornerCounts  = Namespace{Prefix: "art:corner-counts", TTL: noExpiry}
+
 	RolePermissions       = Namespace{Prefix: "authz:role-perms", TTL: minute}
 	VanityRolePermissions = Namespace{Prefix: "authz:vanity-perms", TTL: minute}
 	UserVanityRoleIDs     = Namespace{Prefix: "authz:user-vanity:", TTL: minute}
+
+	UserBlockedIDs = Namespace{Prefix: "block:ids:", TTL: noExpiry}
+
+	ChatBannedWordsGlobal = Namespace{Prefix: "chat:banned-words:global", TTL: noExpiry}
+	ChatBannedWordsRoom   = Namespace{Prefix: "chat:banned-words:room:", TTL: noExpiry}
 
 	ChatbotBasePrompts    = Namespace{Prefix: "chatbot:base-prompts", TTL: noExpiry}
 	ChatbotBasePromptByID = Namespace{Prefix: "chatbot:base-prompt:", TTL: noExpiry}

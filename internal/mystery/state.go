@@ -25,7 +25,7 @@ func (s *service) SetPaused(ctx context.Context, mysteryID uuid.UUID, userID uui
 	if err := s.mysteryRepo.SetPaused(ctx, spec.MysteryPauseUpdate{MysteryID: mysteryID, Paused: paused}); err != nil {
 		return err
 	}
-	s.hub.Broadcast(ws.Message{
+	s.hub.BroadcastToTopic(mysteryTopic(mysteryID), ws.Message{
 		Type: "mystery_paused",
 		Data: map[string]any{
 			"mystery_id": mysteryID,
@@ -81,7 +81,7 @@ func (s *service) SetGmAway(ctx context.Context, mysteryID uuid.UUID, userID uui
 	if err := s.mysteryRepo.SetGmAway(ctx, spec.MysteryGmAwayUpdate{MysteryID: mysteryID, Away: away}); err != nil {
 		return err
 	}
-	s.hub.Broadcast(ws.Message{
+	s.hub.BroadcastToTopic(mysteryTopic(mysteryID), ws.Message{
 		Type: "mystery_gm_away",
 		Data: map[string]any{
 			"mystery_id": mysteryID,
@@ -139,7 +139,7 @@ func (s *service) DeleteClue(ctx context.Context, mysteryID uuid.UUID, clueID in
 		Details:    fmt.Sprintf("clue=%d", clueID),
 	})
 
-	s.hub.Broadcast(ws.Message{
+	s.hub.BroadcastToTopic(mysteryTopic(mysteryID), ws.Message{
 		Type: "mystery_clue_updated",
 		Data: map[string]any{"mystery_id": mysteryID},
 	})
@@ -165,7 +165,7 @@ func (s *service) UpdateClue(ctx context.Context, mysteryID uuid.UUID, clueID in
 		Details:    fmt.Sprintf("clue=%d", clueID),
 	})
 
-	s.hub.Broadcast(ws.Message{
+	s.hub.BroadcastToTopic(mysteryTopic(mysteryID), ws.Message{
 		Type: "mystery_clue_updated",
 		Data: map[string]any{"mystery_id": mysteryID},
 	})

@@ -12,7 +12,6 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dronebl"
 	appLogger "umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/gofiber/fiber/v3"
@@ -37,7 +36,7 @@ var (
 	}
 )
 
-func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Manager, authzSvc authz.Service, droneblChecker *dronebl.Checker) {
+func Setup(app *fiber.App, settingsSvc settings.Service, authenticator Authenticator, authzSvc authz.Service, droneblChecker *dronebl.Checker) {
 	app.Server().MaxRequestBodySize = settingsSvc.GetInt(context.Background(), config.SettingMaxBodySize)
 
 	app.Use(fiberRecover.New(fiberRecover.Config{
@@ -82,7 +81,7 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 		return ctx.Next()
 	})
 
-	app.Use(RequireCleanIP(droneblChecker, sessionMgr))
+	app.Use(RequireCleanIP(droneblChecker, authenticator))
 
 	app.Use(func(ctx fiber.Ctx) error {
 		start := time.Now()
@@ -119,8 +118,8 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 		return err
 	})
 
-	app.Use(RequireLogin(settingsSvc, sessionMgr))
-	app.Use(maintenanceMiddleware(settingsSvc, sessionMgr, authzSvc))
+	app.Use(RequireLogin(settingsSvc, authenticator))
+	app.Use(maintenanceMiddleware(settingsSvc, authenticator, authzSvc))
 }
 
 func redactedQueryString(ctx fiber.Ctx) string {
@@ -175,7 +174,7 @@ func shouldSkipRequestLog(ctx fiber.Ctx) bool {
 	return ctx.Method() == "GET" && ctx.Response().StatusCode() < 400
 }
 
-func maintenanceMiddleware(settingsSvc settings.Service, sessionMgr *session.Manager, authzSvc authz.Service) fiber.Handler {
+func maintenanceMiddleware(settingsSvc settings.Service, authenticator Authenticator, authzSvc authz.Service) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		if !settingsSvc.GetBool(ctx.Context(), config.SettingMaintenanceMode) {
 			return ctx.Next()
@@ -193,8 +192,8 @@ func maintenanceMiddleware(settingsSvc settings.Service, sessionMgr *session.Man
 
 		token := SessionToken(ctx)
 		if token != "" {
-			if userID, err := sessionMgr.Validate(ctx.Context(), token); err == nil {
-				if authzSvc.Can(ctx.Context(), userID, authz.PermManageSettings) {
+			if state, err := authenticate(ctx, authenticator, token); err == nil {
+				if authzSvc.Can(ctx.Context(), state.UserID, authz.PermManageSettings) {
 					return ctx.Next()
 				}
 			}

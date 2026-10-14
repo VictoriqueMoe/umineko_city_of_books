@@ -415,6 +415,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	authSvc := auth.NewService(
 		userSvc,
 		sessionMgr,
+		repos.Session,
 		settingsSvc,
 		repos.Invite,
 		repos.User,

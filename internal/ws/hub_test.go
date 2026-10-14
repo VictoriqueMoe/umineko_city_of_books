@@ -1,12 +1,15 @@
 package ws
 
 import (
+	"context"
 	"encoding/json"
 	"maps"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"umineko_city_of_books/internal/coalesce"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -525,27 +528,13 @@ func TestHub_BumpSidebarActivity_ThrottlesEachKey(t *testing.T) {
 			wantNow:        2,
 			wantEventually: 2,
 		},
-		{
-			name: "a bump after the interval has passed is sent at once",
-			act: func(hub *Hub) {
-				hub.BumpSidebarActivity("ships")
-
-				hub.sidebarMu.Lock()
-				hub.sidebar["ships"].lastSent = time.Now().Add(-2 * interval)
-				hub.sidebarMu.Unlock()
-
-				hub.BumpSidebarActivity("ships")
-			},
-			wantNow:        2,
-			wantEventually: 2,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// given
 			hub := NewHub()
-			hub.sidebarInterval = interval
+			hub.sidebar = coalesce.NewKeyed(interval, coalesce.Latest[time.Time], hub.broadcastSidebarActivity)
 			viewer := NewClient(uuid.New(), nil)
 			hub.clients[viewer.UserID] = []*Client{viewer}
 
@@ -570,29 +559,17 @@ func TestHub_BumpSidebarActivity_ThrottlesEachKey(t *testing.T) {
 	}
 }
 
-func TestHub_BumpSidebarActivity_TrailingSendCarriesTheNewestTimestamp(t *testing.T) {
+func TestHub_BroadcastSidebarActivity_CarriesTheKeyAndTimestamp(t *testing.T) {
 	// given
 	hub := NewHub()
-	hub.sidebarInterval = 50 * time.Millisecond
 	viewer := NewClient(uuid.New(), nil)
 	hub.clients[viewer.UserID] = []*Client{viewer}
-	start := time.Now()
-	newest := start.Add(36 * time.Hour)
+	at := time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC)
 
 	// when
-	leading := hub.claimSidebarSend("ships", start)
-	middle := hub.claimSidebarSend("ships", start.Add(time.Millisecond))
-	last := hub.claimSidebarSend("ships", newest)
+	hub.broadcastSidebarActivity(context.Background(), "ships", at)
 
 	// then
-	assert.True(t, leading, "the first bump is sent at once")
-	assert.False(t, middle, "a bump inside the interval waits for the trailing send")
-	assert.False(t, last, "a pending trailing send absorbs later bumps")
-
-	require.Eventually(t, func() bool {
-		return len(viewer.send) == 1
-	}, time.Second, 5*time.Millisecond)
-
 	var got struct {
 		Type string `json:"type"`
 		Data struct {
@@ -603,23 +580,7 @@ func TestHub_BumpSidebarActivity_TrailingSendCarriesTheNewestTimestamp(t *testin
 	require.NoError(t, json.Unmarshal(<-viewer.send, &got))
 	assert.Equal(t, "sidebar_activity", got.Type)
 	assert.Equal(t, "ships", got.Data.Key)
-	assert.Equal(t, newest.UTC().Format(time.RFC3339), got.Data.At)
-}
-
-func TestHub_BumpSidebarActivity_ForgetsIdleKeys(t *testing.T) {
-	// given
-	hub := NewHub()
-	hub.sidebarInterval = 50 * time.Millisecond
-	start := time.Now()
-	require.True(t, hub.claimSidebarSend("gallery_old", start))
-
-	// when
-	sent := hub.claimSidebarSend("ships", start.Add(time.Second))
-
-	// then
-	assert.True(t, sent)
-	assert.NotContains(t, hub.sidebar, "gallery_old", "a key with no pending send that is past its interval is dropped")
-	assert.Contains(t, hub.sidebar, "ships", "the key just sent stays throttled")
+	assert.Equal(t, at.Format(time.RFC3339), got.Data.At)
 }
 
 func TestClient_FramePayload(t *testing.T) {

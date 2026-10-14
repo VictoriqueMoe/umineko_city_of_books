@@ -98,7 +98,7 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 		"author_display_name": created.AuthorDisplayName,
 		"author_avatar_url":   created.AuthorAvatarURL,
 	}
-	s.hub.Broadcast(ws.Message{
+	s.hub.BroadcastToTopic(mysteryTopic(mysteryID), ws.Message{
 		Type: "mystery_attempt_created",
 		Data: wsData,
 	})

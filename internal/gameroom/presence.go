@@ -24,7 +24,7 @@ func (s *service) HandleClientJoin(ctx context.Context, userID, roomID uuid.UUID
 		return
 	}
 
-	gameTopic := "game-room:" + roomID.String()
+	gameTopic := gameRoomTopic(roomID)
 	s.hub.JoinTopic(gameTopic, userID)
 
 	if isParticipant {
@@ -75,7 +75,7 @@ func (s *service) HandleClientLeave(userID, roomID uuid.UUID) {
 	if userID == uuid.Nil {
 		return
 	}
-	gameTopic := "game-room:" + roomID.String()
+	gameTopic := gameRoomTopic(roomID)
 
 	s.mu.Lock()
 	st, ok := s.rooms[roomID]
@@ -269,4 +269,5 @@ func (s *service) graceExpired(userID, roomID uuid.UUID) {
 	s.broadcast(room, "game_room_finished", map[string]any{"abandoned_by": userID.String()})
 	s.notifyFinished(ctx, room, uuid.Nil)
 	s.broadcastLiveGamesCount(ctx)
+	go s.broadcastTopWinner(room.GameType)
 }

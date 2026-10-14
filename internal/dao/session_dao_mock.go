@@ -8,6 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"time"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
@@ -409,6 +410,87 @@ func (_c *MockSessionDAO_DeleteAllForUserExcept_Call) Return(err error) *MockSes
 }
 
 func (_c *MockSessionDAO_DeleteAllForUserExcept_Call) RunAndReturn(run func(ctx context.Context, s spec.SessionDeletionExcept, tx ...*sql.Tx) error) *MockSessionDAO_DeleteAllForUserExcept_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAuthState provides a mock function for the type MockSessionDAO
+func (_mock *MockSessionDAO) GetAuthState(ctx context.Context, token string, tx ...*sql.Tx) (model.SessionAuthState, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, token, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, token)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAuthState")
+	}
+
+	var r0 model.SessionAuthState
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) (model.SessionAuthState, error)); ok {
+		return returnFunc(ctx, token, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) model.SessionAuthState); ok {
+		r0 = returnFunc(ctx, token, tx...)
+	} else {
+		r0 = ret.Get(0).(model.SessionAuthState)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, token, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockSessionDAO_GetAuthState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAuthState'
+type MockSessionDAO_GetAuthState_Call struct {
+	*mock.Call
+}
+
+// GetAuthState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - token string
+//   - tx ...*sql.Tx
+func (_e *MockSessionDAO_Expecter) GetAuthState(ctx any, token any, tx ...any) *MockSessionDAO_GetAuthState_Call {
+	return &MockSessionDAO_GetAuthState_Call{Call: _e.mock.On("GetAuthState",
+		append([]any{ctx, token}, tx...)...)}
+}
+
+func (_c *MockSessionDAO_GetAuthState_Call) Run(run func(ctx context.Context, token string, tx ...*sql.Tx)) *MockSessionDAO_GetAuthState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSessionDAO_GetAuthState_Call) Return(sessionAuthState model.SessionAuthState, err error) *MockSessionDAO_GetAuthState_Call {
+	_c.Call.Return(sessionAuthState, err)
+	return _c
+}
+
+func (_c *MockSessionDAO_GetAuthState_Call) RunAndReturn(run func(ctx context.Context, token string, tx ...*sql.Tx) (model.SessionAuthState, error)) *MockSessionDAO_GetAuthState_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -71,6 +71,37 @@ func (q *Queries) DeleteSessionsForUserExcept(ctx context.Context, arg DeleteSes
 	return err
 }
 
+const getSessionAuthState = `-- name: GetSessionAuthState :one
+SELECT s.user_id, s.expires_at,
+       (u.banned_at IS NOT NULL)::boolean AS banned,
+       (u.locked_at IS NOT NULL)::boolean AS locked,
+       (NOT u.email_verified AND NOW() >= u.verify_grace_until)::boolean AS requires_email_verification
+FROM sessions s
+JOIN users u ON u.id = s.user_id
+WHERE s.token = $1
+`
+
+type GetSessionAuthStateRow struct {
+	UserID                    uuid.UUID
+	ExpiresAt                 time.Time
+	Banned                    bool
+	Locked                    bool
+	RequiresEmailVerification bool
+}
+
+func (q *Queries) GetSessionAuthState(ctx context.Context, token string) (GetSessionAuthStateRow, error) {
+	row := q.db.QueryRowContext(ctx, getSessionAuthState, token)
+	var i GetSessionAuthStateRow
+	err := row.Scan(
+		&i.UserID,
+		&i.ExpiresAt,
+		&i.Banned,
+		&i.Locked,
+		&i.RequiresEmailVerification,
+	)
+	return i, err
+}
+
 const getSessionUserID = `-- name: GetSessionUserID :one
 SELECT s.user_id, s.expires_at FROM sessions s WHERE s.token = $1
 `

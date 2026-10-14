@@ -30,6 +30,7 @@ func newOGImageHarness(t *testing.T) (*testutil.Harness, *upload.MockService, *s
 		UploadService:   us,
 		SettingsService: ss,
 		AuthSession:     h.SessionManager,
+		AuthService:     h.AuthService,
 		AuthzService:    h.AuthzService,
 	}
 	s.setupAdminUploadOGImage(h.App)

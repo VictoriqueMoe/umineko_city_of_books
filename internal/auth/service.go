@@ -20,6 +20,7 @@ import (
 	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -37,6 +38,7 @@ type (
 		Register(ctx context.Context, req dto.RegisterRequest) (*dto.UserResponse, string, error)
 		Login(ctx context.Context, req dto.LoginRequest) (*dto.UserResponse, string, error)
 		Logout(ctx context.Context, token string) error
+		Authenticate(ctx context.Context, token string) (model.SessionAuthState, error)
 		ForgotPassword(ctx context.Context, username string) error
 		ResetPassword(ctx context.Context, token, newPassword string) error
 		EmailEnabled(ctx context.Context) bool
@@ -51,6 +53,7 @@ type (
 	service struct {
 		userService    user.Service
 		session        *session.Manager
+		sessionRepo    repository.SessionRepository
 		settingsSvc    settings.Service
 		inviteRepo     repository.InviteRepository
 		userRepo       repository.UserRepository
@@ -86,6 +89,7 @@ func isReservedUsername(username string) bool {
 func NewService(
 	userService user.Service,
 	sessionMgr *session.Manager,
+	sessionRepo repository.SessionRepository,
 	settingsSvc settings.Service,
 	inviteRepo repository.InviteRepository,
 	userRepo repository.UserRepository,
@@ -99,6 +103,7 @@ func NewService(
 	return &service{
 		userService:    userService,
 		session:        sessionMgr,
+		sessionRepo:    sessionRepo,
 		settingsSvc:    settingsSvc,
 		inviteRepo:     inviteRepo,
 		userRepo:       userRepo,
@@ -268,6 +273,31 @@ func (s *service) Logout(ctx context.Context, token string) error {
 		return s.session.Delete(ctx, token)
 	}
 	return nil
+}
+
+func (s *service) Authenticate(ctx context.Context, token string) (model.SessionAuthState, error) {
+	state, err := s.sessionRepo.GetAuthState(ctx, token)
+	if err != nil {
+		return model.SessionAuthState{}, fmt.Errorf("%w: %w", ErrInvalidSession, err)
+	}
+
+	if time.Now().After(state.ExpiresAt) {
+		s.revokeSession(ctx, token, state.UserID)
+		return model.SessionAuthState{}, ErrInvalidSession
+	}
+
+	if state.Banned {
+		s.revokeSession(ctx, token, state.UserID)
+		return model.SessionAuthState{}, ErrUserBanned
+	}
+
+	return state, nil
+}
+
+func (s *service) revokeSession(ctx context.Context, token string, userID uuid.UUID) {
+	if err := s.session.Delete(ctx, token); err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("user_id", userID.String()).Msg("session not revoked")
+	}
 }
 
 func (s *service) EmailEnabled(ctx context.Context) bool {

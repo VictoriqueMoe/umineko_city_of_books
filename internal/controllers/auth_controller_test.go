@@ -37,7 +37,7 @@ type authDeps struct {
 func newAuthHarness(t *testing.T) (*testutil.Harness, authDeps) {
 	h := testutil.NewHarness(t)
 	deps := authDeps{
-		authSvc:       authsvc.NewMockService(t),
+		authSvc:       h.AuthService,
 		userSvc:       usersvc.NewMockService(t),
 		mysterySvc:    mysterysvc.NewMockService(t),
 		gameRoomSvc:   gameroom.NewMockService(t),

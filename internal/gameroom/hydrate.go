@@ -12,38 +12,54 @@ import (
 	"github.com/google/uuid"
 )
 
-func (s *service) watcherCount(roomID uuid.UUID) int {
+func (s *service) presence(roomID, userID uuid.UUID, joined, asPlayer bool) dto.GameRoomPresence {
+	event := dto.GameRoomPresence{RoomID: roomID, UserID: userID, Connected: joined, AsPlayer: asPlayer}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	st, ok := s.rooms[roomID]
 	if !ok {
-		return 0
+		return event
 	}
-	return len(st.spectators)
+
+	event.WatcherCount = len(st.spectators)
+	if !asPlayer {
+		return event
+	}
+
+	event.Connected = st.players[userID] > 0
+	if at, offline := st.disconnectedAt[userID]; offline && !event.Connected {
+		event.DisconnectedAt = at.UTC().Format(time.RFC3339)
+		event.GraceSeconds = int(disconnectGracePeriod.Seconds())
+	}
+
+	return event
 }
 
-func (s *service) broadcastPresence(roomID, userID uuid.UUID, connected, asPlayer bool) {
-	data := map[string]any{
-		"room_id":       roomID.String(),
-		"user_id":       userID.String(),
-		"connected":     connected,
-		"as_player":     asPlayer,
-		"watcher_count": s.watcherCount(roomID),
-	}
-	if !connected && asPlayer {
-		s.mu.Lock()
-		if st, ok := s.rooms[roomID]; ok {
-			if t, offline := st.disconnectedAt[userID]; offline {
-				data["disconnected_at"] = t.UTC().Format(time.RFC3339)
-				data["grace_seconds"] = int(disconnectGracePeriod.Seconds())
-			}
-		}
-		s.mu.Unlock()
-	}
-	s.hub.BroadcastToTopic("game-room:"+roomID.String(), ws.Message{
+func (s *service) broadcastPresence(roomID, userID uuid.UUID, joined, asPlayer bool) {
+	s.hub.BroadcastToTopic(gameRoomTopic(roomID), ws.Message{
 		Type: "game_room_presence",
-		Data: data,
+		Data: s.presence(roomID, userID, joined, asPlayer),
 	})
+}
+
+func gameRoomTopic(roomID uuid.UUID) string {
+	return "game-room:" + roomID.String()
+}
+
+func playersOutsideTopic(hub *ws.Hub, topic string, players []dto.GameRoomPlayer) []uuid.UUID {
+	topicID := ws.TopicUUID(topic)
+
+	outside := make([]uuid.UUID, 0, len(players))
+	for _, p := range players {
+		if hub.IsUserInRoom(topicID, p.UserID) {
+			continue
+		}
+		outside = append(outside, p.UserID)
+	}
+
+	return outside
 }
 
 func (s *service) loadRoom(ctx context.Context, roomID uuid.UUID) (*dto.GameRoom, error) {
@@ -179,16 +195,14 @@ func (s *service) broadcast(room *dto.GameRoom, eventType string, extra map[stri
 		"room":    room,
 	}
 	maps.Copy(payload, extra)
-	s.hub.BroadcastToTopic("game-room:"+room.ID.String(), ws.Message{
+	msg := ws.Message{
 		Type: eventType,
 		Data: payload,
-	})
-	for _, p := range room.Players {
-		s.hub.SendToUser(p.UserID, ws.Message{
-			Type: eventType,
-			Data: payload,
-		})
 	}
+
+	topic := gameRoomTopic(room.ID)
+	s.hub.BroadcastToTopic(topic, msg)
+	s.hub.SendToUsers(playersOutsideTopic(s.hub, topic, room.Players), msg)
 }
 
 func (s *service) isViewing(roomID, userID uuid.UUID) bool {

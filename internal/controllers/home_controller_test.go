@@ -32,6 +32,7 @@ func newHomeHarness(t *testing.T) (*testutil.Harness, homeDeps) {
 		HomeFeedService: deps.homeFeedSvc,
 		SidebarService:  deps.sidebarSvc,
 		AuthSession:     h.SessionManager,
+		AuthService:     h.AuthService,
 		AuthzService:    h.AuthzService,
 	}
 	for _, setup := range s.getAllHomeRoutes() {

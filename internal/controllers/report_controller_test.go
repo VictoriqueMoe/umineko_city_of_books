@@ -28,6 +28,7 @@ func newReportHarness(t *testing.T) (*testutil.Harness, reportDeps) {
 	s := &Service{
 		ReportService: rs,
 		AuthSession:   h.SessionManager,
+		AuthService:   h.AuthService,
 		AuthzService:  h.AuthzService,
 	}
 	for _, setup := range s.getAllReportRoutes() {

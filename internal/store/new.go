@@ -29,15 +29,15 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 	repos.Chat = repository.NewChatRepo(db, dao.NewChat(db), repos.AuditLog)
 	repos.Report = repository.NewReportRepo(dao.NewReport(db))
 	postDAO, postComments := dao.NewPost(db)
-	repos.Post = repository.NewPostRepo(db, postDAO, repos.AuditLog)
+	repos.Post = repository.NewPostRepo(db, postDAO, repos.AuditLog, c)
 
 	repos.Follow = repository.NewFollowRepo(dao.NewFollow(db))
 
 	artDAO, artComments := dao.NewArt(db)
-	repos.Art = repository.NewArtRepo(db, artDAO, repos.Post, repos.AuditLog)
+	repos.Art = repository.NewArtRepo(db, artDAO, repos.Post, repos.AuditLog, c)
 
 	repos.Upload = repository.NewUploadRepo(dynamicsql.NewUpload(db))
-	repos.Block = repository.NewBlockRepo(dao.NewBlock(db))
+	repos.Block = repository.NewBlockRepo(dao.NewBlock(db), c)
 
 	announcementDAO, announcementComments := dao.NewAnnouncement(db)
 	repos.Announcement = repository.NewAnnouncementRepo(db, announcementDAO, repos.AuditLog)
@@ -67,7 +67,7 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 	repos.Secret = repository.NewSecretRepo(db, secretDAO, repos.AuditLog)
 
 	repos.ChatRoomBan = repository.NewChatRoomBanRepo(db, dao.NewChatRoomBan(db), repos.AuditLog)
-	repos.ChatBannedWord = repository.NewChatBannedWordRepo(db, dao.NewChatBannedWord(db), repos.AuditLog)
+	repos.ChatBannedWord = repository.NewChatBannedWordRepo(db, dao.NewChatBannedWord(db), repos.AuditLog, c)
 	repos.ChatWatchParty = repository.NewChatWatchPartyRepo(db, dao.NewChatWatchParty(db), repos.Chat, repos.AuditLog)
 	repos.LiveStream = repository.NewLiveStreamRepo(db, dao.NewLiveStream(db))
 	repos.StreamCredentials = repository.NewStreamCredentialsRepo(dao.NewStreamCredentials(db))

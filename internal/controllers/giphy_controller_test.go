@@ -22,6 +22,7 @@ func newGiphyHarness(t *testing.T) (*testutil.Harness, *giphysvc.MockService) {
 	s := &Service{
 		GiphyService: gs,
 		AuthSession:  h.SessionManager,
+		AuthService:  h.AuthService,
 		AuthzService: h.AuthzService,
 	}
 	for _, setup := range s.getAllGiphyRoutes() {
@@ -155,6 +156,7 @@ func newGiphyFavouriteHarness(t *testing.T) (*testutil.Harness, *giphyfavourite.
 	s := &Service{
 		GiphyFavouriteService: fs,
 		AuthSession:           h.SessionManager,
+		AuthService:           h.AuthService,
 		AuthzService:          h.AuthzService,
 	}
 	for _, setup := range s.getAllGiphyRoutes() {

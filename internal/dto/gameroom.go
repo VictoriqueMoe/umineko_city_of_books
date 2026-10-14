@@ -62,6 +62,16 @@ type (
 		Total int        `json:"total"`
 	}
 
+	GameRoomPresence struct {
+		RoomID         uuid.UUID `json:"room_id"`
+		UserID         uuid.UUID `json:"user_id"`
+		Connected      bool      `json:"connected"`
+		AsPlayer       bool      `json:"as_player"`
+		WatcherCount   int       `json:"watcher_count"`
+		DisconnectedAt string    `json:"disconnected_at,omitempty"`
+		GraceSeconds   int       `json:"grace_seconds,omitempty"`
+	}
+
 	GameInviteRequest struct {
 		GameType   GameType  `json:"game_type"`
 		OpponentID uuid.UUID `json:"opponent_id"`

@@ -24,6 +24,7 @@ func newSecretHarness(t *testing.T) (*testutil.Harness, *secretsvc.MockService) 
 	s := &Service{
 		SecretService: ms,
 		AuthSession:   h.SessionManager,
+		AuthService:   h.AuthService,
 		AuthzService:  h.AuthzService,
 	}
 	for _, setup := range s.getAllSecretRoutes() {

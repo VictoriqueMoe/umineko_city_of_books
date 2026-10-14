@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/db"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 )
@@ -29,11 +31,26 @@ type (
 		dao.ArtDAO
 		posts PostRepository
 		audit AuditLogRepository
+		cache *cache.Manager
 	}
 )
 
-func NewArtRepo(database *sql.DB, artDAO dao.ArtDAO, posts PostRepository, auditRepo AuditLogRepository) ArtRepository {
-	return &artRepository{db: database, ArtDAO: artDAO, posts: posts, audit: auditRepo}
+func NewArtRepo(database *sql.DB, artDAO dao.ArtDAO, posts PostRepository, auditRepo AuditLogRepository, c *cache.Manager) ArtRepository {
+	return &artRepository{db: database, ArtDAO: artDAO, posts: posts, audit: auditRepo, cache: c}
+}
+
+func (r *artRepository) GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (map[string]int, error) {
+	load := func(ctx context.Context) (map[string]int, error) {
+		return r.ArtDAO.GetCornerCounts(ctx, tx...)
+	}
+
+	return r.cache.Load(ctx, cache.ArtCornerCounts, load)
+}
+
+func (r *artRepository) invalidateCornerCounts(ctx context.Context) {
+	if err := r.cache.Del(ctx, cache.ArtCornerCounts.Key()); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate art corner counts after write")
+	}
 }
 
 func (r *artRepository) CreateWithTags(ctx context.Context, s spec.NewArtWithTags, tx ...*sql.Tx) (*model.ArtRow, error) {
@@ -52,6 +69,8 @@ func (r *artRepository) CreateWithTags(ctx context.Context, s spec.NewArtWithTag
 	if err != nil {
 		return nil, err
 	}
+
+	r.invalidateCornerCounts(ctx)
 
 	return created, nil
 }
@@ -104,6 +123,8 @@ func (r *artRepository) DeleteWithImage(ctx context.Context, s spec.ArtDelete, t
 	if err != nil {
 		return nil, err
 	}
+
+	r.invalidateCornerCounts(ctx)
 
 	return paths, nil
 }
@@ -181,6 +202,8 @@ func (r *artRepository) DeleteGallery(ctx context.Context, s spec.GalleryRef, tx
 	if err != nil {
 		return nil, err
 	}
+
+	r.invalidateCornerCounts(ctx)
 
 	return paths, nil
 }

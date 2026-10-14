@@ -25,6 +25,7 @@ func newUserPrefsHarness(t *testing.T) (*testutil.Harness, userPrefsDeps) {
 	s := &Service{
 		UserService:  us,
 		AuthSession:  h.SessionManager,
+		AuthService:  h.AuthService,
 		AuthzService: h.AuthzService,
 	}
 	for _, setup := range s.getAllUserPreferencesRoutes() {

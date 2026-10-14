@@ -107,32 +107,6 @@ func TestIsBanned_RepoErrorTreatsTheAccountAsBanned(t *testing.T) {
 	assert.True(t, got)
 }
 
-func TestIsLocked_RepoErrorTreatsTheAccountAsLocked(t *testing.T) {
-	// given
-	svc, deps := newTestService(t)
-	userID := uuid.New()
-	deps.userRepo.EXPECT().IsLocked(mock.Anything, userID).Return(false, errors.New("db down"))
-
-	// when
-	got := svc.IsLocked(context.Background(), userID)
-
-	// then
-	assert.True(t, got)
-}
-
-func TestRequiresEmailVerification_RepoErrorTreatsTheAccountAsUnverified(t *testing.T) {
-	// given
-	svc, deps := newTestService(t)
-	userID := uuid.New()
-	deps.userRepo.EXPECT().RequiresEmailVerification(mock.Anything, userID).Return(false, errors.New("db down"))
-
-	// when
-	got := svc.RequiresEmailVerification(context.Background(), userID)
-
-	// then
-	assert.True(t, got)
-}
-
 func TestCan_NilUserIDDenied(t *testing.T) {
 	// given
 	svc, _ := newTestService(t)

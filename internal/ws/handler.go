@@ -92,6 +92,10 @@ type (
 		SecretID string `json:"secret_id"`
 	}
 
+	mysteryTopicData struct {
+		MysteryID string `json:"mystery_id"`
+	}
+
 	gameRoomTopicData struct {
 		RoomID string `json:"room_id"`
 	}
@@ -157,7 +161,7 @@ func OriginAllowed(origin, allowed string) bool {
 }
 
 func broadcastPresence(hub *Hub, roomID, userID uuid.UUID, state string) {
-	hub.BroadcastToRoom(roomID, Message{
+	hub.BroadcastToViewers(roomID, Message{
 		Type: "chat_presence_changed",
 		Data: map[string]any{
 			"room_id": roomID.String(),
@@ -231,9 +235,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 		if roomLister != nil {
 			roomIDs, err := roomLister.GetRoomsByUser(context.Background(), userID)
 			if err == nil {
-				for _, roomID := range roomIDs {
-					hub.JoinRoom(roomID, userID)
-				}
+				hub.JoinRooms(roomIDs, userID)
 			}
 		}
 
@@ -469,7 +471,7 @@ func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, memberChecke
 		if !hub.IsUserInRoom(roomID, userID) {
 			return
 		}
-		hub.BroadcastToRoom(roomID, TypingMessage(roomID, userID), userID)
+		hub.BroadcastToViewers(roomID, TypingMessage(roomID, userID), userID)
 
 	case "join_room":
 		var data roomActionData
@@ -535,6 +537,28 @@ func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, memberChecke
 			return
 		}
 		hub.LeaveTopic("secret:"+data.SecretID, userID)
+
+	case "mystery_join":
+		var data mysteryTopicData
+		if err := json.Unmarshal(msg.Data, &data); err != nil {
+			return
+		}
+		mysteryID, err := uuid.Parse(data.MysteryID)
+		if err != nil {
+			return
+		}
+		hub.JoinTopic("mystery:"+mysteryID.String(), userID)
+
+	case "mystery_leave":
+		var data mysteryTopicData
+		if err := json.Unmarshal(msg.Data, &data); err != nil {
+			return
+		}
+		mysteryID, err := uuid.Parse(data.MysteryID)
+		if err != nil {
+			return
+		}
+		hub.LeaveTopic("mystery:"+mysteryID.String(), userID)
 
 	case "watch_posts":
 		var data watchPostsData
