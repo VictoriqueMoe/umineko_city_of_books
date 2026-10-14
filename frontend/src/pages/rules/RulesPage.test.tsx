@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
 import { RulesPage } from "./RulesPage";
 
-vi.mock("../../platform/notFoundRedirect", () => ({ redirectToNotFound: vi.fn() }));
+vi.mock("../../platform/notFoundRedirect", () => ({
+    redirectToNotFound: vi.fn(),
+    shouldRedirectToNotFound: vi.fn(() => false),
+}));
 
 function setup(rulesPage: string) {
     return renderWithProviders(<RulesPage />, { siteInfo: { rules_page: rulesPage } });

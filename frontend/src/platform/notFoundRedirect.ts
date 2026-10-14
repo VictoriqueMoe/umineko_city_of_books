@@ -2,10 +2,10 @@ import { Capacitor } from "@capacitor/core";
 
 const NOT_FOUND_PATH = "/not-found";
 
-export function redirectToNotFound(pathname: string): void {
-    if (Capacitor.isNativePlatform() || pathname === NOT_FOUND_PATH) {
-        return;
-    }
+export function shouldRedirectToNotFound(pathname: string): boolean {
+    return !Capacitor.isNativePlatform() && pathname !== NOT_FOUND_PATH;
+}
 
+export function redirectToNotFound(): void {
     window.location.replace(NOT_FOUND_PATH);
 }

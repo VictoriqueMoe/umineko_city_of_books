@@ -32,7 +32,11 @@ func HostAuthorization(settingsSvc settings.Service) fiber.Handler {
 				return false
 			}
 
-			return host == expected
+			if host == expected {
+				return true
+			}
+
+			return expected == "localhost" && (host == "127.0.0.1" || host == "::1")
 		},
 		ErrorHandler: func(ctx fiber.Ctx, err error) error {
 			appLogger.Ctx(ctx.Context()).Err(err).

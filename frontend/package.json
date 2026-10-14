@@ -6,6 +6,7 @@
     "scripts": {
         "dev": "vite",
         "build": "npm run typecheck && vite build",
+        "build:go": "npm run typecheck && vite build --mode go",
         "build:app": "tsc -b && vite build --mode app --outDir dist-app --emptyOutDir",
         "build:ota": "npm run build:app && node scripts/make-ota.mjs",
         "cap:sync": "npm run build:app && cap sync",
