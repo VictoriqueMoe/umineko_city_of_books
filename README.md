@@ -218,7 +218,7 @@ The schema started as a single consolidated initial migration squashed during th
 goose -dir internal/db/migrations create <name> sql
 ```
 
-goose is a library dependency here, not a `tool` directive in `go.mod` (mockery, staticcheck and sqlc are), so install the CLI separately if you do not already have it:
+goose is a library dependency here, not a `tool` directive in `go.mod` (mockery, staticcheck, sqlc, govulncheck, gosec and gitleaks are), so install the CLI separately if you do not already have it:
 
 ```bash
 go install github.com/pressly/goose/v3/cmd/goose@latest
@@ -262,7 +262,10 @@ go test ./...             # run tests
 ./scripts/test.sh         # regenerate mocks, then vet, staticcheck, test
 ./scripts/regen_mocks.sh  # regenerate mockery mocks only
 ./scripts/regen_sqlc.sh   # expand query templates, then regenerate sqlc
+./scripts/security.sh     # govulncheck, gosec and gitleaks; pass one name to run only that check
 ```
+
+The three security tools are pinned by the `tool` block in `go.mod` like staticcheck, so `go tool govulncheck`, `go tool gosec` and `go tool gitleaks` need no separate install. gosec skips G115 (integer conversions) and G118 (goroutines given a fresh context) everywhere, and skips a few rules in specific files where they flag intended behaviour: the ffmpeg and cwebp subprocesses in `internal/media`, upload directory permissions that other containers read, and the seeded generators in Minesweeper and Pong. That list lives in `scripts/security.sh`. Known gitleaks false positives are listed by fingerprint in `.gitleaksignore`.
 
 All of those need `static/` to exist first, because the root package embeds it. See [Running Locally](#running-locally). The repository and DAO tests boot a real Postgres through testcontainers-go, so Docker has to be running for `go test ./...` to pass.
 
@@ -284,7 +287,7 @@ The third row exists because sqlc needs a literal table name, which the generic 
 
 Two DAOs are deliberately **not** generated and live in `internal/dao/dynamicsql`, plus `internal/dao/chat_dynamic.go`. They build their SQL text at run time, which sqlc cannot validate: search chooses between one and twenty-two `UNION ALL` branches from the caller's entity list, upload discovers its tables from `information_schema`, and the two chat room listings assemble a `WHERE` from five independent optional filters. The bar for living there is that the query text cannot exist until run time, not that it is awkward to write.
 
-CI (`.github/workflows/ci.yml`) splits the backend across parallel jobs. `backend-lint` creates a `static/.gitkeep` placeholder, then runs `go vet ./...`, `go tool staticcheck ./...`, a generated-code drift check, and `go build ./...` in that order. `backend-test` runs the tests as five jobs at once: four divide the `internal/dao` tests between them by name, because that package holds almost all of the test time, and the fifth runs every other package. A final `backend` job, which is the required status check, passes only when all of them did. The drift check reruns both generators and fails if anything changes, so stale generated code cannot be merged. Putting `[skip tests]` in the commit message skips the test jobs only.
+CI (`.github/workflows/ci.yml`) splits the backend across parallel jobs. `backend-lint` creates a `static/.gitkeep` placeholder, then runs `go vet ./...`, `go tool staticcheck ./...`, a generated-code drift check, and `go build ./...` in that order. `backend-test` runs the tests as five jobs at once: four divide the `internal/dao` tests between them by name, because that package holds almost all of the test time, and the fifth runs every other package. `security` runs `scripts/security.sh` one check per step against the latest Go patch release, with full git history so gitleaks can scan every commit. A final `backend` job, which is the required status check, passes only when all of them did. The drift check reruns both generators and fails if anything changes, so stale generated code cannot be merged. Putting `[skip tests]` in the commit message skips the test jobs only.
 
 ### Frontend
 

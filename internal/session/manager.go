@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
@@ -85,7 +86,9 @@ func (m *Manager) Validate(ctx context.Context, token string) (uuid.UUID, error)
 	}
 
 	if time.Now().After(expiresAt) {
-		m.repo.Delete(ctx, token)
+		if delErr := m.repo.Delete(ctx, token); delErr != nil {
+			logger.Ctx(ctx).Warn().Err(delErr).Str("user_id", userID.String()).Msg("expired session not deleted")
+		}
 		return uuid.Nil, fmt.Errorf("session expired")
 	}
 

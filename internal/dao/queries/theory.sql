@@ -283,7 +283,7 @@ WHERE (sqlc.arg(series)::text = '' OR t.series = sqlc.arg(series)::text)
   AND (sqlc.arg(author_id)::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR t.user_id = sqlc.arg(author_id)::uuid)
   AND (sqlc.arg(search)::text = '' OR (t.title LIKE '%' || sqlc.arg(search)::text || '%' OR t.body LIKE '%' || sqlc.arg(search)::text || '%'))
   AND (sqlc.arg(exclude_user_ids)::text = '' OR t.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
-ORDER BY (SELECT COALESCE(SUM(tv.value), 0) FROM theory_votes tv WHERE tv.theory_id = t.id) DESC, t.created_at DESC
+ORDER BY t.vote_score DESC, t.created_at DESC
 LIMIT sqlc.arg(row_limit)::int OFFSET sqlc.arg(row_offset)::int;
 
 -- name: ListTheoriesByPopularAsc :many
@@ -300,7 +300,7 @@ WHERE (sqlc.arg(series)::text = '' OR t.series = sqlc.arg(series)::text)
   AND (sqlc.arg(author_id)::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR t.user_id = sqlc.arg(author_id)::uuid)
   AND (sqlc.arg(search)::text = '' OR (t.title LIKE '%' || sqlc.arg(search)::text || '%' OR t.body LIKE '%' || sqlc.arg(search)::text || '%'))
   AND (sqlc.arg(exclude_user_ids)::text = '' OR t.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
-ORDER BY (SELECT COALESCE(SUM(tv.value), 0) FROM theory_votes tv WHERE tv.theory_id = t.id) ASC, t.created_at ASC
+ORDER BY t.vote_score ASC, t.created_at ASC
 LIMIT sqlc.arg(row_limit)::int OFFSET sqlc.arg(row_offset)::int;
 
 -- name: ListTheoriesByControversial :many
@@ -317,7 +317,7 @@ WHERE (sqlc.arg(series)::text = '' OR t.series = sqlc.arg(series)::text)
   AND (sqlc.arg(author_id)::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR t.user_id = sqlc.arg(author_id)::uuid)
   AND (sqlc.arg(search)::text = '' OR (t.title LIKE '%' || sqlc.arg(search)::text || '%' OR t.body LIKE '%' || sqlc.arg(search)::text || '%'))
   AND (sqlc.arg(exclude_user_ids)::text = '' OR t.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM theory_votes tv WHERE tv.theory_id = t.id) DESC, t.created_at DESC
+ORDER BY t.vote_count DESC, t.created_at DESC
 LIMIT sqlc.arg(row_limit)::int OFFSET sqlc.arg(row_offset)::int;
 
 -- name: ListTheoriesByControversialAsc :many
@@ -334,7 +334,7 @@ WHERE (sqlc.arg(series)::text = '' OR t.series = sqlc.arg(series)::text)
   AND (sqlc.arg(author_id)::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR t.user_id = sqlc.arg(author_id)::uuid)
   AND (sqlc.arg(search)::text = '' OR (t.title LIKE '%' || sqlc.arg(search)::text || '%' OR t.body LIKE '%' || sqlc.arg(search)::text || '%'))
   AND (sqlc.arg(exclude_user_ids)::text = '' OR t.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM theory_votes tv WHERE tv.theory_id = t.id) ASC, t.created_at ASC
+ORDER BY t.vote_count ASC, t.created_at ASC
 LIMIT sqlc.arg(row_limit)::int OFFSET sqlc.arg(row_offset)::int;
 
 -- name: ListTheoriesByCredibility :many

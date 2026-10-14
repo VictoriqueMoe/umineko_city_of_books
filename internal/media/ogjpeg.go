@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 
 	"umineko_city_of_books/internal/bounds"
@@ -64,7 +65,7 @@ func decodeForOG(ctx context.Context, path string, maxPixels int) (image.Image, 
 }
 
 func webpConfig(path string) (image.Config, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(filepath.Clean(path))
 	if err != nil {
 		return image.Config{}, fmt.Errorf("open webp: %w", err)
 	}
@@ -79,7 +80,7 @@ func webpConfig(path string) (image.Config, error) {
 }
 
 func decodeWebPFile(path string) (image.Image, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(filepath.Clean(path))
 	if err != nil {
 		return nil, fmt.Errorf("open webp: %w", err)
 	}
@@ -102,7 +103,7 @@ func decodeScaledWebP(ctx context.Context, path string) (image.Image, error) {
 		return nil, fmt.Errorf("dwebp resize: %w: %s", err, string(out))
 	}
 
-	f, err := os.Open(outPath)
+	f, err := os.Open(filepath.Clean(outPath))
 	if err != nil {
 		return nil, fmt.Errorf("open scaled png: %w", err)
 	}

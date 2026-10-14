@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -204,7 +205,7 @@ func (e *S3) PutFile(ctx context.Context, key string, localPath string) (string,
 		return "", err
 	}
 
-	f, err := os.Open(localPath)
+	f, err := os.Open(filepath.Clean(localPath))
 	if err != nil {
 		return "", fmt.Errorf("open %s: %w", localPath, err)
 	}

@@ -223,7 +223,7 @@ func applyExifOrientation(inputPath string) (string, error) {
 }
 
 func jpegNeedsRotation(path string) (bool, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(filepath.Clean(path))
 	if err != nil {
 		return false, fmt.Errorf("open jpeg: %w", err)
 	}

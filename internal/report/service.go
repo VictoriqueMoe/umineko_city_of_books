@@ -191,7 +191,7 @@ func (s *service) Resolve(ctx context.Context, id int, resolvedBy uuid.UUID, com
 			message = fmt.Sprintf("%s: %s", message, comment)
 		}
 
-		s.notifSvc.Notify(ctx, dto.NotifyParams{
+		_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
 			RecipientID:   row.ReporterID,
 			Type:          dto.NotifReportResolved,
 			ReferenceID:   targetUUID,

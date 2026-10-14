@@ -120,7 +120,7 @@ func main() {
 		fail(err)
 	}
 
-	if err := os.MkdirAll(genDir, 0o755); err != nil {
+	if err := os.MkdirAll(genDir, 0o750); err != nil {
 		fail(err)
 	}
 
@@ -178,7 +178,7 @@ func writeRendered(t *template.Template, data any, path string, gofmtIt bool) {
 		body = formatted
 	}
 
-	if err := os.WriteFile(path, body, 0o644); err != nil {
+	if err := os.WriteFile(path, body, 0o600); err != nil {
 		fail(err)
 	}
 }

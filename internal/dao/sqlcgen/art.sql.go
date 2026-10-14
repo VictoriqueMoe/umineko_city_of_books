@@ -811,7 +811,7 @@ WHERE a.corner = $2
        OR u.username LIKE $4::text)
   AND ($5::text = '' OR EXISTS(SELECT 1 FROM art_tags ta WHERE ta.art_id = a.id AND ta.tag = $5::text))
   AND ($6::text = '' OR a.user_id <> ALL(string_to_array($6::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM art_likes pl WHERE pl.art_id = a.id) DESC, a.created_at DESC
+ORDER BY a.like_count DESC, a.created_at DESC
 LIMIT $8::int OFFSET $7::int
 `
 

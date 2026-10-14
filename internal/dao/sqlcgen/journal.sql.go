@@ -1038,7 +1038,7 @@ WHERE ($1::text = '' OR j.work = $1::text)
   AND ($3::text = '' OR j.title ILIKE '%' || $3::text || '%')
   AND ($4::boolean OR j.archived_at IS NULL)
   AND ($5::text = '' OR j.user_id <> ALL(string_to_array($5::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM journal_follows fo WHERE fo.journal_id = j.id) DESC, j.created_at DESC
+ORDER BY j.follower_count DESC, j.created_at DESC
 LIMIT $7::int OFFSET $6::int
 `
 

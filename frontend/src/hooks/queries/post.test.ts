@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient } from "@tanstack/react-query";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Post, PostDetail, PostListResponse } from "../../types/api";
 import { createTestQueryClient, providerWrapper } from "../../test-utils/render";
 import { getCornerCounts, getPost, listPosts } from "../../api/endpoints/post";
@@ -17,10 +17,6 @@ const mockedGetCornerCounts = vi.mocked(getCornerCounts);
 const mockedGetPost = vi.mocked(getPost);
 const mockedListPosts = vi.mocked(listPosts);
 
-const seed = 500000;
-
-let randomSpy: ReturnType<typeof vi.spyOn>;
-
 function makePost(id: string): Post {
     return { id, body: `post ${id}` } as unknown as Post;
 }
@@ -34,17 +30,12 @@ function firstKey(qc: QueryClient): readonly unknown[] {
 }
 
 beforeEach(() => {
-    randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
     mockedListPosts.mockResolvedValue(makePostList([makePost("p-1")], 1));
     mockedGetPost.mockResolvedValue({ id: "p-1", body: "post p-1" } as unknown as PostDetail);
 });
 
-afterEach(() => {
-    randomSpy.mockRestore();
-});
-
 describe("usePostFeed", () => {
-    it("keys the feed by its filters, its paging and the seed it generated", async () => {
+    it("keys the feed by its filters and its paging", async () => {
         // given
         const qc = createTestQueryClient();
 
@@ -66,7 +57,6 @@ describe("usePostFeed", () => {
                 resolved: "open",
                 offset: 20,
                 limit: 20,
-                seed,
             },
         ]);
     });
@@ -99,7 +89,6 @@ describe("usePostFeed", () => {
             corner: "general",
             search: undefined,
             sort: undefined,
-            seed,
             limit: 20,
             offset: 0,
             resolved: undefined,
@@ -163,7 +152,7 @@ describe("usePostFeed", () => {
         expect(result.current.hasPrev).toBe(true);
     });
 
-    it("keeps the same seed across re-renders so the shuffled order is stable", async () => {
+    it("does not fetch the feed again on a re-render", async () => {
         // given
         const { result, rerender } = renderHook(() => usePostFeed("everyone"), { wrapper: providerWrapper() });
         await waitFor(() => expect(result.current.loading).toBe(false));
@@ -172,7 +161,6 @@ describe("usePostFeed", () => {
         rerender();
 
         // then
-        expect(randomSpy).toHaveBeenCalledOnce();
         expect(mockedListPosts).toHaveBeenCalledOnce();
     });
 

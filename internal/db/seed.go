@@ -9,7 +9,6 @@ const (
 	MariaSeedUserID      = "00000000-0000-4000-8000-000000000001"
 	EpitaphSeedFanficID  = "00000000-0000-4000-8000-000000000002"
 	epitaphSeedChapterID = "00000000-0000-4000-8000-000000000003"
-	mariaSeedPwdHash     = "$2a$10$T0RCi7ybdIJraglqpfRiwOi4diB1y2/reIVa6YfWGtneJan4KwxLm"
 	epitaphBody          = `<p><em>Now then, let us begin the game.</em></p>` +
 		`<p>On the first twilight, the second bell tolls beneath the harbour.</p>` +
 		`<p>On the second twilight, four candles gutter in the parlour.</p>` +
@@ -31,7 +30,7 @@ func SeedContent(db *sql.DB) error {
 		 ON CONFLICT (id) DO NOTHING`,
 		MariaSeedUserID,
 		"maria_u",
-		mariaSeedPwdHash,
+		"!",
 		"Maria Ushiromiya",
 		"Uu~ mama said I shouldn't talk to strangers, so I left this here instead. If you find it, don't tell anyone.",
 	); err != nil {

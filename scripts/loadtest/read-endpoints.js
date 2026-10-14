@@ -3,6 +3,7 @@ import { check } from 'k6';
 import { Trend } from 'k6/metrics';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:4323';
+const INTERNAL_URL = __ENV.INTERNAL_URL || 'http://localhost:9464';
 const USERNAME = __ENV.LOADTEST_USER || '';
 const PASSWORD = __ENV.LOADTEST_PASS || '';
 
@@ -116,7 +117,7 @@ function promValue(body, name) {
 }
 
 export function sampleServer() {
-  const res = http.get(`${BASE_URL}/metrics`, { tags: { endpoint: 'metrics-scrape' } });
+  const res = http.get(`${INTERNAL_URL}/metrics`, { tags: { endpoint: 'metrics-scrape' } });
   if (res.status !== 200)
   {
     return;

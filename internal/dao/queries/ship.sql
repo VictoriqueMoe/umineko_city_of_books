@@ -47,7 +47,7 @@ LIMIT $3 OFFSET $4;
 SELECT COUNT(*) FROM ships s
 WHERE ($1::text = '' OR EXISTS(SELECT 1 FROM ship_characters sc WHERE sc.ship_id = s.id AND sc.series = $1::text))
   AND ($2::text = '' OR EXISTS(SELECT 1 FROM ship_characters sc WHERE sc.ship_id = s.id AND sc.character_id = $2::text))
-  AND (NOT $3::boolean OR COALESCE((SELECT SUM(v.value) FROM ship_votes v WHERE v.ship_id = s.id), 0) <= $4::int)
+  AND (NOT $3::boolean OR s.vote_score <= $4::int)
   AND ($5::text = '' OR s.user_id <> ALL(string_to_array($5::text, ',')::uuid[]));
 
 -- name: ListShipsByNew :many
@@ -62,7 +62,7 @@ JOIN users u ON s.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = s.user_id
 WHERE ($2::text = '' OR EXISTS(SELECT 1 FROM ship_characters sc WHERE sc.ship_id = s.id AND sc.series = $2::text))
   AND ($3::text = '' OR EXISTS(SELECT 1 FROM ship_characters sc WHERE sc.ship_id = s.id AND sc.character_id = $3::text))
-  AND (NOT $4::boolean OR COALESCE((SELECT SUM(v.value) FROM ship_votes v WHERE v.ship_id = s.id), 0) <= $5::int)
+  AND (NOT $4::boolean OR s.vote_score <= $5::int)
   AND ($6::text = '' OR s.user_id <> ALL(string_to_array($6::text, ',')::uuid[]))
 ORDER BY s.created_at DESC
 LIMIT $7 OFFSET $8;
@@ -79,9 +79,9 @@ JOIN users u ON s.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = s.user_id
 WHERE ($2::text = '' OR EXISTS(SELECT 1 FROM ship_characters sc WHERE sc.ship_id = s.id AND sc.series = $2::text))
   AND ($3::text = '' OR EXISTS(SELECT 1 FROM ship_characters sc WHERE sc.ship_id = s.id AND sc.character_id = $3::text))
-  AND (NOT $4::boolean OR COALESCE((SELECT SUM(v.value) FROM ship_votes v WHERE v.ship_id = s.id), 0) <= $5::int)
+  AND (NOT $4::boolean OR s.vote_score <= $5::int)
   AND ($6::text = '' OR s.user_id <> ALL(string_to_array($6::text, ',')::uuid[]))
-ORDER BY COALESCE((SELECT SUM(v.value) FROM ship_votes v WHERE v.ship_id = s.id), 0) DESC, s.created_at DESC
+ORDER BY s.vote_score DESC, s.created_at DESC
 LIMIT $7 OFFSET $8;
 
 -- name: ListShipsByCrackship :many
@@ -96,9 +96,9 @@ JOIN users u ON s.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = s.user_id
 WHERE ($2::text = '' OR EXISTS(SELECT 1 FROM ship_characters sc WHERE sc.ship_id = s.id AND sc.series = $2::text))
   AND ($3::text = '' OR EXISTS(SELECT 1 FROM ship_characters sc WHERE sc.ship_id = s.id AND sc.character_id = $3::text))
-  AND (NOT $4::boolean OR COALESCE((SELECT SUM(v.value) FROM ship_votes v WHERE v.ship_id = s.id), 0) <= $5::int)
+  AND (NOT $4::boolean OR s.vote_score <= $5::int)
   AND ($6::text = '' OR s.user_id <> ALL(string_to_array($6::text, ',')::uuid[]))
-ORDER BY COALESCE((SELECT SUM(v.value) FROM ship_votes v WHERE v.ship_id = s.id), 0) ASC, s.created_at DESC
+ORDER BY s.vote_score ASC, s.created_at DESC
 LIMIT $7 OFFSET $8;
 
 -- name: ListShipsByControversial :many
@@ -113,12 +113,9 @@ JOIN users u ON s.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = s.user_id
 WHERE ($2::text = '' OR EXISTS(SELECT 1 FROM ship_characters sc WHERE sc.ship_id = s.id AND sc.series = $2::text))
   AND ($3::text = '' OR EXISTS(SELECT 1 FROM ship_characters sc WHERE sc.ship_id = s.id AND sc.character_id = $3::text))
-  AND (NOT $4::boolean OR COALESCE((SELECT SUM(v.value) FROM ship_votes v WHERE v.ship_id = s.id), 0) <= $5::int)
+  AND (NOT $4::boolean OR s.vote_score <= $5::int)
   AND ($6::text = '' OR s.user_id <> ALL(string_to_array($6::text, ',')::uuid[]))
-ORDER BY (
-    (SELECT COUNT(*) FROM ship_votes v WHERE v.ship_id = s.id AND v.value = 1) *
-    (SELECT COUNT(*) FROM ship_votes v WHERE v.ship_id = s.id AND v.value = -1)
-) DESC, s.created_at DESC
+ORDER BY s.controversy DESC, s.created_at DESC
 LIMIT $7 OFFSET $8;
 
 -- name: ListShipsByComments :many
@@ -133,9 +130,9 @@ JOIN users u ON s.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = s.user_id
 WHERE ($2::text = '' OR EXISTS(SELECT 1 FROM ship_characters sc WHERE sc.ship_id = s.id AND sc.series = $2::text))
   AND ($3::text = '' OR EXISTS(SELECT 1 FROM ship_characters sc WHERE sc.ship_id = s.id AND sc.character_id = $3::text))
-  AND (NOT $4::boolean OR COALESCE((SELECT SUM(v.value) FROM ship_votes v WHERE v.ship_id = s.id), 0) <= $5::int)
+  AND (NOT $4::boolean OR s.vote_score <= $5::int)
   AND ($6::text = '' OR s.user_id <> ALL(string_to_array($6::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM ship_comments c WHERE c.ship_id = s.id) DESC, s.created_at DESC
+ORDER BY s.comment_count DESC, s.created_at DESC
 LIMIT $7 OFFSET $8;
 
 -- name: ListShipsByOld :many
@@ -150,7 +147,7 @@ JOIN users u ON s.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = s.user_id
 WHERE ($2::text = '' OR EXISTS(SELECT 1 FROM ship_characters sc WHERE sc.ship_id = s.id AND sc.series = $2::text))
   AND ($3::text = '' OR EXISTS(SELECT 1 FROM ship_characters sc WHERE sc.ship_id = s.id AND sc.character_id = $3::text))
-  AND (NOT $4::boolean OR COALESCE((SELECT SUM(v.value) FROM ship_votes v WHERE v.ship_id = s.id), 0) <= $5::int)
+  AND (NOT $4::boolean OR s.vote_score <= $5::int)
   AND ($6::text = '' OR s.user_id <> ALL(string_to_array($6::text, ',')::uuid[]))
 ORDER BY s.created_at ASC
 LIMIT $7 OFFSET $8;

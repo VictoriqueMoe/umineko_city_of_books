@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$BaseUrl = 'http://localhost:4323',
+    [string]$InternalUrl = 'http://localhost:9464',
     [string]$User = '',
     [string]$Pass = '',
     [switch]$NoDashboard
@@ -24,6 +25,7 @@ catch
 }
 
 $env:BASE_URL = $BaseUrl
+$env:INTERNAL_URL = $InternalUrl
 $env:LOADTEST_USER = $User
 $env:LOADTEST_PASS = $Pass
 

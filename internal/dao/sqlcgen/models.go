@@ -283,6 +283,7 @@ type Art struct {
 	UpdatedAt    sql.NullTime
 	GalleryID    *uuid.UUID
 	SearchVector interface{}
+	LikeCount    int32
 }
 
 type ArtComment struct {
@@ -730,6 +731,7 @@ type Journal struct {
 	ArchivedAt           sql.NullTime
 	SearchVector         interface{}
 	PausedAt             sql.NullTime
+	FollowerCount        int32
 }
 
 type JournalComment struct {
@@ -939,6 +941,9 @@ type Oc struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	SearchVector     interface{}
+	VoteScore        int32
+	FavouriteCount   int32
+	CommentCount     int32
 }
 
 type OcComment struct {
@@ -1015,6 +1020,9 @@ type Post struct {
 	SharedContentType sql.NullString
 	CreatedAt         time.Time
 	SearchVector      interface{}
+	HotScore          float64
+	LikeCount         int32
+	CommentCount      int32
 }
 
 type PostComment struct {
@@ -1184,6 +1192,9 @@ type Ship struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	SearchVector interface{}
+	VoteScore    int32
+	Controversy  int64
+	CommentCount int32
 }
 
 type ShipCharacter struct {
@@ -1281,6 +1292,8 @@ type Theory struct {
 	RefutedByResponseID *uuid.UUID
 	RefutedByUserID     *uuid.UUID
 	RefutedAt           sql.NullTime
+	VoteScore           int32
+	VoteCount           int32
 }
 
 type TheoryEvidence struct {

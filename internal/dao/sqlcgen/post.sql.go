@@ -503,7 +503,7 @@ LEFT JOIN user_roles r ON r.user_id = p.user_id
 WHERE p.corner = $2
   AND (p.user_id = $1 OR p.user_id IN (SELECT f.following_id FROM follows f WHERE f.follower_id = $1))
   AND ($3::text = '' OR p.user_id <> ALL(string_to_array($3::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM post_comments oc WHERE oc.post_id = p.id) DESC, p.created_at DESC
+ORDER BY p.comment_count DESC, p.created_at DESC
 LIMIT $5::int OFFSET $4::int
 `
 
@@ -599,7 +599,7 @@ LEFT JOIN user_roles r ON r.user_id = p.user_id
 WHERE p.corner = $2
   AND (p.user_id = $1 OR p.user_id IN (SELECT f.following_id FROM follows f WHERE f.follower_id = $1))
   AND ($3::text = '' OR p.user_id <> ALL(string_to_array($3::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM post_likes ol WHERE ol.post_id = p.id) DESC, p.created_at DESC
+ORDER BY p.like_count DESC, p.created_at DESC
 LIMIT $5::int OFFSET $4::int
 `
 
@@ -791,21 +791,14 @@ LEFT JOIN user_roles r ON r.user_id = p.user_id
 WHERE p.corner = $2
   AND (p.user_id = $1 OR p.user_id IN (SELECT f.following_id FROM follows f WHERE f.follower_id = $1))
   AND ($3::text = '' OR p.user_id <> ALL(string_to_array($3::text, ',')::uuid[]))
-ORDER BY (
-    (1.0
-        + LEAST((SELECT COUNT(*) FROM post_likes ol WHERE ol.post_id = p.id), 50) * 0.15
-        + LEAST((SELECT COUNT(*) FROM post_comments oc WHERE oc.post_id = p.id), 30) * 0.3
-    ) / (1.0 + EXTRACT(EPOCH FROM (NOW() - p.created_at)) / 3600.0 * 0.3)
-    + ((ascii(substr(p.id::text, 1, 1)) * 7 + ascii(substr(p.id::text, 5, 1)) * 13 + $4::bigint) % 1000) / 2500.0
-) DESC
-LIMIT $6::int OFFSET $5::int
+ORDER BY p.hot_score DESC, p.id
+LIMIT $5::int OFFSET $4::int
 `
 
 type ListFollowingPostsByRelevanceParams struct {
 	ViewerID       uuid.UUID
 	Corner         string
 	ExcludeUserIds string
-	Seed           int64
 	RowOffset      int32
 	RowLimit       int32
 }
@@ -835,7 +828,6 @@ func (q *Queries) ListFollowingPostsByRelevance(ctx context.Context, arg ListFol
 		arg.ViewerID,
 		arg.Corner,
 		arg.ExcludeUserIds,
-		arg.Seed,
 		arg.RowOffset,
 		arg.RowLimit,
 	)
@@ -1262,7 +1254,7 @@ WHERE p.corner = $2
          ELSE TRUE
        END)
   AND ($5::text = '' OR p.user_id <> ALL(string_to_array($5::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM post_comments oc WHERE oc.post_id = p.id) DESC, p.created_at DESC
+ORDER BY p.comment_count DESC, p.created_at DESC
 LIMIT $7::int OFFSET $6::int
 `
 
@@ -1371,7 +1363,7 @@ WHERE p.corner = $2
          ELSE TRUE
        END)
   AND ($5::text = '' OR p.user_id <> ALL(string_to_array($5::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM post_likes ol WHERE ol.post_id = p.id) DESC, p.created_at DESC
+ORDER BY p.like_count DESC, p.created_at DESC
 LIMIT $7::int OFFSET $6::int
 `
 
@@ -1589,15 +1581,8 @@ WHERE p.corner = $2
          ELSE TRUE
        END)
   AND ($5::text = '' OR p.user_id <> ALL(string_to_array($5::text, ',')::uuid[]))
-ORDER BY (
-    (1.0
-        + LEAST((SELECT COUNT(*) FROM post_likes ol WHERE ol.post_id = p.id), 50) * 0.15
-        + LEAST((SELECT COUNT(*) FROM post_comments oc WHERE oc.post_id = p.id), 30) * 0.3
-        + CASE WHEN EXISTS(SELECT 1 FROM follows fb WHERE fb.follower_id = $1 AND fb.following_id = p.user_id) THEN 3.0 ELSE 0 END
-    ) / (1.0 + EXTRACT(EPOCH FROM (NOW() - p.created_at)) / 3600.0 * 0.3)
-    + ((ascii(substr(p.id::text, 1, 1)) * 7 + ascii(substr(p.id::text, 5, 1)) * 13 + $6::bigint) % 1000) / 2500.0
-) DESC
-LIMIT $8::int OFFSET $7::int
+ORDER BY p.hot_score DESC, p.id
+LIMIT $7::int OFFSET $6::int
 `
 
 type ListPostsFeedByRelevanceParams struct {
@@ -1606,7 +1591,6 @@ type ListPostsFeedByRelevanceParams struct {
 	Search         string
 	ResolvedFilter string
 	ExcludeUserIds string
-	Seed           int64
 	RowOffset      int32
 	RowLimit       int32
 }
@@ -1638,7 +1622,6 @@ func (q *Queries) ListPostsFeedByRelevance(ctx context.Context, arg ListPostsFee
 		arg.Search,
 		arg.ResolvedFilter,
 		arg.ExcludeUserIds,
-		arg.Seed,
 		arg.RowOffset,
 		arg.RowLimit,
 	)

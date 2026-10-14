@@ -598,7 +598,7 @@ WHERE ($1::text = '' OR t.series = $1::text)
   AND ($3::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR t.user_id = $3::uuid)
   AND ($4::text = '' OR (t.title LIKE '%' || $4::text || '%' OR t.body LIKE '%' || $4::text || '%'))
   AND ($5::text = '' OR t.user_id <> ALL(string_to_array($5::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM theory_votes tv WHERE tv.theory_id = t.id) DESC, t.created_at DESC
+ORDER BY t.vote_count DESC, t.created_at DESC
 LIMIT $7::int OFFSET $6::int
 `
 
@@ -687,7 +687,7 @@ WHERE ($1::text = '' OR t.series = $1::text)
   AND ($3::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR t.user_id = $3::uuid)
   AND ($4::text = '' OR (t.title LIKE '%' || $4::text || '%' OR t.body LIKE '%' || $4::text || '%'))
   AND ($5::text = '' OR t.user_id <> ALL(string_to_array($5::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM theory_votes tv WHERE tv.theory_id = t.id) ASC, t.created_at ASC
+ORDER BY t.vote_count ASC, t.created_at ASC
 LIMIT $7::int OFFSET $6::int
 `
 
@@ -1132,7 +1132,7 @@ WHERE ($1::text = '' OR t.series = $1::text)
   AND ($3::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR t.user_id = $3::uuid)
   AND ($4::text = '' OR (t.title LIKE '%' || $4::text || '%' OR t.body LIKE '%' || $4::text || '%'))
   AND ($5::text = '' OR t.user_id <> ALL(string_to_array($5::text, ',')::uuid[]))
-ORDER BY (SELECT COALESCE(SUM(tv.value), 0) FROM theory_votes tv WHERE tv.theory_id = t.id) DESC, t.created_at DESC
+ORDER BY t.vote_score DESC, t.created_at DESC
 LIMIT $7::int OFFSET $6::int
 `
 
@@ -1221,7 +1221,7 @@ WHERE ($1::text = '' OR t.series = $1::text)
   AND ($3::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR t.user_id = $3::uuid)
   AND ($4::text = '' OR (t.title LIKE '%' || $4::text || '%' OR t.body LIKE '%' || $4::text || '%'))
   AND ($5::text = '' OR t.user_id <> ALL(string_to_array($5::text, ',')::uuid[]))
-ORDER BY (SELECT COALESCE(SUM(tv.value), 0) FROM theory_votes tv WHERE tv.theory_id = t.id) ASC, t.created_at ASC
+ORDER BY t.vote_score ASC, t.created_at ASC
 LIMIT $7::int OFFSET $6::int
 `
 

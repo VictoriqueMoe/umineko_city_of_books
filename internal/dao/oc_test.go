@@ -420,6 +420,99 @@ func TestOCDAO_List_FiltersByCustomSeriesName(t *testing.T) {
 	assert.Equal(t, "A", rows[0].Name)
 }
 
+func ocSetCreatedAt(t *testing.T, repos *repository.Repositories, id uuid.UUID, createdAt string) {
+	t.Helper()
+
+	_, err := repos.DB().ExecContext(context.Background(), "UPDATE ocs SET created_at = $1 WHERE id = $2", createdAt, id)
+	require.NoError(t, err)
+}
+
+func ocCastVotes(t *testing.T, repos *repository.Repositories, ocID uuid.UUID, values ...int) {
+	t.Helper()
+
+	for _, value := range values {
+		voter := daotest.CreateUser(t, repos)
+		require.NoError(t, repos.OC.Vote(context.Background(), spec.Vote{UserID: voter.ID, TargetID: ocID, Value: value}))
+	}
+}
+
+func ocFavourite(t *testing.T, repos *repository.Repositories, ocID uuid.UUID) uuid.UUID {
+	t.Helper()
+
+	fan := daotest.CreateUser(t, repos)
+	require.NoError(t, repos.OC.Favourite(context.Background(), spec.Like{UserID: fan.ID, TargetID: ocID}))
+
+	return fan.ID
+}
+
+func ocComment(t *testing.T, repos *repository.Repositories, ocID, userID uuid.UUID) {
+	t.Helper()
+
+	_, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: ocID, UserID: userID, Body: "lovely"})
+	require.NoError(t, err)
+}
+
+func TestOCDAO_List_SortsByEngagement(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	owner := daotest.CreateUser(t, repos)
+	flipper := daotest.CreateUser(t, repos)
+	oldest := createOC(t, repos, owner.ID, "Oldest", "umineko", "")
+	middle := createOC(t, repos, owner.ID, "Middle", "umineko", "")
+	recent := createOC(t, repos, owner.ID, "Recent", "umineko", "")
+	newest := createOC(t, repos, owner.ID, "Newest", "umineko", "")
+
+	ocSetCreatedAt(t, repos, oldest, "2020-01-01 00:00:00")
+	ocSetCreatedAt(t, repos, middle, "2021-01-01 00:00:00")
+	ocSetCreatedAt(t, repos, recent, "2022-01-01 00:00:00")
+	ocSetCreatedAt(t, repos, newest, "2023-01-01 00:00:00")
+
+	ocCastVotes(t, repos, oldest, -1, -1, -1, -1)
+	ocCastVotes(t, repos, middle, 1, 1)
+	require.NoError(t, repos.OC.Vote(ctx, spec.Vote{UserID: flipper.ID, TargetID: newest, Value: 1}))
+	require.NoError(t, repos.OC.Vote(ctx, spec.Vote{UserID: flipper.ID, TargetID: newest, Value: -1}))
+
+	ocFavourite(t, repos, middle)
+	leaver := ocFavourite(t, repos, middle)
+	require.NoError(t, repos.OC.Unfavourite(ctx, spec.Like{UserID: leaver, TargetID: middle}))
+	ocFavourite(t, repos, recent)
+	ocFavourite(t, repos, recent)
+
+	ocComment(t, repos, recent, owner.ID)
+	ocComment(t, repos, newest, owner.ID)
+	ocComment(t, repos, newest, owner.ID)
+
+	cases := []struct {
+		name      string
+		sort      string
+		crackOnly bool
+		want      []uuid.UUID
+	}{
+		{name: "top orders by score, ties newest first", sort: "top", want: []uuid.UUID{middle, recent, newest, oldest}},
+		{name: "crack orders by lowest score, ties newest first", sort: "crack", want: []uuid.UUID{oldest, newest, recent, middle}},
+		{name: "favourites orders by favourite count, ties newest first", sort: "favourites", want: []uuid.UUID{recent, middle, newest, oldest}},
+		{name: "comments orders by comment count, ties newest first", sort: "comments", want: []uuid.UUID{newest, recent, middle, oldest}},
+		{name: "crack only keeps OCs scored at minus three or below", sort: "new", crackOnly: true, want: []uuid.UUID{oldest}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			rows, total, err := repos.OC.List(ctx, spec.OCListFilter{ViewerID: owner.ID, Sort: tc.sort, CrackOCsOnly: tc.crackOnly, Limit: 20, Offset: 0})
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, len(tc.want), total)
+			got := make([]uuid.UUID, 0, len(rows))
+			for _, row := range rows {
+				got = append(got, row.ID)
+			}
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 func TestOCDAO_ListByUser(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)

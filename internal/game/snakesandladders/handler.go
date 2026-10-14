@@ -1,10 +1,11 @@
 package snakesandladders
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand/v2"
+	"math/big"
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/gameroom"
@@ -155,7 +156,12 @@ func (h *Handler) ValidateAction(stateJSON string, actorSlot int, raw json.RawMe
 		return gameroom.ActionResult{}, fmt.Errorf("unknown action: %s", act.Type)
 	}
 
-	roll := rand.IntN(diceSides) + 1
+	rolled, rollErr := rand.Int(rand.Reader, big.NewInt(diceSides))
+	if rollErr != nil {
+		return gameroom.ActionResult{}, fmt.Errorf("roll dice: %w", rollErr)
+	}
+
+	roll := int(rolled.Int64()) + 1
 	from := s.Positions[actorSlot]
 	stepped, to, viaLadder, viaSnake := resolveMove(from, roll)
 

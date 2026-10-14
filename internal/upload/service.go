@@ -401,9 +401,18 @@ func (s *service) stage(filename string, reader io.Reader) (string, error) {
 		return "", err
 	}
 
-	staged := filepath.Join(dir, filepath.Base(filename))
+	name := filepath.Base(filename)
+	staged := filepath.Join(dir, name)
 
-	dst, err := os.Create(staged)
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		s.Discard(staged)
+
+		return "", fmt.Errorf("open staging directory: %w", err)
+	}
+
+	dst, err := root.Create(name)
+	_ = root.Close()
 	if err != nil {
 		s.Discard(staged)
 

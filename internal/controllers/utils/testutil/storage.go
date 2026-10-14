@@ -45,8 +45,8 @@ func (l *LocalStorage) Put(key string, content string, modTime time.Time) {
 	l.t.Helper()
 
 	fullPath := filepath.Join(l.Dir, filepath.FromSlash(key))
-	require.NoError(l.t, os.MkdirAll(filepath.Dir(fullPath), 0755))
-	require.NoError(l.t, os.WriteFile(fullPath, []byte(content), 0644))
+	require.NoError(l.t, os.MkdirAll(filepath.Dir(fullPath), 0750))
+	require.NoError(l.t, os.WriteFile(fullPath, []byte(content), 0600))
 	require.NoError(l.t, os.Chtimes(fullPath, modTime, modTime))
 
 	row := &model.StoredFileRow{Key: key, Backend: config.StorageBackendLocal, Location: key, Size: int64(len(content)), CreatedAt: modTime}
