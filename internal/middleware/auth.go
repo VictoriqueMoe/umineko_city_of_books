@@ -5,6 +5,7 @@ import (
 
 	"umineko_city_of_books/internal/authctx"
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/session"
 
 	"github.com/gofiber/fiber/v3"
@@ -133,7 +134,9 @@ func OptionalAuth(mgr *session.Manager, authzSvc authz.Service) fiber.Handler {
 		}
 
 		if authzSvc.IsBanned(ctx.Context(), userID) {
-			mgr.Delete(ctx.Context(), token)
+			if delErr := mgr.Delete(ctx.Context(), token); delErr != nil {
+				logger.Ctx(ctx.Context()).Warn().Err(delErr).Str("user_id", userID.String()).Msg("banned user's session not deleted")
+			}
 			ctx.Locals("userID", uuid.Nil)
 			return ctx.Next()
 		}
@@ -178,7 +181,9 @@ func authenticateAndCheckBan(ctx fiber.Ctx, mgr *session.Manager, authzSvc authz
 	}
 
 	if authzSvc.IsBanned(ctx.Context(), userID) {
-		mgr.Delete(ctx.Context(), token)
+		if delErr := mgr.Delete(ctx.Context(), token); delErr != nil {
+			logger.Ctx(ctx.Context()).Warn().Err(delErr).Str("user_id", userID.String()).Msg("banned user's session not deleted")
+		}
 		_ = ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "your account has been banned",
 		})

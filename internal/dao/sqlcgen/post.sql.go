@@ -503,7 +503,7 @@ LEFT JOIN user_roles r ON r.user_id = p.user_id
 WHERE p.corner = $2
   AND (p.user_id = $1 OR p.user_id IN (SELECT f.following_id FROM follows f WHERE f.follower_id = $1))
   AND ($3::text = '' OR p.user_id <> ALL(string_to_array($3::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM post_comments oc WHERE oc.post_id = p.id) DESC, p.created_at DESC
+ORDER BY p.comment_count DESC, p.created_at DESC
 LIMIT $5::int OFFSET $4::int
 `
 
@@ -599,7 +599,7 @@ LEFT JOIN user_roles r ON r.user_id = p.user_id
 WHERE p.corner = $2
   AND (p.user_id = $1 OR p.user_id IN (SELECT f.following_id FROM follows f WHERE f.follower_id = $1))
   AND ($3::text = '' OR p.user_id <> ALL(string_to_array($3::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM post_likes ol WHERE ol.post_id = p.id) DESC, p.created_at DESC
+ORDER BY p.like_count DESC, p.created_at DESC
 LIMIT $5::int OFFSET $4::int
 `
 
@@ -1254,7 +1254,7 @@ WHERE p.corner = $2
          ELSE TRUE
        END)
   AND ($5::text = '' OR p.user_id <> ALL(string_to_array($5::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM post_comments oc WHERE oc.post_id = p.id) DESC, p.created_at DESC
+ORDER BY p.comment_count DESC, p.created_at DESC
 LIMIT $7::int OFFSET $6::int
 `
 
@@ -1363,7 +1363,7 @@ WHERE p.corner = $2
          ELSE TRUE
        END)
   AND ($5::text = '' OR p.user_id <> ALL(string_to_array($5::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM post_likes ol WHERE ol.post_id = p.id) DESC, p.created_at DESC
+ORDER BY p.like_count DESC, p.created_at DESC
 LIMIT $7::int OFFSET $6::int
 `
 

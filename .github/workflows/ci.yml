@@ -130,13 +130,49 @@ jobs:
         if: matrix.shard == 'rest'
         run: go test $(go list ./... | grep -v '/internal/dao$') -count=1
 
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Create static placeholder
+        run: mkdir -p static && touch static/.gitkeep
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: false
+
+      - uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: go-${{ runner.os }}-
+
+      - name: govulncheck
+        run: bash scripts/security.sh govulncheck
+
+      - name: gosec
+        if: ${{ !cancelled() }}
+        run: bash scripts/security.sh gosec
+
+      - name: gitleaks
+        if: ${{ !cancelled() }}
+        run: bash scripts/security.sh gitleaks
+
   backend:
     if: ${{ always() }}
-    needs: [backend-lint, backend-test]
+    needs: [backend-lint, backend-test, security]
     runs-on: ubuntu-latest
     steps:
       - name: Require every backend job to pass
         run: |
-          echo "lint: ${{ needs.backend-lint.result }}, tests: ${{ needs.backend-test.result }}"
+          echo "lint: ${{ needs.backend-lint.result }}, tests: ${{ needs.backend-test.result }}, security: ${{ needs.security.result }}"
           [ "${{ needs.backend-lint.result }}" = "success" ]
           [[ "${{ needs.backend-test.result }}" =~ ^(success|skipped)$ ]]
+          [ "${{ needs.security.result }}" = "success" ]

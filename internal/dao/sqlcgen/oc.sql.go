@@ -45,7 +45,7 @@ FROM ocs o
 WHERE ($1::text = '' OR o.series = $1::text)
   AND ($2::text = '' OR lower(o.custom_series_name) = lower($2::text))
   AND ($3::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR o.user_id = $3::uuid)
-  AND (NOT $4::boolean OR COALESCE((SELECT SUM(cv.value) FROM oc_votes cv WHERE cv.oc_id = o.id), 0) <= -3)
+  AND (NOT $4::boolean OR o.vote_score <= -3)
   AND ($5::text = '' OR o.user_id <> ALL(string_to_array($5::text, ',')::uuid[]))
 `
 
@@ -447,9 +447,9 @@ LEFT JOIN user_roles r ON r.user_id = o.user_id
 WHERE ($2::text = '' OR o.series = $2::text)
   AND ($3::text = '' OR lower(o.custom_series_name) = lower($3::text))
   AND ($4::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR o.user_id = $4::uuid)
-  AND (NOT $5::boolean OR COALESCE((SELECT SUM(cv.value) FROM oc_votes cv WHERE cv.oc_id = o.id), 0) <= -3)
+  AND (NOT $5::boolean OR o.vote_score <= -3)
   AND ($6::text = '' OR o.user_id <> ALL(string_to_array($6::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM oc_comments sc WHERE sc.oc_id = o.id) DESC, o.created_at DESC
+ORDER BY o.comment_count DESC, o.created_at DESC
 LIMIT $8 OFFSET $7
 `
 
@@ -554,9 +554,9 @@ LEFT JOIN user_roles r ON r.user_id = o.user_id
 WHERE ($2::text = '' OR o.series = $2::text)
   AND ($3::text = '' OR lower(o.custom_series_name) = lower($3::text))
   AND ($4::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR o.user_id = $4::uuid)
-  AND (NOT $5::boolean OR COALESCE((SELECT SUM(cv.value) FROM oc_votes cv WHERE cv.oc_id = o.id), 0) <= -3)
+  AND (NOT $5::boolean OR o.vote_score <= -3)
   AND ($6::text = '' OR o.user_id <> ALL(string_to_array($6::text, ',')::uuid[]))
-ORDER BY COALESCE((SELECT SUM(sv.value) FROM oc_votes sv WHERE sv.oc_id = o.id), 0) ASC, o.created_at DESC
+ORDER BY o.vote_score ASC, o.created_at DESC
 LIMIT $8 OFFSET $7
 `
 
@@ -661,9 +661,9 @@ LEFT JOIN user_roles r ON r.user_id = o.user_id
 WHERE ($2::text = '' OR o.series = $2::text)
   AND ($3::text = '' OR lower(o.custom_series_name) = lower($3::text))
   AND ($4::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR o.user_id = $4::uuid)
-  AND (NOT $5::boolean OR COALESCE((SELECT SUM(cv.value) FROM oc_votes cv WHERE cv.oc_id = o.id), 0) <= -3)
+  AND (NOT $5::boolean OR o.vote_score <= -3)
   AND ($6::text = '' OR o.user_id <> ALL(string_to_array($6::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM oc_favourites sf WHERE sf.oc_id = o.id) DESC, o.created_at DESC
+ORDER BY o.favourite_count DESC, o.created_at DESC
 LIMIT $8 OFFSET $7
 `
 
@@ -768,7 +768,7 @@ LEFT JOIN user_roles r ON r.user_id = o.user_id
 WHERE ($2::text = '' OR o.series = $2::text)
   AND ($3::text = '' OR lower(o.custom_series_name) = lower($3::text))
   AND ($4::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR o.user_id = $4::uuid)
-  AND (NOT $5::boolean OR COALESCE((SELECT SUM(cv.value) FROM oc_votes cv WHERE cv.oc_id = o.id), 0) <= -3)
+  AND (NOT $5::boolean OR o.vote_score <= -3)
   AND ($6::text = '' OR o.user_id <> ALL(string_to_array($6::text, ',')::uuid[]))
 ORDER BY lower(o.name) ASC
 LIMIT $8 OFFSET $7
@@ -875,7 +875,7 @@ LEFT JOIN user_roles r ON r.user_id = o.user_id
 WHERE ($2::text = '' OR o.series = $2::text)
   AND ($3::text = '' OR lower(o.custom_series_name) = lower($3::text))
   AND ($4::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR o.user_id = $4::uuid)
-  AND (NOT $5::boolean OR COALESCE((SELECT SUM(cv.value) FROM oc_votes cv WHERE cv.oc_id = o.id), 0) <= -3)
+  AND (NOT $5::boolean OR o.vote_score <= -3)
   AND ($6::text = '' OR o.user_id <> ALL(string_to_array($6::text, ',')::uuid[]))
 ORDER BY o.created_at DESC
 LIMIT $8 OFFSET $7
@@ -982,7 +982,7 @@ LEFT JOIN user_roles r ON r.user_id = o.user_id
 WHERE ($2::text = '' OR o.series = $2::text)
   AND ($3::text = '' OR lower(o.custom_series_name) = lower($3::text))
   AND ($4::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR o.user_id = $4::uuid)
-  AND (NOT $5::boolean OR COALESCE((SELECT SUM(cv.value) FROM oc_votes cv WHERE cv.oc_id = o.id), 0) <= -3)
+  AND (NOT $5::boolean OR o.vote_score <= -3)
   AND ($6::text = '' OR o.user_id <> ALL(string_to_array($6::text, ',')::uuid[]))
 ORDER BY o.created_at ASC
 LIMIT $8 OFFSET $7
@@ -1089,9 +1089,9 @@ LEFT JOIN user_roles r ON r.user_id = o.user_id
 WHERE ($2::text = '' OR o.series = $2::text)
   AND ($3::text = '' OR lower(o.custom_series_name) = lower($3::text))
   AND ($4::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR o.user_id = $4::uuid)
-  AND (NOT $5::boolean OR COALESCE((SELECT SUM(cv.value) FROM oc_votes cv WHERE cv.oc_id = o.id), 0) <= -3)
+  AND (NOT $5::boolean OR o.vote_score <= -3)
   AND ($6::text = '' OR o.user_id <> ALL(string_to_array($6::text, ',')::uuid[]))
-ORDER BY COALESCE((SELECT SUM(sv.value) FROM oc_votes sv WHERE sv.oc_id = o.id), 0) DESC, o.created_at DESC
+ORDER BY o.vote_score DESC, o.created_at DESC
 LIMIT $8 OFFSET $7
 `
 

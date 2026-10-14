@@ -266,7 +266,7 @@ WHERE a.corner = sqlc.arg(corner)
        OR u.username LIKE sqlc.arg(search)::text)
   AND (sqlc.arg(tag)::text = '' OR EXISTS(SELECT 1 FROM art_tags ta WHERE ta.art_id = a.id AND ta.tag = sqlc.arg(tag)::text))
   AND (sqlc.arg(exclude_user_ids)::text = '' OR a.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM art_likes pl WHERE pl.art_id = a.id) DESC, a.created_at DESC
+ORDER BY a.like_count DESC, a.created_at DESC
 LIMIT sqlc.arg(row_limit)::int OFFSET sqlc.arg(row_offset)::int;
 
 -- name: ListArtByViews :many

@@ -36,7 +36,7 @@ func SendEditNotification(
 
 	message := fmt.Sprintf("your %s has been edited", p.ContentType)
 
-	notifSvc.Notify(ctx, dto.NotifyParams{
+	_ = notifSvc.Notify(ctx, dto.NotifyParams{
 		RecipientID:   p.AuthorID,
 		Type:          dto.NotifContentEdited,
 		ReferenceID:   p.ReferenceID,

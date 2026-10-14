@@ -138,7 +138,7 @@ func (s *moderationService) notifyModerationAction(roomID, targetID, actorID uui
 		refType = "chat_room_ban"
 	}
 	go func(msg string) {
-		s.notifSvc.Notify(context.Background(), dto.NotifyParams{
+		_ = s.notifSvc.Notify(context.Background(), dto.NotifyParams{
 			RecipientID:   targetID,
 			ActorID:       actorID,
 			Type:          notifType,
@@ -153,7 +153,7 @@ func (s *moderationService) notifyAutomatedKick(roomID, targetID uuid.UUID, patt
 	roomName := s.lookupRoomName(context.Background(), roomID)
 	message := fmt.Sprintf("You were kicked from %s by the word filter.", roomName)
 	go func(msg string) {
-		s.notifSvc.Notify(context.Background(), dto.NotifyParams{
+		_ = s.notifSvc.Notify(context.Background(), dto.NotifyParams{
 			RecipientID:   targetID,
 			ActorID:       uuid.Nil,
 			Type:          dto.NotifChatRoomKicked,

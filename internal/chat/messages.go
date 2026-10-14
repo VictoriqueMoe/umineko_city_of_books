@@ -745,7 +745,7 @@ func (m *messagesService) saveMessageMedia(ctx context.Context, messageID uuid.U
 			m.chatRepo.UpdateMessageMediaURL,
 			m.chatRepo.UpdateMessageMediaThumbnail,
 		)
-		r.Close()
+		_ = r.Close()
 		if saveErr != nil {
 			return nil, saveErr
 		}

@@ -121,7 +121,7 @@ FROM ocs o
 WHERE (sqlc.arg(series)::text = '' OR o.series = sqlc.arg(series)::text)
   AND (sqlc.arg(custom_series_name)::text = '' OR lower(o.custom_series_name) = lower(sqlc.arg(custom_series_name)::text))
   AND (sqlc.arg(owner_id)::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR o.user_id = sqlc.arg(owner_id)::uuid)
-  AND (NOT sqlc.arg(crack_only)::boolean OR COALESCE((SELECT SUM(cv.value) FROM oc_votes cv WHERE cv.oc_id = o.id), 0) <= -3)
+  AND (NOT sqlc.arg(crack_only)::boolean OR o.vote_score <= -3)
   AND (sqlc.arg(exclude_user_ids)::text = '' OR o.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]));
 
 -- name: ListOCsByNew :many
@@ -140,7 +140,7 @@ LEFT JOIN user_roles r ON r.user_id = o.user_id
 WHERE (sqlc.arg(series)::text = '' OR o.series = sqlc.arg(series)::text)
   AND (sqlc.arg(custom_series_name)::text = '' OR lower(o.custom_series_name) = lower(sqlc.arg(custom_series_name)::text))
   AND (sqlc.arg(owner_id)::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR o.user_id = sqlc.arg(owner_id)::uuid)
-  AND (NOT sqlc.arg(crack_only)::boolean OR COALESCE((SELECT SUM(cv.value) FROM oc_votes cv WHERE cv.oc_id = o.id), 0) <= -3)
+  AND (NOT sqlc.arg(crack_only)::boolean OR o.vote_score <= -3)
   AND (sqlc.arg(exclude_user_ids)::text = '' OR o.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
 ORDER BY o.created_at DESC
 LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
@@ -161,9 +161,9 @@ LEFT JOIN user_roles r ON r.user_id = o.user_id
 WHERE (sqlc.arg(series)::text = '' OR o.series = sqlc.arg(series)::text)
   AND (sqlc.arg(custom_series_name)::text = '' OR lower(o.custom_series_name) = lower(sqlc.arg(custom_series_name)::text))
   AND (sqlc.arg(owner_id)::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR o.user_id = sqlc.arg(owner_id)::uuid)
-  AND (NOT sqlc.arg(crack_only)::boolean OR COALESCE((SELECT SUM(cv.value) FROM oc_votes cv WHERE cv.oc_id = o.id), 0) <= -3)
+  AND (NOT sqlc.arg(crack_only)::boolean OR o.vote_score <= -3)
   AND (sqlc.arg(exclude_user_ids)::text = '' OR o.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
-ORDER BY COALESCE((SELECT SUM(sv.value) FROM oc_votes sv WHERE sv.oc_id = o.id), 0) DESC, o.created_at DESC
+ORDER BY o.vote_score DESC, o.created_at DESC
 LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 
 -- name: ListOCsByCrack :many
@@ -182,9 +182,9 @@ LEFT JOIN user_roles r ON r.user_id = o.user_id
 WHERE (sqlc.arg(series)::text = '' OR o.series = sqlc.arg(series)::text)
   AND (sqlc.arg(custom_series_name)::text = '' OR lower(o.custom_series_name) = lower(sqlc.arg(custom_series_name)::text))
   AND (sqlc.arg(owner_id)::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR o.user_id = sqlc.arg(owner_id)::uuid)
-  AND (NOT sqlc.arg(crack_only)::boolean OR COALESCE((SELECT SUM(cv.value) FROM oc_votes cv WHERE cv.oc_id = o.id), 0) <= -3)
+  AND (NOT sqlc.arg(crack_only)::boolean OR o.vote_score <= -3)
   AND (sqlc.arg(exclude_user_ids)::text = '' OR o.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
-ORDER BY COALESCE((SELECT SUM(sv.value) FROM oc_votes sv WHERE sv.oc_id = o.id), 0) ASC, o.created_at DESC
+ORDER BY o.vote_score ASC, o.created_at DESC
 LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 
 -- name: ListOCsByFavourites :many
@@ -203,9 +203,9 @@ LEFT JOIN user_roles r ON r.user_id = o.user_id
 WHERE (sqlc.arg(series)::text = '' OR o.series = sqlc.arg(series)::text)
   AND (sqlc.arg(custom_series_name)::text = '' OR lower(o.custom_series_name) = lower(sqlc.arg(custom_series_name)::text))
   AND (sqlc.arg(owner_id)::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR o.user_id = sqlc.arg(owner_id)::uuid)
-  AND (NOT sqlc.arg(crack_only)::boolean OR COALESCE((SELECT SUM(cv.value) FROM oc_votes cv WHERE cv.oc_id = o.id), 0) <= -3)
+  AND (NOT sqlc.arg(crack_only)::boolean OR o.vote_score <= -3)
   AND (sqlc.arg(exclude_user_ids)::text = '' OR o.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM oc_favourites sf WHERE sf.oc_id = o.id) DESC, o.created_at DESC
+ORDER BY o.favourite_count DESC, o.created_at DESC
 LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 
 -- name: ListOCsByComments :many
@@ -224,9 +224,9 @@ LEFT JOIN user_roles r ON r.user_id = o.user_id
 WHERE (sqlc.arg(series)::text = '' OR o.series = sqlc.arg(series)::text)
   AND (sqlc.arg(custom_series_name)::text = '' OR lower(o.custom_series_name) = lower(sqlc.arg(custom_series_name)::text))
   AND (sqlc.arg(owner_id)::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR o.user_id = sqlc.arg(owner_id)::uuid)
-  AND (NOT sqlc.arg(crack_only)::boolean OR COALESCE((SELECT SUM(cv.value) FROM oc_votes cv WHERE cv.oc_id = o.id), 0) <= -3)
+  AND (NOT sqlc.arg(crack_only)::boolean OR o.vote_score <= -3)
   AND (sqlc.arg(exclude_user_ids)::text = '' OR o.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM oc_comments sc WHERE sc.oc_id = o.id) DESC, o.created_at DESC
+ORDER BY o.comment_count DESC, o.created_at DESC
 LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 
 -- name: ListOCsByName :many
@@ -245,7 +245,7 @@ LEFT JOIN user_roles r ON r.user_id = o.user_id
 WHERE (sqlc.arg(series)::text = '' OR o.series = sqlc.arg(series)::text)
   AND (sqlc.arg(custom_series_name)::text = '' OR lower(o.custom_series_name) = lower(sqlc.arg(custom_series_name)::text))
   AND (sqlc.arg(owner_id)::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR o.user_id = sqlc.arg(owner_id)::uuid)
-  AND (NOT sqlc.arg(crack_only)::boolean OR COALESCE((SELECT SUM(cv.value) FROM oc_votes cv WHERE cv.oc_id = o.id), 0) <= -3)
+  AND (NOT sqlc.arg(crack_only)::boolean OR o.vote_score <= -3)
   AND (sqlc.arg(exclude_user_ids)::text = '' OR o.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
 ORDER BY lower(o.name) ASC
 LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
@@ -266,7 +266,7 @@ LEFT JOIN user_roles r ON r.user_id = o.user_id
 WHERE (sqlc.arg(series)::text = '' OR o.series = sqlc.arg(series)::text)
   AND (sqlc.arg(custom_series_name)::text = '' OR lower(o.custom_series_name) = lower(sqlc.arg(custom_series_name)::text))
   AND (sqlc.arg(owner_id)::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR o.user_id = sqlc.arg(owner_id)::uuid)
-  AND (NOT sqlc.arg(crack_only)::boolean OR COALESCE((SELECT SUM(cv.value) FROM oc_votes cv WHERE cv.oc_id = o.id), 0) <= -3)
+  AND (NOT sqlc.arg(crack_only)::boolean OR o.vote_score <= -3)
   AND (sqlc.arg(exclude_user_ids)::text = '' OR o.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
 ORDER BY o.created_at ASC
 LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);

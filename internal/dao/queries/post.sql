@@ -292,7 +292,7 @@ WHERE p.corner = sqlc.arg(corner)
          ELSE TRUE
        END)
   AND (sqlc.arg(exclude_user_ids)::text = '' OR p.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM post_likes ol WHERE ol.post_id = p.id) DESC, p.created_at DESC
+ORDER BY p.like_count DESC, p.created_at DESC
 LIMIT sqlc.arg(row_limit)::int OFFSET sqlc.arg(row_offset)::int;
 
 -- name: ListPostsFeedByComments :many
@@ -321,7 +321,7 @@ WHERE p.corner = sqlc.arg(corner)
          ELSE TRUE
        END)
   AND (sqlc.arg(exclude_user_ids)::text = '' OR p.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM post_comments oc WHERE oc.post_id = p.id) DESC, p.created_at DESC
+ORDER BY p.comment_count DESC, p.created_at DESC
 LIMIT sqlc.arg(row_limit)::int OFFSET sqlc.arg(row_offset)::int;
 
 -- name: ListPostsFeedByViews :many
@@ -426,7 +426,7 @@ LEFT JOIN user_roles r ON r.user_id = p.user_id
 WHERE p.corner = sqlc.arg(corner)
   AND (p.user_id = sqlc.arg(viewer_id) OR p.user_id IN (SELECT f.following_id FROM follows f WHERE f.follower_id = sqlc.arg(viewer_id)))
   AND (sqlc.arg(exclude_user_ids)::text = '' OR p.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM post_likes ol WHERE ol.post_id = p.id) DESC, p.created_at DESC
+ORDER BY p.like_count DESC, p.created_at DESC
 LIMIT sqlc.arg(row_limit)::int OFFSET sqlc.arg(row_offset)::int;
 
 -- name: ListFollowingPostsByComments :many
@@ -446,7 +446,7 @@ LEFT JOIN user_roles r ON r.user_id = p.user_id
 WHERE p.corner = sqlc.arg(corner)
   AND (p.user_id = sqlc.arg(viewer_id) OR p.user_id IN (SELECT f.following_id FROM follows f WHERE f.follower_id = sqlc.arg(viewer_id)))
   AND (sqlc.arg(exclude_user_ids)::text = '' OR p.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM post_comments oc WHERE oc.post_id = p.id) DESC, p.created_at DESC
+ORDER BY p.comment_count DESC, p.created_at DESC
 LIMIT sqlc.arg(row_limit)::int OFFSET sqlc.arg(row_offset)::int;
 
 -- name: ListFollowingPostsByViews :many

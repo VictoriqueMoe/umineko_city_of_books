@@ -137,7 +137,7 @@ WHERE (sqlc.arg(work)::text = '' OR j.work = sqlc.arg(work)::text)
   AND (sqlc.arg(search)::text = '' OR j.title ILIKE '%' || sqlc.arg(search)::text || '%')
   AND (sqlc.arg(include_archived)::boolean OR j.archived_at IS NULL)
   AND (sqlc.arg(exclude_user_ids)::text = '' OR j.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
-ORDER BY (SELECT COUNT(*) FROM journal_follows fo WHERE fo.journal_id = j.id) DESC, j.created_at DESC
+ORDER BY j.follower_count DESC, j.created_at DESC
 LIMIT sqlc.arg(row_limit)::int OFFSET sqlc.arg(row_offset)::int;
 
 -- name: CountFollowedJournals :one

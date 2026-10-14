@@ -382,7 +382,7 @@ func postBackdate(t *testing.T, repos *repository.Repositories, postID uuid.UUID
 	_, err := repos.DB().ExecContext(context.Background(), "UPDATE posts SET created_at = NOW() - make_interval(secs => $1) WHERE id = $2", age.Seconds(), postID)
 	require.NoError(t, err)
 
-	_, err = repos.DB().ExecContext(context.Background(), "SELECT refresh_post_hot_score($1)", postID)
+	_, err = repos.DB().ExecContext(context.Background(), "SELECT refresh_post_engagement($1)", postID)
 	require.NoError(t, err)
 }
 
