@@ -22,6 +22,7 @@ func newBlockHarness(t *testing.T) (*testutil.Harness, *blocksvc.MockService) {
 	s := &Service{
 		BlockService: bs,
 		AuthSession:  h.SessionManager,
+		AuthService:  h.AuthService,
 		AuthzService: h.AuthzService,
 	}
 	for _, setup := range s.getAllBlockRoutes() {

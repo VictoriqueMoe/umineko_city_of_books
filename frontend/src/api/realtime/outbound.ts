@@ -8,9 +8,12 @@ export const REALTIME_COMMANDS = {
     VIEWER_STATE: "viewer_state",
     SECRET_JOIN: "secret_join",
     SECRET_LEAVE: "secret_leave",
+    MYSTERY_JOIN: "mystery_join",
+    MYSTERY_LEAVE: "mystery_leave",
     GAME_ROOM_JOIN: "game_room_join",
     GAME_ROOM_LEAVE: "game_room_leave",
     GAME_ROOM_INPUT: "game_room_input",
+    WATCH_POSTS: "watch_posts",
 } as const satisfies Record<string, RealtimeCommandName>;
 
 export interface PingPayload {
@@ -43,6 +46,14 @@ export type SecretJoinPayload = SecretTopicPayload;
 
 export type SecretLeavePayload = SecretTopicPayload;
 
+export interface MysteryTopicPayload {
+    mystery_id: string;
+}
+
+export type MysteryJoinPayload = MysteryTopicPayload;
+
+export type MysteryLeavePayload = MysteryTopicPayload;
+
 export type GameRoomJoinPayload = RoomActionPayload;
 
 export type GameRoomLeavePayload = RoomActionPayload;
@@ -50,6 +61,10 @@ export type GameRoomLeavePayload = RoomActionPayload;
 export interface GameRoomInputPayload<P = unknown> {
     room_id: string;
     payload: P;
+}
+
+export interface WatchPostsPayload {
+    post_ids: string[];
 }
 
 export type RealtimeCommand =
@@ -60,9 +75,12 @@ export type RealtimeCommand =
     | { type: "viewer_state"; data: ViewerStatePayload }
     | { type: "secret_join"; data: SecretJoinPayload }
     | { type: "secret_leave"; data: SecretLeavePayload }
+    | { type: "mystery_join"; data: MysteryJoinPayload }
+    | { type: "mystery_leave"; data: MysteryLeavePayload }
     | { type: "game_room_join"; data: GameRoomJoinPayload }
     | { type: "game_room_leave"; data: GameRoomLeavePayload }
-    | { type: "game_room_input"; data: GameRoomInputPayload };
+    | { type: "game_room_input"; data: GameRoomInputPayload }
+    | { type: "watch_posts"; data: WatchPostsPayload };
 
 export type RealtimeCommandName = RealtimeCommand["type"];
 

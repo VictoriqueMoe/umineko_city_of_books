@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/db"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 )
@@ -23,16 +25,31 @@ type (
 		DeleteCommentWithAudit(ctx context.Context, deletion spec.PostCommentDelete, tx ...*sql.Tx) ([]string, error)
 		CreatePollWithOptions(ctx context.Context, poll spec.NewPoll, tx ...*sql.Tx) (*model.PollRow, error)
 	}
+
+	postRepository struct {
+		db *sql.DB
+		dao.PostDAO
+		audit AuditLogRepository
+		cache *cache.Manager
+	}
 )
 
-type postRepository struct {
-	db *sql.DB
-	dao.PostDAO
-	audit AuditLogRepository
+func NewPostRepo(database *sql.DB, postDAO dao.PostDAO, auditLog AuditLogRepository, c *cache.Manager) PostRepository {
+	return &postRepository{db: database, PostDAO: postDAO, audit: auditLog, cache: c}
 }
 
-func NewPostRepo(database *sql.DB, postDAO dao.PostDAO, auditLog AuditLogRepository) PostRepository {
-	return &postRepository{db: database, PostDAO: postDAO, audit: auditLog}
+func (r *postRepository) GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (map[string]int, error) {
+	load := func(ctx context.Context) (map[string]int, error) {
+		return r.PostDAO.GetCornerCounts(ctx, tx...)
+	}
+
+	return r.cache.Load(ctx, cache.PostCornerCounts, load)
+}
+
+func (r *postRepository) invalidateCornerCounts(ctx context.Context) {
+	if err := r.cache.Del(ctx, cache.PostCornerCounts.Key()); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate post corner counts after write")
+	}
 }
 
 func (r *postRepository) RecordView(ctx context.Context, s spec.ViewRecord, tx ...*sql.Tx) (bool, error) {
@@ -89,6 +106,8 @@ func (r *postRepository) CreateWithDetails(ctx context.Context, post spec.NewPos
 		return nil, err
 	}
 
+	r.invalidateCornerCounts(ctx)
+
 	return created, nil
 }
 
@@ -144,6 +163,8 @@ func (r *postRepository) DeleteWithSharedContent(ctx context.Context, deletion s
 	if err != nil {
 		return nil, nil, err
 	}
+
+	r.invalidateCornerCounts(ctx)
 
 	return shared, paths, nil
 }

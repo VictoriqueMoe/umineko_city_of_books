@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"sync"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
@@ -98,6 +100,9 @@ type (
 		tickMu sync.RWMutex
 		ticks  map[uuid.UUID]*tickHandle
 		tickWG sync.WaitGroup
+
+		topWinnerMu sync.Mutex
+		topWinners  map[dto.GameType][]string
 	}
 )
 
@@ -124,6 +129,7 @@ func NewService(
 		handlers:      m,
 		rooms:         make(map[uuid.UUID]*roomState),
 		ticks:         make(map[uuid.UUID]*tickHandle),
+		topWinners:    make(map[dto.GameType][]string),
 	}
 }
 
@@ -210,31 +216,57 @@ func (s *service) finishAndBroadcast(ctx context.Context, roomID uuid.UUID, winn
 	return room, nil
 }
 
-func (s *service) broadcastTopWinner(gameType dto.GameType) {
-	var msgType string
+func topWinnerMessageType(gameType dto.GameType) string {
 	switch gameType {
 	case dto.GameTypeChess:
-		msgType = "top_chess_changed"
+		return "top_chess_changed"
 	case dto.GameTypeCheckers:
-		msgType = "top_checkers_changed"
+		return "top_checkers_changed"
 	case dto.GameTypeOthello:
-		msgType = "top_othello_changed"
+		return "top_othello_changed"
 	case dto.GameTypeMinesweeper:
-		msgType = "top_minesweeper_changed"
+		return "top_minesweeper_changed"
 	default:
+		return ""
+	}
+}
+
+func (s *service) broadcastTopWinner(gameType dto.GameType) {
+	msgType := topWinnerMessageType(gameType)
+	if msgType == "" {
 		return
 	}
+
+	s.topWinnerMu.Lock()
+	defer s.topWinnerMu.Unlock()
 
 	bgCtx := context.Background()
 	ids, err := s.repo.GetTopWinnerIDs(bgCtx, string(gameType))
 	if err != nil {
+		logger.Ctx(bgCtx).Warn().Err(err).Str("game_type", string(gameType)).Msg("top winner broadcast skipped, lookup failed")
+
+		return
+	}
+
+	if !s.recordTopWinners(gameType, ids) {
 		return
 	}
 
 	s.hub.Broadcast(ws.Message{
 		Type: msgType,
 		Data: map[string]any{
-			"user_ids": ids,
+			"user_ids":  ids,
+			"game_type": string(gameType),
 		},
 	})
+}
+
+func (s *service) recordTopWinners(gameType dto.GameType, ids []string) bool {
+	sorted := slices.Clone(ids)
+	slices.Sort(sorted)
+
+	previous, known := s.topWinners[gameType]
+	s.topWinners[gameType] = sorted
+
+	return !known || !slices.Equal(previous, sorted)
 }

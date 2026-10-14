@@ -8,9 +8,36 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestRequestLogLevel(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+		slow   bool
+		want   zerolog.Level
+	}{
+		{name: "a fast success is info", status: 200, slow: false, want: zerolog.InfoLevel},
+		{name: "a slow success is raised to warn", status: 200, slow: true, want: zerolog.WarnLevel},
+		{name: "a client error is warn", status: 404, slow: false, want: zerolog.WarnLevel},
+		{name: "a slow client error stays warn", status: 429, slow: true, want: zerolog.WarnLevel},
+		{name: "a server error is error", status: 500, slow: false, want: zerolog.ErrorLevel},
+		{name: "a slow server error stays error", status: 503, slow: true, want: zerolog.ErrorLevel},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			got := requestLogLevel(tc.status, tc.slow)
+
+			// then
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
 
 func TestIsStreamedPath(t *testing.T) {
 	tests := []struct {

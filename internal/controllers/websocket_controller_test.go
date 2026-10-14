@@ -18,6 +18,7 @@ func TestWebSocketController_RegistersGetWS(t *testing.T) {
 	s := &Service{
 		Hub:             ws.NewHub(),
 		AuthSession:     h.SessionManager,
+		AuthService:     h.AuthService,
 		ChatService:     chat.NewMockService(t),
 		GameRoomService: gameroom.NewMockService(t),
 		SettingsService: h.SettingsService,

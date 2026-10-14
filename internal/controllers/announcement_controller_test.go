@@ -32,6 +32,7 @@ func newAnnouncementHarness(t *testing.T) (*testutil.Harness, announcementDeps) 
 		AnnouncementService: deps.svc,
 		SettingsService:     h.SettingsService,
 		AuthSession:         h.SessionManager,
+		AuthService:         h.AuthService,
 		AuthzService:        h.AuthzService,
 	}
 	for _, setup := range s.getAllAnnouncementRoutes() {

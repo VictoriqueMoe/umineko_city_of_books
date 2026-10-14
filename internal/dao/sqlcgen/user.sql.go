@@ -1967,16 +1967,3 @@ func (q *Queries) UserEmailInUse(ctx context.Context, arg UserEmailInUseParams) 
 	err := row.Scan(&in_use)
 	return in_use, err
 }
-
-const userRequiresEmailVerification = `-- name: UserRequiresEmailVerification :one
-SELECT (NOT u.email_verified AND NOW() >= u.verify_grace_until)::boolean AS blocked
-FROM users u
-WHERE u.id = $1
-`
-
-func (q *Queries) UserRequiresEmailVerification(ctx context.Context, id uuid.UUID) (bool, error) {
-	row := q.db.QueryRowContext(ctx, userRequiresEmailVerification, id)
-	var blocked bool
-	err := row.Scan(&blocked)
-	return blocked, err
-}

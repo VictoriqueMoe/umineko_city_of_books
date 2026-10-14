@@ -106,6 +106,100 @@ func TestNotificationDAO_CreateAndListByUser(t *testing.T) {
 	assert.NotEmpty(t, row.CreatedAt)
 }
 
+func TestNotificationDAO_CreateMany(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	first := daotest.CreateUser(t, repos)
+	second := daotest.CreateUser(t, repos)
+	actor := daotest.CreateUser(t, repos, daotest.WithUsername("batch_actor"), daotest.WithDisplayName("Batch Actor"))
+	roomID := uuid.New()
+	systemRef := uuid.New()
+	input := []spec.NewNotification{
+		{UserID: first.ID, Type: dto.NotifChatRoomMessage, ReferenceID: roomID, ReferenceType: "chat_message:abc", ActorID: actor.ID, Message: `sent a message in a, b, "c" {d} \e`},
+		{UserID: second.ID, Type: dto.NotifChatMention, ReferenceID: roomID, ReferenceType: "chat_message:abc", ActorID: actor.ID, Message: ""},
+		{UserID: second.ID, Type: dto.NotifJournalArchived, ReferenceID: systemRef, ReferenceType: "journal", ActorID: uuid.Nil, Message: "archived"},
+	}
+
+	// when
+	created, err := repos.Notification.CreateMany(ctx, input)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, created, 3)
+
+	byKey := make(map[string]model.NotificationRow, len(created))
+	for _, row := range created {
+		assert.Greater(t, row.ID, 0)
+		assert.False(t, row.Read)
+		assert.NotEmpty(t, row.CreatedAt)
+		byKey[row.UserID.String()+string(row.Type)] = row
+	}
+
+	commaMessage := byKey[first.ID.String()+string(dto.NotifChatRoomMessage)]
+	assert.Equal(t, roomID, commaMessage.ReferenceID)
+	assert.Equal(t, "chat_message:abc", commaMessage.ReferenceType)
+	assert.Equal(t, actor.ID, commaMessage.ActorID)
+	assert.Equal(t, `sent a message in a, b, "c" {d} \e`, commaMessage.Message)
+	assert.Equal(t, "batch_actor", commaMessage.ActorUsername)
+	assert.Equal(t, "Batch Actor", commaMessage.ActorDisplayName)
+
+	mention := byKey[second.ID.String()+string(dto.NotifChatMention)]
+	assert.Equal(t, actor.ID, mention.ActorID)
+	assert.Equal(t, "", mention.Message)
+
+	actorless := byKey[second.ID.String()+string(dto.NotifJournalArchived)]
+	assert.Equal(t, uuid.Nil, actorless.ActorID)
+	assert.Equal(t, systemRef, actorless.ReferenceID)
+	assert.Equal(t, "", actorless.ActorUsername)
+
+	var nullActors int
+	require.NoError(t, repos.DB().QueryRowContext(ctx, `SELECT COUNT(*) FROM notifications WHERE id = $1 AND actor_id IS NULL`, actorless.ID).Scan(&nullActors))
+	assert.Equal(t, 1, nullActors, "a nil actor is stored as NULL, never as the zero uuid")
+
+	firstRows, firstTotal := notificationList(t, repos, first.ID)
+	assert.Equal(t, 1, firstTotal)
+	require.Len(t, firstRows, 1)
+	assert.Equal(t, commaMessage.ID, firstRows[0].ID)
+
+	assert.Equal(t, 2, notificationUnread(t, repos, second.ID))
+}
+
+func TestNotificationDAO_CreateMany_SurvivesDeletedAccounts(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	kept := daotest.CreateUser(t, repos)
+	goneRecipient := uuid.New()
+	goneActor := uuid.New()
+	roomID := uuid.New()
+	input := []spec.NewNotification{
+		{UserID: kept.ID, Type: dto.NotifChatRoomMessage, ReferenceID: roomID, ReferenceType: "chat_message:abc", ActorID: goneActor, Message: "hello"},
+		{UserID: goneRecipient, Type: dto.NotifChatRoomMessage, ReferenceID: roomID, ReferenceType: "chat_message:abc", ActorID: goneActor, Message: "hello"},
+	}
+
+	// when
+	created, err := repos.Notification.CreateMany(ctx, input)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, created, 1, "a recipient whose account is gone is skipped instead of failing the batch")
+	assert.Equal(t, kept.ID, created[0].UserID)
+	assert.Equal(t, uuid.Nil, created[0].ActorID, "an actor whose account is gone is stored as NULL")
+}
+
+func TestNotificationDAO_CreateMany_EmptyInputReturnsNil(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+
+	// when
+	created, err := repos.Notification.CreateMany(context.Background(), nil)
+
+	// then
+	require.NoError(t, err)
+	assert.Nil(t, created)
+}
+
 func TestNotificationDAO_ListByUser_NewestFirstAcrossPages(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)

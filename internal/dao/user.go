@@ -43,7 +43,6 @@ type (
 		MarkEmailVerified(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error
 		MarkEmailUnverified(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error
 		EmailInUse(ctx context.Context, s spec.UserEmailFilter, tx ...*sql.Tx) (bool, error)
-		RequiresEmailVerification(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (bool, error)
 		DeleteAccount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error
 		GetProfileByUsername(ctx context.Context, username string, tx ...*sql.Tx) (*model.User, *model.UserStats, error)
 		GetProfileByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.User, *model.UserStats, error)
@@ -231,18 +230,6 @@ func (r *userDAO) EmailInUse(ctx context.Context, s spec.UserEmailFilter, tx ...
 	}
 
 	return exists, nil
-}
-
-func (r *userDAO) RequiresEmailVerification(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
-	blocked, err := genQueries(r.db, tx).UserRequiresEmailVerification(ctx, userID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return false, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("check email verification: %w", err)
-	}
-
-	return blocked, nil
 }
 
 func (r *userDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.User, error) {

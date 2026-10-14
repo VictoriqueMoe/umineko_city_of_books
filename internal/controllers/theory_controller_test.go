@@ -30,6 +30,7 @@ func newTheoryHarness(t *testing.T) (*testutil.Harness, *theorysvc.MockService) 
 	s := &Service{
 		TheoryService: ts,
 		AuthSession:   h.SessionManager,
+		AuthService:   h.AuthService,
 		AuthzService:  h.AuthzService,
 	}
 	for _, setup := range s.getAllTheoryRoutes() {

@@ -65,6 +65,7 @@ func newChatHarness(t *testing.T) (*testutil.Harness, *chatsvc.MockService) {
 		ChatService:     chatMock,
 		SettingsService: h.SettingsService,
 		AuthSession:     h.SessionManager,
+		AuthService:     h.AuthService,
 		AuthzService:    h.AuthzService,
 		Hub:             ws.NewHub(),
 	}

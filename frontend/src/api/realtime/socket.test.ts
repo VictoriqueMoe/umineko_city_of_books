@@ -288,7 +288,7 @@ describe("realtime socket url", () => {
 
         // then
         expect(sockets()).toHaveLength(1);
-        expect(lastSocket().url).toBe(`${wsOrigin}/api/v1/ws`);
+        expect(lastSocket().url).toBe(`${wsOrigin}/api/v1/ws?batch=1`);
     });
 
     it("carries the native session token on the socket url", () => {
@@ -300,7 +300,10 @@ describe("realtime socket url", () => {
         socket.openRealtimeSocket("user-1");
 
         // then
-        expect(lastSocket().url).toContain("?token=tok%20en%261");
+        const url = new URL(lastSocket().url);
+        expect(lastSocket().url).toContain("&token=tok%20en%261");
+        expect(url.searchParams.get("token")).toBe("tok en&1");
+        expect(url.searchParams.get("batch")).toBe("1");
     });
 
     it("keeps the session token out of the socket url in a browser", () => {
@@ -313,6 +316,7 @@ describe("realtime socket url", () => {
 
         // then the token must never reach proxy or edge access logs
         expect(lastSocket().url).not.toContain("token=");
+        expect(new URL(lastSocket().url).searchParams.get("batch")).toBe("1");
     });
 });
 

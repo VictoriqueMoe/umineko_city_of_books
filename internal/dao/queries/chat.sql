@@ -165,6 +165,11 @@ UPDATE chat_room_members SET muted = $1 WHERE room_id = $2 AND user_id = $3 AND 
 -- name: IsChatMemberMuted :one
 SELECT muted FROM chat_room_members WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL;
 
+-- name: ListChatRoomMutedMemberIDs :many
+SELECT user_id FROM chat_room_members
+WHERE room_id = $1 AND muted = TRUE AND left_at IS NULL
+  AND user_id = ANY(string_to_array($2::text, ',')::uuid[]);
+
 -- name: MarkChatRoomRead :exec
 UPDATE chat_room_members SET last_read_at = NOW() WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL;
 

@@ -47,6 +47,7 @@ func newFanficHarness(t *testing.T) (*testutil.Harness, *fanficsvc.MockService) 
 	s := &Service{
 		FanficService: fs,
 		AuthSession:   h.SessionManager,
+		AuthService:   h.AuthService,
 		AuthzService:  h.AuthzService,
 	}
 

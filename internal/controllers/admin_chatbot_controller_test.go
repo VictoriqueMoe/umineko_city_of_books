@@ -75,6 +75,7 @@ func TestAdminChatbotRoutes_ServerFailuresDoNotLeakTheCause(t *testing.T) {
 			s := &Service{
 				ChatbotAdminService: adminSvc,
 				AuthSession:         h.SessionManager,
+				AuthService:         h.AuthService,
 				AuthzService:        h.AuthzService,
 			}
 			for _, setup := range s.getAllAdminChatbotRoutes() {

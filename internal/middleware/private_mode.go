@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/config"
-	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/gofiber/fiber/v3"
@@ -35,7 +34,7 @@ var (
 	}
 )
 
-func RequireLogin(settingsSvc settings.Service, sessionMgr *session.Manager) fiber.Handler {
+func RequireLogin(settingsSvc settings.Service, authenticator Authenticator) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		path := strings.ToLower(ctx.Path())
 		if privateModeExempt[path] {
@@ -46,11 +45,11 @@ func RequireLogin(settingsSvc settings.Service, sessionMgr *session.Manager) fib
 			return ctx.Next()
 		}
 
-		if hasSession(ctx, sessionMgr) {
+		if hasSession(ctx, authenticator) {
 			return ctx.Next()
 		}
 
-		if path == websocketPath && hasQuerySession(ctx, sessionMgr) {
+		if path == websocketPath && hasQuerySession(ctx, authenticator) {
 			return ctx.Next()
 		}
 

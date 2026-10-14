@@ -136,6 +136,9 @@ func TestUserRepository_DeletePathsInvalidateCascadedCaches(t *testing.T) {
 				cache.VanityAssignments.Key(),
 				cache.UserVanityRoleIDs.Key(userID.String()),
 				cache.UserRole.Key(userID.String()),
+				cache.UserBlockedIDs.Key(userID.String()),
+				cache.PostCornerCounts.Key(),
+				cache.ArtCornerCounts.Key(),
 				cache.GameTopWinners.Key(string(dto.GameTypeChess)),
 				cache.GameTopWinners.Key(string(dto.GameTypeCheckers)),
 				cache.GameTopWinners.Key(string(dto.GameTypeOthello)),
@@ -148,7 +151,7 @@ func TestUserRepository_DeletePathsInvalidateCascadedCaches(t *testing.T) {
 			}
 
 			assert.Subset(t, busted, required)
-			assert.Len(t, busted, 5+len(leaderboardGameTypes)+2*len(secrets.All()))
+			assert.Len(t, busted, 8+len(leaderboardGameTypes)+2*len(secrets.All()))
 		})
 	}
 }

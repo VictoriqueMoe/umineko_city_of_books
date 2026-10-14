@@ -46,6 +46,7 @@ func newArtHarness(t *testing.T) (*testutil.Harness, *artsvc.MockService) {
 	s := &Service{
 		ArtService:   as,
 		AuthSession:  h.SessionManager,
+		AuthService:  h.AuthService,
 		AuthzService: h.AuthzService,
 	}
 	for _, setup := range s.getAllArtRoutes() {

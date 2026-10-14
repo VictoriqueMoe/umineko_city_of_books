@@ -259,6 +259,9 @@ func (r *userRepository) invalidateAfterUserDelete(ctx context.Context, userID u
 		cache.VanityAssignments.Key(),
 		cache.UserVanityRoleIDs.Key(userID.String()),
 		cache.UserRole.Key(userID.String()),
+		cache.UserBlockedIDs.Key(userID.String()),
+		cache.PostCornerCounts.Key(),
+		cache.ArtCornerCounts.Key(),
 	}
 
 	for _, gameType := range leaderboardGameTypes {

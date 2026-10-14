@@ -79,7 +79,7 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 	})
 
 	if ongoing {
-		s.hub.Broadcast(ws.Message{
+		s.hub.BroadcastToTopic(mysteryTopic(mysteryID), ws.Message{
 			Type: "mystery_winner_added",
 			Data: map[string]any{
 				"mystery_id": mysteryID,
@@ -87,7 +87,7 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 			},
 		})
 	} else {
-		s.hub.Broadcast(ws.Message{
+		s.hub.BroadcastToTopic(mysteryTopic(mysteryID), ws.Message{
 			Type: "mystery_solved",
 			Data: map[string]any{
 				"mystery_id": mysteryID,
@@ -204,7 +204,7 @@ func (s *service) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID
 		SubjectID:  authorID,
 	})
 
-	s.hub.Broadcast(ws.Message{
+	s.hub.BroadcastToTopic(mysteryTopic(mysteryID), ws.Message{
 		Type: "mystery_solved",
 		Data: map[string]any{
 			"mystery_id": mysteryID,
@@ -284,12 +284,10 @@ func (s *service) AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.
 
 	if _, err := s.mysteryRepo.AddClue(ctx, spec.NewMysteryClue{
 		MysteryID: mysteryID,
-		NewClue: spec.NewClue{
-			Body:      req.Body,
-			TruthType: req.TruthType,
-			SortOrder: count,
-			PlayerID:  req.PlayerID,
-		},
+		Body:      req.Body,
+		TruthType: req.TruthType,
+		SortOrder: count,
+		PlayerID:  req.PlayerID,
 	}); err != nil {
 		return err
 	}
@@ -298,32 +296,35 @@ func (s *service) AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.
 		"mystery_id": mysteryID,
 		"truth_type": req.TruthType,
 	}
-	if req.PlayerID != nil {
-		wsData["player_id"] = req.PlayerID
-		s.hub.SendToUser(*req.PlayerID, ws.Message{
+	if req.PlayerID == nil {
+		s.hub.BroadcastToTopic(mysteryTopic(mysteryID), ws.Message{
 			Type: "mystery_clue_added",
 			Data: wsData,
 		})
 
-		recipient := *req.PlayerID
-		go func() {
-			bgCtx := context.Background()
-			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
-				RecipientID:   recipient,
-				Type:          dto.NotifMysteryPrivateClue,
-				ReferenceID:   mysteryID,
-				ReferenceType: "mystery",
-				ActorID:       userID,
-				EmailActor:    "The Game Master",
-				EmailAction:   "revealed a private red truth to you",
-				EmailLink:     fmt.Sprintf("/mystery/%s", mysteryID),
-			})
-		}()
+		return nil
 	}
-	s.hub.Broadcast(ws.Message{
+
+	wsData["player_id"] = req.PlayerID
+	s.hub.SendToUsers([]uuid.UUID{*req.PlayerID, userID}, ws.Message{
 		Type: "mystery_clue_added",
 		Data: wsData,
 	})
+
+	recipient := *req.PlayerID
+	go func() {
+		bgCtx := context.Background()
+		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
+			RecipientID:   recipient,
+			Type:          dto.NotifMysteryPrivateClue,
+			ReferenceID:   mysteryID,
+			ReferenceType: "mystery",
+			ActorID:       userID,
+			EmailActor:    "The Game Master",
+			EmailAction:   "revealed a private red truth to you",
+			EmailLink:     fmt.Sprintf("/mystery/%s", mysteryID),
+		})
+	}()
 
 	return nil
 }

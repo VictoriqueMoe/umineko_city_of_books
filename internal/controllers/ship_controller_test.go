@@ -24,6 +24,7 @@ func newShipHarness(t *testing.T) (*testutil.Harness, *shipsvc.MockService) {
 	s := &Service{
 		ShipService:  ss,
 		AuthSession:  h.SessionManager,
+		AuthService:  h.AuthService,
 		AuthzService: h.AuthzService,
 	}
 	for _, setup := range s.getAllShipRoutes() {

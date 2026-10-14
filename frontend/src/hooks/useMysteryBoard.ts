@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../api/queryKeys";
 import { REALTIME_EVENTS } from "../api/realtime/events";
-import { useRealtimeEvent } from "../api/realtime/useRealtime";
+import { REALTIME_COMMANDS, sendRealtime } from "../api/realtime/outbound";
+import { useRealtimeEvent, useRealtimeStatus } from "../api/realtime/useRealtime";
 import {
     type AttemptGroup,
     findWinningAttempt,
@@ -128,6 +131,8 @@ function scrollTo(elementId: string): void {
 
 export function useMysteryBoard(mysteryId: string): MysteryBoard {
     const navigate = useNavigate();
+    const qc = useQueryClient();
+    const epoch = useRealtimeStatus();
     const { user } = useAuth();
     const { mystery, loading, refresh } = useMystery(mysteryId);
 
@@ -201,6 +206,27 @@ export function useMysteryBoard(mysteryId: string): MysteryBoard {
     }, [refresh]);
 
     const throttledRefresh = useThrottled(refreshBoard, REFRESH_THROTTLE_MS);
+
+    const lastJoin = useRef<{ mysteryId: string; epoch: number } | null>(null);
+
+    useEffect(() => {
+        if (!mysteryId || epoch === 0) {
+            return;
+        }
+
+        const previous = lastJoin.current;
+        lastJoin.current = { mysteryId, epoch };
+
+        sendRealtime({ type: REALTIME_COMMANDS.MYSTERY_JOIN, data: { mystery_id: mysteryId } });
+
+        if (previous && previous.mysteryId === mysteryId && previous.epoch !== epoch) {
+            qc.invalidateQueries({ queryKey: queryKeys.mystery.detail(mysteryId) });
+        }
+
+        return () => {
+            sendRealtime({ type: REALTIME_COMMANDS.MYSTERY_LEAVE, data: { mystery_id: mysteryId } });
+        };
+    }, [qc, mysteryId, epoch]);
 
     useRealtimeEvent(BOARD_EVENTS, event => {
         if (event.data.mystery_id !== mysteryId) {

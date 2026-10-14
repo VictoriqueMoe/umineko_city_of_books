@@ -1005,23 +1005,37 @@ func (c *core) getRoomMemberResponses(ctx context.Context, roomID, viewerID uuid
 		viewerIsStaff = r.IsSiteStaff()
 	}
 
+	hidden := make(map[uuid.UUID]bool)
+	if hasGhost && !viewerIsStaff {
+		detailed, err := c.chatRepo.GetRoomMembersDetailed(ctx, roomID)
+		if err != nil {
+			return nil, 0, fmt.Errorf("member ghost check: %w", err)
+		}
+		for _, member := range detailed {
+			if member.Ghost {
+				hidden[member.UserID] = true
+			}
+		}
+	}
+
+	users, err := c.userRepo.GetByIDs(ctx, memberIDs)
+	if err != nil {
+		return nil, 0, fmt.Errorf("member profiles: %w", err)
+	}
+
+	byID := make(map[uuid.UUID]model.User, len(users))
+	for _, user := range users {
+		byID[user.ID] = user
+	}
+
 	members := make([]dto.UserResponse, 0, len(memberIDs))
 	for _, memberID := range memberIDs {
-		if hasGhost && !viewerIsStaff {
-			ghost, err := c.chatRepo.IsGhostMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: memberID})
-			if err != nil {
-				return nil, 0, fmt.Errorf("member ghost check: %w", err)
-			}
-			if ghost {
-				continue
-			}
+		if hidden[memberID] {
+			continue
 		}
 
-		user, err := c.userRepo.GetByID(ctx, memberID)
-		if err != nil {
-			return nil, 0, fmt.Errorf("member profile: %w", err)
-		}
-		if user == nil {
+		user, ok := byID[memberID]
+		if !ok {
 			continue
 		}
 		members = append(members, *user.ToResponse())

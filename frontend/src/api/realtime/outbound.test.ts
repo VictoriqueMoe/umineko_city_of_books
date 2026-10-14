@@ -51,6 +51,16 @@ const commands: { name: RealtimeCommandName; command: RealtimeCommand; wire: str
         wire: '{"type":"secret_leave","data":{"secret_id":"secret-1"}}',
     },
     {
+        name: "mystery_join",
+        command: { type: "mystery_join", data: { mystery_id: "mystery-1" } },
+        wire: '{"type":"mystery_join","data":{"mystery_id":"mystery-1"}}',
+    },
+    {
+        name: "mystery_leave",
+        command: { type: "mystery_leave", data: { mystery_id: "mystery-1" } },
+        wire: '{"type":"mystery_leave","data":{"mystery_id":"mystery-1"}}',
+    },
+    {
         name: "game_room_join",
         command: { type: "game_room_join", data: { room_id: "room-1" } },
         wire: '{"type":"game_room_join","data":{"room_id":"room-1"}}',
@@ -64,6 +74,11 @@ const commands: { name: RealtimeCommandName; command: RealtimeCommand; wire: str
         name: "game_room_input",
         command: { type: "game_room_input", data: { room_id: "room-1", payload: { y: 620, seq: 1 } } },
         wire: '{"type":"game_room_input","data":{"room_id":"room-1","payload":{"y":620,"seq":1}}}',
+    },
+    {
+        name: "watch_posts",
+        command: { type: "watch_posts", data: { post_ids: ["post-1", "post-2"] } },
+        wire: '{"type":"watch_posts","data":{"post_ids":["post-1","post-2"]}}',
     },
 ];
 
@@ -141,13 +156,13 @@ describe("realtime command name table", () => {
         expect([...table].sort()).toEqual([...declared].sort());
     });
 
-    it("has ten commands", () => {
+    it("has thirteen commands", () => {
         // given
         // when
         const table = Object.values(REALTIME_COMMANDS);
 
         // then
-        expect(table).toHaveLength(10);
-        expect(new Set(table).size).toBe(10);
+        expect(table).toHaveLength(13);
+        expect(new Set(table).size).toBe(13);
     });
 });

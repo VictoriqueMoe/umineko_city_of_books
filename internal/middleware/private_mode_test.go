@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
-	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/session"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/gofiber/fiber/v3"
@@ -162,12 +161,12 @@ func privateModeAppWithSession(t *testing.T, validToken string) *fiber.App {
 	settingsSvc := settings.NewMockService(t)
 	settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingPrivateMode).Return(true).Maybe()
 
-	sessionRepo := repository.NewMockSessionRepository(t)
-	sessionRepo.EXPECT().GetUserID(mock.Anything, validToken).Return(uuid.New(), time.Now().Add(time.Hour), nil).Maybe()
-	sessionRepo.EXPECT().GetUserID(mock.Anything, mock.Anything).Return(uuid.Nil, time.Time{}, errors.New("no session")).Maybe()
+	authenticator := NewMockAuthenticator(t)
+	authenticator.EXPECT().Authenticate(mock.Anything, validToken).Return(model.SessionAuthState{UserID: uuid.New(), ExpiresAt: time.Now().Add(time.Hour)}, nil).Maybe()
+	authenticator.EXPECT().Authenticate(mock.Anything, mock.Anything).Return(model.SessionAuthState{}, errors.New("no session")).Maybe()
 
 	app := fiber.New()
-	app.Use(RequireLogin(settingsSvc, session.NewManager(sessionRepo, settingsSvc)))
+	app.Use(RequireLogin(settingsSvc, authenticator))
 	app.All("/*", func(ctx fiber.Ctx) error {
 		return ctx.SendString("handler reached")
 	})

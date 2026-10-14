@@ -568,8 +568,8 @@ func TestGetRoomMemberResponses_SurfacesAFailedLookupInsteadOfLeakingGhosts(t *t
 	}{
 		{name: "whether the room has ghosts", hasErr: boom},
 		{name: "the viewer's site role", roleErr: boom},
-		{name: "whether a member is a ghost", ghostErr: boom},
-		{name: "a member's profile", userErr: boom},
+		{name: "which members are ghosts", ghostErr: boom},
+		{name: "the members' profiles", userErr: boom},
 	}
 
 	for _, tc := range cases {
@@ -586,10 +586,10 @@ func TestGetRoomMemberResponses_SurfacesAFailedLookupInsteadOfLeakingGhosts(t *t
 				m.authzSvc.EXPECT().GetRole(mock.Anything, viewerID).Return("", tc.roleErr)
 			}
 			if tc.hasErr == nil && tc.roleErr == nil {
-				m.chatRepo.EXPECT().IsGhostMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: memberID}).Return(false, tc.ghostErr)
+				m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]model.ChatRoomMemberRow{{UserID: memberID, Ghost: true}}, tc.ghostErr).Once()
 			}
 			if tc.hasErr == nil && tc.roleErr == nil && tc.ghostErr == nil {
-				m.userRepo.EXPECT().GetByID(mock.Anything, memberID).Return(nil, tc.userErr)
+				m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{memberID}).Return(nil, tc.userErr).Once()
 			}
 
 			// when

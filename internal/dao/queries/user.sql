@@ -193,11 +193,6 @@ UPDATE users SET email_verified = FALSE WHERE id = $1;
 -- name: UserEmailInUse :one
 SELECT EXISTS(SELECT 1 FROM users u WHERE LOWER(u.email) = LOWER($1) AND u.email <> '' AND u.id <> $2) AS in_use;
 
--- name: UserRequiresEmailVerification :one
-SELECT (NOT u.email_verified AND NOW() >= u.verify_grace_until)::boolean AS blocked
-FROM users u
-WHERE u.id = $1;
-
 -- name: UpdateUserProfile :exec
 UPDATE users SET display_name = $1, bio = $2, banner_position = $3, favourite_character = $4, gender = $5,
     pronoun_subject = $6, pronoun_possessive = $7,

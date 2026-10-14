@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 )
 
@@ -19,6 +20,7 @@ type (
 	SessionDAO interface {
 		Create(ctx context.Context, s spec.NewSession, tx ...*sql.Tx) error
 		GetUserID(ctx context.Context, token string, tx ...*sql.Tx) (uuid.UUID, time.Time, error)
+		GetAuthState(ctx context.Context, token string, tx ...*sql.Tx) (model.SessionAuthState, error)
 		Delete(ctx context.Context, token string, tx ...*sql.Tx) error
 		DeleteAllForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error
 		DeleteAllForUserExcept(ctx context.Context, s spec.SessionDeletionExcept, tx ...*sql.Tx) error
@@ -59,6 +61,24 @@ func (r *sessionDAO) GetUserID(ctx context.Context, token string, tx ...*sql.Tx)
 	}
 
 	return row.UserID, row.ExpiresAt, nil
+}
+
+func (r *sessionDAO) GetAuthState(ctx context.Context, token string, tx ...*sql.Tx) (model.SessionAuthState, error) {
+	row, err := genQueries(r.db, tx).GetSessionAuthState(ctx, hashSessionToken(token))
+	if errors.Is(err, sql.ErrNoRows) {
+		return model.SessionAuthState{}, fmt.Errorf("session not found")
+	}
+	if err != nil {
+		return model.SessionAuthState{}, fmt.Errorf("query session auth state: %w", err)
+	}
+
+	return model.SessionAuthState{
+		UserID:                    row.UserID,
+		ExpiresAt:                 row.ExpiresAt,
+		Banned:                    row.Banned,
+		Locked:                    row.Locked,
+		RequiresEmailVerification: row.RequiresEmailVerification,
+	}, nil
 }
 
 func (r *sessionDAO) Delete(ctx context.Context, token string, tx ...*sql.Tx) error {

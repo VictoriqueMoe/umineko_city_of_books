@@ -8,11 +8,11 @@ import (
 )
 
 func (s *Service) requireAuth() fiber.Handler {
-	return middleware.RequireAuth(s.AuthSession, s.AuthzService)
+	return middleware.RequireAuth(s.AuthService)
 }
 
 func (s *Service) optionalAuth() fiber.Handler {
-	return middleware.OptionalAuth(s.AuthSession, s.AuthzService)
+	return middleware.OptionalAuth(s.AuthService)
 }
 
 func (s *Service) requireEstablished() fiber.Handler {
@@ -20,5 +20,5 @@ func (s *Service) requireEstablished() fiber.Handler {
 }
 
 func (s *Service) requirePerm(perm authz.Permission) fiber.Handler {
-	return middleware.RequirePermission(s.AuthSession, s.AuthzService, perm)
+	return middleware.RequirePermission(s.AuthService, s.AuthzService, perm)
 }

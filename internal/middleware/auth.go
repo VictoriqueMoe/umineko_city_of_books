@@ -1,15 +1,34 @@
 package middleware
 
 import (
+	"context"
+	"errors"
 	"strings"
 
+	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authctx"
 	"umineko_city_of_books/internal/authz"
-	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/session"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
+)
+
+const (
+	authResultLocal = "auth_result"
+)
+
+type (
+	Authenticator interface {
+		Authenticate(ctx context.Context, token string) (model.SessionAuthState, error)
+	}
+
+	authResult struct {
+		token string
+		state model.SessionAuthState
+		err   error
+	}
 )
 
 func SessionToken(ctx fiber.Ctx) string {
@@ -20,8 +39,19 @@ func SessionToken(ctx fiber.Ctx) string {
 	return ctx.Cookies(session.CookieName)
 }
 
-func hasSession(ctx fiber.Ctx, sessionMgr *session.Manager) bool {
-	if sessionMgr == nil {
+func authenticate(ctx fiber.Ctx, authenticator Authenticator, token string) (model.SessionAuthState, error) {
+	if cached, ok := ctx.Locals(authResultLocal).(authResult); ok && cached.token == token {
+		return cached.state, cached.err
+	}
+
+	state, err := authenticator.Authenticate(ctx.Context(), token)
+	ctx.Locals(authResultLocal, authResult{token: token, state: state, err: err})
+
+	return state, err
+}
+
+func hasSession(ctx fiber.Ctx, authenticator Authenticator) bool {
+	if authenticator == nil {
 		return false
 	}
 
@@ -30,13 +60,13 @@ func hasSession(ctx fiber.Ctx, sessionMgr *session.Manager) bool {
 		return false
 	}
 
-	_, err := sessionMgr.Validate(ctx.Context(), token)
+	_, err := authenticate(ctx, authenticator, token)
 
 	return err == nil
 }
 
-func hasQuerySession(ctx fiber.Ctx, sessionMgr *session.Manager) bool {
-	if sessionMgr == nil {
+func hasQuerySession(ctx fiber.Ctx, authenticator Authenticator) bool {
+	if authenticator == nil {
 		return false
 	}
 
@@ -45,7 +75,7 @@ func hasQuerySession(ctx fiber.Ctx, sessionMgr *session.Manager) bool {
 		return false
 	}
 
-	_, err := sessionMgr.Validate(ctx.Context(), token)
+	_, err := authenticate(ctx, authenticator, token)
 
 	return err == nil
 }
@@ -100,9 +130,9 @@ func isLockExemptPath(method, path string) bool {
 	return false
 }
 
-func RequirePermission(mgr *session.Manager, authzSvc authz.Service, perm authz.Permission) fiber.Handler {
+func RequirePermission(authenticator Authenticator, authzSvc authz.Service, perm authz.Permission) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
-		userID, _, ok := authenticateAndCheckBan(ctx, mgr, authzSvc)
+		userID, ok := requireAccount(ctx, authenticator)
 		if !ok {
 			return nil
 		}
@@ -119,7 +149,7 @@ func RequirePermission(mgr *session.Manager, authzSvc authz.Service, perm authz.
 	}
 }
 
-func OptionalAuth(mgr *session.Manager, authzSvc authz.Service) fiber.Handler {
+func OptionalAuth(authenticator Authenticator) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		token := SessionToken(ctx)
 		if token == "" {
@@ -127,29 +157,21 @@ func OptionalAuth(mgr *session.Manager, authzSvc authz.Service) fiber.Handler {
 			return ctx.Next()
 		}
 
-		userID, err := mgr.Validate(ctx.Context(), token)
+		state, err := authenticate(ctx, authenticator, token)
 		if err != nil {
 			ctx.Locals("userID", uuid.Nil)
 			return ctx.Next()
 		}
 
-		if authzSvc.IsBanned(ctx.Context(), userID) {
-			if delErr := mgr.Delete(ctx.Context(), token); delErr != nil {
-				logger.Ctx(ctx.Context()).Warn().Err(delErr).Str("user_id", userID.String()).Msg("banned user's session not deleted")
-			}
-			ctx.Locals("userID", uuid.Nil)
-			return ctx.Next()
-		}
-
-		ctx.Locals("userID", userID)
-		ctx.SetContext(authctx.WithUserID(ctx.Context(), userID))
+		ctx.Locals("userID", state.UserID)
+		ctx.SetContext(authctx.WithUserID(ctx.Context(), state.UserID))
 		return ctx.Next()
 	}
 }
 
-func RequireAuth(mgr *session.Manager, authzSvc authz.Service) fiber.Handler {
+func RequireAuth(authenticator Authenticator) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
-		userID, _, ok := authenticateAndCheckBan(ctx, mgr, authzSvc)
+		userID, ok := requireAccount(ctx, authenticator)
 		if !ok {
 			return nil
 		}
@@ -160,54 +182,43 @@ func RequireAuth(mgr *session.Manager, authzSvc authz.Service) fiber.Handler {
 	}
 }
 
-// authenticateAndCheckBan validates the session cookie and ban status. On any
-// failure it writes the appropriate response and returns ok=false; callers
-// must then `return nil` so fiber does not run subsequent handlers.
-func authenticateAndCheckBan(ctx fiber.Ctx, mgr *session.Manager, authzSvc authz.Service) (uuid.UUID, string, bool) {
+func requireAccount(ctx fiber.Ctx, authenticator Authenticator) (uuid.UUID, bool) {
 	token := SessionToken(ctx)
 	if token == "" {
 		_ = ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "authentication required",
 		})
-		return uuid.Nil, "", false
+		return uuid.Nil, false
 	}
 
-	userID, err := mgr.Validate(ctx.Context(), token)
+	state, err := authenticate(ctx, authenticator, token)
+	if errors.Is(err, auth.ErrUserBanned) {
+		_ = ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "your account has been banned",
+		})
+		return uuid.Nil, false
+	}
 	if err != nil {
 		_ = ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "invalid or expired session",
 		})
-		return uuid.Nil, "", false
+		return uuid.Nil, false
 	}
 
-	if authzSvc.IsBanned(ctx.Context(), userID) {
-		if delErr := mgr.Delete(ctx.Context(), token); delErr != nil {
-			logger.Ctx(ctx.Context()).Warn().Err(delErr).Str("user_id", userID.String()).Msg("banned user's session not deleted")
-		}
+	if state.Locked && isWriteMethod(ctx.Method()) && !isLockExemptPath(ctx.Method(), ctx.Path()) {
 		_ = ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "your account has been banned",
+			"error": "your account is locked",
 		})
-		return uuid.Nil, "", false
+		return uuid.Nil, false
 	}
 
-	if isWriteMethod(ctx.Method()) && !isLockExemptPath(ctx.Method(), ctx.Path()) {
-		if authzSvc.IsLocked(ctx.Context(), userID) {
-			_ = ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "your account is locked",
-			})
-			return uuid.Nil, "", false
-		}
+	if state.RequiresEmailVerification && isWriteMethod(ctx.Method()) && !isVerifyExemptPath(ctx.Method(), ctx.Path()) {
+		_ = ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "please verify your email address to continue",
+			"code":  "email_unverified",
+		})
+		return uuid.Nil, false
 	}
 
-	if isWriteMethod(ctx.Method()) && !isVerifyExemptPath(ctx.Method(), ctx.Path()) {
-		if authzSvc.RequiresEmailVerification(ctx.Context(), userID) {
-			_ = ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "please verify your email address to continue",
-				"code":  "email_unverified",
-			})
-			return uuid.Nil, "", false
-		}
-	}
-
-	return userID, token, true
+	return state.UserID, true
 }

@@ -57,7 +57,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 
 	filter := contentfilter.New(slursrule.New())
 	sessionMgr := session.NewManager(m.sessionRepo, m.settingsSvc)
-	svc := NewService(m.userSvc, sessionMgr, m.settingsSvc, m.inviteRepo, m.userRepo, m.resetRepo, m.verifyRepo, m.auditRepo, m.emailSvc, filter, filter).(*service)
+	svc := NewService(m.userSvc, sessionMgr, m.sessionRepo, m.settingsSvc, m.inviteRepo, m.userRepo, m.resetRepo, m.verifyRepo, m.auditRepo, m.emailSvc, filter, filter).(*service)
 
 	return svc, m
 }
@@ -677,6 +677,53 @@ func TestLogout(t *testing.T) {
 
 			// then
 			require.ErrorIs(t, err, tc.deleteErr)
+		})
+	}
+}
+
+func TestAuthenticate(t *testing.T) {
+	userID := uuid.New()
+	live := model.SessionAuthState{UserID: userID, ExpiresAt: time.Now().Add(time.Hour), Locked: true, RequiresEmailVerification: true}
+	expired := model.SessionAuthState{UserID: userID, ExpiresAt: time.Now().Add(-time.Minute)}
+	banned := model.SessionAuthState{UserID: userID, ExpiresAt: time.Now().Add(time.Hour), Banned: true}
+	lookupFailure := errors.New("session not found")
+
+	cases := []struct {
+		name       string
+		state      model.SessionAuthState
+		lookupErr  error
+		wantRevoke bool
+		revokeErr  error
+		want       model.SessionAuthState
+		wantErr    error
+	}{
+		{name: "a live session returns the account standing for the caller to apply", state: live, want: live},
+		{name: "an unknown session is invalid", lookupErr: lookupFailure, wantErr: ErrInvalidSession},
+		{name: "an expired session is revoked and invalid", state: expired, wantRevoke: true, wantErr: ErrInvalidSession},
+		{name: "a banned account loses its session", state: banned, wantRevoke: true, wantErr: ErrUserBanned},
+		{name: "a failed revoke still refuses the banned account", state: banned, wantRevoke: true, revokeErr: errors.New("boom"), wantErr: ErrUserBanned},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			m.sessionRepo.EXPECT().GetAuthState(mock.Anything, "token123").Return(tc.state, tc.lookupErr).Once()
+			if tc.wantRevoke {
+				m.sessionRepo.EXPECT().Delete(mock.Anything, "token123").Return(tc.revokeErr).Once()
+			}
+
+			// when
+			got, err := svc.Authenticate(context.Background(), "token123")
+
+			// then
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				assert.Equal(t, model.SessionAuthState{}, got)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }

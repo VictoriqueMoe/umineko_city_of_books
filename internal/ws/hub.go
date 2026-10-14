@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"umineko_city_of_books/internal/coalesce"
+
 	"github.com/gofiber/contrib/v3/websocket"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
@@ -19,6 +21,11 @@ const (
 	sendBufferSize = 64
 	writeTimeout   = 10 * time.Second
 	pingInterval   = 30 * time.Second
+
+	maxWatchedPosts        = 200
+	maxBatchItems          = 64
+	maxBatchBytes          = 64 * 1024
+	defaultSidebarInterval = time.Second
 )
 
 type (
@@ -28,13 +35,15 @@ type (
 	}
 
 	Client struct {
-		UserID    uuid.UUID
-		Conn      *websocket.Conn
-		send      chan []byte
-		closeCh   chan any
-		closeOnce sync.Once
-		pingAt    atomic.Int64
-		rttPeak   atomic.Int64
+		UserID       uuid.UUID
+		Conn         *websocket.Conn
+		send         chan []byte
+		closeCh      chan any
+		closeOnce    sync.Once
+		pingAt       atomic.Int64
+		rttPeak      atomic.Int64
+		batch        bool
+		watchedPosts map[uuid.UUID]struct{}
 	}
 
 	viewerInfo struct {
@@ -48,9 +57,13 @@ type (
 		clients      map[uuid.UUID][]*Client
 		rooms        map[uuid.UUID]map[uuid.UUID]bool
 		viewers      map[uuid.UUID]map[uuid.UUID]*viewerInfo
+		userRooms    map[uuid.UUID]map[uuid.UUID]struct{}
+		userViewing  map[uuid.UUID]map[uuid.UUID]struct{}
 		anon         map[*Client]any
 		alwaysOnline map[uuid.UUID]struct{}
+		postWatchers map[uuid.UUID]map[*Client]struct{}
 		mu           sync.RWMutex
+		sidebar      *coalesce.Keyed[string, time.Time]
 	}
 )
 
@@ -120,7 +133,7 @@ func (c *Client) writeLoop() {
 				return
 			}
 			_ = c.Conn.SetWriteDeadline(time.Now().Add(writeTimeout))
-			if err := c.Conn.WriteMessage(websocket.TextMessage, data); err != nil {
+			if err := c.Conn.WriteMessage(websocket.TextMessage, c.framePayload(data)); err != nil {
 				return
 			}
 		case <-pingTicker.C:
@@ -132,6 +145,57 @@ func (c *Client) writeLoop() {
 		case <-c.closeCh:
 			return
 		}
+	}
+}
+
+func (c *Client) framePayload(first []byte) []byte {
+	if !c.batch {
+		return first
+	}
+
+	items := [][]byte{first}
+	size := len(first)
+	for len(items) < maxBatchItems && size < maxBatchBytes {
+		next, ok := c.TryReceive()
+		if !ok {
+			break
+		}
+
+		items = append(items, next)
+		size += len(next)
+	}
+
+	if len(items) == 1 {
+		return first
+	}
+
+	frame := make([]byte, 0, size+len(items)+1)
+	frame = append(frame, '[')
+	for i, item := range items {
+		if i > 0 {
+			frame = append(frame, ',')
+		}
+		frame = append(frame, item...)
+	}
+
+	return append(frame, ']')
+}
+
+func (c *Client) TryReceive() ([]byte, bool) {
+	select {
+	case data, ok := <-c.send:
+		return data, ok
+	default:
+		return nil, false
+	}
+}
+
+func (c *Client) closed() bool {
+	select {
+	case <-c.closeCh:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -185,14 +249,42 @@ func NewHub(name ...string) *Hub {
 		hubName = name[0]
 	}
 
-	return &Hub{
+	h := &Hub{
 		name:         hubName,
 		tracer:       otel.Tracer(wsTracerName),
 		clients:      make(map[uuid.UUID][]*Client),
 		rooms:        make(map[uuid.UUID]map[uuid.UUID]bool),
 		viewers:      make(map[uuid.UUID]map[uuid.UUID]*viewerInfo),
+		userRooms:    make(map[uuid.UUID]map[uuid.UUID]struct{}),
+		userViewing:  make(map[uuid.UUID]map[uuid.UUID]struct{}),
 		anon:         make(map[*Client]any),
 		alwaysOnline: make(map[uuid.UUID]struct{}),
+		postWatchers: make(map[uuid.UUID]map[*Client]struct{}),
+	}
+	h.sidebar = coalesce.NewKeyed(defaultSidebarInterval, coalesce.Latest[time.Time], h.broadcastSidebarActivity)
+
+	return h
+}
+
+func addToIndex(index map[uuid.UUID]map[uuid.UUID]struct{}, outer, inner uuid.UUID) {
+	set := index[outer]
+	if set == nil {
+		set = make(map[uuid.UUID]struct{})
+		index[outer] = set
+	}
+
+	set[inner] = struct{}{}
+}
+
+func removeFromIndex(index map[uuid.UUID]map[uuid.UUID]struct{}, outer, inner uuid.UUID) {
+	set := index[outer]
+	if set == nil {
+		return
+	}
+
+	delete(set, inner)
+	if len(set) == 0 {
+		delete(index, outer)
 	}
 }
 
@@ -232,6 +324,7 @@ func (h *Hub) AddViewer(roomID, userID uuid.UUID) {
 	}
 	info.tabs++
 	info.state = ViewerStateActive
+	addToIndex(h.userViewing, userID, roomID)
 }
 
 func (h *Hub) RemoveViewer(roomID, userID uuid.UUID) {
@@ -247,6 +340,7 @@ func (h *Hub) RemoveViewer(roomID, userID uuid.UUID) {
 	info.tabs--
 	if info.tabs <= 0 {
 		delete(h.viewers[roomID], userID)
+		removeFromIndex(h.userViewing, userID, roomID)
 	}
 	if len(h.viewers[roomID]) == 0 {
 		delete(h.viewers, roomID)
@@ -311,6 +405,8 @@ func (h *Hub) Unregister(client *Client) []uuid.UUID {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	h.unwatchPostsLocked(client)
+
 	var clearedRooms []uuid.UUID
 	conns := h.clients[client.UserID]
 	for i, c := range conns {
@@ -323,14 +419,17 @@ func (h *Hub) Unregister(client *Client) []uuid.UUID {
 	if len(h.clients[client.UserID]) == 0 {
 		delete(h.clients, client.UserID)
 
-		for roomID, members := range h.rooms {
+		for roomID := range h.userRooms[client.UserID] {
+			members := h.rooms[roomID]
 			delete(members, client.UserID)
 			if len(members) == 0 {
 				delete(h.rooms, roomID)
 			}
 		}
+		delete(h.userRooms, client.UserID)
 
-		for roomID, viewers := range h.viewers {
+		for roomID := range h.userViewing[client.UserID] {
+			viewers := h.viewers[roomID]
 			if _, ok := viewers[client.UserID]; ok {
 				delete(viewers, client.UserID)
 				clearedRooms = append(clearedRooms, roomID)
@@ -339,6 +438,7 @@ func (h *Hub) Unregister(client *Client) []uuid.UUID {
 				delete(h.viewers, roomID)
 			}
 		}
+		delete(h.userViewing, client.UserID)
 	}
 	return clearedRooms
 }
@@ -423,16 +523,18 @@ func (h *Hub) Broadcast(msg Message) {
 }
 
 func (h *Hub) BroadcastPublic(msg Message) {
-	h.Broadcast(msg)
-
 	h.mu.RLock()
+	authedConns := make([]*Client, 0, len(h.clients))
+	for _, conns := range h.clients {
+		authedConns = append(authedConns, conns...)
+	}
 	anonConns := make([]*Client, 0, len(h.anon))
 	for c := range h.anon {
 		anonConns = append(anonConns, c)
 	}
 	h.mu.RUnlock()
 
-	if len(anonConns) == 0 {
+	if len(authedConns) == 0 && len(anonConns) == 0 {
 		return
 	}
 
@@ -441,26 +543,93 @@ func (h *Hub) BroadcastPublic(msg Message) {
 		return
 	}
 
-	var dead []*Client
-	for _, c := range anonConns {
+	var deadAuthed []*Client
+	for _, c := range authedConns {
 		if !c.enqueue(data) {
-			dead = append(dead, c)
+			deadAuthed = append(deadAuthed, c)
 		}
 	}
-	for _, c := range dead {
+
+	var deadAnon []*Client
+	for _, c := range anonConns {
+		if !c.enqueue(data) {
+			deadAnon = append(deadAnon, c)
+		}
+	}
+
+	h.reapDead(deadAuthed)
+	for _, c := range deadAnon {
 		h.UnregisterAnon(c)
 	}
+}
+
+func (h *Hub) WatchPosts(client *Client, postIDs []uuid.UUID) {
+	next := make(map[uuid.UUID]struct{}, min(len(postIDs), maxWatchedPosts))
+	for _, postID := range postIDs {
+		if len(next) >= maxWatchedPosts {
+			break
+		}
+		next[postID] = struct{}{}
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.unwatchPostsLocked(client)
+
+	if len(next) == 0 || client.closed() {
+		return
+	}
+
+	client.watchedPosts = next
+	for postID := range next {
+		watchers := h.postWatchers[postID]
+		if watchers == nil {
+			watchers = make(map[*Client]struct{})
+			h.postWatchers[postID] = watchers
+		}
+		watchers[client] = struct{}{}
+	}
+}
+
+func (h *Hub) unwatchPostsLocked(client *Client) {
+	for postID := range client.watchedPosts {
+		watchers := h.postWatchers[postID]
+		delete(watchers, client)
+		if len(watchers) == 0 {
+			delete(h.postWatchers, postID)
+		}
+	}
+
+	client.watchedPosts = nil
+}
+
+func (h *Hub) SendToPostWatchers(postID uuid.UUID, msg Message) {
+	h.mu.RLock()
+	watchers := h.postWatchers[postID]
+	conns := make([]*Client, 0, len(watchers))
+	for client := range watchers {
+		conns = append(conns, client)
+	}
+	h.mu.RUnlock()
+
+	h.sendToConns(conns, msg)
 }
 
 func (h *Hub) BumpSidebarActivity(key string) {
 	if h == nil {
 		return
 	}
+
+	h.sidebar.Add(context.Background(), key, time.Now())
+}
+
+func (h *Hub) broadcastSidebarActivity(_ context.Context, key string, at time.Time) {
 	h.Broadcast(Message{
 		Type: "sidebar_activity",
 		Data: map[string]any{
 			"key": key,
-			"at":  time.Now().UTC().Format(time.RFC3339),
+			"at":  at.UTC().Format(time.RFC3339),
 		},
 	})
 }
@@ -536,10 +705,28 @@ func (h *Hub) JoinRoom(roomID, userID uuid.UUID) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	h.joinRoomLocked(roomID, userID)
+}
+
+func (h *Hub) JoinRooms(roomIDs []uuid.UUID, userID uuid.UUID) {
+	if len(roomIDs) == 0 {
+		return
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	for _, roomID := range roomIDs {
+		h.joinRoomLocked(roomID, userID)
+	}
+}
+
+func (h *Hub) joinRoomLocked(roomID, userID uuid.UUID) {
 	if h.rooms[roomID] == nil {
 		h.rooms[roomID] = make(map[uuid.UUID]bool)
 	}
 	h.rooms[roomID][userID] = true
+	addToIndex(h.userRooms, userID, roomID)
 }
 
 func (h *Hub) LeaveRoom(roomID, userID uuid.UUID) {
@@ -552,6 +739,30 @@ func (h *Hub) LeaveRoom(roomID, userID uuid.UUID) {
 			delete(h.rooms, roomID)
 		}
 	}
+	removeFromIndex(h.userRooms, userID, roomID)
+}
+
+func (h *Hub) BroadcastToViewers(roomID uuid.UUID, msg Message, excludeUserID uuid.UUID) int {
+	h.mu.RLock()
+	recipients := 0
+	var conns []*Client
+	for uid, info := range h.viewers[roomID] {
+		if uid == excludeUserID || info == nil || info.tabs <= 0 {
+			continue
+		}
+
+		recipients++
+		conns = append(conns, h.clients[uid]...)
+	}
+	h.mu.RUnlock()
+
+	if recipients == 0 {
+		return 0
+	}
+
+	h.sendToConns(conns, msg)
+
+	return recipients
 }
 
 func (h *Hub) IsUserInRoom(roomID, userID uuid.UUID) bool {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isSimulationFrame, parseServerEvent } from "./parse";
+import { decodeServerFrame, isSimulationFrame, parseServerEvent, parseServerValue } from "./parse";
 import type * as ParseModule from "./parse";
 
 const API_ORIGIN = "https://whentheycry.social";
@@ -9,6 +9,62 @@ async function loadWithOrigin(origin: string): Promise<typeof ParseModule> {
     vi.resetModules();
     return import("./parse");
 }
+
+describe("decodeServerFrame", () => {
+    const cases: { name: string; raw: string; expected: ReturnType<typeof decodeServerFrame> }[] = [
+        {
+            name: "wraps a single message in a one element list",
+            raw: '{"type":"pong","data":{}}',
+            expected: { ok: true, values: [{ type: "pong", data: {} }] },
+        },
+        {
+            name: "hands back every element of a batched array in order",
+            raw: '[{"type":"pong","data":{}},42,{"type":"typing","data":{"room_id":"r"}}]',
+            expected: {
+                ok: true,
+                values: [{ type: "pong", data: {} }, 42, { type: "typing", data: { room_id: "r" } }],
+            },
+        },
+        {
+            name: "hands back an empty list for an empty array",
+            raw: "[]",
+            expected: { ok: true, values: [] },
+        },
+        {
+            name: "rejects json that does not parse",
+            raw: '[{"type":"pong"',
+            expected: { ok: false, reason: "invalid-json" },
+        },
+    ];
+
+    for (const entry of cases) {
+        it(entry.name, () => {
+            // when
+            const result = decodeServerFrame(entry.raw);
+
+            // then
+            expect(result).toEqual(entry.expected);
+        });
+    }
+});
+
+describe("parseServerValue", () => {
+    it("accepts an already decoded message", () => {
+        // when
+        const result = parseServerValue({ type: "live_games_count", data: { count: 3 } });
+
+        // then
+        expect(result).toEqual({ ok: true, event: { type: "live_games_count", data: { count: 3 } } });
+    });
+
+    it("rejects a nested array element rather than unwrapping it", () => {
+        // when
+        const result = parseServerValue([{ type: "live_games_count", data: { count: 3 } }]);
+
+        // then
+        expect(result).toEqual({ ok: false, reason: "not-an-object" });
+    });
+});
 
 describe("parseServerEvent rejects malformed packets", () => {
     it("rejects json that does not parse", () => {

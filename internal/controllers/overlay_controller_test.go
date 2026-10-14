@@ -20,6 +20,7 @@ func newOverlayHarness(t *testing.T) (*testutil.Harness, *overlay.MockService) {
 	s := &Service{
 		OverlayService: svc,
 		AuthSession:    h.SessionManager,
+		AuthService:    h.AuthService,
 		AuthzService:   h.AuthzService,
 	}
 	api := h.App.Group("/api/v1")

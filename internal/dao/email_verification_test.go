@@ -122,22 +122,23 @@ func TestUserDAO_EmailInUse(t *testing.T) {
 	assert.False(t, other)
 }
 
-func TestUserDAO_RequiresEmailVerification(t *testing.T) {
+func TestSessionAuthState_RequiresEmailVerificationUntilVerified(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos, daotest.WithUsername("graceuser"))
+	token := daotest.CreateSession(t, repos, user.ID)
 
 	// when
-	blocked, err := repos.User.RequiresEmailVerification(context.Background(), user.ID)
+	before, err := repos.Session.GetAuthState(context.Background(), token)
 	require.NoError(t, err)
 
 	require.NoError(t, repos.User.MarkEmailVerified(context.Background(), user.ID))
-	afterVerify, err := repos.User.RequiresEmailVerification(context.Background(), user.ID)
+	after, err := repos.Session.GetAuthState(context.Background(), token)
 	require.NoError(t, err)
 
 	// then
-	assert.True(t, blocked)
-	assert.False(t, afterVerify)
+	assert.True(t, before.RequiresEmailVerification)
+	assert.False(t, after.RequiresEmailVerification)
 }
 
 func TestEmailVerification_IssueReplacesUnusedTokens(t *testing.T) {

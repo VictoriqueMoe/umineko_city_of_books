@@ -84,6 +84,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	banRepo.EXPECT().IsBanned(mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	banRepo.EXPECT().BannedRoomIDsForUser(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
+	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
 	chatRepo.EXPECT().GetRoomByID(mock.Anything, mock.MatchedBy(func(s spec.ChatRoomViewer) bool { return s.ViewerID == uuid.Nil })).Return(nil, nil).Maybe()
 	chatRepo.EXPECT().GetMemberNickname(mock.Anything, mock.Anything).Return("", nil).Maybe()
 	userRepo.EXPECT().IsLocked(mock.Anything, mock.Anything).Return(false, nil).Maybe()

@@ -170,6 +170,97 @@ describe("realtime pipeline guards", () => {
     });
 });
 
+describe("realtime pipeline batched frames", () => {
+    it("dispatches every message of an array frame in the order it arrived", () => {
+        // given
+        const seen: unknown[] = [];
+        const handler = (event: unknown) => {
+            seen.push(event);
+        };
+        bus.subscribe(["live_games_count", "typing"], handler);
+        connect();
+
+        // when
+        receiveRaw(
+            JSON.stringify([
+                { type: "live_games_count", data: { count: 1 } },
+                { type: "typing", data: { room_id: "room-1" } },
+                { type: "live_games_count", data: { count: 2 } },
+            ]),
+        );
+
+        // then
+        expect(seen).toEqual([
+            { type: "live_games_count", data: { count: 1 } },
+            { type: "typing", data: { room_id: "room-1" } },
+            { type: "live_games_count", data: { count: 2 } },
+        ]);
+    });
+
+    it("skips a malformed element the way it skips a malformed single frame and still delivers the rest", () => {
+        // given
+        const counts = vi.fn();
+        const bans = vi.fn();
+        bus.subscribe("live_games_count", counts);
+        bus.subscribe("ban_changed", bans);
+        connect();
+
+        // when
+        receiveRaw(
+            JSON.stringify([
+                { type: "live_games_count", data: { count: 1 } },
+                42,
+                null,
+                [{ type: "live_games_count", data: { count: 9 } }],
+                { data: { count: 9 } },
+                { type: "ban_changed", data: { user_id: "user-9" } },
+                { type: "live_games_count", data: { count: 2 } },
+            ]),
+        );
+
+        // then
+        expect(counts.mock.calls).toEqual([
+            [{ type: "live_games_count", data: { count: 1 } }],
+            [{ type: "live_games_count", data: { count: 2 } }],
+        ]);
+        expect(bans).not.toHaveBeenCalled();
+    });
+
+    it("reports an unknown event inside an array frame and still delivers its neighbours", () => {
+        // given
+        const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+        const handler = vi.fn();
+        bus.subscribe("live_games_count", handler);
+        connect();
+
+        // when
+        receiveRaw(
+            JSON.stringify([
+                { type: "an_unlisted_batch_event", data: {} },
+                { type: "live_games_count", data: { count: 3 } },
+            ]),
+        );
+
+        // then
+        expect(handler).toHaveBeenCalledExactlyOnceWith({ type: "live_games_count", data: { count: 3 } });
+        const calls = consoleError.mock.calls.filter(call => JSON.stringify(call).includes("an_unlisted_batch_event"));
+        expect(calls).toHaveLength(1);
+    });
+
+    it("dispatches nothing for an empty array frame", () => {
+        // given
+        const handler = vi.fn();
+        bus.subscribe("live_games_count", handler);
+        connect();
+
+        // when
+        receiveRaw("[]");
+
+        // then
+        expect(handler).not.toHaveBeenCalled();
+    });
+});
+
 describe("the *_frame fast path survives the wiring", () => {
     it("delivers a media url inside a frame untouched, because the frame skips normalisation", async () => {
         // given

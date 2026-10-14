@@ -118,6 +118,10 @@ func NewService(
 	}
 }
 
+func mysteryTopic(mysteryID uuid.UUID) string {
+	return "mystery:" + mysteryID.String()
+}
+
 func (s *service) audit(ctx context.Context, entry audit.NewEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")

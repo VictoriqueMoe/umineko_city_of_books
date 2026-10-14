@@ -33,6 +33,7 @@ func newOCHarness(t *testing.T) (*testutil.Harness, *ocsvc.MockService) {
 	s := &Service{
 		OCService:    os,
 		AuthSession:  h.SessionManager,
+		AuthService:  h.AuthService,
 		AuthzService: h.AuthzService,
 	}
 	for _, setup := range s.getAllOCRoutes() {

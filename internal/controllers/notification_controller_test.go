@@ -24,6 +24,7 @@ func newNotificationHarness(t *testing.T) (*testutil.Harness, *notifsvc.MockServ
 	s := &Service{
 		NotificationService: ns,
 		AuthSession:         h.SessionManager,
+		AuthService:         h.AuthService,
 		AuthzService:        h.AuthzService,
 	}
 	for _, setup := range s.getAllNotificationRoutes() {

@@ -52,6 +52,67 @@ func TestChatDAO_SetMuted_MutesAndUnmutes(t *testing.T) {
 	assert.ElementsMatch(t, []uuid.UUID{a.ID, b.ID}, unmutedAfterUnmute)
 }
 
+func TestChatDAO_ListMutedMemberIDs(t *testing.T) {
+	tests := []struct {
+		name  string
+		query func(owner, mutedMember, unmutedMember, leftMutedMember, outsider uuid.UUID) []uuid.UUID
+		want  func(owner, mutedMember, unmutedMember, leftMutedMember, outsider uuid.UUID) []uuid.UUID
+	}{
+		{
+			name: "returns only the muted current members among the requested set",
+			query: func(owner, mutedMember, unmutedMember, leftMutedMember, outsider uuid.UUID) []uuid.UUID {
+				return []uuid.UUID{owner, mutedMember, unmutedMember, leftMutedMember, outsider}
+			},
+			want: func(owner, mutedMember, unmutedMember, leftMutedMember, outsider uuid.UUID) []uuid.UUID {
+				return []uuid.UUID{mutedMember}
+			},
+		},
+		{
+			name: "a muted member outside the requested set is not returned",
+			query: func(owner, mutedMember, unmutedMember, leftMutedMember, outsider uuid.UUID) []uuid.UUID {
+				return []uuid.UUID{owner, unmutedMember}
+			},
+			want: func(owner, mutedMember, unmutedMember, leftMutedMember, outsider uuid.UUID) []uuid.UUID {
+				return []uuid.UUID{}
+			},
+		},
+		{
+			name: "an empty set returns empty",
+			query: func(owner, mutedMember, unmutedMember, leftMutedMember, outsider uuid.UUID) []uuid.UUID {
+				return nil
+			},
+			want: func(owner, mutedMember, unmutedMember, leftMutedMember, outsider uuid.UUID) []uuid.UUID {
+				return []uuid.UUID{}
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			ctx := context.Background()
+			owner := daotest.CreateUser(t, repos)
+			mutedMember := daotest.CreateUser(t, repos)
+			unmutedMember := daotest.CreateUser(t, repos)
+			leftMutedMember := daotest.CreateUser(t, repos)
+			outsider := daotest.CreateUser(t, repos)
+			roomID := daotest.CreateChatRoom(t, repos, owner.ID, daotest.WithRoomMembers(mutedMember.ID, unmutedMember.ID, leftMutedMember.ID))
+			require.NoError(t, repos.Chat.SetMuted(ctx, spec.ChatMemberMuteUpdate{RoomID: roomID, UserID: mutedMember.ID, Muted: true}))
+			require.NoError(t, repos.Chat.SetMuted(ctx, spec.ChatMemberMuteUpdate{RoomID: roomID, UserID: leftMutedMember.ID, Muted: true}))
+			require.NoError(t, repos.Chat.RemoveMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: leftMutedMember.ID}))
+			userIDs := tc.query(owner.ID, mutedMember.ID, unmutedMember.ID, leftMutedMember.ID, outsider.ID)
+
+			// when
+			muted, err := repos.Chat.ListMutedMemberIDs(ctx, spec.ChatRoomMemberSet{RoomID: roomID, UserIDs: userIDs})
+
+			// then
+			require.NoError(t, err)
+			assert.ElementsMatch(t, tc.want(owner.ID, mutedMember.ID, unmutedMember.ID, leftMutedMember.ID, outsider.ID), muted)
+		})
+	}
+}
+
 func TestChatDAO_SetMemberNicknameWithLock_LocksAndUnlocks(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)

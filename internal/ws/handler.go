@@ -27,6 +27,7 @@ const (
 	localsUserIDKey       = "ws.user_id"
 	localsTokenKey        = "ws.token"
 	localsAnonKey         = "ws.anon"
+	localsBatchKey        = "ws.batch"
 	sessionRecheckEvery   = 5 * time.Minute
 	maxReportedRTTMS      = 5000
 	reportedRTTSlackMS    = 100
@@ -91,8 +92,16 @@ type (
 		SecretID string `json:"secret_id"`
 	}
 
+	mysteryTopicData struct {
+		MysteryID string `json:"mystery_id"`
+	}
+
 	gameRoomTopicData struct {
 		RoomID string `json:"room_id"`
+	}
+
+	watchPostsData struct {
+		PostIDs []string `json:"post_ids"`
 	}
 
 	gameRoomInputData struct {
@@ -152,7 +161,7 @@ func OriginAllowed(origin, allowed string) bool {
 }
 
 func broadcastPresence(hub *Hub, roomID, userID uuid.UUID, state string) {
-	hub.BroadcastToRoom(roomID, Message{
+	hub.BroadcastToViewers(roomID, Message{
 		Type: "chat_presence_changed",
 		Data: map[string]any{
 			"room_id": roomID.String(),
@@ -204,6 +213,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 		logger.Log.Debug().Str("user_id", userID.String()).Msg("ws client connected")
 		conn.SetReadLimit(maxInboundMessageSize)
 		client := NewClient(userID, conn)
+		client.batch, _ = conn.Locals(localsBatchKey).(bool)
 
 		hub.Register(client)
 		joinedGameRooms := make(map[uuid.UUID]bool)
@@ -225,9 +235,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 		if roomLister != nil {
 			roomIDs, err := roomLister.GetRoomsByUser(context.Background(), userID)
 			if err == nil {
-				for _, roomID := range roomIDs {
-					hub.JoinRoom(roomID, userID)
-				}
+				hub.JoinRooms(roomIDs, userID)
 			}
 		}
 
@@ -327,6 +335,8 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 			})
 		}
 
+		ctx.Locals(localsBatchKey, ctx.Query("batch") == "1")
+
 		token := ctx.Cookies(session.CookieName)
 		if token == "" {
 			token = ctx.Query("token")
@@ -357,6 +367,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 
 func runAnonReader(hub *Hub, conn *websocket.Conn) {
 	client := NewClient(uuid.Nil, conn)
+	client.batch, _ = conn.Locals(localsBatchKey).(bool)
 	defer func() { _ = client.Close() }()
 
 	hub.RegisterAnon(client)
@@ -460,7 +471,7 @@ func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, memberChecke
 		if !hub.IsUserInRoom(roomID, userID) {
 			return
 		}
-		hub.BroadcastToRoom(roomID, TypingMessage(roomID, userID), userID)
+		hub.BroadcastToViewers(roomID, TypingMessage(roomID, userID), userID)
 
 	case "join_room":
 		var data roomActionData
@@ -526,6 +537,43 @@ func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, memberChecke
 			return
 		}
 		hub.LeaveTopic("secret:"+data.SecretID, userID)
+
+	case "mystery_join":
+		var data mysteryTopicData
+		if err := json.Unmarshal(msg.Data, &data); err != nil {
+			return
+		}
+		mysteryID, err := uuid.Parse(data.MysteryID)
+		if err != nil {
+			return
+		}
+		hub.JoinTopic("mystery:"+mysteryID.String(), userID)
+
+	case "mystery_leave":
+		var data mysteryTopicData
+		if err := json.Unmarshal(msg.Data, &data); err != nil {
+			return
+		}
+		mysteryID, err := uuid.Parse(data.MysteryID)
+		if err != nil {
+			return
+		}
+		hub.LeaveTopic("mystery:"+mysteryID.String(), userID)
+
+	case "watch_posts":
+		var data watchPostsData
+		if err := json.Unmarshal(msg.Data, &data); err != nil {
+			return
+		}
+		postIDs := make([]uuid.UUID, 0, len(data.PostIDs))
+		for _, raw := range data.PostIDs {
+			postID, err := uuid.Parse(raw)
+			if err != nil {
+				continue
+			}
+			postIDs = append(postIDs, postID)
+		}
+		hub.WatchPosts(client, postIDs)
 
 	case "game_room_join":
 		if gamePresence == nil {

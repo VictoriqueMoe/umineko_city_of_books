@@ -22,6 +22,7 @@ func newChatbotHarness(t *testing.T) (*testutil.Harness, *chatbot.MockService) {
 	s := &Service{
 		ChatbotService: botSvc,
 		AuthSession:    h.SessionManager,
+		AuthService:    h.AuthService,
 		AuthzService:   h.AuthzService,
 	}
 	for _, setup := range s.getAllChatbotRoutes() {

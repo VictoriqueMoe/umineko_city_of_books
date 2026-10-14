@@ -45,6 +45,7 @@ func journalCtlHarness(t *testing.T) (*testutil.Harness, *journalsvc.MockService
 	s := &Service{
 		JournalService: js,
 		AuthSession:    h.SessionManager,
+		AuthService:    h.AuthService,
 		AuthzService:   h.AuthzService,
 	}
 	for _, setup := range s.getAllJournalRoutes() {

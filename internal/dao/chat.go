@@ -49,6 +49,7 @@ type (
 		IsMember(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error)
 		SetMuted(ctx context.Context, s spec.ChatMemberMuteUpdate, tx ...*sql.Tx) error
 		IsMuted(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error)
+		ListMutedMemberIDs(ctx context.Context, s spec.ChatRoomMemberSet, tx ...*sql.Tx) ([]uuid.UUID, error)
 		GetRoomMembersUnmuted(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)
 		SetVoiceForceMuted(ctx context.Context, s spec.ChatVoiceForceMuteUpdate, tx ...*sql.Tx) error
 		IsVoiceForceMuted(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error)
@@ -691,6 +692,22 @@ func (r *chatDAO) IsMuted(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.
 	}
 
 	return muted, nil
+}
+
+func (r *chatDAO) ListMutedMemberIDs(ctx context.Context, s spec.ChatRoomMemberSet, tx ...*sql.Tx) ([]uuid.UUID, error) {
+	if len(s.UserIDs) == 0 {
+		return []uuid.UUID{}, nil
+	}
+
+	ids, err := genQueries(r.db, tx).ListChatRoomMutedMemberIDs(ctx, sqlcgen.ListChatRoomMutedMemberIDsParams{
+		RoomID:  s.RoomID,
+		Column2: joinUUIDs(s.UserIDs),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list muted members: %w", err)
+	}
+
+	return ids, nil
 }
 
 func (r *chatDAO) GetRoomMembersUnmuted(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {

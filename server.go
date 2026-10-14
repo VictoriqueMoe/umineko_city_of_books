@@ -188,7 +188,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		AppName:            siteName,
 	})
 
-	middleware.Setup(app, settingsSvc, svc.session, svc.authz, svc.dronebl)
+	middleware.Setup(app, settingsSvc, svc.auth, svc.authz, svc.dronebl)
 	app.Use(middleware.Metrics())
 
 	lastSeenIP := middleware.NewLastSeenIP(repos.User, time.Hour)

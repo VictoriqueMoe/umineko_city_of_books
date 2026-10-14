@@ -167,6 +167,7 @@ packages:
   umineko_city_of_books/internal/middleware:
     interfaces:
       IPWriter:
+      Authenticator:
   umineko_city_of_books/internal/repository:
     config:
       all: true

@@ -133,6 +133,89 @@ func (_c *MockNotificationRepository_Create_Call) RunAndReturn(run func(ctx cont
 	return _c
 }
 
+// CreateMany provides a mock function for the type MockNotificationRepository
+func (_mock *MockNotificationRepository) CreateMany(ctx context.Context, s []spec.NewNotification, tx ...*sql.Tx) ([]model.NotificationRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateMany")
+	}
+
+	var r0 []model.NotificationRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []spec.NewNotification, ...*sql.Tx) ([]model.NotificationRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []spec.NewNotification, ...*sql.Tx) []model.NotificationRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.NotificationRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []spec.NewNotification, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockNotificationRepository_CreateMany_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateMany'
+type MockNotificationRepository_CreateMany_Call struct {
+	*mock.Call
+}
+
+// CreateMany is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s []spec.NewNotification
+//   - tx ...*sql.Tx
+func (_e *MockNotificationRepository_Expecter) CreateMany(ctx any, s any, tx ...any) *MockNotificationRepository_CreateMany_Call {
+	return &MockNotificationRepository_CreateMany_Call{Call: _e.mock.On("CreateMany",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockNotificationRepository_CreateMany_Call) Run(run func(ctx context.Context, s []spec.NewNotification, tx ...*sql.Tx)) *MockNotificationRepository_CreateMany_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []spec.NewNotification
+		if args[1] != nil {
+			arg1 = args[1].([]spec.NewNotification)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockNotificationRepository_CreateMany_Call) Return(notificationRows []model.NotificationRow, err error) *MockNotificationRepository_CreateMany_Call {
+	_c.Call.Return(notificationRows, err)
+	return _c
+}
+
+func (_c *MockNotificationRepository_CreateMany_Call) RunAndReturn(run func(ctx context.Context, s []spec.NewNotification, tx ...*sql.Tx) ([]model.NotificationRow, error)) *MockNotificationRepository_CreateMany_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteOlderThanBatch provides a mock function for the type MockNotificationRepository
 func (_mock *MockNotificationRepository) DeleteOlderThanBatch(ctx context.Context, s spec.NotificationPruneBatch, tx ...*sql.Tx) (int64, error) {
 	var tmpRet mock.Arguments

@@ -367,7 +367,11 @@ func TestSendMessage_NotificationLadder(t *testing.T) {
 			msgID := messagesExpectInsert(m, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: body, ReplyToID: req.ReplyToID}, nil)
 
 			if !tc.viewing {
-				m.chatRepo.EXPECT().IsMuted(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: recipientID}).Return(tc.muted, nil)
+				mutedIDs := []uuid.UUID{}
+				if tc.muted {
+					mutedIDs = []uuid.UUID{recipientID}
+				}
+				m.chatRepo.EXPECT().ListMutedMemberIDs(mock.Anything, spec.ChatRoomMemberSet{RoomID: roomID, UserIDs: []uuid.UUID{recipientID}}).Return(mutedIDs, nil).Once()
 			}
 
 			counted := tc.roomType == dto.RoomTypeDM && !tc.muted && !tc.viewing
@@ -392,22 +396,63 @@ func TestSendMessage_NotificationLadder(t *testing.T) {
 				m.chatRepo.AssertNotCalled(t, "CountUnreadRoomsForUser", mock.Anything, recipientID)
 			}
 
+			m.notifSvc.AssertNotCalled(t, "Notify", mock.Anything, mock.Anything)
 			if !tc.wantNotify {
-				m.notifSvc.AssertNotCalled(t, "Notify", mock.Anything, mock.Anything)
+				m.notifSvc.AssertNotCalled(t, "NotifyMany", mock.Anything, mock.Anything)
 
 				return
 			}
 
-			m.notifSvc.AssertCalled(t, "Notify", mock.Anything, mock.MatchedBy(func(p dto.NotifyParams) bool {
-				return p.RecipientID == recipientID &&
-					p.ActorID == senderID &&
-					p.Type == tc.wantType &&
-					p.ReferenceID == roomID &&
-					p.ReferenceType == "chat_message:"+msgID.String() &&
-					p.Message == tc.wantMessage
-			}))
+			m.notifSvc.AssertNumberOfCalls(t, "NotifyMany", 1)
+			m.notifSvc.AssertCalled(t, "NotifyMany", mock.Anything, []dto.NotifyParams{{
+				RecipientID:   recipientID,
+				ActorID:       senderID,
+				Type:          tc.wantType,
+				ReferenceID:   roomID,
+				ReferenceType: "chat_message:" + msgID.String(),
+				Message:       tc.wantMessage,
+			}})
 		})
 	}
+}
+
+func TestSendMessage_FansOutEveryRecipientInOneBatch(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	senderID := uuid.New()
+	roomID := uuid.New()
+	plainID := uuid.New()
+	mutedID := uuid.New()
+	mentionedMutedID := uuid.New()
+	viewerID := uuid.New()
+	body := "hey @bob"
+	messagesExpectRoom(m, spec.ChatMemberRef{RoomID: roomID, UserID: senderID}, []uuid.UUID{senderID, plainID, mutedID, mentionedMutedID, viewerID},
+		&model.ChatRoomSendContext{Type: dto.RoomTypeGroup, Name: "G", CreatedBy: senderID, LastMessageAt: ongoingThread()})
+	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"bob"}).Return([]model.User{{ID: mentionedMutedID, Username: "bob"}}, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, senderID, mentionedMutedID).Return(false, nil)
+	msgID := messagesExpectInsert(m, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: body}, nil)
+	m.chatRepo.EXPECT().
+		ListMutedMemberIDs(mock.Anything, spec.ChatRoomMemberSet{RoomID: roomID, UserIDs: []uuid.UUID{plainID, mutedID, mentionedMutedID}}).
+		Return([]uuid.UUID{mutedID, mentionedMutedID}, nil).Once()
+	for _, memberID := range []uuid.UUID{plainID, mutedID, mentionedMutedID, viewerID} {
+		m.hub.JoinRoom(roomID, memberID)
+	}
+	m.hub.AddViewer(roomID, viewerID)
+	msgRef := "chat_message:" + msgID.String()
+
+	// when
+	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: body}, nil)
+	svc.sideEffectsWG.Wait()
+
+	// then
+	require.NoError(t, err)
+	m.chatRepo.AssertNotCalled(t, "IsMuted", mock.Anything, mock.Anything)
+	m.notifSvc.AssertNotCalled(t, "Notify", mock.Anything, mock.Anything)
+	m.notifSvc.AssertNumberOfCalls(t, "NotifyMany", 1)
+	m.notifSvc.AssertCalled(t, "NotifyMany", mock.Anything, []dto.NotifyParams{
+		{RecipientID: plainID, ActorID: senderID, Type: dto.NotifChatRoomMessage, ReferenceID: roomID, ReferenceType: msgRef, Message: "sent a message in G"},
+		{RecipientID: mentionedMutedID, ActorID: senderID, Type: dto.NotifChatMention, ReferenceID: roomID, ReferenceType: msgRef},
+	})
 }
 
 func TestSendMessage_AFailedReplyLookupIsReturnedBeforeTheMessageIsSaved(t *testing.T) {
@@ -455,7 +500,11 @@ func TestSendMessage_AFailedLookupNeverPingsAnyone(t *testing.T) {
 				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, senderID, recipientID).Return(false, tc.blockErr)
 			}
 			messagesExpectInsert(m, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: tc.body}, nil)
-			m.chatRepo.EXPECT().IsMuted(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: recipientID}).Return(false, tc.muteErr)
+			var mutedIDs []uuid.UUID
+			if tc.muteErr == nil {
+				mutedIDs = []uuid.UUID{}
+			}
+			m.chatRepo.EXPECT().ListMutedMemberIDs(mock.Anything, spec.ChatRoomMemberSet{RoomID: roomID, UserIDs: []uuid.UUID{recipientID}}).Return(mutedIDs, tc.muteErr).Once()
 			m.hub.JoinRoom(roomID, recipientID)
 
 			// when
@@ -464,14 +513,25 @@ func TestSendMessage_AFailedLookupNeverPingsAnyone(t *testing.T) {
 
 			// then
 			require.NoError(t, err)
-			m.notifSvc.AssertNotCalled(t, "Notify", mock.Anything, mock.MatchedBy(func(p dto.NotifyParams) bool { return p.Type == dto.NotifChatMention }))
+			m.notifSvc.AssertNotCalled(t, "Notify", mock.Anything, mock.Anything)
+			m.notifSvc.AssertNotCalled(t, "NotifyMany", mock.Anything, mock.MatchedBy(func(params []dto.NotifyParams) bool {
+				for _, p := range params {
+					if p.Type == dto.NotifChatMention {
+						return true
+					}
+				}
+
+				return false
+			}))
 			if tc.wantType == "" {
-				m.notifSvc.AssertNotCalled(t, "Notify", mock.Anything, mock.Anything)
+				m.notifSvc.AssertNotCalled(t, "NotifyMany", mock.Anything, mock.Anything)
 
 				return
 			}
 
-			m.notifSvc.AssertCalled(t, "Notify", mock.Anything, mock.MatchedBy(func(p dto.NotifyParams) bool { return p.Type == tc.wantType && p.RecipientID == recipientID }))
+			m.notifSvc.AssertCalled(t, "NotifyMany", mock.Anything, mock.MatchedBy(func(params []dto.NotifyParams) bool {
+				return len(params) == 1 && params[0].Type == tc.wantType && params[0].RecipientID == recipientID
+			}))
 		})
 	}
 }
@@ -496,6 +556,8 @@ func TestSendMessage_LiveStreamRoomSkipsNotifications(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "hi", got.Body)
 	m.notifSvc.AssertNotCalled(t, "Notify", mock.Anything, mock.Anything)
+	m.notifSvc.AssertNotCalled(t, "NotifyMany", mock.Anything, mock.Anything)
+	m.chatRepo.AssertNotCalled(t, "ListMutedMemberIDs", mock.Anything, mock.Anything)
 	m.chatRepo.AssertNotCalled(t, "CountUnreadRoomsForUser", mock.Anything, mock.Anything)
 }
 
@@ -514,10 +576,7 @@ func TestSendMessage_GroupWithMentionAndReply(t *testing.T) {
 	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, replyMsgID).Return(&model.ChatMessageRow{ID: replyMsgID, RoomID: roomID, SenderID: replyAuthorID, SenderDisplayName: "Parent", Body: "original"}, nil)
 	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"bob"}).Return([]model.User{{ID: mentionedID, Username: "bob"}}, nil)
 	messagesExpectInsert(m, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: body, ReplyToID: &replyMsgID}, nil)
-	m.chatRepo.EXPECT().IsMuted(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: mentionedID}).Return(false, nil)
-	m.chatRepo.EXPECT().IsMuted(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: replyAuthorID}).Return(false, nil)
-	m.notifSvc.EXPECT().Notify(mock.Anything, mock.MatchedBy(func(p dto.NotifyParams) bool { return p.Type == dto.NotifChatMention && p.RecipientID == mentionedID })).Return(nil)
-	m.notifSvc.EXPECT().Notify(mock.Anything, mock.MatchedBy(func(p dto.NotifyParams) bool { return p.Type == dto.NotifChatReply && p.RecipientID == replyAuthorID })).Return(nil)
+	m.chatRepo.EXPECT().ListMutedMemberIDs(mock.Anything, spec.ChatRoomMemberSet{RoomID: roomID, UserIDs: []uuid.UUID{mentionedID, replyAuthorID}}).Return([]uuid.UUID{}, nil).Once()
 
 	// when
 	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: body, ReplyToID: &replyMsgID}, nil)
@@ -527,6 +586,12 @@ func TestSendMessage_GroupWithMentionAndReply(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got.ReplyTo)
 	assert.Equal(t, replyMsgID, got.ReplyTo.ID)
+	m.notifSvc.AssertNumberOfCalls(t, "NotifyMany", 1)
+	m.notifSvc.AssertCalled(t, "NotifyMany", mock.Anything, mock.MatchedBy(func(params []dto.NotifyParams) bool {
+		return len(params) == 2 &&
+			params[0].Type == dto.NotifChatMention && params[0].RecipientID == mentionedID &&
+			params[1].Type == dto.NotifChatReply && params[1].RecipientID == replyAuthorID
+	}))
 }
 
 func TestSendMessage_BotTriggerCarriesTheRoomAlias(t *testing.T) {
@@ -580,7 +645,7 @@ func TestSendMessage_DMMentionStillCarriesTheBotAudience(t *testing.T) {
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, senderID, botID).Return(false, nil)
 	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"beato"}).Return([]model.User{{ID: botID, Username: "beato"}}, nil)
 	messagesExpectInsert(m, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: body}, nil)
-	m.chatRepo.EXPECT().IsMuted(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: botID}).Return(false, nil)
+	m.chatRepo.EXPECT().ListMutedMemberIDs(mock.Anything, spec.ChatRoomMemberSet{RoomID: roomID, UserIDs: []uuid.UUID{botID}}).Return([]uuid.UUID{}, nil).Once()
 	m.chatRepo.EXPECT().CountUnreadRoomsForUser(mock.Anything, botID).Return(1, nil)
 
 	// when
@@ -589,6 +654,9 @@ func TestSendMessage_DMMentionStillCarriesTheBotAudience(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+	m.notifSvc.AssertCalled(t, "NotifyMany", mock.Anything, mock.MatchedBy(func(params []dto.NotifyParams) bool {
+		return len(params) == 1 && params[0].Type == dto.NotifChatMention && params[0].RecipientID == botID
+	}))
 	require.Len(t, obs.events, 1)
 	assert.Equal(t, []uuid.UUID{senderID, botID}, obs.events[0].Members, "dm bot selection scans the members, so resolving mentions must never narrow the audience")
 	assert.Contains(t, obs.events[0].MentionedIDs, botID)
@@ -627,7 +695,7 @@ func TestSendMessage_RecipientOptInGatesNewThreadsOnTheRoomRoute(t *testing.T) {
 			}
 			if tc.wantErr == nil {
 				messagesExpectInsert(m, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: "hi"}, nil)
-				m.chatRepo.EXPECT().IsMuted(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: recipientID}).Return(true, nil).Maybe()
+				m.chatRepo.EXPECT().ListMutedMemberIDs(mock.Anything, spec.ChatRoomMemberSet{RoomID: roomID, UserIDs: []uuid.UUID{recipientID}}).Return([]uuid.UUID{recipientID}, nil).Maybe()
 				m.chatRepo.EXPECT().CountUnreadRoomsForUser(mock.Anything, recipientID).Return(1, nil).Maybe()
 			}
 

@@ -11,8 +11,10 @@ import (
 	"testing"
 	"time"
 
+	authsvc "umineko_city_of_books/internal/auth"
 	authzsvc "umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/session"
 	settingssvc "umineko_city_of_books/internal/settings"
@@ -31,6 +33,7 @@ type (
 		SessionManager  *session.Manager
 		SessionRepo     *repository.MockSessionRepository
 		SettingsService *settingssvc.MockService
+		AuthService     *authsvc.MockService
 		AuthzService    *authzsvc.MockService
 	}
 
@@ -120,6 +123,7 @@ func NewHarness(t *testing.T) *Harness {
 	t.Helper()
 	sessionRepo := repository.NewMockSessionRepository(t)
 	settingsService := settingssvc.NewMockService(t)
+	authService := authsvc.NewMockService(t)
 	authzService := authzsvc.NewMockService(t)
 
 	settingsService.EXPECT().GetInt(mock.Anything, mock.Anything).Return(30).Maybe()
@@ -133,23 +137,26 @@ func NewHarness(t *testing.T) *Harness {
 		SessionManager:  mgr,
 		SessionRepo:     sessionRepo,
 		SettingsService: settingsService,
+		AuthService:     authService,
 		AuthzService:    authzService,
 	}
 }
 
-func (h *Harness) expectSessionResolves(cookie string, userID uuid.UUID, banned bool) {
+func (h *Harness) ExpectValidSession(cookie string, userID uuid.UUID) {
 	h.T.Helper()
 
+	expiresAt := time.Now().Add(time.Hour)
+
+	h.AuthService.EXPECT().
+		Authenticate(mock.Anything, cookie).
+		Return(model.SessionAuthState{UserID: userID, ExpiresAt: expiresAt}, nil).
+		Maybe()
 	h.SessionRepo.EXPECT().
 		GetUserID(mock.Anything, cookie).
-		Return(userID, time.Now().Add(time.Hour), nil).
+		Return(userID, expiresAt, nil).
 		Maybe()
 	h.AuthzService.EXPECT().
 		IsBanned(mock.Anything, userID).
-		Return(banned).
-		Maybe()
-	h.AuthzService.EXPECT().
-		IsLocked(mock.Anything, userID).
 		Return(false).
 		Maybe()
 	h.AuthzService.EXPECT().
@@ -158,18 +165,13 @@ func (h *Harness) expectSessionResolves(cookie string, userID uuid.UUID, banned 
 		Maybe()
 }
 
-func (h *Harness) ExpectValidSession(cookie string, userID uuid.UUID) {
-	h.T.Helper()
-
-	h.expectSessionResolves(cookie, userID, false)
-	h.AuthzService.EXPECT().
-		RequiresEmailVerification(mock.Anything, userID).
-		Return(false).
-		Maybe()
-}
-
 func (h *Harness) ExpectInvalidSession(cookie string) {
 	h.T.Helper()
+
+	h.AuthService.EXPECT().
+		Authenticate(mock.Anything, cookie).
+		Return(model.SessionAuthState{}, authsvc.ErrInvalidSession).
+		Maybe()
 	h.SessionRepo.EXPECT().
 		GetUserID(mock.Anything, cookie).
 		Return(uuid.Nil, time.Time{}, errNotFound).
@@ -179,7 +181,18 @@ func (h *Harness) ExpectInvalidSession(cookie string) {
 func (h *Harness) ExpectBannedUser(cookie string, userID uuid.UUID) {
 	h.T.Helper()
 
-	h.expectSessionResolves(cookie, userID, true)
+	h.AuthService.EXPECT().
+		Authenticate(mock.Anything, cookie).
+		Return(model.SessionAuthState{}, authsvc.ErrUserBanned).
+		Maybe()
+	h.SessionRepo.EXPECT().
+		GetUserID(mock.Anything, cookie).
+		Return(userID, time.Now().Add(time.Hour), nil).
+		Maybe()
+	h.AuthzService.EXPECT().
+		IsBanned(mock.Anything, userID).
+		Return(true).
+		Maybe()
 	h.SessionRepo.EXPECT().
 		Delete(mock.Anything, cookie).
 		Return(nil).

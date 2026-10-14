@@ -35,6 +35,7 @@ func newProfileHarness(t *testing.T) (*testutil.Harness, profileDeps) {
 		FollowService:   deps.followSvc,
 		SettingsService: h.SettingsService,
 		AuthSession:     h.SessionManager,
+		AuthService:     h.AuthService,
 		AuthzService:    h.AuthzService,
 		Hub:             ws.NewHub(),
 	}

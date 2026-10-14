@@ -28,6 +28,7 @@ func newPushHarness(t *testing.T) (*testutil.Harness, *repository.MockDeviceToke
 	s := &Service{
 		PushService:  push.NewService(h.SettingsService, repo, ""),
 		AuthSession:  h.SessionManager,
+		AuthService:  h.AuthService,
 		AuthzService: h.AuthzService,
 	}
 	for _, setup := range s.getAllPushRoutes() {

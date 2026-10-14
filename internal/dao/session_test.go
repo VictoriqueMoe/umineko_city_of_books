@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -31,6 +33,97 @@ func TestSessionDAO_CreateAndGet(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, user.ID, gotID)
 	assert.WithinDuration(t, expiresAt, gotExpires, time.Second)
+}
+
+func TestSessionDAO_GetAuthState(t *testing.T) {
+	tests := []struct {
+		name    string
+		arrange func(t *testing.T, repos *repository.Repositories, userID uuid.UUID)
+		want    func(userID uuid.UUID) model.SessionAuthState
+	}{
+		{
+			name: "a verified member in good standing",
+			arrange: func(t *testing.T, repos *repository.Repositories, userID uuid.UUID) {
+				require.NoError(t, repos.User.MarkEmailVerified(context.Background(), userID))
+			},
+			want: func(userID uuid.UUID) model.SessionAuthState {
+				return model.SessionAuthState{UserID: userID}
+			},
+		},
+		{
+			name: "a banned member",
+			arrange: func(t *testing.T, repos *repository.Repositories, userID uuid.UUID) {
+				require.NoError(t, repos.User.MarkEmailVerified(context.Background(), userID))
+				require.NoError(t, repos.User.BanUser(context.Background(), spec.UserBan{UserID: userID, BannedBy: userID, Reason: "spam"}))
+			},
+			want: func(userID uuid.UUID) model.SessionAuthState {
+				return model.SessionAuthState{UserID: userID, Banned: true}
+			},
+		},
+		{
+			name: "a locked member",
+			arrange: func(t *testing.T, repos *repository.Repositories, userID uuid.UUID) {
+				require.NoError(t, repos.User.MarkEmailVerified(context.Background(), userID))
+				require.NoError(t, repos.User.LockUser(context.Background(), spec.UserLock{UserID: userID, LockedBy: userID, Reason: "cool off"}))
+			},
+			want: func(userID uuid.UUID) model.SessionAuthState {
+				return model.SessionAuthState{UserID: userID, Locked: true}
+			},
+		},
+		{
+			name: "an unverified member still inside the grace period",
+			arrange: func(t *testing.T, repos *repository.Repositories, userID uuid.UUID) {
+				_, err := repos.DB().ExecContext(context.Background(), `UPDATE users SET verify_grace_until = NOW() + INTERVAL '1 day' WHERE id = $1`, userID)
+				require.NoError(t, err)
+			},
+			want: func(userID uuid.UUID) model.SessionAuthState {
+				return model.SessionAuthState{UserID: userID}
+			},
+		},
+		{
+			name: "an unverified member past the grace period",
+			arrange: func(t *testing.T, repos *repository.Repositories, userID uuid.UUID) {
+				_, err := repos.DB().ExecContext(context.Background(), `UPDATE users SET verify_grace_until = NOW() - INTERVAL '1 day' WHERE id = $1`, userID)
+				require.NoError(t, err)
+			},
+			want: func(userID uuid.UUID) model.SessionAuthState {
+				return model.SessionAuthState{UserID: userID, RequiresEmailVerification: true}
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			user := daotest.CreateUser(t, repos)
+			token := uuid.NewString()
+			expiresAt := time.Now().Add(time.Hour).UTC().Truncate(time.Second)
+			require.NoError(t, repos.Session.Create(context.Background(), spec.NewSession{Token: token, UserID: user.ID, ExpiresAt: expiresAt}))
+			tc.arrange(t, repos, user.ID)
+
+			// when
+			got, err := repos.Session.GetAuthState(context.Background(), token)
+
+			// then
+			require.NoError(t, err)
+			assert.WithinDuration(t, expiresAt, got.ExpiresAt, time.Second)
+			got.ExpiresAt = time.Time{}
+			assert.Equal(t, tc.want(user.ID), got)
+		})
+	}
+}
+
+func TestSessionDAO_GetAuthState_UnknownToken(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+
+	// when
+	_, err := repos.Session.GetAuthState(context.Background(), "does-not-exist")
+
+	// then
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
 }
 
 func TestSessionDAO_StoresTokenHashedAtRest(t *testing.T) {
