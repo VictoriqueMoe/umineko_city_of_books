@@ -378,3 +378,65 @@ func TestManagerCountsHitsAndMisses(t *testing.T) {
 	assert.Equal(t, hitsBefore+1, testutil.ToFloat64(cacheHits))
 	assert.Equal(t, missesBefore+1, testutil.ToFloat64(cacheMisses))
 }
+
+func TestDelDropsDependentsOfDeletedKeys(t *testing.T) {
+	tests := []struct {
+		name        string
+		key         string
+		wantDropped bool
+	}{
+		{name: "top detectives", key: MysteryTopDetectives.Key(), wantDropped: true},
+		{name: "top winners", key: GameTopWinners.Key("chess"), wantDropped: true},
+		{name: "setting", key: Setting.Key("site_name"), wantDropped: true},
+		{name: "unrelated", key: OGMeta.Key("page"), wantDropped: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			ctx := context.Background()
+			m := NewManager(engines.NewInMemory(0))
+			m.Invalidates(SiteInfo, MysteryTopDetectives, GameTopWinners, Setting)
+			require.NoError(t, m.Set(ctx, SiteInfo.Key(), "cached", time.Minute))
+			require.NoError(t, m.Set(ctx, tc.key, "value", time.Minute))
+
+			// when
+			err := m.Del(ctx, tc.key)
+
+			// then
+			require.NoError(t, err)
+			_, getErr := m.Get[string](ctx, SiteInfo.Key())
+			if tc.wantDropped {
+				assert.ErrorIs(t, getErr, engine.ErrMiss)
+			} else {
+				assert.NoError(t, getErr)
+			}
+		})
+	}
+}
+
+func TestWithDependentsAddsEachDependentOnce(t *testing.T) {
+	// given
+	m := NewManager()
+	m.Invalidates(SiteInfo, Setting, VanityAssignments)
+	keys := []string{Setting.Key("a"), Setting.Key("b"), Setting.Key("c"), VanityAssignments.Key()}
+
+	// when
+	got := m.withDependents(keys)
+
+	// then
+	assert.Equal(t, append(slices.Clone(keys), SiteInfo.Key()), got)
+}
+
+func TestWithDependentsLeavesUnrelatedKeysAlone(t *testing.T) {
+	// given
+	m := NewManager()
+	m.Invalidates(SiteInfo, Setting)
+	keys := []string{OGMeta.Key("page")}
+
+	// when
+	got := m.withDependents(keys)
+
+	// then
+	assert.Equal(t, keys, got)
+}

@@ -1,9 +1,15 @@
 import { screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { SiteInfoSecret } from "../../types/api";
 import { makeSiteSecret, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import { NotFoundPage } from "./NotFoundPage";
+
+const mocks = vi.hoisted(() => ({
+    redirectToNotFound: vi.fn<(pathname: string) => void>(),
+}));
+
+vi.mock("../../platform/notFoundRedirect", () => ({ redirectToNotFound: mocks.redirectToNotFound }));
 
 function makeSecret(overrides: Partial<SiteInfoSecret> = {}): SiteInfoSecret {
     return makeSiteSecret({
@@ -24,6 +30,17 @@ describe("NotFoundPage", () => {
         // then
         expect(screen.getByText("404")).toBeInTheDocument();
         expect(screen.getByRole("heading", { name: "This fragment was never written" })).toBeInTheDocument();
+    });
+
+    it("sends the browser to the page the server answers with a 404", () => {
+        // given
+        const route = "/egfwergergh";
+
+        // when
+        renderWithProviders(<NotFoundPage />, { route });
+
+        // then
+        expect(mocks.redirectToNotFound).toHaveBeenCalledWith(route);
     });
 
     it("offers the way back to the city of books", () => {

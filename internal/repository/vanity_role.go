@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/db"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model/spec"
 )
 
@@ -54,6 +55,30 @@ func (r *vanityRoleRepository) MoveUserRole(ctx context.Context, move spec.Vanit
 	}
 
 	return r.cache.Del(ctx, cache.VanityAssignments.Key(), cache.UserVanityRoleIDs.Key(move.UserID.String()))
+}
+
+func (r *vanityRoleRepository) Create(ctx context.Context, s spec.NewVanityRole, tx ...*sql.Tx) error {
+	if err := r.VanityRoleDAO.Create(ctx, s, tx...); err != nil {
+		return err
+	}
+
+	if err := r.cache.Del(ctx, cache.VanityAssignments.Key()); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate vanity role caches after create")
+	}
+
+	return nil
+}
+
+func (r *vanityRoleRepository) Update(ctx context.Context, s spec.VanityRoleUpdate, tx ...*sql.Tx) error {
+	if err := r.VanityRoleDAO.Update(ctx, s, tx...); err != nil {
+		return err
+	}
+
+	if err := r.cache.Del(ctx, cache.VanityAssignments.Key()); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate vanity role caches after update")
+	}
+
+	return nil
 }
 
 func (r *vanityRoleRepository) Delete(ctx context.Context, id string, tx ...*sql.Tx) error {

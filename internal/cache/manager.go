@@ -2,6 +2,9 @@ package cache
 
 import (
 	"context"
+	"slices"
+	"strings"
+	"sync"
 	"time"
 	"umineko_city_of_books/internal/cache/engine"
 
@@ -11,6 +14,9 @@ import (
 type (
 	Manager struct {
 		engines []engine.Engine
+
+		mu         sync.RWMutex
+		dependents map[string][]string
 	}
 )
 
@@ -41,10 +47,34 @@ func (m *Manager) Engines() []engine.Engine {
 	return m.engines
 }
 
+func (m *Manager) Invalidates(dependent Namespace, feeds ...Namespace) {
+	if m == nil {
+		return
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.dependents == nil {
+		m.dependents = make(map[string][]string, len(feeds))
+	}
+
+	key := dependent.Key()
+	for _, feed := range feeds {
+		if slices.Contains(m.dependents[feed.Prefix], key) {
+			continue
+		}
+
+		m.dependents[feed.Prefix] = append(m.dependents[feed.Prefix], key)
+	}
+}
+
 func (m *Manager) Del(ctx context.Context, keys ...string) error {
 	if m == nil || len(keys) == 0 {
 		return nil
 	}
+
+	keys = m.withDependents(keys)
 
 	var firstErr error
 	for _, candidate := range m.engines {
@@ -55,6 +85,29 @@ func (m *Manager) Del(ctx context.Context, keys ...string) error {
 	}
 
 	return firstErr
+}
+
+func (m *Manager) withDependents(keys []string) []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	result := slices.Clone(keys)
+	for prefix, dependents := range m.dependents {
+		matches := slices.ContainsFunc(keys, func(key string) bool {
+			return strings.HasPrefix(key, prefix)
+		})
+		if !matches {
+			continue
+		}
+
+		for _, dependent := range dependents {
+			if !slices.Contains(result, dependent) {
+				result = append(result, dependent)
+			}
+		}
+	}
+
+	return result
 }
 
 func (m *Manager) Ping(ctx context.Context) error {

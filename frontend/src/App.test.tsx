@@ -152,6 +152,7 @@ vi.mock("./platform/webPush", () => ({
     resumeWebPush: vi.fn().mockResolvedValue(undefined),
     webPushConfigured: vi.fn(() => false),
 }));
+vi.mock("./platform/notFoundRedirect", () => ({ redirectToNotFound: vi.fn() }));
 
 const member = makeUser({ id: "user-1", username: "battler" });
 const admin = makeUser({ id: "user-2", username: "beatrice", role: "admin" });

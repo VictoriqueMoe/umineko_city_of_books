@@ -1,10 +1,17 @@
-import { Link } from "react-router";
+import { useEffect } from "react";
+import { Link, useLocation } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { PieceTrigger } from "../../components/easterEgg";
+import { redirectToNotFound } from "../../platform/notFoundRedirect";
 import styles from "./NotFoundPage.module.css";
 
 export function NotFoundPage() {
     usePageTitle("Lost in the Fragment");
+    const { pathname } = useLocation();
+
+    useEffect(() => {
+        redirectToNotFound(pathname);
+    }, [pathname]);
 
     return (
         <div className={styles.page}>

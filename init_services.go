@@ -438,7 +438,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 
 	sitemapSvc := sitemap.NewService(repos.Sitemap, settingsSvc, baseURL)
 
-	siteInfoSvc := siteinfo.NewService(settingsSvc, mysterySvc, gameRoomSvc, vanityRoleSvc, userSecretSvc, authSvc)
+	siteInfoSvc := siteinfo.NewService(settingsSvc, mysterySvc, gameRoomSvc, vanityRoleSvc, userSecretSvc, authSvc, cacheManager)
 
 	ogImageSvc := og.NewImageService(cacheManager, storageSvc)
 

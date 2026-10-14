@@ -9,7 +9,7 @@ docker network create observability
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-This pulls `ghcr.io/victoriquemoe/umineko_city_of_books:latest` instead of building locally. The compose file declares `observability` as an **external** network, so it has to exist before the stack will start. The app and a `postgres-exporter` sidecar both join it and carry `prometheus-scrape` labels, so a Prometheus living on that network scrapes the app on port `4323` at `/metrics` and the exporter on `9187`.
+This pulls `ghcr.io/victoriquemoe/umineko_city_of_books:latest` instead of building locally. The compose file declares `observability` as an **external** network, so it has to exist before the stack will start. The app and a `postgres-exporter` sidecar both join it and carry `prometheus-scrape` labels, so a Prometheus living on that network scrapes the app's internal listener on port `9464` at `/metrics` and the exporter on `9187`.
 
 Two things differ from the dev compose beyond the image source:
 
@@ -20,10 +20,10 @@ Two things differ from the dev compose beyond the image source:
 
 Run behind Caddy, Nginx, or similar for TLS. The server sets the right cache headers itself (`/static/assets/*` immutable, `/uploads/*` and `/hls/*` segments long-lived, `.m3u8` playlists `no-cache`, HTML `no-store`, API `no-cache`), so the proxy mostly just forwards. Four things it does have to get right:
 
-- **Preserve the `Host` header.** The host-authorisation middleware answers 403 to any request whose host does not match the hostname of the `base_url` site setting, so a proxy that rewrites Host takes the whole site down. Only `/health`, `/livez`, `/metrics` and `/api/v1/livekit/webhook` are exempt.
+- **Preserve the `Host` header.** The host-authorisation middleware answers 403 to any request whose host does not match the hostname of the `base_url` site setting, so a proxy that rewrites Host takes the whole site down. Only `/health`, `/livez` and `/api/v1/livekit/webhook` are exempt.
 - **Upgrade WebSocket connections on `/api/v1/ws`**, not `/ws`.
 - **Set `CF-Connecting-IP`.** The app is configured with `ProxyHeader: "CF-Connecting-IP"` and trusts loopback and private peers, so behind anything other than Cloudflare the proxy has to set that header itself. Without it every request is attributed to the proxy's own address, and the session IP hash, rate limits and last-seen IP all read it.
-- **Do not expose `/metrics`.** It is unauthenticated and host-authorisation exempt, so block it at the proxy and let Prometheus reach it over the docker network instead. `/debug/pprof/*` needs no such treatment, it is gated behind the `manage_settings` permission.
+- **Never proxy the internal listener.** `/metrics` and `/debug/pprof/*` are unauthenticated and live on `INTERNAL_ADDR` (default `:9464`), not on the public app, so the proxy never sees them. Compose does not publish that port, so only containers on the docker networks can reach it.
 
 `/uploads/*` and `/hls/*` are served by the app on the same origin, so they need no extra proxy config. That stays true with S3 file storage enabled: the app streams bucket objects through `/uploads/*` itself, with range requests and caching headers intact, so the bucket can stay private and the proxy and CDN rules do not change. If you enable voice chat, also add a `wss://` route to the `livekit` container (see below).
 

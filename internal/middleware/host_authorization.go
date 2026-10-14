@@ -17,7 +17,6 @@ func HostAuthorization(settingsSvc settings.Service) fiber.Handler {
 		Next: func(ctx fiber.Ctx) bool {
 			return ctx.Path() == "/health" ||
 				ctx.Path() == "/livez" ||
-				ctx.Path() == "/metrics" ||
 				ctx.Path() == "/api/v1/livekit/webhook"
 		},
 		AllowedHostsFunc: func(host string) bool {
