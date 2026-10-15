@@ -16,6 +16,8 @@ const TARGET_USERS = parseInt(__ENV.USERS || "200", 10);
 const RAMP = __ENV.RAMP || "2m";
 const HOLD = __ENV.HOLD || "5m";
 const RAMP_DOWN = "30s";
+const WARMUP = __ENV.WARMUP || "15s";
+const WARMUP_VUS = parseInt(__ENV.WARMUP_VUS || "50", 10);
 const HOLD_END_MS = (durationSeconds(RAMP) + durationSeconds(HOLD)) * 1000;
 const THINK_MIN_SECONDS = 2;
 const THINK_MAX_SECONDS = 10;
@@ -61,12 +63,22 @@ const stages = [
 
 export const options = {
     scenarios: {
+        warmup: {
+            executor: "per-vu-iterations",
+            vus: WARMUP_VUS,
+            iterations: 1,
+            maxDuration: WARMUP,
+            exec: "warm",
+            tags: { phase: "warmup" },
+        },
         sockets: {
             executor: "ramping-vus",
             startVUs: 0,
             stages,
             gracefulRampDown: "10s",
             exec: "socket",
+            startTime: WARMUP,
+            tags: { phase: "measure" },
         },
         actions: {
             executor: "ramping-vus",
@@ -74,10 +86,16 @@ export const options = {
             stages,
             gracefulRampDown: "30s",
             exec: "act",
+            startTime: WARMUP,
+            tags: { phase: "measure" },
         },
-        sampler: samplerScenario(`${durationSeconds(RAMP) + durationSeconds(HOLD) + durationSeconds(RAMP_DOWN)}s`),
+        sampler: Object.assign(
+            samplerScenario(`${durationSeconds(RAMP) + durationSeconds(HOLD) + durationSeconds(RAMP_DOWN)}s`),
+            { startTime: WARMUP },
+        ),
     },
     thresholds: {
+        "http_req_duration{phase:measure}": ["max>=0"],
         "http_req_failed{scenario:actions}": ["rate<0.01"],
         "checks{scenario:actions}": ["rate>0.99"],
         "http_req_duration{endpoint:posts-feed}": ["p(95)<500"],
@@ -319,6 +337,19 @@ function pickAction() {
     }
 
     return ACTIONS[0];
+}
+
+export function warm() {
+    get("/api/v1/site-info", "warmup");
+    get("/api/v1/notifications/unread-count", "warmup");
+    get("/api/v1/chat/unread-count", "warmup");
+    get(`/api/v1/posts?corner=${pickOne(CORNERS)}&limit=20`, "warmup");
+
+    const res = get("/api/v1/chat/rooms", "warmup");
+    const roomIDs = res.status === 200 ? (res.json("rooms") || []).map(room => room.id) : [];
+    if (roomIDs.length > 0) {
+        get(`/api/v1/chat/rooms/${pickOne(roomIDs)}/messages?limit=50`, "warmup");
+    }
 }
 
 export function act() {

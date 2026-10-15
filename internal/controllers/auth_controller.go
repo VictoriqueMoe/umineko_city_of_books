@@ -255,7 +255,7 @@ func (s *Service) login(ctx fiber.Ctx) error {
 
 func (s *Service) logout(ctx fiber.Ctx) error {
 	token := ctx.Cookies(session.CookieName)
-	if bearer := session.BearerToken(ctx.Get("Authorization")); bearer != "" {
+	if bearer := ctx.Bearer(); bearer != "" {
 		token = bearer
 	}
 	if err := s.AuthService.Logout(ctx.Context(), token); err != nil {

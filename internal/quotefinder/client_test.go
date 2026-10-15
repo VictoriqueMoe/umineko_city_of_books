@@ -5,18 +5,20 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/cache/engines"
+	"umineko_city_of_books/internal/httpclient"
 )
 
 func newTestClient(t *testing.T, handler http.HandlerFunc) *Client {
 	t.Helper()
 
 	srv := httptest.NewTestServer(t, handler)
-	httpClient := srv.Client()
+	transport := srv.Client().Transport
 
 	c := NewClientWithBaseURL(srv.URL, cache.NewManager(engines.NewInMemory(0)))
-	c.http = httpClient
+	c.http = httpclient.New(10*time.Second, httpclient.WithTransport(transport))
 
 	return c
 }

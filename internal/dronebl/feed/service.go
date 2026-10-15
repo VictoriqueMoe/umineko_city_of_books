@@ -2,9 +2,8 @@ package feed
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -12,6 +11,7 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/httpclient"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/settings"
 )
@@ -37,7 +37,7 @@ type (
 	Service struct {
 		settingsSvc settings.Service
 		cache       *cache.Manager
-		client      *http.Client
+		client      *httpclient.Client
 	}
 )
 
@@ -45,7 +45,7 @@ func New(settingsSvc settings.Service, cacheMgr *cache.Manager) *Service {
 	return &Service{
 		settingsSvc: settingsSvc,
 		cache:       cacheMgr,
-		client:      &http.Client{Timeout: fetchTimeout},
+		client:      httpclient.New(fetchTimeout),
 	}
 }
 
@@ -119,24 +119,17 @@ func (f *Service) Refresh(ctx context.Context) (int, error) {
 }
 
 func (f *Service) fetch(ctx context.Context, url string) ([]netip.Prefix, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("build request: %w", err)
+	var doc document
+	err := f.client.JSON(ctx, httpclient.Request{
+		Method:       http.MethodGet,
+		URL:          url,
+		MaxBodyBytes: maxBytes,
+	}, &doc)
+	if statusErr, ok := errors.AsType[*httpclient.StatusError](err); ok {
+		return nil, fmt.Errorf("fetch: unexpected status %d", statusErr.StatusCode)
 	}
-
-	resp, err := f.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetch: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch: unexpected status %d", resp.StatusCode)
-	}
-
-	var doc document
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxBytes)).Decode(&doc); err != nil {
-		return nil, fmt.Errorf("decode: %w", err)
 	}
 
 	prefixes := prefixesFrom(doc)

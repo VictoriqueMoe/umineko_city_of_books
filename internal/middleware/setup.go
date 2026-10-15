@@ -77,7 +77,7 @@ func Setup(app *fiber.App, settingsSvc settings.Service, authenticator Authentic
 				ip = addr.String()
 			}
 		}
-		ctx.Locals("client_ip", ip)
+		ctx.SetLocal("client_ip", ip)
 		return ctx.Next()
 	})
 

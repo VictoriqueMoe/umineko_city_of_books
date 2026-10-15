@@ -335,14 +335,14 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 			})
 		}
 
-		ctx.Locals(localsBatchKey, ctx.Query("batch") == "1")
+		ctx.SetLocal(localsBatchKey, ctx.Query("batch") == "1")
 
 		token := ctx.Cookies(session.CookieName)
 		if token == "" {
 			token = ctx.Query("token")
 		}
 		if token == "" {
-			ctx.Locals(localsAnonKey, true)
+			ctx.SetLocal(localsAnonKey, true)
 			return wsHandler(ctx)
 		}
 
@@ -359,8 +359,8 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 			})
 		}
 
-		ctx.Locals(localsUserIDKey, userID)
-		ctx.Locals(localsTokenKey, token)
+		ctx.SetLocal(localsUserIDKey, userID)
+		ctx.SetLocal(localsTokenKey, token)
 		return wsHandler(ctx)
 	}
 }

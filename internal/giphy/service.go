@@ -2,9 +2,8 @@ package giphy
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/httpclient"
 )
 
 type (
@@ -51,7 +51,7 @@ type (
 	service struct {
 		apiKey             string
 		baseURL            string
-		httpClient         *http.Client
+		httpClient         *httpclient.Client
 		cache              *cache.Manager
 		rateLimitedUntilNs atomic.Int64
 		banlist            Banlist
@@ -87,13 +87,11 @@ const (
 
 func NewService(banlist Banlist, cacheMgr *cache.Manager) Service {
 	return &service{
-		apiKey:  config.Cfg.GiphyAPIKey,
-		baseURL: defaultBaseURL,
-		httpClient: &http.Client{
-			Timeout: requestTimeout,
-		},
-		cache:   cacheMgr,
-		banlist: banlist,
+		apiKey:     config.Cfg.GiphyAPIKey,
+		baseURL:    defaultBaseURL,
+		httpClient: httpclient.New(requestTimeout),
+		cache:      cacheMgr,
+		banlist:    banlist,
 	}
 }
 
@@ -134,36 +132,33 @@ func baseParams(apiKey string, limit, offset int) url.Values {
 	return p
 }
 
-func (s *service) fetch(ctx context.Context, path string, params url.Values, out any) (int, error) {
+func (s *service) fetch(ctx context.Context, path string, params url.Values, out any) error {
 	if resetAt, blocked := s.rateLimitResetAt(); blocked {
-		return 0, &RateLimitError{ResetAt: resetAt}
+		return &RateLimitError{ResetAt: resetAt}
 	}
-	reqURL := s.baseURL + path
-	if len(params) > 0 {
-		reqURL += "?" + params.Encode()
+
+	err := s.httpClient.JSON(ctx, httpclient.Request{
+		Method: http.MethodGet,
+		URL:    s.baseURL + path,
+		Query:  params,
+	}, out)
+	if err == nil {
+		return nil
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
-	if err != nil {
-		return 0, fmt.Errorf("build giphy request: %w", err)
+
+	statusErr, ok := errors.AsType[*httpclient.StatusError](err)
+	if !ok {
+		return fmt.Errorf("call giphy: %w", err)
 	}
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return 0, fmt.Errorf("call giphy: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusTooManyRequests {
-		resetAt := parseRateLimitReset(resp.Header, time.Now())
+
+	if statusErr.StatusCode == http.StatusTooManyRequests {
+		resetAt := parseRateLimitReset(statusErr.Header, time.Now())
 		s.rateLimitedUntilNs.Store(resetAt.UnixNano())
-		return resp.StatusCode, &RateLimitError{ResetAt: resetAt}
+
+		return &RateLimitError{ResetAt: resetAt}
 	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		return resp.StatusCode, fmt.Errorf("giphy %d: %s", resp.StatusCode, string(body))
-	}
-	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
-		return resp.StatusCode, fmt.Errorf("decode giphy response: %w", err)
-	}
-	return resp.StatusCode, nil
+
+	return fmt.Errorf("giphy: %w", statusErr)
 }
 
 func (s *service) get(ctx context.Context, path string, params url.Values, ttl time.Duration) (*Response, error) {
@@ -176,7 +171,7 @@ func (s *service) get(ctx context.Context, path string, params url.Values, ttl t
 	}
 
 	var out Response
-	if _, err := s.fetch(ctx, path, params, &out); err != nil {
+	if err := s.fetch(ctx, path, params, &out); err != nil {
 		return nil, err
 	}
 
@@ -209,9 +204,8 @@ func (s *service) UserForGif(ctx context.Context, gifID string) (string, bool) {
 		Data Gif `json:"data"`
 	}
 
-	status, err := s.fetch(ctx, "/gifs/"+gifID, params, &payload)
-	if err != nil {
-		if status == http.StatusNotFound {
+	if err := s.fetch(ctx, "/gifs/"+gifID, params, &payload); err != nil {
+		if statusErr, ok := errors.AsType[*httpclient.StatusError](err); ok && statusErr.StatusCode == http.StatusNotFound {
 			_ = s.cache.Set(ctx, key, gifUserEntry{}, cache.GiphyGifUser.TTL)
 		}
 

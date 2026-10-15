@@ -580,7 +580,7 @@ export interface NotificationPage {
 }
 
 export function prependNotification(page: NotificationPage, arrival: Notification): NotificationPage {
-    if (page.notifications.some(n => n.id === arrival.id)) {
+    if (arrival.count > 1 || page.notifications.some(n => n.id === arrival.id)) {
         return page;
     }
 

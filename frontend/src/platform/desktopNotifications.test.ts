@@ -130,7 +130,22 @@ describe("showDesktopNotification", () => {
         expect(osNotif.title).toBe("Lambdadelta liked your post");
         expect(osNotif.options.icon).toBe("/uploads/l.png");
         expect(osNotif.options.badge).toBe("/favicon/favicon-32x32.png");
-        expect(osNotif.options.tag).toBe("notif-42");
+        expect(osNotif.options.tag).toBe("notif-42-1");
+    });
+
+    it("gives every message folded into a chat group its own popup instead of replacing the last", () => {
+        // given
+        vi.spyOn(document, "hasFocus").mockReturnValue(false);
+        const first = makeNotification({ id: 7, type: "chat_room_message", count: 1 });
+        const second = makeNotification({ id: 7, type: "chat_room_message", count: 2 });
+
+        // when
+        showDesktopNotification(first);
+        showDesktopNotification(second);
+
+        // then
+        const tags = StubNotification.instances.map(osNotif => osNotif.options.tag);
+        expect(tags).toEqual(["notif-7-1", "notif-7-2"]);
     });
 
     it("carries the server message across as the notification body", () => {

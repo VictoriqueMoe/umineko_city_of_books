@@ -37,8 +37,8 @@ func Tracing() fiber.Handler {
 
 		sc := span.SpanContext()
 		if sc.IsValid() {
-			ctx.Locals("trace_id", sc.TraceID().String())
-			ctx.Locals("span_id", sc.SpanID().String())
+			ctx.SetLocal("trace_id", sc.TraceID().String())
+			ctx.SetLocal("span_id", sc.SpanID().String())
 			ctx.Set("X-Trace-ID", sc.TraceID().String())
 		}
 

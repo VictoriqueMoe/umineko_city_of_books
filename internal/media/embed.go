@@ -1,6 +1,7 @@
 package media
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net"
@@ -11,6 +12,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"umineko_city_of_books/internal/httpclient"
 
 	"golang.org/x/net/html"
 )
@@ -51,13 +54,15 @@ var (
 		MaxIdleConns:      100,
 		IdleConnTimeout:   90 * time.Second,
 	}
+
+	previewClient = httpclient.New(5*time.Second, httpclient.WithTransport(previewTransport), httpclient.WithMaxRedirects(2))
 )
 
 func ExtractURLs(body string) []string {
 	return urlRegex.FindAllString(body, -1)
 }
 
-func ParseEmbed(rawURL string) *Embed {
+func ParseEmbed(ctx context.Context, rawURL string) *Embed {
 	if vid := extractYouTubeID(rawURL); vid != "" {
 		return &Embed{
 			URL:     rawURL,
@@ -66,7 +71,7 @@ func ParseEmbed(rawURL string) *Embed {
 		}
 	}
 
-	return fetchPreview(rawURL)
+	return fetchPreview(ctx, rawURL)
 }
 
 func extractYouTubeID(rawURL string) string {
@@ -110,30 +115,17 @@ func isPublicAddr(addr netip.Addr) bool {
 	return true
 }
 
-func fetchPreview(rawURL string) *Embed {
+func fetchPreview(ctx context.Context, rawURL string) *Embed {
 	parsed, err := url.Parse(rawURL)
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return nil
 	}
 
-	client := &http.Client{
-		Timeout:   5 * time.Second,
-		Transport: previewTransport,
-		CheckRedirect: func(_ *http.Request, via []*http.Request) error {
-			if len(via) >= 3 {
-				return http.ErrUseLastResponse
-			}
-			return nil
-		},
-	}
-
-	req, err := http.NewRequest("GET", rawURL, nil)
-	if err != nil {
-		return nil
-	}
-	req.Header.Set("User-Agent", "UminekoCityOfBooks/1.0 (link preview)")
-
-	resp, err := client.Do(req)
+	resp, err := previewClient.Do(ctx, httpclient.Request{
+		Method: http.MethodGet,
+		URL:    rawURL,
+		Header: http.Header{"User-Agent": {"UminekoCityOfBooks/1.0 (link preview)"}},
+	})
 	if err != nil {
 		return nil
 	}

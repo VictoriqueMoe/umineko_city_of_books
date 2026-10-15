@@ -53,7 +53,7 @@ func RequireLogin(settingsSvc settings.Service, authenticator Authenticator) fib
 			return ctx.Next()
 		}
 
-		ctx.Locals(PrivateGatedLocal, true)
+		ctx.SetLocal(PrivateGatedLocal, true)
 
 		if privateModeSignIn[path] || servesTheSignInPage(path) {
 			return ctx.Next()
