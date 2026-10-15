@@ -763,6 +763,17 @@ describe("prependNotification", () => {
         expect(next.total).toBe(1);
     });
 
+    it("leaves a message folded into an existing chat group to the refetch instead of listing it as a new row", () => {
+        // given
+        const page = { notifications: [makeNotification({ id: 1 })], total: 30 };
+
+        // when
+        const next = prependNotification(page, makeNotification({ id: 9, type: "chat_room_message", count: 4 }));
+
+        // then
+        expect(next).toBe(page);
+    });
+
     it("hands the very same page back when there is nothing to add, so no render is wasted", () => {
         // given
         const page = { notifications: [makeNotification({ id: 1 })], total: 1 };

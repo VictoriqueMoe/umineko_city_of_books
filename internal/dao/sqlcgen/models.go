@@ -927,6 +927,7 @@ type Notification struct {
 	Read          bool
 	Message       string
 	CreatedAt     time.Time
+	Count         int32
 }
 
 type Oc struct {

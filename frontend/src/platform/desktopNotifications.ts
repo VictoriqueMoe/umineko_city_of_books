@@ -26,7 +26,7 @@ export function showDesktopNotification(notif: Notification): void {
         body: notif.message || "",
         icon: notif.actor?.avatar_url || SITE_ICON,
         badge: "/favicon/favicon-32x32.png",
-        tag: `notif-${notif.id}`,
+        tag: `notif-${notif.id}-${notif.count}`,
     });
     osNotif.onclick = () => {
         window.focus();

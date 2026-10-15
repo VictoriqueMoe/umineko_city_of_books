@@ -2,10 +2,17 @@
 WITH n AS (
     INSERT INTO notifications (user_id, type, reference_id, reference_type, actor_id, message)
     VALUES ($1, $2, $3, $4, $5, $6)
-    RETURNING id, user_id, type, reference_id, reference_type, actor_id, message, read, created_at
+    ON CONFLICT (user_id, type, reference_id) WHERE read = FALSE AND type IN ('chat_room_message', 'chat_message')
+    DO UPDATE SET
+        count = notifications.count + 1,
+        actor_id = CASE WHEN EXCLUDED.created_at >= notifications.created_at THEN EXCLUDED.actor_id ELSE notifications.actor_id END,
+        reference_type = CASE WHEN EXCLUDED.created_at >= notifications.created_at THEN EXCLUDED.reference_type ELSE notifications.reference_type END,
+        message = CASE WHEN EXCLUDED.created_at >= notifications.created_at THEN EXCLUDED.message ELSE notifications.message END,
+        created_at = GREATEST(notifications.created_at, EXCLUDED.created_at)
+    RETURNING id, user_id, type, reference_id, reference_type, actor_id, message, read, created_at, count
 )
 SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id,
-       COALESCE(n.message, '')::text AS message, n.read, n.created_at,
+       COALESCE(n.message, '')::text AS message, n.read, n.created_at, n.count,
        COALESCE(u.username, '')::text AS actor_username,
        COALESCE(u.display_name, '')::text AS actor_display_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -28,10 +35,18 @@ WITH n AS (
                unnest(sqlc.arg(messages)::text[]) AS message
     ) b
     WHERE EXISTS (SELECT 1 FROM users r WHERE r.id = b.user_id)
-    RETURNING id, user_id, type, reference_id, reference_type, actor_id, message, read, created_at
+    ORDER BY b.user_id, b.type, b.reference_id
+    ON CONFLICT (user_id, type, reference_id) WHERE read = FALSE AND type IN ('chat_room_message', 'chat_message')
+    DO UPDATE SET
+        count = notifications.count + 1,
+        actor_id = CASE WHEN EXCLUDED.created_at >= notifications.created_at THEN EXCLUDED.actor_id ELSE notifications.actor_id END,
+        reference_type = CASE WHEN EXCLUDED.created_at >= notifications.created_at THEN EXCLUDED.reference_type ELSE notifications.reference_type END,
+        message = CASE WHEN EXCLUDED.created_at >= notifications.created_at THEN EXCLUDED.message ELSE notifications.message END,
+        created_at = GREATEST(notifications.created_at, EXCLUDED.created_at)
+    RETURNING id, user_id, type, reference_id, reference_type, actor_id, message, read, created_at, count
 )
 SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id,
-       COALESCE(n.message, '')::text AS message, n.read, n.created_at,
+       COALESCE(n.message, '')::text AS message, n.read, n.created_at, n.count,
        COALESCE(u.username, '')::text AS actor_username,
        COALESCE(u.display_name, '')::text AS actor_display_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -42,49 +57,25 @@ LEFT JOIN user_roles ur ON n.actor_id = ur.user_id
 ORDER BY n.id;
 
 -- name: CountUserNotifications :one
-SELECT (
-    (SELECT COUNT(DISTINCT (g.type, g.reference_id)) FROM notifications g
-       WHERE g.user_id = $1 AND g.type = ANY(string_to_array($2::text, ',')) AND g.read = FALSE)
-    +
-    (SELECT COUNT(*) FROM notifications p
-       WHERE p.user_id = $1 AND NOT (p.type = ANY(string_to_array($2::text, ',')) AND p.read = FALSE))
-)::bigint AS total;
+SELECT COUNT(*) FROM notifications WHERE user_id = $1;
 
 -- name: ListUserNotifications :many
-WITH chat_grouped AS (
-    SELECT
-      g.id, g.user_id, g.type, g.reference_id, g.reference_type, g.actor_id, g.message, g.read, g.created_at,
-      ROW_NUMBER() OVER (PARTITION BY g.type, g.reference_id ORDER BY g.created_at DESC, g.id DESC) AS rn,
-      COUNT(*) OVER (PARTITION BY g.type, g.reference_id) AS grp_count
-    FROM notifications g
-    WHERE g.user_id = $1 AND g.type = ANY(string_to_array($2::text, ',')) AND g.read = FALSE
-),
-combined AS (
-    SELECT cg.id, cg.user_id, cg.type, cg.reference_id, cg.reference_type, cg.actor_id,
-           COALESCE(cg.message, '')::text AS message, cg.read, cg.created_at, cg.grp_count::bigint AS count
-    FROM chat_grouped cg
-    WHERE cg.rn = 1
-    UNION ALL
-    SELECT p.id, p.user_id, p.type, p.reference_id, p.reference_type, p.actor_id,
-           COALESCE(p.message, '')::text AS message, p.read, p.created_at, 1::bigint AS count
-    FROM notifications p
-    WHERE p.user_id = $1 AND NOT (p.type = ANY(string_to_array($2::text, ',')) AND p.read = FALSE)
-)
-SELECT c.id, c.user_id, c.type, c.reference_id, c.reference_type, c.actor_id,
-       c.message, c.read, c.created_at, c.count,
+SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id,
+       COALESCE(n.message, '')::text AS message, n.read, n.created_at, n.count,
        COALESCE(u.username, '')::text AS actor_username,
        COALESCE(u.display_name, '')::text AS actor_display_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
        COALESCE(ur.role, '')::text AS actor_role
-FROM combined c
-LEFT JOIN users u ON c.actor_id = u.id
-LEFT JOIN user_roles ur ON c.actor_id = ur.user_id
-ORDER BY c.created_at DESC
-LIMIT $3 OFFSET $4;
+FROM notifications n
+LEFT JOIN users u ON n.actor_id = u.id
+LEFT JOIN user_roles ur ON n.actor_id = ur.user_id
+WHERE n.user_id = $1
+ORDER BY n.created_at DESC
+LIMIT $2 OFFSET $3;
 
 -- name: GetNotificationByID :one
 SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id,
-       COALESCE(n.message, '')::text AS message, n.read, n.created_at,
+       COALESCE(n.message, '')::text AS message, n.read, n.created_at, n.count,
        COALESCE(u.username, '')::text AS actor_username,
        COALESCE(u.display_name, '')::text AS actor_display_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -93,13 +84,6 @@ FROM notifications n
 LEFT JOIN users u ON n.actor_id = u.id
 LEFT JOIN user_roles ur ON n.actor_id = ur.user_id
 WHERE n.id = $1 AND n.user_id = $2;
-
--- name: GetNotificationReadState :one
-SELECT type, reference_id, read FROM notifications WHERE id = $1 AND user_id = $2;
-
--- name: MarkGroupedNotificationsRead :exec
-UPDATE notifications SET read = TRUE
-WHERE user_id = $1 AND type = $2 AND reference_id = $3 AND read = FALSE;
 
 -- name: MarkNotificationRead :exec
 UPDATE notifications SET read = TRUE WHERE id = $1 AND user_id = $2;
@@ -121,7 +105,7 @@ WHERE id IN (
 );
 
 -- name: CountUnreadNotifications :one
-SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND read = FALSE;
+SELECT COALESCE(SUM(count), 0)::bigint FROM notifications WHERE user_id = $1 AND read = FALSE;
 
 -- name: CountRecentDuplicateNotifications :one
 SELECT COUNT(*) FROM notifications

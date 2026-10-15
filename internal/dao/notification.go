@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -42,10 +41,6 @@ type (
 	notificationJoinRow = sqlcgen.GetNotificationByIDRow
 )
 
-var (
-	collapsibleNotifTypes = []dto.NotificationType{dto.NotifChatRoomMessage, dto.NotifChatMessage}
-)
-
 func joinNotifTypes(types []dto.NotificationType) string {
 	parts := make([]string, 0, len(types))
 	for _, t := range types {
@@ -64,7 +59,7 @@ func toNotificationRow(row notificationJoinRow) (model.NotificationRow, error) {
 		Message:          row.Message,
 		Read:             row.Read,
 		CreatedAt:        row.CreatedAt,
-		Count:            1,
+		Count:            int(row.Count),
 		ActorUsername:    row.ActorUsername,
 		ActorDisplayName: row.ActorDisplayName,
 		ActorAvatarURL:   row.ActorAvatarUrl,
@@ -155,21 +150,16 @@ func (r *notificationDAO) CreateMany(ctx context.Context, s []spec.NewNotificati
 
 func (r *notificationDAO) ListByUser(ctx context.Context, q spec.NotificationListing, tx ...*sql.Tx) ([]model.NotificationRow, int, error) {
 	queries := genQueries(r.db, tx)
-	collapsible := joinNotifTypes(collapsibleNotifTypes)
 
-	total, err := queries.CountUserNotifications(ctx, sqlcgen.CountUserNotificationsParams{
-		UserID:  q.UserID,
-		Column2: collapsible,
-	})
+	total, err := queries.CountUserNotifications(ctx, q.UserID)
 	if err != nil {
 		return nil, 0, fmt.Errorf("count notifications: %w", err)
 	}
 
 	rows, err := queries.ListUserNotifications(ctx, sqlcgen.ListUserNotificationsParams{
-		UserID:  q.UserID,
-		Column2: collapsible,
-		Limit:   int32(q.Limit),
-		Offset:  int32(q.Offset),
+		UserID: q.UserID,
+		Limit:  int32(q.Limit),
+		Offset: int32(q.Offset),
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list notifications: %w", err)
@@ -177,26 +167,11 @@ func (r *notificationDAO) ListByUser(ctx context.Context, q spec.NotificationLis
 
 	var notifications []model.NotificationRow
 	for _, row := range rows {
-		n, err := toNotificationRow(notificationJoinRow{
-			ID:               row.ID,
-			UserID:           row.UserID,
-			Type:             row.Type,
-			ReferenceID:      row.ReferenceID,
-			ReferenceType:    row.ReferenceType,
-			ActorID:          row.ActorID,
-			Message:          row.Message,
-			Read:             row.Read,
-			CreatedAt:        row.CreatedAt,
-			ActorUsername:    row.ActorUsername,
-			ActorDisplayName: row.ActorDisplayName,
-			ActorAvatarUrl:   row.ActorAvatarUrl,
-			ActorRole:        row.ActorRole,
-		})
+		n, err := toNotificationRow(notificationJoinRow(row))
 		if err != nil {
 			return nil, 0, err
 		}
 
-		n.Count = int(row.Count)
 		if n.Count > 1 {
 			switch n.Type {
 			case dto.NotifChatRoomMessage:
@@ -234,33 +209,7 @@ func (r *notificationDAO) GetByID(ctx context.Context, s spec.NotificationLookup
 }
 
 func (r *notificationDAO) MarkRead(ctx context.Context, s spec.NotificationLookup, tx ...*sql.Tx) error {
-	queries := genQueries(r.db, tx)
-
-	state, err := queries.GetNotificationReadState(ctx, sqlcgen.GetNotificationReadStateParams{
-		ID:     int64(s.ID),
-		UserID: s.UserID,
-	})
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("lookup notification: %w", err)
-	}
-
-	if !state.Read && slices.Contains(collapsibleNotifTypes, dto.NotificationType(state.Type)) {
-		err = queries.MarkGroupedNotificationsRead(ctx, sqlcgen.MarkGroupedNotificationsReadParams{
-			UserID:      s.UserID,
-			Type:        state.Type,
-			ReferenceID: state.ReferenceID,
-		})
-		if err != nil {
-			return fmt.Errorf("mark grouped notifications read: %w", err)
-		}
-
-		return nil
-	}
-
-	err = queries.MarkNotificationRead(ctx, sqlcgen.MarkNotificationReadParams{
+	err := genQueries(r.db, tx).MarkNotificationRead(ctx, sqlcgen.MarkNotificationReadParams{
 		ID:     int64(s.ID),
 		UserID: s.UserID,
 	})

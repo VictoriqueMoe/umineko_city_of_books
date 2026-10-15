@@ -64,6 +64,15 @@ func notificationUnread(t *testing.T, repos *repository.Repositories, userID uui
 	return count
 }
 
+func notificationStoredRows(t *testing.T, repos *repository.Repositories, userID uuid.UUID) int {
+	t.Helper()
+	var count int
+	err := repos.DB().QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notifications WHERE user_id = $1`, userID).Scan(&count)
+	require.NoError(t, err)
+
+	return count
+}
+
 func notificationSummaries(rows []model.NotificationRow) []notificationSummary {
 	out := make([]notificationSummary, 0, len(rows))
 	for _, r := range rows {
@@ -283,22 +292,24 @@ func TestNotificationDAO_ListByUser_CollapsesUnreadChatGroups(t *testing.T) {
 			continue
 		}
 		sender := dmSenders[r.ReferenceID]
-		assert.Equal(t, sender.ID, r.ActorID, "the collapsed row keeps the latest sender as its actor")
+		assert.Equal(t, sender.ID, r.ActorID, "the collapsed row carries its sender as the actor")
 		assert.Equal(t, sender.DisplayName, r.ActorDisplayName)
 	}
 
-	assert.Equal(t, 19, notificationUnread(t, repos, user.ID), "badge counter must reflect raw row count, not grouped count")
+	assert.Equal(t, 19, notificationUnread(t, repos, user.ID), "the badge counts every unread message, summing each group's count")
+	assert.Equal(t, 7, notificationStoredRows(t, repos, user.ID), "each chat group is stored as one row, not one per message")
 }
 
-func TestNotificationDAO_ListByUser_ReadChatRowsNotGrouped(t *testing.T) {
+func TestNotificationDAO_ListByUser_ReadChatGroupStaysWholeAndANewMessageStartsAnother(t *testing.T) {
 	tests := []struct {
-		name        string
-		notifType   dto.NotificationType
-		message     string
-		wantGrouped string
+		name      string
+		notifType dto.NotificationType
+		message   string
+		wantRead  string
+		wantNew   string
 	}{
-		{name: "read chat room messages are listed individually beside the unread group", notifType: dto.NotifChatRoomMessage, message: "sent a message in General", wantGrouped: "2 messages sent in General"},
-		{name: "read direct messages keep their stored message beside the unread group", notifType: dto.NotifChatMessage, message: "", wantGrouped: "has sent you 2 messages"},
+		{name: "a read chat room group keeps its count and the next messages open a new group", notifType: dto.NotifChatRoomMessage, message: "sent a message in General", wantRead: "3 messages sent in General", wantNew: "2 messages sent in General"},
+		{name: "a read dm group keeps its count and the next messages open a new group", notifType: dto.NotifChatMessage, message: "", wantRead: "has sent you 3 messages", wantNew: "has sent you 2 messages"},
 	}
 
 	for _, tc := range tests {
@@ -317,12 +328,108 @@ func TestNotificationDAO_ListByUser_ReadChatRowsNotGrouped(t *testing.T) {
 			rows, total := notificationList(t, repos, user.ID)
 
 			// then
-			read := notificationSummary{Type: tc.notifType, ReferenceID: refID, Count: 1, Message: tc.message, Read: true}
-			unread := notificationSummary{Type: tc.notifType, ReferenceID: refID, Count: 2, Message: tc.wantGrouped, Read: false}
-			assert.Equal(t, 4, total, "3 read rows stay individual, the 2 unread ones collapse to 1")
-			assert.ElementsMatch(t, []notificationSummary{read, read, read, unread}, notificationSummaries(rows))
+			read := notificationSummary{Type: tc.notifType, ReferenceID: refID, Count: 3, Message: tc.wantRead, Read: true}
+			unread := notificationSummary{Type: tc.notifType, ReferenceID: refID, Count: 2, Message: tc.wantNew, Read: false}
+			assert.Equal(t, 2, total)
+			assert.ElementsMatch(t, []notificationSummary{read, unread}, notificationSummaries(rows))
+			assert.Equal(t, 2, notificationUnread(t, repos, user.ID))
 		})
 	}
+}
+
+func TestNotificationDAO_Create_ChatMessageJoinsTheUnreadGroup(t *testing.T) {
+	// given an unread room group from alice, then a message from bob in the same room and a mention in that room
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	user := daotest.CreateUser(t, repos)
+	alice := daotest.CreateUser(t, repos, daotest.WithUsername("alice"))
+	bob := daotest.CreateUser(t, repos, daotest.WithUsername("bob"))
+	roomID := uuid.New()
+
+	first, err := repos.Notification.Create(ctx, spec.NewNotification{UserID: user.ID, Type: dto.NotifChatRoomMessage, ReferenceID: roomID, ReferenceType: "chat_message:m1", ActorID: alice.ID, Message: "sent a message in Old Name"})
+	require.NoError(t, err)
+	firstAt := time.Now().Add(-time.Hour).UTC()
+	notificationBackdate(t, repos, first.ID, firstAt.Format(time.RFC3339Nano))
+
+	// when
+	second, err := repos.Notification.Create(ctx, spec.NewNotification{UserID: user.ID, Type: dto.NotifChatRoomMessage, ReferenceID: roomID, ReferenceType: "chat_message:m2", ActorID: bob.ID, Message: "sent a message in New Name"})
+	require.NoError(t, err)
+	mention, err := repos.Notification.Create(ctx, spec.NewNotification{UserID: user.ID, Type: dto.NotifChatMention, ReferenceID: roomID, ReferenceType: "chat_message:m3", ActorID: alice.ID})
+	require.NoError(t, err)
+
+	// then the second message updates the same row to the latest sender, message link and room name, and the mention stays its own row
+	assert.Equal(t, first.ID, second.ID)
+	assert.Equal(t, 1, first.Count)
+	assert.Equal(t, 2, second.Count)
+	assert.Equal(t, bob.ID, second.ActorID)
+	assert.Equal(t, "bob", second.ActorUsername)
+	assert.Equal(t, "chat_message:m2", second.ReferenceType)
+	assert.Equal(t, "sent a message in New Name", second.Message)
+	assert.True(t, second.CreatedAt.After(firstAt.Add(time.Minute)), "the row's time moves forward to the newest message")
+	assert.NotEqual(t, first.ID, mention.ID)
+	assert.Equal(t, 1, mention.Count)
+	assert.Equal(t, 2, notificationStoredRows(t, repos, user.ID))
+	assert.Equal(t, 3, notificationUnread(t, repos, user.ID))
+}
+
+func TestNotificationDAO_Create_OlderMessageCountsButKeepsTheNewestSender(t *testing.T) {
+	// given an unread group whose newest message is stamped after the incoming one, as when two sends commit out of order
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	user := daotest.CreateUser(t, repos)
+	alice := daotest.CreateUser(t, repos)
+	bob := daotest.CreateUser(t, repos)
+	roomID := uuid.New()
+
+	newest, err := repos.Notification.Create(ctx, spec.NewNotification{UserID: user.ID, Type: dto.NotifChatRoomMessage, ReferenceID: roomID, ReferenceType: "chat_message:newest", ActorID: alice.ID, Message: "sent a message in New Name"})
+	require.NoError(t, err)
+	newestAt := time.Now().Add(time.Hour).UTC()
+	notificationBackdate(t, repos, newest.ID, newestAt.Format(time.RFC3339Nano))
+
+	// when
+	older, err := repos.Notification.Create(ctx, spec.NewNotification{UserID: user.ID, Type: dto.NotifChatRoomMessage, ReferenceID: roomID, ReferenceType: "chat_message:older", ActorID: bob.ID, Message: "sent a message in Old Name"})
+	require.NoError(t, err)
+
+	// then the count goes up but the row still shows the newest message
+	assert.Equal(t, newest.ID, older.ID)
+	assert.Equal(t, 2, older.Count)
+	assert.Equal(t, alice.ID, older.ActorID)
+	assert.Equal(t, "chat_message:newest", older.ReferenceType)
+	assert.Equal(t, "sent a message in New Name", older.Message)
+	assert.WithinDuration(t, newestAt, older.CreatedAt, time.Millisecond)
+}
+
+func TestNotificationDAO_CreateMany_ChatMessagesFoldIntoEachRecipientsGroup(t *testing.T) {
+	// given two recipients, one already holding an unread group for the room
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	held := daotest.CreateUser(t, repos)
+	fresh := daotest.CreateUser(t, repos)
+	actor := daotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	message := func(userID uuid.UUID, ref string) spec.NewNotification {
+		return spec.NewNotification{UserID: userID, Type: dto.NotifChatRoomMessage, ReferenceID: roomID, ReferenceType: ref, ActorID: actor.ID, Message: "sent a message in Room"}
+	}
+
+	existing, err := repos.Notification.Create(ctx, message(held.ID, "chat_message:m1"))
+	require.NoError(t, err)
+
+	// when
+	created, err := repos.Notification.CreateMany(ctx, []spec.NewNotification{message(held.ID, "chat_message:m2"), message(fresh.ID, "chat_message:m2")})
+
+	// then every recipient gets a row back, the holder's being the same row with a higher count
+	require.NoError(t, err)
+	require.Len(t, created, 2)
+	counts := map[uuid.UUID]int{}
+	for _, row := range created {
+		counts[row.UserID] = row.Count
+		assert.Equal(t, "chat_message:m2", row.ReferenceType)
+		if row.UserID == held.ID {
+			assert.Equal(t, existing.ID, row.ID)
+		}
+	}
+	assert.Equal(t, map[uuid.UUID]int{held.ID: 2, fresh.ID: 1}, counts)
+	assert.Equal(t, 1, notificationStoredRows(t, repos, held.ID))
 }
 
 func TestNotificationDAO_MarkRead(t *testing.T) {
@@ -410,13 +517,14 @@ func TestNotificationDAO_MarkRead_GroupedRowMarksEntireGroup(t *testing.T) {
 			assert.Equal(t, 3, notificationUnread(t, repos, user.ID), "one click clears all 4 and leaves the other group alone")
 
 			after, total := notificationList(t, repos, user.ID)
-			assert.Equal(t, 5, total, "4 read rows plus 1 grouped unread row")
-			require.Len(t, after, 5)
+			assert.Equal(t, 2, total, "the read group and the untouched unread group")
+			require.Len(t, after, 2)
 
 			var survivors int
 			for _, r := range after {
 				if r.Read {
 					assert.Equal(t, tc.markType, r.Type)
+					assert.Equal(t, 4, r.Count)
 					continue
 				}
 				survivors++

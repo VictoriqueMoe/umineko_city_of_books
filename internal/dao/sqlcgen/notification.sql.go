@@ -58,46 +58,42 @@ func (q *Queries) CountRecentNotificationsFromActor(ctx context.Context, arg Cou
 }
 
 const countUnreadNotifications = `-- name: CountUnreadNotifications :one
-SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND read = FALSE
+SELECT COALESCE(SUM(count), 0)::bigint FROM notifications WHERE user_id = $1 AND read = FALSE
 `
 
 func (q *Queries) CountUnreadNotifications(ctx context.Context, userID uuid.UUID) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countUnreadNotifications, userID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const countUserNotifications = `-- name: CountUserNotifications :one
-SELECT (
-    (SELECT COUNT(DISTINCT (g.type, g.reference_id)) FROM notifications g
-       WHERE g.user_id = $1 AND g.type = ANY(string_to_array($2::text, ',')) AND g.read = FALSE)
-    +
-    (SELECT COUNT(*) FROM notifications p
-       WHERE p.user_id = $1 AND NOT (p.type = ANY(string_to_array($2::text, ',')) AND p.read = FALSE))
-)::bigint AS total
+SELECT COUNT(*) FROM notifications WHERE user_id = $1
 `
 
-type CountUserNotificationsParams struct {
-	UserID  uuid.UUID
-	Column2 string
-}
-
-func (q *Queries) CountUserNotifications(ctx context.Context, arg CountUserNotificationsParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countUserNotifications, arg.UserID, arg.Column2)
-	var total int64
-	err := row.Scan(&total)
-	return total, err
+func (q *Queries) CountUserNotifications(ctx context.Context, userID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUserNotifications, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const createNotification = `-- name: CreateNotification :one
 WITH n AS (
     INSERT INTO notifications (user_id, type, reference_id, reference_type, actor_id, message)
     VALUES ($1, $2, $3, $4, $5, $6)
-    RETURNING id, user_id, type, reference_id, reference_type, actor_id, message, read, created_at
+    ON CONFLICT (user_id, type, reference_id) WHERE read = FALSE AND type IN ('chat_room_message', 'chat_message')
+    DO UPDATE SET
+        count = notifications.count + 1,
+        actor_id = CASE WHEN EXCLUDED.created_at >= notifications.created_at THEN EXCLUDED.actor_id ELSE notifications.actor_id END,
+        reference_type = CASE WHEN EXCLUDED.created_at >= notifications.created_at THEN EXCLUDED.reference_type ELSE notifications.reference_type END,
+        message = CASE WHEN EXCLUDED.created_at >= notifications.created_at THEN EXCLUDED.message ELSE notifications.message END,
+        created_at = GREATEST(notifications.created_at, EXCLUDED.created_at)
+    RETURNING id, user_id, type, reference_id, reference_type, actor_id, message, read, created_at, count
 )
 SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id,
-       COALESCE(n.message, '')::text AS message, n.read, n.created_at,
+       COALESCE(n.message, '')::text AS message, n.read, n.created_at, n.count,
        COALESCE(u.username, '')::text AS actor_username,
        COALESCE(u.display_name, '')::text AS actor_display_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -126,6 +122,7 @@ type CreateNotificationRow struct {
 	Message          string
 	Read             bool
 	CreatedAt        time.Time
+	Count            int32
 	ActorUsername    string
 	ActorDisplayName string
 	ActorAvatarUrl   string
@@ -152,6 +149,7 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 		&i.Message,
 		&i.Read,
 		&i.CreatedAt,
+		&i.Count,
 		&i.ActorUsername,
 		&i.ActorDisplayName,
 		&i.ActorAvatarUrl,
@@ -174,10 +172,18 @@ WITH n AS (
                unnest($6::text[]) AS message
     ) b
     WHERE EXISTS (SELECT 1 FROM users r WHERE r.id = b.user_id)
-    RETURNING id, user_id, type, reference_id, reference_type, actor_id, message, read, created_at
+    ORDER BY b.user_id, b.type, b.reference_id
+    ON CONFLICT (user_id, type, reference_id) WHERE read = FALSE AND type IN ('chat_room_message', 'chat_message')
+    DO UPDATE SET
+        count = notifications.count + 1,
+        actor_id = CASE WHEN EXCLUDED.created_at >= notifications.created_at THEN EXCLUDED.actor_id ELSE notifications.actor_id END,
+        reference_type = CASE WHEN EXCLUDED.created_at >= notifications.created_at THEN EXCLUDED.reference_type ELSE notifications.reference_type END,
+        message = CASE WHEN EXCLUDED.created_at >= notifications.created_at THEN EXCLUDED.message ELSE notifications.message END,
+        created_at = GREATEST(notifications.created_at, EXCLUDED.created_at)
+    RETURNING id, user_id, type, reference_id, reference_type, actor_id, message, read, created_at, count
 )
 SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id,
-       COALESCE(n.message, '')::text AS message, n.read, n.created_at,
+       COALESCE(n.message, '')::text AS message, n.read, n.created_at, n.count,
        COALESCE(u.username, '')::text AS actor_username,
        COALESCE(u.display_name, '')::text AS actor_display_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -207,6 +213,7 @@ type CreateNotificationsRow struct {
 	Message          string
 	Read             bool
 	CreatedAt        time.Time
+	Count            int32
 	ActorUsername    string
 	ActorDisplayName string
 	ActorAvatarUrl   string
@@ -239,6 +246,7 @@ func (q *Queries) CreateNotifications(ctx context.Context, arg CreateNotificatio
 			&i.Message,
 			&i.Read,
 			&i.CreatedAt,
+			&i.Count,
 			&i.ActorUsername,
 			&i.ActorDisplayName,
 			&i.ActorAvatarUrl,
@@ -282,7 +290,7 @@ func (q *Queries) DeleteNotificationsOlderThanBatch(ctx context.Context, arg Del
 
 const getNotificationByID = `-- name: GetNotificationByID :one
 SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id,
-       COALESCE(n.message, '')::text AS message, n.read, n.created_at,
+       COALESCE(n.message, '')::text AS message, n.read, n.created_at, n.count,
        COALESCE(u.username, '')::text AS actor_username,
        COALESCE(u.display_name, '')::text AS actor_display_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -308,6 +316,7 @@ type GetNotificationByIDRow struct {
 	Message          string
 	Read             bool
 	CreatedAt        time.Time
+	Count            int32
 	ActorUsername    string
 	ActorDisplayName string
 	ActorAvatarUrl   string
@@ -327,6 +336,7 @@ func (q *Queries) GetNotificationByID(ctx context.Context, arg GetNotificationBy
 		&i.Message,
 		&i.Read,
 		&i.CreatedAt,
+		&i.Count,
 		&i.ActorUsername,
 		&i.ActorDisplayName,
 		&i.ActorAvatarUrl,
@@ -335,66 +345,25 @@ func (q *Queries) GetNotificationByID(ctx context.Context, arg GetNotificationBy
 	return i, err
 }
 
-const getNotificationReadState = `-- name: GetNotificationReadState :one
-SELECT type, reference_id, read FROM notifications WHERE id = $1 AND user_id = $2
-`
-
-type GetNotificationReadStateParams struct {
-	ID     int64
-	UserID uuid.UUID
-}
-
-type GetNotificationReadStateRow struct {
-	Type        string
-	ReferenceID string
-	Read        bool
-}
-
-func (q *Queries) GetNotificationReadState(ctx context.Context, arg GetNotificationReadStateParams) (GetNotificationReadStateRow, error) {
-	row := q.db.QueryRowContext(ctx, getNotificationReadState, arg.ID, arg.UserID)
-	var i GetNotificationReadStateRow
-	err := row.Scan(&i.Type, &i.ReferenceID, &i.Read)
-	return i, err
-}
-
 const listUserNotifications = `-- name: ListUserNotifications :many
-WITH chat_grouped AS (
-    SELECT
-      g.id, g.user_id, g.type, g.reference_id, g.reference_type, g.actor_id, g.message, g.read, g.created_at,
-      ROW_NUMBER() OVER (PARTITION BY g.type, g.reference_id ORDER BY g.created_at DESC, g.id DESC) AS rn,
-      COUNT(*) OVER (PARTITION BY g.type, g.reference_id) AS grp_count
-    FROM notifications g
-    WHERE g.user_id = $1 AND g.type = ANY(string_to_array($2::text, ',')) AND g.read = FALSE
-),
-combined AS (
-    SELECT cg.id, cg.user_id, cg.type, cg.reference_id, cg.reference_type, cg.actor_id,
-           COALESCE(cg.message, '')::text AS message, cg.read, cg.created_at, cg.grp_count::bigint AS count
-    FROM chat_grouped cg
-    WHERE cg.rn = 1
-    UNION ALL
-    SELECT p.id, p.user_id, p.type, p.reference_id, p.reference_type, p.actor_id,
-           COALESCE(p.message, '')::text AS message, p.read, p.created_at, 1::bigint AS count
-    FROM notifications p
-    WHERE p.user_id = $1 AND NOT (p.type = ANY(string_to_array($2::text, ',')) AND p.read = FALSE)
-)
-SELECT c.id, c.user_id, c.type, c.reference_id, c.reference_type, c.actor_id,
-       c.message, c.read, c.created_at, c.count,
+SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id,
+       COALESCE(n.message, '')::text AS message, n.read, n.created_at, n.count,
        COALESCE(u.username, '')::text AS actor_username,
        COALESCE(u.display_name, '')::text AS actor_display_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
        COALESCE(ur.role, '')::text AS actor_role
-FROM combined c
-LEFT JOIN users u ON c.actor_id = u.id
-LEFT JOIN user_roles ur ON c.actor_id = ur.user_id
-ORDER BY c.created_at DESC
-LIMIT $3 OFFSET $4
+FROM notifications n
+LEFT JOIN users u ON n.actor_id = u.id
+LEFT JOIN user_roles ur ON n.actor_id = ur.user_id
+WHERE n.user_id = $1
+ORDER BY n.created_at DESC
+LIMIT $2 OFFSET $3
 `
 
 type ListUserNotificationsParams struct {
-	UserID  uuid.UUID
-	Column2 string
-	Limit   int32
-	Offset  int32
+	UserID uuid.UUID
+	Limit  int32
+	Offset int32
 }
 
 type ListUserNotificationsRow struct {
@@ -407,7 +376,7 @@ type ListUserNotificationsRow struct {
 	Message          string
 	Read             bool
 	CreatedAt        time.Time
-	Count            int64
+	Count            int32
 	ActorUsername    string
 	ActorDisplayName string
 	ActorAvatarUrl   string
@@ -415,12 +384,7 @@ type ListUserNotificationsRow struct {
 }
 
 func (q *Queries) ListUserNotifications(ctx context.Context, arg ListUserNotificationsParams) ([]ListUserNotificationsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listUserNotifications,
-		arg.UserID,
-		arg.Column2,
-		arg.Limit,
-		arg.Offset,
-	)
+	rows, err := q.db.QueryContext(ctx, listUserNotifications, arg.UserID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -463,22 +427,6 @@ UPDATE notifications SET read = TRUE WHERE user_id = $1 AND read = FALSE
 
 func (q *Queries) MarkAllNotificationsRead(ctx context.Context, userID uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, markAllNotificationsRead, userID)
-	return err
-}
-
-const markGroupedNotificationsRead = `-- name: MarkGroupedNotificationsRead :exec
-UPDATE notifications SET read = TRUE
-WHERE user_id = $1 AND type = $2 AND reference_id = $3 AND read = FALSE
-`
-
-type MarkGroupedNotificationsReadParams struct {
-	UserID      uuid.UUID
-	Type        string
-	ReferenceID string
-}
-
-func (q *Queries) MarkGroupedNotificationsRead(ctx context.Context, arg MarkGroupedNotificationsReadParams) error {
-	_, err := q.db.ExecContext(ctx, markGroupedNotificationsRead, arg.UserID, arg.Type, arg.ReferenceID)
 	return err
 }
 
