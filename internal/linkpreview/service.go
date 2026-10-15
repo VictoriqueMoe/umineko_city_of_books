@@ -32,7 +32,7 @@ type (
 
 	service struct {
 		cache *cache.Manager
-		parse func(rawURL string) *media.Embed
+		parse func(ctx context.Context, rawURL string) *media.Embed
 		group singleflight.Group
 	}
 )
@@ -56,7 +56,7 @@ func (s *service) Resolve(ctx context.Context, rawURL string) (dto.LinkPreviewRe
 	storeCtx := context.WithoutCancel(ctx)
 
 	resolved, _, _ := s.group.Do(key, func() (any, error) {
-		preview := toResponse(rawURL, s.parse(rawURL))
+		preview := toResponse(rawURL, s.parse(storeCtx, rawURL))
 
 		ttl := cache.LinkPreview.TTL
 		if preview.Type == "" {

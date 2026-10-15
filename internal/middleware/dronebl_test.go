@@ -50,7 +50,7 @@ func droneblApp(t *testing.T, tc droneblCase) *fiber.App {
 
 	app := fiber.New()
 	app.Use(func(ctx fiber.Ctx) error {
-		ctx.Locals("client_ip", "190.114.41.165")
+		ctx.SetLocal("client_ip", "190.114.41.165")
 
 		return ctx.Next()
 	})

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/httpclient"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,12 +19,12 @@ import (
 func newTestService(t *testing.T, handler http.HandlerFunc) *service {
 	t.Helper()
 	srv := httptest.NewTestServer(t, handler)
-	httpClient := srv.Client()
+	transport := srv.Client().Transport
 
 	return &service{
 		apiKey:     "test-key",
 		baseURL:    srv.URL,
-		httpClient: httpClient,
+		httpClient: httpclient.New(requestTimeout, httpclient.WithTransport(transport)),
 	}
 }
 

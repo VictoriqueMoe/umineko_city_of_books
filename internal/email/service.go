@@ -1,12 +1,10 @@
 package email
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"regexp"
@@ -15,6 +13,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/httpclient"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/settings"
 
@@ -33,7 +32,7 @@ type (
 		settingsSvc settings.Service
 		mu          sync.RWMutex
 		client      *mail.Client
-		httpClient  *http.Client
+		httpClient  *httpclient.Client
 	}
 
 	cloudflareAddress struct {
@@ -63,7 +62,7 @@ var (
 func NewService(settingsSvc settings.Service) Service {
 	svc := &service{
 		settingsSvc: settingsSvc,
-		httpClient:  &http.Client{Timeout: 30 * time.Second},
+		httpClient:  httpclient.New(30 * time.Second),
 	}
 	svc.buildClient()
 	return svc
@@ -219,39 +218,27 @@ func (s *service) sendCloudflare(ctx context.Context, to, subject, body string) 
 		Text:    htmlToText(body),
 	}
 
-	raw, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("marshal cloudflare request: %w", err)
+	var raw json.RawMessage
+	err := s.httpClient.JSON(ctx, httpclient.Request{
+		Method: http.MethodPost,
+		URL:    fmt.Sprintf("https://api.cloudflare.com/client/v4/accounts/%s/email/sending/send", accountID),
+		Bearer: apiToken,
+		JSON:   payload,
+	}, &raw)
+	if _, ok := errors.AsType[*httpclient.StatusError](err); ok {
+		return fmt.Errorf("cloudflare email failed: %w", err)
 	}
-
-	endpoint := fmt.Sprintf("https://api.cloudflare.com/client/v4/accounts/%s/email/sending/send", accountID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(raw))
-	if err != nil {
-		return fmt.Errorf("build cloudflare request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+apiToken)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("send cloudflare email: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read cloudflare response: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("cloudflare email failed: status %d: %s", resp.StatusCode, string(respBody))
-	}
 
 	var parsed cloudflareSendResponse
-	if err := json.Unmarshal(respBody, &parsed); err != nil {
+	if err := json.Unmarshal(raw, &parsed); err != nil {
 		return fmt.Errorf("decode cloudflare response: %w", err)
 	}
+
 	if !parsed.Success {
-		return fmt.Errorf("cloudflare email rejected: %s", string(respBody))
+		return fmt.Errorf("cloudflare email rejected: %s", raw)
 	}
 
 	return nil

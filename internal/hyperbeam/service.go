@@ -1,17 +1,17 @@
 package hyperbeam
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/httpclient"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/settings"
 )
@@ -62,7 +62,7 @@ type (
 	service struct {
 		settingsSvc settings.Service
 		baseURL     string
-		httpClient  *http.Client
+		client      *httpclient.Client
 	}
 )
 
@@ -76,9 +76,7 @@ func NewService(settingsSvc settings.Service) Service {
 	svc := &service{
 		settingsSvc: settingsSvc,
 		baseURL:     defaultBaseURL,
-		httpClient: &http.Client{
-			Timeout: requestTimeout,
-		},
+		client:      httpclient.New(requestTimeout),
 	}
 	if !svc.Enabled() {
 		logger.Log.Warn().Msg("no hyperbeam api key is set: virtual browser watch parties are disabled until one is saved in admin settings")
@@ -197,41 +195,19 @@ func (s *service) do(ctx context.Context, method, fullURL string, body any, out 
 }
 
 func (s *service) doAs(ctx context.Context, bearer, method, fullURL string, body any, out any) error {
-	var reqBody io.Reader
-	if body != nil {
-		buf, err := json.Marshal(body)
-		if err != nil {
-			return fmt.Errorf("encode hyperbeam request: %w", err)
-		}
-		reqBody = bytes.NewReader(buf)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, fullURL, reqBody)
-	if err != nil {
-		return fmt.Errorf("build hyperbeam request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+bearer)
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("call hyperbeam: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		raw, _ := io.ReadAll(resp.Body)
-		return &APIError{StatusCode: resp.StatusCode, Code: extractErrorCode(raw), Body: string(raw)}
-	}
-
-	if out == nil || resp.StatusCode == http.StatusNoContent {
+	err := s.client.JSON(ctx, httpclient.Request{
+		Method: method,
+		URL:    fullURL,
+		Bearer: bearer,
+		JSON:   body,
+	}, out)
+	if err == nil {
 		return nil
 	}
-	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
-		return fmt.Errorf("decode hyperbeam response: %w", err)
+
+	if statusErr, ok := errors.AsType[*httpclient.StatusError](err); ok {
+		return &APIError{StatusCode: statusErr.StatusCode, Code: extractErrorCode(statusErr.Body), Body: string(statusErr.Body)}
 	}
 
-	return nil
+	return fmt.Errorf("call hyperbeam: %w", err)
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/httpclient"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/stretchr/testify/mock"
@@ -21,14 +22,15 @@ func newTestService(t *testing.T, apiKey, baseURL string, httpClient *http.Clien
 	settingsSvc := settings.NewMockService(t)
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingHyperbeamAPIKey).Return(apiKey).Maybe()
 
-	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 5 * time.Second}
+	client := httpclient.New(5 * time.Second)
+	if httpClient != nil {
+		client = httpclient.New(5*time.Second, httpclient.WithTransport(httpClient.Transport))
 	}
 
 	return &service{
 		settingsSvc: settingsSvc,
 		baseURL:     baseURL,
-		httpClient:  httpClient,
+		client:      client,
 	}
 }
 

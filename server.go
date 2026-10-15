@@ -183,9 +183,10 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 			Loopback: true,
 			Private:  true,
 		},
-		EnableIPValidation: true,
-		CaseSensitive:      true,
-		AppName:            siteName,
+		EnableIPValidation:   true,
+		CaseSensitive:        true,
+		DisableFlashMessages: true,
+		AppName:              siteName,
 	})
 
 	middleware.Setup(app, settingsSvc, svc.auth, svc.authz, svc.dronebl)

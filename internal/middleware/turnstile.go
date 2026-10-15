@@ -2,11 +2,13 @@ package middleware
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/httpclient"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/settings"
 
@@ -14,7 +16,7 @@ import (
 )
 
 var (
-	turnstileClient = &http.Client{Timeout: 5 * time.Second}
+	turnstileClient = httpclient.New(5 * time.Second)
 )
 
 func RequireTurnstile(settingsSvc settings.Service) fiber.Handler {
@@ -41,27 +43,36 @@ func RequireTurnstile(settingsSvc settings.Service) fiber.Handler {
 			})
 		}
 
-		resp, err := turnstileClient.PostForm("https://challenges.cloudflare.com/turnstile/v0/siteverify",
-			url.Values{
-				"secret":   {secretKey},
-				"response": {partial.TurnstileToken},
-			},
-		)
-		if err != nil {
-			logger.Ctx(ctx.Context()).Error().Err(err).Msg("turnstile verification request failed")
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "verification failed",
-			})
-		}
-		defer resp.Body.Close()
-
 		var result struct {
 			Success    bool     `json:"success"`
 			ErrorCodes []string `json:"error-codes"`
 			Hostname   string   `json:"hostname"`
 		}
-		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-			logger.Ctx(ctx.Context()).Error().Err(err).Int("status", resp.StatusCode).Msg("turnstile response decode failed")
+		err := turnstileClient.JSON(ctx.Context(), httpclient.Request{
+			Method: http.MethodPost,
+			URL:    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+			Form: url.Values{
+				"secret":   {secretKey},
+				"response": {partial.TurnstileToken},
+			},
+		}, &result)
+		if statusErr, ok := errors.AsType[*httpclient.StatusError](err); ok {
+			logger.Ctx(ctx.Context()).Error().
+				Int("status", statusErr.StatusCode).
+				Bytes("body", statusErr.Body).
+				Str("path", ctx.Path()).
+				Msg("turnstile verification returned an error status")
+
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "verification failed",
+			})
+		}
+		if err != nil {
+			logger.Ctx(ctx.Context()).Error().
+				Err(err).
+				Str("path", ctx.Path()).
+				Msg("turnstile verification request failed")
+
 			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "verification failed",
 			})

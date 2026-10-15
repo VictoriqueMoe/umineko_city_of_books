@@ -2,13 +2,14 @@ package quotefinder
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/httpclient"
 )
 
 const (
@@ -35,7 +36,7 @@ type (
 	}
 
 	Client struct {
-		http    *http.Client
+		http    *httpclient.Client
 		baseURL string
 		cache   *cache.Manager
 	}
@@ -47,7 +48,7 @@ func NewClient(cacheManager *cache.Manager) *Client {
 
 func NewClientWithBaseURL(baseURL string, cacheManager *cache.Manager) *Client {
 	return &Client{
-		http:    &http.Client{Timeout: 10 * time.Second},
+		http:    httpclient.New(10 * time.Second),
 		baseURL: baseURL,
 		cache:   cacheManager,
 	}
@@ -64,24 +65,10 @@ func (c *Client) ListCharacters(ctx context.Context, series Series) ([]Character
 }
 
 func (c *Client) fetchCharacters(ctx context.Context, series Series) ([]Character, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s/characters", c.baseURL, series), nil)
-	if err != nil {
-		return nil, fmt.Errorf("build characters request: %w", err)
-	}
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("fetch characters: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch characters: status %d", resp.StatusCode)
-	}
-
 	var wrapper charactersResponse
-	if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
-		return nil, fmt.Errorf("decode characters: %w", err)
+	req := httpclient.Request{Method: http.MethodGet, URL: fmt.Sprintf("%s/%s/characters", c.baseURL, series)}
+	if err := c.http.JSON(ctx, req, &wrapper); err != nil {
+		return nil, fmt.Errorf("fetch characters: %w", err)
 	}
 
 	result := make([]Character, 0, len(wrapper.Characters)+len(wrapper.Additional))
@@ -122,28 +109,13 @@ func (c *Client) GetByIndex(ctx context.Context, series Series, index int) (*Quo
 }
 
 func (c *Client) fetchQuote(ctx context.Context, quoteURL string) (*Quote, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, quoteURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("build quote request: %w", err)
-	}
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("fetch quote: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
+	var q Quote
+	err := c.http.JSON(ctx, httpclient.Request{Method: http.MethodGet, URL: quoteURL}, &q)
+	if statusErr, ok := errors.AsType[*httpclient.StatusError](err); ok && statusErr.StatusCode == http.StatusNotFound {
 		return nil, nil
 	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch quote: status %d", resp.StatusCode)
-	}
-
-	var q Quote
-	if err := json.NewDecoder(resp.Body).Decode(&q); err != nil {
-		return nil, fmt.Errorf("decode quote: %w", err)
+	if err != nil {
+		return nil, fmt.Errorf("fetch quote: %w", err)
 	}
 
 	return &q, nil

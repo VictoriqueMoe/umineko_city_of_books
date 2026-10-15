@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/httpclient"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/wneessen/go-mail"
@@ -55,7 +56,7 @@ func newServiceWithSettings(t *testing.T, values map[*config.SiteSettingDef]stri
 
 	svc := NewService(settingsSvc).(*service)
 	if rt != nil {
-		svc.httpClient = &http.Client{Transport: rt}
+		svc.httpClient = httpclient.New(0, httpclient.WithTransport(rt))
 	}
 
 	return svc

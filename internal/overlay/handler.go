@@ -125,8 +125,8 @@ func (s *service) Handler() fiber.Handler {
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "account is banned"})
 		}
 
-		ctx.Locals(localsUserIDKey, userID)
-		ctx.Locals(localsTokenKey, token)
+		ctx.SetLocal(localsUserIDKey, userID)
+		ctx.SetLocal(localsTokenKey, token)
 		return wsHandler(ctx)
 	}
 }

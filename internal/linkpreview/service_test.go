@@ -26,7 +26,7 @@ func newCountingService(t *testing.T, embed *media.Embed, delay time.Duration) (
 	t.Helper()
 
 	calls := new(atomic.Int64)
-	parse := func(rawURL string) *media.Embed {
+	parse := func(_ context.Context, rawURL string) *media.Embed {
 		calls.Add(1)
 		time.Sleep(delay)
 

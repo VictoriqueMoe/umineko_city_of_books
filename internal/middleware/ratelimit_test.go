@@ -85,7 +85,7 @@ func TestRateLimitByClientIP_KeysOnResolvedClientIP(t *testing.T) {
 			app := fiber.New()
 			app.Use(func(ctx fiber.Ctx) error {
 				call++
-				ctx.Locals("client_ip", tc.ipForCall(call))
+				ctx.SetLocal("client_ip", tc.ipForCall(call))
 				return ctx.Next()
 			})
 			app.Post("/limited", RateLimitMail(), func(ctx fiber.Ctx) error {
@@ -129,7 +129,7 @@ func TestRateLimitByAccount_KeysOnBodyFieldNotIP(t *testing.T) {
 			app := fiber.New()
 			call := 0
 			app.Use(func(ctx fiber.Ctx) error {
-				ctx.Locals("client_ip", tc.ipFor(call))
+				ctx.SetLocal("client_ip", tc.ipFor(call))
 				return ctx.Next()
 			})
 			app.Post("/limited", RateLimitCredentialsByAccount("username"), func(ctx fiber.Ctx) error {

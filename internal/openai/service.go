@@ -22,6 +22,7 @@ import (
 	"github.com/openai/openai-go/v3/shared"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/httpclient"
 	"umineko_city_of_books/internal/settings"
 )
 
@@ -69,7 +70,7 @@ type (
 	service struct {
 		settingsSvc        settings.Service
 		baseURL            string
-		httpClient         *http.Client
+		httpClient         *httpclient.Client
 		mu                 sync.RWMutex
 		apiKey             string
 		adminKey           string
@@ -106,9 +107,7 @@ func newService(settingsSvc settings.Service, baseURL string) *service {
 	s := &service{
 		settingsSvc: settingsSvc,
 		baseURL:     baseURL,
-		httpClient: &http.Client{
-			Timeout: requestTimeout,
-		},
+		httpClient:  httpclient.New(requestTimeout),
 	}
 
 	s.reload()
@@ -148,7 +147,7 @@ func (s *service) reload() {
 func (s *service) newClient(auth option.RequestOption) sdk.Client {
 	return sdk.NewClient(
 		option.WithBaseURL(s.baseURL),
-		option.WithHTTPClient(s.httpClient),
+		option.WithHTTPClient(s.httpClient.HTTP()),
 		option.WithMaxRetries(0),
 		auth,
 	)

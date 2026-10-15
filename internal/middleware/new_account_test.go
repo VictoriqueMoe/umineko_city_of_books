@@ -28,7 +28,7 @@ func newAccountApp(t *testing.T, userID uuid.UUID, restricted bool) *fiber.App {
 
 	app := fiber.New()
 	app.Post("/upload", func(ctx fiber.Ctx) error {
-		ctx.Locals("userID", userID)
+		ctx.SetLocal("userID", userID)
 
 		return ctx.Next()
 	}, RequireEstablishedAccount(authzSvc, settingsSvc), func(ctx fiber.Ctx) error {
@@ -133,7 +133,7 @@ func TestRequireEstablishedAccount_IgnoresAnonymousRequests(t *testing.T) {
 
 	app := fiber.New()
 	app.Post("/upload", func(ctx fiber.Ctx) error {
-		ctx.Locals("userID", uuid.Nil)
+		ctx.SetLocal("userID", uuid.Nil)
 
 		return ctx.Next()
 	}, RequireEstablishedAccount(authzSvc, settingsSvc), func(ctx fiber.Ctx) error {
@@ -151,7 +151,7 @@ func TestRequireEstablishedAccount_AllowsEverythingWhenUnwired(t *testing.T) {
 	// given a misconfiguration, where refusing every upload site wide would be worse
 	app := fiber.New()
 	app.Post("/upload", func(ctx fiber.Ctx) error {
-		ctx.Locals("userID", uuid.New())
+		ctx.SetLocal("userID", uuid.New())
 
 		return ctx.Next()
 	}, RequireEstablishedAccount(nil, nil), func(ctx fiber.Ctx) error {

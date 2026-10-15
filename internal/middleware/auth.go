@@ -32,7 +32,7 @@ type (
 )
 
 func SessionToken(ctx fiber.Ctx) string {
-	if bearer := session.BearerToken(ctx.Get("Authorization")); bearer != "" {
+	if bearer := ctx.Bearer(); bearer != "" {
 		return bearer
 	}
 
@@ -45,7 +45,7 @@ func authenticate(ctx fiber.Ctx, authenticator Authenticator, token string) (mod
 	}
 
 	state, err := authenticator.Authenticate(ctx.Context(), token)
-	ctx.Locals(authResultLocal, authResult{token: token, state: state, err: err})
+	ctx.SetLocal(authResultLocal, authResult{token: token, state: state, err: err})
 
 	return state, err
 }
@@ -143,7 +143,7 @@ func RequirePermission(authenticator Authenticator, authzSvc authz.Service, perm
 			})
 		}
 
-		ctx.Locals("userID", userID)
+		ctx.SetLocal("userID", userID)
 		ctx.SetContext(authctx.WithUserID(ctx.Context(), userID))
 		return ctx.Next()
 	}
@@ -153,17 +153,17 @@ func OptionalAuth(authenticator Authenticator) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		token := SessionToken(ctx)
 		if token == "" {
-			ctx.Locals("userID", uuid.Nil)
+			ctx.SetLocal("userID", uuid.Nil)
 			return ctx.Next()
 		}
 
 		state, err := authenticate(ctx, authenticator, token)
 		if err != nil {
-			ctx.Locals("userID", uuid.Nil)
+			ctx.SetLocal("userID", uuid.Nil)
 			return ctx.Next()
 		}
 
-		ctx.Locals("userID", state.UserID)
+		ctx.SetLocal("userID", state.UserID)
 		ctx.SetContext(authctx.WithUserID(ctx.Context(), state.UserID))
 		return ctx.Next()
 	}
@@ -176,7 +176,7 @@ func RequireAuth(authenticator Authenticator) fiber.Handler {
 			return nil
 		}
 
-		ctx.Locals("userID", userID)
+		ctx.SetLocal("userID", userID)
 		ctx.SetContext(authctx.WithUserID(ctx.Context(), userID))
 		return ctx.Next()
 	}

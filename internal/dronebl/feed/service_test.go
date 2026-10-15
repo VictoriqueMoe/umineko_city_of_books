@@ -10,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/httpclient"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/stretchr/testify/assert"
@@ -54,7 +55,7 @@ func newService(t *testing.T, server *httptest.Server, feeds string) (*Service, 
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingCrawlerFeeds).Return(feeds).Maybe()
 
 	svc := New(settingsSvc, cache.NewManager(engines.NewInMemory(0)))
-	svc.client = server.Client()
+	svc.client = httpclient.New(fetchTimeout, httpclient.WithTransport(server.Client().Transport))
 
 	return svc, settingsSvc
 }
