@@ -248,7 +248,7 @@ WHERE cm.room_id = $1
       (SELECT m.joined_at
          FROM chat_room_members m
          JOIN chat_rooms cr ON cr.id = m.room_id AND cr.type = 'dm'
-        WHERE m.room_id = cm.room_id AND m.user_id = $2),
+        WHERE m.room_id = $1 AND m.user_id = $2),
       cm.created_at);
 
 -- name: ListChatRoomMessages :many
@@ -280,7 +280,7 @@ FROM (
           (SELECT m.joined_at
              FROM chat_room_members m
              JOIN chat_rooms cr ON cr.id = m.room_id AND cr.type = 'dm'
-            WHERE m.room_id = cm.room_id AND m.user_id = $2),
+            WHERE m.room_id = $1 AND m.user_id = $2),
           cm.created_at)
     ORDER BY cm.created_at DESC, cm.id DESC
     LIMIT $3
@@ -319,7 +319,7 @@ FROM (
           (SELECT m.joined_at
              FROM chat_room_members m
              JOIN chat_rooms cr ON cr.id = m.room_id AND cr.type = 'dm'
-            WHERE m.room_id = cm.room_id AND m.user_id = $5),
+            WHERE m.room_id = $1 AND m.user_id = $5),
           cm.created_at)
     ORDER BY cm.created_at DESC, cm.id DESC
     LIMIT $4
@@ -355,7 +355,7 @@ WHERE cm.room_id = sqlc.arg(room_id) AND cm.is_system = FALSE AND (
       (SELECT m.joined_at
          FROM chat_room_members m
          JOIN chat_rooms cr ON cr.id = m.room_id AND cr.type = 'dm'
-        WHERE m.room_id = cm.room_id AND m.user_id = sqlc.arg(viewer_id)),
+        WHERE m.room_id = sqlc.arg(room_id) AND m.user_id = sqlc.arg(viewer_id)),
       cm.created_at)
 ORDER BY cm.created_at DESC, cm.id DESC
 LIMIT sqlc.arg(row_limit);
@@ -389,7 +389,7 @@ WHERE cm.room_id = sqlc.arg(room_id) AND cm.is_system = FALSE AND (
       (SELECT m.joined_at
          FROM chat_room_members m
          JOIN chat_rooms cr ON cr.id = m.room_id AND cr.type = 'dm'
-        WHERE m.room_id = cm.room_id AND m.user_id = sqlc.arg(viewer_id)),
+        WHERE m.room_id = sqlc.arg(room_id) AND m.user_id = sqlc.arg(viewer_id)),
       cm.created_at)
 ORDER BY cm.created_at DESC, cm.id DESC
 LIMIT sqlc.arg(row_limit);
@@ -418,7 +418,7 @@ WHERE cm.room_id = $1 AND cm.pinned_at IS NOT NULL
       (SELECT m.joined_at
          FROM chat_room_members m
          JOIN chat_rooms cr ON cr.id = m.room_id AND cr.type = 'dm'
-        WHERE m.room_id = cm.room_id AND m.user_id = $2),
+        WHERE m.room_id = $1 AND m.user_id = $2),
       cm.created_at)
 ORDER BY cm.pinned_at DESC;
 
