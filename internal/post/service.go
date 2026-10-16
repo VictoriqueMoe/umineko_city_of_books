@@ -208,6 +208,8 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 		go s.observeForBot(id, nil, userID, body, nil)
 	}
 
+	s.hub.BumpSidebarActivity("game_board_" + corner)
+
 	return id, nil
 }
 

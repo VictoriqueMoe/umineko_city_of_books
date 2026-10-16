@@ -210,7 +210,6 @@ func (s *Service) createJournal(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to create journal", err)
 	}
 
-	s.Hub.BumpSidebarActivity("journals")
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 
@@ -609,7 +608,6 @@ func (s *Service) createJournalEntry(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to create entry", err)
 	}
 
-	s.Hub.BumpSidebarActivity("journals")
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id, "entry_number": entryNumber})
 }
 

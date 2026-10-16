@@ -28,6 +28,7 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
+	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 )
@@ -98,6 +99,7 @@ type (
 		quoteClient   *quotefinder.Client
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
+		hub           *ws.Hub
 	}
 )
 
@@ -115,6 +117,7 @@ func NewService(
 	quoteClient *quotefinder.Client,
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
+	hub *ws.Hub,
 ) Service {
 	return &service{
 		shipRepo:      shipRepo,
@@ -131,6 +134,7 @@ func NewService(
 		quoteClient:   quoteClient,
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
+		hub:           hub,
 	}
 }
 
@@ -180,6 +184,8 @@ func (s *service) CreateShip(ctx context.Context, userID uuid.UUID, req dto.Crea
 	}
 
 	s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindShip, EntityID: created.ID}, userID, description)
+
+	s.hub.BumpSidebarActivity("ships")
 
 	return created.ID, nil
 }

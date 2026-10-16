@@ -30,6 +30,7 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
+	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 )
@@ -80,6 +81,7 @@ type (
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
 		echoCache     homefeed.Service
+		hub           *ws.Hub
 	}
 )
 
@@ -98,6 +100,7 @@ func NewService(
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
 	echoCache homefeed.Service,
+	hub *ws.Hub,
 ) Service {
 	return &service{
 		artRepo:       artRepo,
@@ -115,6 +118,7 @@ func NewService(
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
 		echoCache:     echoCache,
+		hub:           hub,
 	}
 }
 
@@ -200,6 +204,8 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 	}
 
 	s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindArt, EntityID: created.ID}, userID, description)
+
+	s.hub.BumpSidebarActivity("gallery_" + corner)
 
 	return created.ID, nil
 }

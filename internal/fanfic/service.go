@@ -31,6 +31,7 @@ import (
 	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
+	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 )
@@ -94,6 +95,7 @@ type (
 		settingsSvc   settings.Service
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
+		hub           *ws.Hub
 	}
 )
 
@@ -110,6 +112,7 @@ func NewService(
 	settingsSvc settings.Service,
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
+	hub *ws.Hub,
 ) Service {
 	return &service{
 		fanficRepo:    fanficRepo,
@@ -125,6 +128,7 @@ func NewService(
 		settingsSvc:   settingsSvc,
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
+		hub:           hub,
 	}
 }
 
@@ -298,6 +302,7 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 
 	if status != "draft" {
 		s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindFanfic, EntityID: created.ID}, userID, newFanfic.Summary+"\n"+body)
+		s.hub.BumpSidebarActivity("fanfiction")
 	}
 
 	return created.ID, nil

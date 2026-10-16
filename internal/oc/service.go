@@ -297,6 +297,8 @@ func (s *service) CreateOC(ctx context.Context, userID uuid.UUID, req dto.Create
 
 	s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindOC, EntityID: created.ID}, userID, description)
 
+	s.hub.BumpSidebarActivity("ocs")
+
 	return created.ID, nil
 }
 

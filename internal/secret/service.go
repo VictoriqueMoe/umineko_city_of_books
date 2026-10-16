@@ -376,6 +376,8 @@ func (s *service) CreateComment(ctx context.Context, secretID string, userID uui
 		}
 	}()
 
+	s.hub.BumpSidebarActivity("secrets")
+
 	return id, nil
 }
 

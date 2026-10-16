@@ -104,7 +104,6 @@ func (s *Service) createSecretComment(ctx fiber.Ctx) error {
 		}
 		return utils.InternalError(ctx, "failed to create comment", err)
 	}
-	s.Hub.BumpSidebarActivity("secrets")
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 

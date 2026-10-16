@@ -178,11 +178,6 @@ func (s *Service) createPost(ctx fiber.Ctx) error {
 		}
 		return utils.InternalError(ctx, "failed to create post", err)
 	}
-	corner := req.Corner
-	if corner == "" {
-		corner = "general"
-	}
-	s.Hub.BumpSidebarActivity("game_board_" + corner)
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 

@@ -23,6 +23,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/theory/params"
+	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 )
@@ -56,6 +57,7 @@ type (
 		contentFilter  *contentfilter.Manager
 		ogCache        *og.Resolver
 		echoCache      homefeed.Service
+		hub            *ws.Hub
 	}
 )
 
@@ -74,6 +76,7 @@ func NewService(
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
 	echoCache homefeed.Service,
+	hub *ws.Hub,
 ) Service {
 	return &service{
 		repo:           repo,
@@ -90,6 +93,7 @@ func NewService(
 		contentFilter:  contentFilter,
 		ogCache:        ogCache,
 		echoCache:      echoCache,
+		hub:            hub,
 	}
 }
 
@@ -207,6 +211,10 @@ func (s *service) CreateTheory(ctx context.Context, userID uuid.UUID, req dto.Cr
 		Action:        "posted a new theory",
 		Title:         req.Title,
 	})
+
+	if req.Series != "" {
+		s.hub.BumpSidebarActivity("theories_" + req.Series)
+	}
 
 	return created.ID, nil
 }

@@ -438,6 +438,8 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 		Title:         req.Title,
 	})
 
+	s.hub.BumpSidebarActivity("mysteries")
+
 	return created.ID, nil
 }
 

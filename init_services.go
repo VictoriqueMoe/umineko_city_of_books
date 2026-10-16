@@ -273,6 +273,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		contentFilter,
 		ogResolver,
 		homeFeedSvc,
+		hub,
 	)
 
 	shipSvc := ship.NewService(
@@ -289,6 +290,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		quoteClient,
 		contentFilter,
 		ogResolver,
+		hub,
 	)
 
 	ocSvc := ocsvc.NewService(
@@ -337,6 +339,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		settingsSvc,
 		contentFilter,
 		ogResolver,
+		hub,
 	)
 
 	journalSvc := journal.NewService(
@@ -353,6 +356,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		contentFilter,
 		ogResolver,
 		homeFeedSvc,
+		hub,
 	)
 
 	secretSvc := secretsvc.NewService(
@@ -460,6 +464,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		contentFilter,
 		ogResolver,
 		homeFeedSvc,
+		hub,
 	)
 
 	return &services{

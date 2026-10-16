@@ -30,6 +30,7 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
+	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 )
@@ -83,6 +84,7 @@ type (
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
 		echoCache     homefeed.Service
+		hub           *ws.Hub
 	}
 )
 
@@ -100,6 +102,7 @@ func NewService(
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
 	echoCache homefeed.Service,
+	hub *ws.Hub,
 ) Service {
 	return &service{
 		repo:          repo,
@@ -115,6 +118,7 @@ func NewService(
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
 		echoCache:     echoCache,
+		hub:           hub,
 	}
 }
 
@@ -224,6 +228,8 @@ func (s *service) CreateJournal(ctx context.Context, userID uuid.UUID, req dto.C
 	}
 
 	s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindJournal, EntityID: created.ID}, userID, req.Title)
+
+	s.hub.BumpSidebarActivity("journals")
 
 	return created.ID, nil
 }
@@ -556,6 +562,8 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 		s.notifyEntryMentions(ctx, journalID, nextNumber, userID, body)
 
 		go s.notifyEntryPublished(journalID, nextNumber, userID)
+
+		s.hub.BumpSidebarActivity("journals")
 	}
 
 	return created.ID, nextNumber, nil

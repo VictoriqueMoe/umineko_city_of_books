@@ -77,6 +77,10 @@ func (r *roomsService) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID,
 		go r.notifyInvited(creatorID, roomID, name, invitedIDs)
 	}
 
+	if req.IsPublic {
+		r.hub.BumpSidebarActivity("rooms")
+	}
+
 	return r.buildRoomResponse(ctx, roomID, creatorID)
 }
 

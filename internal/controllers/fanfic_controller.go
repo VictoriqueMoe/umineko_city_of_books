@@ -197,7 +197,6 @@ func (s *Service) createFanfic(ctx fiber.Ctx) error {
 		}
 		return utils.InternalError(ctx, "failed to create fanfic", err)
 	}
-	s.Hub.BumpSidebarActivity("fanfiction")
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 
