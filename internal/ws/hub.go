@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/coalesce"
+	"umineko_city_of_books/internal/sidebar"
 
 	"github.com/gofiber/contrib/v3/websocket"
 	"github.com/google/uuid"
@@ -63,7 +64,7 @@ type (
 		alwaysOnline map[uuid.UUID]struct{}
 		postWatchers map[uuid.UUID]map[*Client]struct{}
 		mu           sync.RWMutex
-		sidebar      *coalesce.Keyed[string, time.Time]
+		sidebar      *coalesce.Keyed[sidebar.Key, time.Time]
 	}
 )
 
@@ -616,15 +617,11 @@ func (h *Hub) SendToPostWatchers(postID uuid.UUID, msg Message) {
 	h.sendToConns(conns, msg)
 }
 
-func (h *Hub) BumpSidebarActivity(key string) {
-	if h == nil {
-		return
-	}
-
+func (h *Hub) BumpSidebarActivity(key sidebar.Key) {
 	h.sidebar.Add(context.Background(), key, time.Now())
 }
 
-func (h *Hub) broadcastSidebarActivity(_ context.Context, key string, at time.Time) {
+func (h *Hub) broadcastSidebarActivity(_ context.Context, key sidebar.Key, at time.Time) {
 	h.Broadcast(Message{
 		Type: "sidebar_activity",
 		Data: map[string]any{

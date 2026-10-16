@@ -1,14 +1,27 @@
-import { memo, useCallback, type Ref } from "react";
+import { memo, useCallback, useMemo, type ReactNode, type Ref } from "react";
 import { seenLabel } from "../../../domain/chat/dm";
+import { messagePermalink } from "../../../domain/chat/permalink";
+import {
+    isPendingSend,
+    pendingPreview,
+    threadEntryKey,
+    type SenderIdentity,
+    type ThreadEntry,
+} from "../../../domain/chat/optimisticSend";
 import { replyPreview } from "../../../domain/chat/replyPreview";
 import { roomCapabilities } from "../../../domain/chat/roomPolicy";
 import { isSiteStaff } from "../../../domain/permissions";
 import type { ChatMessage, ChatRoom, UserProfile } from "../../../types/api";
 import { useBlockedUserIds } from "../../../hooks/useBlockedUserIds";
+import { siteUrl } from "../../../platform/siteOrigin";
+import { errorMessage } from "../../../utils/errorMessage";
 import { type ReplyTarget } from "../ChatComposer/ChatComposer";
 import { MessageBubble } from "../MessageBubble/MessageBubble";
 
 const NO_READ_RECEIPTS: Record<string, Record<string, string>> = {};
+const LINK_COPIED = "Link copied";
+const LINK_COPY_FAILED = "Couldn't copy the link";
+const DEFAULT_EMPTY_LABEL = "No messages yet. Say hello!";
 
 export interface MessageListClasses {
     messages: string;
@@ -18,8 +31,10 @@ export interface MessageListClasses {
 
 export interface MessageListProps {
     viewer: UserProfile;
-    room: ChatRoom;
-    messages: ChatMessage[];
+    viewerIdentity?: SenderIdentity | null;
+    room: ChatRoom | null;
+    emptyLabel?: ReactNode;
+    entries: ThreadEntry[];
     hasMore: boolean;
     loadingMore: boolean;
     editingMessageId: string | null;
@@ -39,13 +54,18 @@ export interface MessageListProps {
     onTogglePin?: (message: ChatMessage) => void;
     onDelete: (message: ChatMessage) => void;
     onEdit: (message: ChatMessage, body: string) => Promise<void>;
+    onRetrySend: (nonce: string) => void;
+    onDiscardSend: (nonce: string) => void;
+    onNotify: (message: string) => void;
     classes: MessageListClasses;
 }
 
 function MessageListBase({
     viewer,
+    viewerIdentity = null,
     room,
-    messages,
+    emptyLabel = DEFAULT_EMPTY_LABEL,
+    entries,
     hasMore,
     loadingMore,
     editingMessageId,
@@ -65,6 +85,9 @@ function MessageListBase({
     onTogglePin,
     onDelete,
     onEdit,
+    onRetrySend,
+    onDiscardSend,
+    onNotify,
     classes,
 }: MessageListProps) {
     const blockedIDs = useBlockedUserIds();
@@ -84,30 +107,65 @@ function MessageListBase({
         [onReply],
     );
 
+    const handleCopyLink = useMemo(() => {
+        if (!room) {
+            return undefined;
+        }
+
+        return (message: ChatMessage) => {
+            const link = siteUrl(messagePermalink(room, message));
+
+            Promise.resolve()
+                .then(() => navigator.clipboard.writeText(link))
+                .then(() => onNotify(LINK_COPIED))
+                .catch((thrown: unknown) => {
+                    const reason = errorMessage(thrown, "");
+
+                    onNotify(reason === "" ? LINK_COPY_FAILED : `${LINK_COPY_FAILED}: ${reason}`);
+                });
+        };
+    }, [room, onNotify]);
+
     return (
         <div className={classes.messages} ref={containerRef} onScroll={onScroll}>
-            {messages.length === 0 && !hasMore && <div className={classes.empty}>No messages yet. Say hello!</div>}
+            {entries.length === 0 && !hasMore && <div className={classes.empty}>{emptyLabel}</div>}
             <div ref={contentRef} style={{ display: "flex", flexDirection: "column", gap: "inherit" }}>
                 {hasMore && (
                     <div className={classes.loadMoreBar}>
                         {loadingMore ? "Loading older messages..." : "Scroll up for more"}
                     </div>
                 )}
-                {messages.map((msg, idx) => {
-                    const isOwn = msg.sender.id === viewer.id;
+                {entries.map((entry, idx) => {
+                    if (isPendingSend(entry)) {
+                        return (
+                            <MessageBubble
+                                key={threadEntryKey(entry)}
+                                message={pendingPreview(entry, viewer, viewerIdentity)}
+                                isOwn
+                                delivery={entry}
+                                onRetrySend={onRetrySend}
+                                onDiscardSend={onDiscardSend}
+                                onLightbox={onLightbox}
+                            />
+                        );
+                    }
+
+                    const isOwn = entry.sender.id === viewer.id;
                     const label =
-                        canSeeSeenLabels && isOwn ? seenLabel(msg, idx, messages, room, viewer.id, readReceipts) : null;
+                        room && canSeeSeenLabels && isOwn
+                            ? seenLabel(entry, idx, entries, room, viewer.id, readReceipts)
+                            : null;
 
                     return (
                         <MessageBubble
-                            key={msg.id}
-                            message={msg}
+                            key={threadEntryKey(entry)}
+                            message={entry}
                             isOwn={isOwn}
-                            senderBlocked={blockedIDs.has(msg.sender.id)}
-                            highlighted={msg.id === highlightedMessageId}
+                            senderBlocked={blockedIDs.has(entry.sender.id)}
+                            highlighted={entry.id === highlightedMessageId}
                             notifiesViewer={
-                                msg.reply_to?.sender_id === viewer.id ||
-                                (matchesViewerMention ? matchesViewerMention(msg.body) : false)
+                                entry.reply_to?.sender_id === viewer.id ||
+                                (matchesViewerMention ? matchesViewerMention(entry.body) : false)
                             }
                             seenLabel={label}
                             onLightbox={onLightbox}
@@ -118,12 +176,13 @@ function MessageListBase({
                             onEdit={onEdit}
                             onEditStart={onStartEditing}
                             onEditCancel={onCancelEditing}
-                            editing={editingMessageId === msg.id}
+                            onCopyLink={handleCopyLink}
+                            editing={editingMessageId === entry.id}
                             canPin={canPin}
                             canModerate={capabilities.canModerateRoom}
                             canReact={!viewerTimedOut}
                             canEdit={!viewerTimedOut}
-                            senderIsStaff={isSiteStaff(msg.sender.role)}
+                            senderIsStaff={isSiteStaff(entry.sender.role)}
                         />
                     );
                 })}

@@ -14,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/homefeed"
@@ -27,6 +28,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
 	"umineko_city_of_books/internal/ws"
@@ -40,7 +42,7 @@ type (
 		GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.PostDetailResponse, error)
 		UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdatePostRequest) error
 		DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error)
+		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, cornerSlug string, search string, sort string, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error)
 		ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.PostListResponse, error)
 		UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
 		DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID int64, userID uuid.UUID) error
@@ -78,6 +80,7 @@ type (
 		botObserver   CommentObserver
 		ogCache       *og.Resolver
 		echoCache     homefeed.Service
+		activity      sidebar.ActivityBumper
 	}
 )
 
@@ -102,6 +105,7 @@ func NewService(
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
 	echoCache homefeed.Service,
+	activity sidebar.ActivityBumper,
 ) Service {
 	return &service{
 		postRepo:      postRepo,
@@ -120,6 +124,7 @@ func NewService(
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
 		echoCache:     echoCache,
+		activity:      activity,
 	}
 }
 
@@ -146,6 +151,11 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 		return uuid.Nil, ErrEmptyBody
 	}
 
+	board, err := corner.ParseGameBoard(req.Corner)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
 	pollLabels := pollOptionLabels(req.Poll)
 	if err := s.contentFilter.Check(ctx, append([]string{req.Body}, pollLabels...)...); err != nil {
 		return uuid.Nil, err
@@ -162,11 +172,6 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 		}
 	}
 
-	corner := req.Corner
-	if corner == "" {
-		corner = "general"
-	}
-
 	if req.Poll != nil {
 		if err := validatePollInput(req.Poll); err != nil {
 			return uuid.Nil, err
@@ -177,7 +182,7 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 
 	newPost := spec.NewPost{
 		UserID: userID,
-		Corner: corner,
+		Corner: string(board),
 		Body:   body,
 	}
 	if isShare {
@@ -201,14 +206,14 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 		go s.notifyContentShared(userID, id, req.SharedContentID, req.SharedContentType)
 	}
 
-	if corner == "suggestions" {
+	if board == corner.GameBoardSuggestions {
 		go s.notifySuggestionPosted(userID, id)
 	} else {
 		s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindPost, EntityID: id}, userID, body)
 		go s.observeForBot(id, nil, userID, body, nil)
 	}
 
-	s.hub.BumpSidebarActivity("game_board_" + corner)
+	s.activity.BumpSidebarActivity(sidebar.GameBoardKey(board))
 
 	return id, nil
 }
@@ -424,9 +429,10 @@ func (s *service) clearPageCache(ctx context.Context, id string) {
 	}
 }
 
-func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error) {
-	if corner == "" {
-		corner = "general"
+func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, cornerSlug string, search string, sort string, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error) {
+	board, err := corner.ParseGameBoard(cornerSlug)
+	if err != nil {
+		return nil, err
 	}
 
 	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
@@ -440,7 +446,7 @@ func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, 
 	if tab == "following" && viewerID != uuid.Nil {
 		rows, total, err = s.postRepo.ListByFollowing(ctx, spec.PostFollowingFeedQuery{
 			UserID:         viewerID,
-			Corner:         corner,
+			Corner:         string(board),
 			Sort:           sort,
 			Limit:          page.Limit(),
 			Offset:         page.Offset(),
@@ -449,7 +455,7 @@ func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, 
 	} else {
 		rows, total, err = s.postRepo.ListAll(ctx, spec.PostFeedQuery{
 			ViewerID:       viewerID,
-			Corner:         corner,
+			Corner:         string(board),
 			Search:         search,
 			Sort:           sort,
 			Limit:          page.Limit(),

@@ -33,7 +33,7 @@ type (
 		ViewCount         int               `json:"view_count"`
 		CommentCount      int               `json:"comment_count"`
 		UserFavourited    bool              `json:"user_favourited"`
-		PublishedAt       string            `json:"published_at"`
+		PublishedAt       *string           `json:"published_at,omitempty"`
 		CreatedAt         string            `json:"created_at"`
 		UpdatedAt         *string           `json:"updated_at,omitempty"`
 	}

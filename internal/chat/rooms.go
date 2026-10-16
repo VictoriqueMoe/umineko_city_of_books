@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/og"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/ws"
 
@@ -77,11 +78,16 @@ func (r *roomsService) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID,
 		go r.notifyInvited(creatorID, roomID, name, invitedIDs)
 	}
 
-	if req.IsPublic {
-		r.hub.BumpSidebarActivity("rooms")
+	room, err := r.buildRoomResponse(ctx, roomID, creatorID)
+	if err != nil {
+		return nil, err
 	}
 
-	return r.buildRoomResponse(ctx, roomID, creatorID)
+	if created.PubliclyVisible() {
+		r.activity.BumpSidebarActivity(sidebar.KeyRooms)
+	}
+
+	return room, nil
 }
 
 func (r *roomsService) UpdateGroupRoom(ctx context.Context, roomID, actorID uuid.UUID, req dto.UpdateGroupRoomRequest) (*dto.ChatRoomResponse, error) {

@@ -1,7 +1,7 @@
 -- name: CreateFanfic :one
 WITH f AS (
-    INSERT INTO fanfics (user_id, title, summary, series, rating, language, status, is_oneshot, contains_lemons)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    INSERT INTO fanfics (user_id, title, summary, series, rating, language, status, is_oneshot, contains_lemons, published_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CASE WHEN $7::text = 'draft' THEN NULL ELSE NOW() END)
     RETURNING id, user_id, title, summary, series, rating, language, status,
               is_oneshot, contains_lemons, cover_image_url, cover_thumbnail_url,
               word_count, favourite_count, view_count, comment_count,
@@ -143,7 +143,7 @@ WHERE (f.status != 'draft' OR f.user_id = sqlc.arg(viewer_id))
   AND (sqlc.arg(character_d)::text = '' OR EXISTS(SELECT 1 FROM fanfic_characters cd WHERE cd.fanfic_id = f.id AND cd.character_name = sqlc.arg(character_d)::text AND (NOT sqlc.arg(is_pairing)::boolean OR cd.is_pairing = TRUE)))
   AND (sqlc.arg(search)::text = '' OR f.title ILIKE sqlc.arg(search)::text OR f.summary ILIKE sqlc.arg(search)::text)
   AND (sqlc.arg(exclude_user_ids)::text = '' OR f.user_id <> ALL(string_to_array(sqlc.arg(exclude_user_ids)::text, ',')::uuid[]))
-ORDER BY f.published_at DESC
+ORDER BY f.published_at DESC NULLS LAST
 LIMIT sqlc.arg(row_limit)::int OFFSET sqlc.arg(row_offset)::int;
 
 -- name: ListFanficsByFavourites :many
@@ -214,6 +214,9 @@ WHERE id = $9;
 UPDATE fanfics
 SET title = $1, summary = $2, series = $3, rating = $4, language = $5, status = $6, is_oneshot = $7, contains_lemons = $8, updated_at = NOW()
 WHERE id = $9 AND user_id = $10;
+
+-- name: MarkFanficFirstPublished :execrows
+UPDATE fanfics SET published_at = NOW() WHERE id = $1 AND published_at IS NULL AND status <> 'draft';
 
 -- name: UpdateFanficCoverImage :exec
 UPDATE fanfics SET cover_image_url = $1, cover_thumbnail_url = $2 WHERE id = $3;

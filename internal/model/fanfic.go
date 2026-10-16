@@ -28,7 +28,7 @@ type (
 		CommentCount      int
 		UserFavourited    bool
 		IsPairing         bool
-		PublishedAt       string
+		PublishedAt       *string
 		CreatedAt         string
 		UpdatedAt         *string
 		AuthorUsername    string

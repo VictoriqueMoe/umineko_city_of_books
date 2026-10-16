@@ -108,6 +108,6 @@
 }
 
 .errorMobile {
-    color: #ff6b6b;
+    color: var(--error);
     font-size: 0.85rem;
 }

@@ -21,6 +21,7 @@ import (
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
@@ -43,6 +44,7 @@ type testMocks struct {
 	notifSvc    *notification.MockService
 	uploadSvc   *upload.MockService
 	settingsSvc *settings.MockService
+	activity    *sidebar.MockActivityBumper
 }
 
 func newTestService(t *testing.T) (*service, *testMocks) {
@@ -56,11 +58,12 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := media.NewProcessor(1)
 	ocComments := dao.NewMockCommentDAO[uuid.UUID](t)
+	activity := sidebar.NewMockActivityBumper(t)
 	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, dao.CommentDAOs{
 		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindOCComment): ocComments},
 	})
 
-	svc := NewService(ocRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, nil, contentfilter.New(), nil).(*service)
+	svc := NewService(ocRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, nil, contentfilter.New(), nil, activity).(*service)
 	return svc, &testMocks{
 		ocRepo:      ocRepo,
 		ocComments:  ocComments,
@@ -71,6 +74,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		notifSvc:    notifSvc,
 		uploadSvc:   uploadSvc,
 		settingsSvc: settingsSvc,
+		activity:    activity,
 	}
 }
 
@@ -135,6 +139,7 @@ func TestCreateOC_OK(t *testing.T) {
 		Create(mock.Anything, spec.NewOC{UserID: userID, Name: "Linda", Description: "bio", Series: "umineko"}).
 		Return(&model.OCRow{ID: createdID}, nil)
 	m.ocRepo.EXPECT().GetByID(mock.Anything, spec.OCByID{ID: createdID, ViewerID: userID}).Return(nil, nil).Maybe()
+	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyOCs).Return().Once()
 
 	// when
 	id, err := svc.CreateOC(context.Background(), userID, req)
@@ -155,6 +160,7 @@ func TestCreateOC_CustomSeriesOK(t *testing.T) {
 		Create(mock.Anything, spec.NewOC{UserID: userID, Name: "Linda", Description: "bio", Series: "custom", CustomSeriesName: "Higanbana"}).
 		Return(&model.OCRow{ID: createdID}, nil)
 	m.ocRepo.EXPECT().GetByID(mock.Anything, spec.OCByID{ID: createdID, ViewerID: userID}).Return(nil, nil).Maybe()
+	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyOCs).Return().Once()
 
 	// when
 	_, err := svc.CreateOC(context.Background(), userID, req)
@@ -192,6 +198,7 @@ func TestCreateOC_MentionOnTheDescriptionNotifiesTheNamedUser(t *testing.T) {
 	m.ocRepo.EXPECT().
 		Create(mock.Anything, spec.NewOC{UserID: userID, Name: "Linda", Description: "designed with @alice", Series: "umineko"}).
 		Return(&model.OCRow{ID: ocID}, nil)
+	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyOCs).Return().Once()
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
 	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)

@@ -27,6 +27,7 @@ import (
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
@@ -83,6 +84,7 @@ type (
 		sideEffectsWG   sync.WaitGroup
 		botObserver     MessageObserver
 		ogCache         *og.Resolver
+		activity        sidebar.ActivityBumper
 	}
 
 	MessageObserver interface {
@@ -617,20 +619,32 @@ func (c *core) messageRowToResponse(row model.ChatMessageRow, media []dto.PostMe
 		PinnedBy:              row.PinnedBy,
 		EditedAt:              row.EditedAt,
 		Reactions:             toDTOReactions(reactions),
-	}
-	if row.ReplyToID != nil && row.ReplyToSenderID != nil && row.ReplyToSenderName != nil && row.ReplyToBody != nil {
-		preview := text.ClampRunes(*row.ReplyToBody, 140)
-		if len(preview) != len(*row.ReplyToBody) {
-			preview += "..."
-		}
-		resp.ReplyTo = &dto.ChatMessageReplyPreview{
-			ID:          *row.ReplyToID,
-			SenderID:    *row.ReplyToSenderID,
-			SenderName:  *row.ReplyToSenderName,
-			BodyPreview: preview,
-		}
+		ReplyTo:               replyPreviewFromRow(row),
+		ClientNonce:           row.ClientNonce,
 	}
 	return resp
+}
+
+func replyPreviewFromRow(row model.ChatMessageRow) *dto.ChatMessageReplyPreview {
+	if row.ReplyToID == nil || row.ReplyToSenderID == nil || row.ReplyToSenderName == nil || row.ReplyToBody == nil {
+		return nil
+	}
+
+	return &dto.ChatMessageReplyPreview{
+		ID:          *row.ReplyToID,
+		SenderID:    *row.ReplyToSenderID,
+		SenderName:  *row.ReplyToSenderName,
+		BodyPreview: clampReplyPreview(*row.ReplyToBody),
+	}
+}
+
+func clampReplyPreview(body string) string {
+	preview := text.ClampRunes(body, 140)
+	if len(preview) != len(body) {
+		preview += "..."
+	}
+
+	return preview
 }
 
 func toDTOReactions(groups []model.ReactionGroup) []dto.ReactionGroup {

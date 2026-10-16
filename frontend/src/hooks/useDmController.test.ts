@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, onTestFinished, vi, type Mock } from 
 import { queryKeys } from "../api/queryKeys";
 import type * as BusModule from "../api/realtime/bus";
 import type * as OutboundModule from "../api/realtime/outbound";
+import { isPendingSend } from "../domain/chat/optimisticSend";
 import type { RoomCapabilities } from "../domain/chat/roomPolicy";
 import { makeChatMessage, makeChatRoom, makeDmRoom, makePublicUser, makeUser } from "../test-utils/fixtures";
 import { createTestQueryClient, providerWrapper } from "../test-utils/render";
@@ -22,6 +23,8 @@ const mocks = vi.hoisted(() => ({
     fetchSearchUsers: vi.fn(),
     deleteChatRoom: vi.fn(),
     setChatRoomMuted: vi.fn(),
+    sendChatMessage: vi.fn(),
+    sendFirstDMMessage: vi.fn(),
     markChatRoomRead: vi.fn(),
     deleteChatMessage: vi.fn(),
     editChatMessage: vi.fn(),
@@ -64,6 +67,8 @@ vi.mock("../api/endpoints/chat", async importOriginal => {
         getUserRooms: mocks.getUserRooms,
         deleteChatRoom: mocks.deleteChatRoom,
         setChatRoomMuted: mocks.setChatRoomMuted,
+        sendChatMessage: mocks.sendChatMessage,
+        sendFirstDMMessage: mocks.sendFirstDMMessage,
     };
 });
 
@@ -144,6 +149,10 @@ async function settle(): Promise<void> {
     });
 }
 
+function sentNonce(): string {
+    return mocks.sendChatMessage.mock.calls[0][1].client_nonce;
+}
+
 function renderDm(options: HarnessOptions = {}) {
     const queryClient = createTestQueryClient();
     const wrapper = providerWrapper({
@@ -221,6 +230,10 @@ beforeEach(() => {
     mocks.markChatRoomRead.mockResolvedValue(undefined);
     mocks.deleteChatRoom.mockResolvedValue(undefined);
     mocks.setChatRoomMuted.mockResolvedValue({ muted: true });
+    mocks.sendChatMessage.mockReset();
+    mocks.sendChatMessage.mockReturnValue(new Promise(() => {}));
+    mocks.sendFirstDMMessage.mockReset();
+    mocks.sendFirstDMMessage.mockReturnValue(new Promise(() => {}));
     mocks.addChatMessageReaction.mockResolvedValue(undefined);
     mocks.removeChatMessageReaction.mockResolvedValue(undefined);
 });
@@ -602,16 +615,18 @@ describe("useDmController incoming messages", () => {
     it("never shows the viewer's own message twice when the echo arrives", async () => {
         // given
         const { result, emit } = await renderLoadedDm();
-        const own = makeMessage({ id: "m1", sender: viewerAsSender });
         act(() => {
-            result.current.handleSentMessage(own);
+            result.current.sender?.send({ body: "hello", replyTo: null, attachments: [] });
         });
+        await settle();
+        const own = makeMessage({ id: "m1", sender: viewerAsSender, client_nonce: sentNonce() });
 
         // when
         await emit({ type: "chat_message", data: own });
 
         // then
         expect(result.current.messages).toHaveLength(1);
+        expect(result.current.entries).toEqual([own]);
     });
 
     it("asks once, not once per message, for a room the server keeps leaving off the list", async () => {
@@ -880,37 +895,172 @@ describe("useDmController selecting conversations", () => {
     });
 });
 
-describe("useDmController sending", () => {
-    it("opens the brand new conversation the first message created, showing that message before the server answers", async () => {
-        // given
-        const { result } = await renderLoadedDm({ route: "/chat" });
-        mocks.fetchRoomMessages.mockReturnValue(new Promise(() => {}));
+describe("useDmController first direct message", () => {
+    interface FirstDelivery {
+        room: ChatRoom;
+        message: ChatMessage;
+    }
+
+    interface HeldFirstDelivery {
+        open: (created: FirstDelivery) => void;
+        fail: (error: unknown) => void;
+    }
+
+    function holdFirstDelivery(): HeldFirstDelivery {
+        const held: HeldFirstDelivery = { open: () => {}, fail: () => {} };
+        mocks.sendFirstDMMessage.mockReturnValueOnce(
+            new Promise<FirstDelivery>((resolve, reject) => {
+                held.open = resolve;
+                held.fail = reject;
+            }),
+        );
+
+        return held;
+    }
+
+    function firstNonce(): string {
+        return mocks.sendFirstDMMessage.mock.calls[0][1].client_nonce;
+    }
+
+    async function renderDraft() {
+        const harness = await renderLoadedDm({ route: "/chat" });
         act(() => {
-            result.current.setDraftRecipient(makeMember());
+            harness.result.current.setDraftRecipient(makeMember());
         });
 
-        // when
+        return harness;
+    }
+
+    it("shows the first message in the draft at once, then opens the conversation it created with that message in place", async () => {
+        // given
+        const held = holdFirstDelivery();
+        mocks.fetchRoomMessages.mockReturnValue(new Promise(() => {}));
+        const { result } = await renderDraft();
+
+        // when the viewer sends before any conversation exists
         act(() => {
-            result.current.handleSentMessage(makeMessage({ id: "m1", room_id: "room-9" }), makeRoom({ id: "room-9" }));
+            result.current.draftSender?.send({ body: "hello", replyTo: null, attachments: [] });
         });
-        const shownAtOnce = result.current.messages.map(m => m.id);
+
+        // then it shows straight away in the draft
+        expect(result.current.entries).toEqual([expect.objectContaining({ body: "hello", delivery: "sending" })]);
+        await settle();
+        expect(mocks.sendFirstDMMessage).toHaveBeenCalledExactlyOnceWith(
+            "u2",
+            expect.objectContaining({ body: "hello", client_nonce: expect.stringMatching(/^[0-9a-f]{32}$/) }),
+        );
+
+        // when the conversation is opened
+        await act(async () => {
+            held.open({
+                room: makeRoom({ id: "room-9" }),
+                message: makeMessage({
+                    id: "m1",
+                    room_id: "room-9",
+                    sender: viewerAsSender,
+                    client_nonce: firstNonce(),
+                }),
+            });
+        });
         await settle();
 
-        // then
-        expect(shownAtOnce).toEqual(["m1"]);
+        // then the page moves into it and the real message stands where the pending one was
         expect(result.current.activeRoomId).toBe("room-9");
         expect(result.current.rooms.map(r => r.id)).toContain("room-9");
         expect(result.current.draftRecipient).toBeNull();
+        expect(result.current.messages.map(m => m.id)).toEqual(["m1"]);
+        expect(result.current.entries).toBe(result.current.messages);
     });
 
-    it("floats the conversation the viewer replied to back to the top", async () => {
+    it("sends what was typed while the conversation was opening through the new room, never opening a second one", async () => {
+        // given
+        const held = holdFirstDelivery();
+        mocks.fetchRoomMessages.mockReturnValue(new Promise(() => {}));
+        const { result } = await renderDraft();
+        act(() => {
+            result.current.draftSender?.send({ body: "hello", replyTo: null, attachments: [] });
+        });
+        act(() => {
+            result.current.draftSender?.send({ body: "are you there?", replyTo: null, attachments: [] });
+        });
+        const secondNonce = result.current.entries.filter(isPendingSend)[1].nonce;
+        await settle();
+        expect(mocks.sendChatMessage).not.toHaveBeenCalled();
+
+        // when
+        await act(async () => {
+            held.open({
+                room: makeRoom({ id: "room-9" }),
+                message: makeMessage({
+                    id: "m1",
+                    room_id: "room-9",
+                    sender: viewerAsSender,
+                    client_nonce: firstNonce(),
+                }),
+            });
+        });
+        await settle();
+
+        // then
+        expect(mocks.sendFirstDMMessage).toHaveBeenCalledOnce();
+        expect(mocks.sendChatMessage).toHaveBeenCalledExactlyOnceWith(
+            "room-9",
+            expect.objectContaining({ body: "are you there?", client_nonce: secondNonce }),
+        );
+        expect(result.current.entries).toEqual([
+            expect.objectContaining({ id: "m1" }),
+            expect.objectContaining({ nonce: secondNonce, delivery: "sending" }),
+        ]);
+    });
+
+    it("keeps the first message in the draft with the reason when the conversation cannot be opened", async () => {
+        // given
+        const held = holdFirstDelivery();
+        const { result } = await renderDraft();
+        act(() => {
+            result.current.draftSender?.send({ body: "hello", replyTo: null, attachments: [] });
+        });
+
+        // when
+        await act(async () => {
+            held.fail(new Error("recipient has DMs disabled"));
+        });
+
+        // then
+        expect(result.current.entries).toEqual([
+            expect.objectContaining({ body: "hello", delivery: "failed", error: "recipient has DMs disabled" }),
+        ]);
+        expect(result.current.activeRoomId).toBeNull();
+        expect(result.current.draftRecipient?.id).toBe("u2");
+    });
+});
+
+describe("useDmController sending", () => {
+    it("floats the conversation the viewer replied to back to the top once the server confirms it", async () => {
         // given
         mocks.getUserRooms.mockResolvedValue({ rooms: [makeRoom({ id: "room-2" }), makeRoom()] });
         const { result } = await renderLoadedDm();
+        const held: { confirm: (message: ChatMessage) => void } = { confirm: () => {} };
+        const response = new Promise<ChatMessage>(resolve => {
+            held.confirm = resolve;
+        });
+        mocks.sendChatMessage.mockReturnValueOnce(response);
+        act(() => {
+            result.current.sender?.send({ body: "hello", replyTo: null, attachments: [] });
+        });
+        await settle();
+        const nonce = sentNonce();
 
         // when
-        act(() => {
-            result.current.handleSentMessage(makeMessage({ id: "m1", created_at: "2026-08-02T12:00:00Z" }));
+        await act(async () => {
+            held.confirm(
+                makeMessage({
+                    id: "m1",
+                    sender: viewerAsSender,
+                    created_at: "2026-08-02T12:00:00Z",
+                    client_nonce: nonce,
+                }),
+            );
         });
         await settle();
 
@@ -918,6 +1068,58 @@ describe("useDmController sending", () => {
         expect(result.current.rooms.map(r => r.id)).toEqual(["room-1", "room-2"]);
         expect(result.current.rooms[0].last_message_at).toBe("2026-08-02T12:00:00Z");
         expect(result.current.messages.map(m => m.id)).toEqual(["m1"]);
+        expect(result.current.entries).toBe(result.current.messages);
+    });
+
+    it("keeps a failed message in the open conversation with the reason, ready to retry under the same nonce", async () => {
+        // given
+        const { result } = await renderLoadedDm();
+        mocks.sendChatMessage.mockRejectedValueOnce(new Error("network is down"));
+        act(() => {
+            result.current.sender?.send({ body: "hello", replyTo: null, attachments: [] });
+        });
+        await settle();
+        const nonce = sentNonce();
+        mocks.sendChatMessage.mockReturnValueOnce(new Promise(() => {}));
+
+        // when
+        act(() => {
+            result.current.retrySend(nonce);
+        });
+
+        // then
+        expect(mocks.sendChatMessage).toHaveBeenLastCalledWith(
+            "room-1",
+            expect.objectContaining({ client_nonce: nonce }),
+        );
+        expect(result.current.entries).toEqual([
+            expect.objectContaining({ nonce, body: "hello", delivery: "sending" }),
+        ]);
+    });
+
+    it("leaves a message still on its way in its own conversation when the viewer opens another", async () => {
+        // given
+        mocks.getUserRooms.mockResolvedValue({ rooms: [makeRoom(), makeRoom({ id: "room-2" })] });
+        const { result } = await renderNavigableDm();
+        mocks.sendChatMessage.mockReturnValue(new Promise(() => {}));
+        act(() => {
+            result.current.dm.sender?.send({ body: "for room one", replyTo: null, attachments: [] });
+        });
+
+        // when
+        act(() => {
+            result.current.navigate("/chat/room-2");
+        });
+        await settle();
+        const elsewhere = result.current.dm.entries;
+        act(() => {
+            result.current.navigate("/chat/room-1");
+        });
+        await settle();
+
+        // then
+        expect(elsewhere).toEqual([]);
+        expect(result.current.dm.entries).toEqual([expect.objectContaining({ body: "for room one" })]);
     });
 });
 

@@ -1,31 +1,17 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeChatMessage } from "../../../test-utils/fixtures";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import type { OutgoingChatMessage } from "../../../domain/chat/optimisticSend";
+import type { ChatSender, DraftSender } from "../../../hooks/chat/useOptimisticSends";
 import { renderWithProviders } from "../../../test-utils/render";
-import type { ChatMessage, ChatRoom, SiteInfo } from "../../../types/api";
-import type { BannedWordRejection, ChatSendRejection } from "../../../hooks/mutations/chat";
-import { ChatComposer } from "./ChatComposer";
+import type { SiteInfo } from "../../../types/api";
+import { ChatComposer, type ComposerTarget } from "./ChatComposer";
 
 const mocks = vi.hoisted(() => ({
-    sendChatMessage: vi.fn(),
-    sendFirstDM: vi.fn(),
     useIsMobile: vi.fn(),
 }));
 
 vi.mock("../../../hooks/useIsMobile", () => ({ useIsMobile: mocks.useIsMobile }));
-
-vi.mock("../../../hooks/mutations/chat", () => ({
-    useSendChatMessage: () => ({ mutateAsync: mocks.sendChatMessage }),
-    useSendFirstDMMessage: () => ({ mutateAsync: mocks.sendFirstDM }),
-    readChatSendRejection: (err: unknown) => (err as { rejection?: ChatSendRejection }).rejection ?? null,
-}));
-
-function rejected(bannedWord: BannedWordRejection | null, serverMessage: string | null = null): Error {
-    const rejection: ChatSendRejection = { bannedWord, serverMessage };
-
-    return Object.assign(new Error("blocked"), { rejection });
-}
 
 vi.mock("../GifPicker/GifPicker", () => ({
     GifPicker: ({ onPick, onClose }: { onPick: (gif: { id: string; url: string }) => void; onClose: () => void }) => (
@@ -41,9 +27,7 @@ vi.mock("../GifPicker/GifPicker", () => ({
 const ENTER_PLACEHOLDER = "Type a message... (Enter to send, Shift+Enter for newline)";
 
 interface ComposerOptions {
-    roomId?: string | null;
-    draftRecipientId?: string | null;
-    onSent?: (message: ChatMessage, room?: ChatRoom) => void;
+    target?: ComposerTarget | null;
     replyingTo?: { id: string; senderName: string; bodyPreview: string } | null;
     onCancelReply?: () => void;
     onTyping?: () => void;
@@ -54,12 +38,22 @@ interface ComposerOptions {
     siteInfo?: Partial<SiteInfo>;
 }
 
+type SendMock = Mock<(outgoing: OutgoingChatMessage) => void>;
+
+function makeSender(roomId = "room-1", adoptedFrom?: string): ChatSender & { send: SendMock } {
+    return { roomId, adoptedFrom, send: vi.fn<(outgoing: OutgoingChatMessage) => void>() };
+}
+
+function makeDraftSender(recipientId = "u-battler"): DraftSender & { send: SendMock } {
+    return { recipientId, send: vi.fn<(outgoing: OutgoingChatMessage) => void>() };
+}
+
 function renderComposer(options: ComposerOptions = {}) {
-    return renderWithProviders(
+    const sender = makeSender();
+    const target = options.target === undefined ? { kind: "room" as const, sender } : options.target;
+    const rendered = renderWithProviders(
         <ChatComposer
-            roomId={options.roomId === undefined ? "room-1" : options.roomId}
-            draftRecipientId={options.draftRecipientId ?? null}
-            onSent={options.onSent ?? (() => {})}
+            target={target}
             replyingTo={options.replyingTo}
             onCancelReply={options.onCancelReply}
             onTyping={options.onTyping}
@@ -70,13 +64,13 @@ function renderComposer(options: ComposerOptions = {}) {
         />,
         { siteInfo: options.siteInfo },
     );
+
+    return { ...rendered, sender };
 }
 
-describe("ChatComposer", () => {
+describe("ChatComposer in a room", () => {
     beforeEach(() => {
         mocks.useIsMobile.mockReturnValue(false);
-        mocks.sendChatMessage.mockResolvedValue(makeChatMessage());
-        mocks.sendFirstDM.mockResolvedValue({ message: makeChatMessage(), room: { id: "room-9" } });
     });
 
     it("keeps the send control disabled until there is something to send", async () => {
@@ -94,7 +88,7 @@ describe("ChatComposer", () => {
     it("refuses to send a body that is only whitespace", async () => {
         // given
         const user = userEvent.setup();
-        renderComposer();
+        const { sender } = renderComposer();
 
         // when
         await user.type(screen.getByPlaceholderText(ENTER_PLACEHOLDER), "   ");
@@ -102,31 +96,27 @@ describe("ChatComposer", () => {
         // then
         expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
         await user.keyboard("{Enter}");
-        expect(mocks.sendChatMessage).not.toHaveBeenCalled();
+        expect(sender.send).not.toHaveBeenCalled();
     });
 
-    it("sends the trimmed body when Enter is pressed", async () => {
+    it("hands the trimmed body to the room's sender when Enter is pressed", async () => {
         // given
-        const onSent = vi.fn();
         const user = userEvent.setup();
-        renderComposer({ onSent });
+        const { sender } = renderComposer();
 
         // when
         await user.type(screen.getByPlaceholderText(ENTER_PLACEHOLDER), "  without love it cannot be seen  ");
         await user.keyboard("{Enter}");
 
         // then
-        await waitFor(() => expect(mocks.sendChatMessage).toHaveBeenCalledTimes(1));
-        expect(mocks.sendChatMessage).toHaveBeenCalledWith({
+        expect(sender.send).toHaveBeenCalledExactlyOnceWith({
             body: "without love it cannot be seen",
-            reply_to_id: undefined,
-            files: [],
-            spoilers: [],
+            replyTo: null,
+            attachments: [],
         });
-        expect(onSent).toHaveBeenCalledWith(makeChatMessage());
     });
 
-    it("clears the composer once the message has been accepted", async () => {
+    it("clears the composer the moment the message is handed over, without waiting for the server", async () => {
         // given
         const user = userEvent.setup();
         renderComposer();
@@ -137,13 +127,32 @@ describe("ChatComposer", () => {
         await user.keyboard("{Enter}");
 
         // then
-        await waitFor(() => expect(input).toHaveValue(""));
+        expect(input).toHaveValue("");
+    });
+
+    it("never locks the composer, so a second message can follow the first straight away", async () => {
+        // given
+        const user = userEvent.setup();
+        const { sender } = renderComposer();
+        const input = screen.getByPlaceholderText(ENTER_PLACEHOLDER);
+        await user.type(input, "hi");
+        await user.keyboard("{Enter}");
+
+        // when
+        await user.type(input, "you there?");
+
+        // then
+        expect(screen.getByRole("button", { name: "Send" })).toBeEnabled();
+        await user.keyboard("{Enter}");
+        expect(sender.send).toHaveBeenCalledTimes(2);
+        expect(sender.send).toHaveBeenLastCalledWith({ body: "you there?", replyTo: null, attachments: [] });
+        expect(screen.getByRole("button", { name: "+ GIF" })).toBeEnabled();
     });
 
     it("inserts a newline instead of sending on Shift and Enter", async () => {
         // given
         const user = userEvent.setup();
-        renderComposer();
+        const { sender } = renderComposer();
         const input = screen.getByPlaceholderText(ENTER_PLACEHOLDER);
 
         // when
@@ -152,14 +161,14 @@ describe("ChatComposer", () => {
         await user.type(input, "second");
 
         // then
-        expect(mocks.sendChatMessage).not.toHaveBeenCalled();
+        expect(sender.send).not.toHaveBeenCalled();
         expect(input).toHaveValue("first\nsecond");
     });
 
     it("leaves Enter alone when sending on Enter is switched off", async () => {
         // given
         const user = userEvent.setup();
-        renderComposer({ sendOnEnter: false });
+        const { sender } = renderComposer({ sendOnEnter: false });
         const input = screen.getByPlaceholderText("Type a message...");
 
         // when
@@ -167,7 +176,7 @@ describe("ChatComposer", () => {
         await user.keyboard("{Enter}");
 
         // then
-        expect(mocks.sendChatMessage).not.toHaveBeenCalled();
+        expect(sender.send).not.toHaveBeenCalled();
         expect(input).toHaveValue("a note\n");
     });
 
@@ -183,26 +192,22 @@ describe("ChatComposer", () => {
         expect(screen.queryByPlaceholderText(ENTER_PLACEHOLDER)).not.toBeInTheDocument();
     });
 
-    it("attaches the reply target to the outgoing message and clears the reply", async () => {
+    it("hands the reply target over with the message and clears the reply", async () => {
         // given
         const onCancelReply = vi.fn();
         const user = userEvent.setup();
-        renderComposer({
-            replyingTo: { id: "m-earlier", senderName: "Battler", bodyPreview: "an earlier claim" },
-            onCancelReply,
-        });
+        const replyingTo = { id: "m-earlier", senderName: "Battler", bodyPreview: "an earlier claim" };
+        const { sender } = renderComposer({ replyingTo, onCancelReply });
 
         // when
         await user.type(screen.getByPlaceholderText(ENTER_PLACEHOLDER), "I deny it");
         await user.click(screen.getByRole("button", { name: "Send" }));
 
         // then
-        await waitFor(() => expect(mocks.sendChatMessage).toHaveBeenCalledTimes(1));
-        expect(mocks.sendChatMessage).toHaveBeenCalledWith({
+        expect(sender.send).toHaveBeenCalledExactlyOnceWith({
             body: "I deny it",
-            reply_to_id: "m-earlier",
-            files: [],
-            spoilers: [],
+            replyTo: replyingTo,
+            attachments: [],
         });
         expect(onCancelReply).toHaveBeenCalled();
     });
@@ -225,47 +230,11 @@ describe("ChatComposer", () => {
         expect(onCancelReply).toHaveBeenCalledOnce();
     });
 
-    it("opens the conversation through the first direct message when no room exists yet", async () => {
-        // given
-        const onSent = vi.fn();
-        const user = userEvent.setup();
-        renderComposer({ roomId: null, draftRecipientId: "u-battler", onSent });
-
-        // when
-        await user.type(screen.getByPlaceholderText(ENTER_PLACEHOLDER), "are you there");
-        await user.click(screen.getByRole("button", { name: "Send" }));
-
-        // then
-        await waitFor(() => expect(mocks.sendFirstDM).toHaveBeenCalledTimes(1));
-        expect(mocks.sendFirstDM).toHaveBeenCalledWith({
-            recipientId: "u-battler",
-            body: "are you there",
-            files: [],
-            spoilers: [],
-        });
-        expect(onSent).toHaveBeenCalledWith(makeChatMessage(), { id: "room-9" });
-        expect(mocks.sendChatMessage).not.toHaveBeenCalled();
-    });
-
-    it("sends nothing when there is neither a room nor a recipient", async () => {
-        // given
-        const user = userEvent.setup();
-        renderComposer({ roomId: null, draftRecipientId: null });
-
-        // when
-        await user.type(screen.getByPlaceholderText(ENTER_PLACEHOLDER), "into the void");
-        await user.click(screen.getByRole("button", { name: "Send" }));
-
-        // then
-        expect(mocks.sendChatMessage).not.toHaveBeenCalled();
-        expect(mocks.sendFirstDM).not.toHaveBeenCalled();
-    });
-
-    it("sends an attachment marked as a spoiler with its flag set", async () => {
+    it("hands over an attachment marked as a spoiler with its flag set", async () => {
         // given a picked image the sender has marked as a spoiler
         const user = userEvent.setup();
         const file = new File(["portrait"], "beatrice.png", { type: "image/png" });
-        const { container } = renderComposer();
+        const { container, sender } = renderComposer();
         await user.upload(container.querySelector('input[type="file"]') as HTMLInputElement, file);
 
         // when
@@ -273,12 +242,10 @@ describe("ChatComposer", () => {
         await user.click(screen.getByRole("button", { name: "Send" }));
 
         // then
-        await waitFor(() => expect(mocks.sendChatMessage).toHaveBeenCalledTimes(1));
-        expect(mocks.sendChatMessage).toHaveBeenCalledWith({
+        expect(sender.send).toHaveBeenCalledExactlyOnceWith({
             body: "",
-            reply_to_id: undefined,
-            files: [file],
-            spoilers: [true],
+            replyTo: null,
+            attachments: [{ file, spoiler: true }],
         });
     });
 
@@ -287,7 +254,7 @@ describe("ChatComposer", () => {
         const user = userEvent.setup();
         const first = new File(["one"], "one.png", { type: "image/png" });
         const second = new File(["two"], "two.png", { type: "image/png" });
-        const { container } = renderComposer();
+        const { container, sender } = renderComposer();
         await user.upload(container.querySelector('input[type="file"]') as HTMLInputElement, [first, second]);
         await user.click(screen.getAllByRole("button", { name: "Mark as spoiler" })[1]);
 
@@ -296,20 +263,18 @@ describe("ChatComposer", () => {
         await user.click(screen.getByRole("button", { name: "Send" }));
 
         // then the flag has moved down with its own file rather than staying on index 1
-        await waitFor(() => expect(mocks.sendChatMessage).toHaveBeenCalledTimes(1));
-        expect(mocks.sendChatMessage).toHaveBeenCalledWith({
+        expect(sender.send).toHaveBeenCalledExactlyOnceWith({
             body: "",
-            reply_to_id: undefined,
-            files: [second],
-            spoilers: [true],
+            replyTo: null,
+            attachments: [{ file: second, spoiler: true }],
         });
     });
 
-    it("lets an attachment stand in for a body and sends it with the message", async () => {
+    it("lets an attachment stand in for a body and clears it once handed over", async () => {
         // given
         const user = userEvent.setup();
         const file = new File(["portrait"], "beatrice.png", { type: "image/png" });
-        const { container } = renderComposer();
+        const { container, sender } = renderComposer();
         expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
 
         // when
@@ -317,13 +282,12 @@ describe("ChatComposer", () => {
         await user.click(screen.getByRole("button", { name: "Send" }));
 
         // then
-        await waitFor(() => expect(mocks.sendChatMessage).toHaveBeenCalledTimes(1));
-        expect(mocks.sendChatMessage).toHaveBeenCalledWith({
+        expect(sender.send).toHaveBeenCalledExactlyOnceWith({
             body: "",
-            reply_to_id: undefined,
-            files: [file],
-            spoilers: [false],
+            replyTo: null,
+            attachments: [{ file, spoiler: false }],
         });
+        expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
     });
 
     it("drops an attachment again when its remove control is used", async () => {
@@ -353,67 +317,6 @@ describe("ChatComposer", () => {
         // then
         expect(await screen.findByText(/huge\.png is too large/)).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
-    });
-
-    it("explains a banned word rejection including the kick", async () => {
-        // given
-        const user = userEvent.setup();
-        mocks.sendChatMessage.mockRejectedValue(rejected({ pattern: "goats", kicked: true }));
-        renderComposer();
-
-        // when
-        await user.type(screen.getByPlaceholderText(ENTER_PLACEHOLDER), "goats");
-        await user.click(screen.getByRole("button", { name: "Send" }));
-
-        // then
-        expect(
-            await screen.findByText(
-                'Message blocked by banned-word rule "goats". You have been kicked from this room.',
-            ),
-        ).toBeInTheDocument();
-    });
-
-    it("omits the kick notice when the rule only blocks the message", async () => {
-        // given
-        const user = userEvent.setup();
-        mocks.sendChatMessage.mockRejectedValue(rejected({ pattern: "goats", kicked: false }));
-        renderComposer();
-
-        // when
-        await user.type(screen.getByPlaceholderText(ENTER_PLACEHOLDER), "goats");
-        await user.click(screen.getByRole("button", { name: "Send" }));
-
-        // then
-        expect(await screen.findByText('Message blocked by banned-word rule "goats".')).toBeInTheDocument();
-    });
-
-    it("surfaces the error field the server returned", async () => {
-        // given
-        const user = userEvent.setup();
-        mocks.sendChatMessage.mockRejectedValue(rejected(null, "You are muted in this room"));
-        renderComposer();
-
-        // when
-        await user.type(screen.getByPlaceholderText(ENTER_PLACEHOLDER), "hello");
-        await user.click(screen.getByRole("button", { name: "Send" }));
-
-        // then
-        expect(await screen.findByText("You are muted in this room")).toBeInTheDocument();
-    });
-
-    it("falls back to the thrown error message for a plain failure", async () => {
-        // given
-        const user = userEvent.setup();
-        mocks.sendChatMessage.mockRejectedValue(new Error("network is down"));
-        renderComposer();
-
-        // when
-        await user.type(screen.getByPlaceholderText(ENTER_PLACEHOLDER), "hello");
-        await user.click(screen.getByRole("button", { name: "Send" }));
-
-        // then
-        expect(await screen.findByText("network is down")).toBeInTheDocument();
-        expect(screen.getByPlaceholderText(ENTER_PLACEHOLDER)).toHaveValue("hello");
     });
 
     it("replaces the whole composer with a notice while the sender is timed out", () => {
@@ -512,20 +415,20 @@ describe("ChatComposer", () => {
         expect(screen.getByRole("button", { name: "+ Media" })).toBeInTheDocument();
     });
 
-    it("sends the chosen GIF url as the message body", async () => {
+    it("hands the chosen GIF url to the room's sender as the message body", async () => {
         // given
         const user = userEvent.setup();
-        renderComposer();
+        const { sender } = renderComposer();
 
         // when
         await user.click(screen.getByRole("button", { name: "+ GIF" }));
         await user.click(screen.getByRole("button", { name: "choose gif" }));
 
         // then
-        await waitFor(() => expect(mocks.sendChatMessage).toHaveBeenCalledTimes(1));
-        expect(mocks.sendChatMessage).toHaveBeenCalledWith({
+        expect(sender.send).toHaveBeenCalledExactlyOnceWith({
             body: "https://media.giphy.com/media/g1/giphy.gif",
-            reply_to_id: undefined,
+            replyTo: null,
+            attachments: [],
         });
         expect(screen.queryByRole("button", { name: "choose gif" })).not.toBeInTheDocument();
     });
@@ -537,23 +440,107 @@ describe("ChatComposer", () => {
         await user.type(screen.getByPlaceholderText(ENTER_PLACEHOLDER), "meet me at the rose garden");
 
         // when the reader switches to a different conversation
-        rerender(<ChatComposer roomId="room-2" draftRecipientId={null} onSent={() => {}} />);
+        rerender(<ChatComposer target={{ kind: "room", sender: makeSender("room-2") }} />);
 
         // then the draft does not follow them into it
         expect(screen.getByPlaceholderText(ENTER_PLACEHOLDER)).toHaveValue("");
     });
 
-    it("reports a failure to send the chosen GIF", async () => {
+    it("keeps what was typed when nothing can be sent because there is neither a room nor a recipient", async () => {
         // given
         const user = userEvent.setup();
-        mocks.sendChatMessage.mockRejectedValue(new Error("giphy is unreachable"));
-        renderComposer();
+        renderComposer({ target: null });
+
+        // when
+        await user.type(screen.getByPlaceholderText(ENTER_PLACEHOLDER), "into the void");
+        await user.click(screen.getByRole("button", { name: "Send" }));
+
+        // then
+        expect(screen.getByPlaceholderText(ENTER_PLACEHOLDER)).toHaveValue("into the void");
+    });
+});
+
+describe("ChatComposer for a first direct message", () => {
+    beforeEach(() => {
+        mocks.useIsMobile.mockReturnValue(false);
+    });
+
+    it("hands the first message to the draft's sender and clears at once, without waiting for the conversation", async () => {
+        // given
+        const sender = makeDraftSender();
+        const user = userEvent.setup();
+        renderComposer({ target: { kind: "draft", sender } });
+        const input = screen.getByPlaceholderText(ENTER_PLACEHOLDER);
+
+        // when
+        await user.type(input, "  are you there  ");
+        await user.click(screen.getByRole("button", { name: "Send" }));
+
+        // then
+        expect(sender.send).toHaveBeenCalledExactlyOnceWith({ body: "are you there", replyTo: null, attachments: [] });
+        expect(input).toHaveValue("");
+        expect(screen.queryByRole("button", { name: "..." })).not.toBeInTheDocument();
+    });
+
+    it("never locks the composer, so a second message can follow the first before the conversation exists", async () => {
+        // given
+        const sender = makeDraftSender();
+        const user = userEvent.setup();
+        renderComposer({ target: { kind: "draft", sender } });
+        const input = screen.getByPlaceholderText(ENTER_PLACEHOLDER);
+        await user.type(input, "hi");
+        await user.keyboard("{Enter}");
+
+        // when
+        await user.type(input, "you there?");
+        await user.keyboard("{Enter}");
+
+        // then
+        expect(sender.send.mock.calls.map(([outgoing]) => outgoing.body)).toEqual(["hi", "you there?"]);
+        expect(screen.getByRole("button", { name: "+ GIF" })).toBeEnabled();
+    });
+
+    it("hands the chosen GIF to the draft's sender as the first message", async () => {
+        // given
+        const sender = makeDraftSender();
+        const user = userEvent.setup();
+        renderComposer({ target: { kind: "draft", sender } });
 
         // when
         await user.click(screen.getByRole("button", { name: "+ GIF" }));
         await user.click(screen.getByRole("button", { name: "choose gif" }));
 
         // then
-        expect(await screen.findByText("giphy is unreachable")).toBeInTheDocument();
+        expect(sender.send).toHaveBeenCalledExactlyOnceWith({
+            body: "https://media.giphy.com/media/g1/giphy.gif",
+            replyTo: null,
+            attachments: [],
+        });
+    });
+
+    it("keeps a half-typed message when the draft becomes the room it opened", async () => {
+        // given a message being typed while the first one opens the conversation
+        const user = userEvent.setup();
+        const { rerender } = renderComposer({ target: { kind: "draft", sender: makeDraftSender("u-battler") } });
+        await user.type(screen.getByPlaceholderText(ENTER_PLACEHOLDER), "and another thing");
+
+        // when the conversation lands as a room adopted from that draft
+        rerender(<ChatComposer target={{ kind: "room", sender: makeSender("room-9", "u-battler") }} />);
+
+        // then
+        expect(screen.getByPlaceholderText(ENTER_PLACEHOLDER)).toHaveValue("and another thing");
+    });
+
+    it("leaves the draft's text behind when the reader opens an unrelated room instead", async () => {
+        // given
+        const user = userEvent.setup();
+        const { rerender } = renderComposer({ target: { kind: "draft", sender: makeDraftSender("u-battler") } });
+        await user.type(screen.getByPlaceholderText(ENTER_PLACEHOLDER), "for battler only");
+
+        // when
+        rerender(<ChatComposer target={{ kind: "room", sender: makeSender("room-2") }} />);
+
+        // then
+        expect(screen.getByPlaceholderText(ENTER_PLACEHOLDER)).toHaveValue("");
     });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { REALTIME_EVENTS } from "../../api/realtime/events";
 import { useRealtimeEvent } from "../../api/realtime/useRealtime";
 import {
@@ -11,12 +11,14 @@ import {
     applySiteRoleChangeToMessages,
 } from "../../domain/chat/messagePatches";
 import { appendIfUnknown } from "../../domain/chat/messageStore";
+import { deliveredNonce, mergeThread, type ThreadEntry } from "../../domain/chat/optimisticSend";
 import { playAudio, playMessageSound } from "../../platform/sound";
-import type { ChatMessage, UserProfile } from "../../types/api";
+import type { ChatMessage, ChatRoom, UserProfile } from "../../types/api";
 import { useChatMessageHandlers } from "../useChatMessageHandlers";
 import { useMessageHistory } from "../useMessageHistory";
 import { useTypingIndicator } from "../useTypingIndicator";
 import { useDebouncedMarkChatRoomRead } from "./useDebouncedMarkChatRoomRead";
+import { useOptimisticSends, type ChatSender, type DraftSender } from "./useOptimisticSends";
 
 const CHAT_SESSION_EVENTS = [
     REALTIME_EVENTS.CHAT_MESSAGE,
@@ -54,6 +56,16 @@ export interface UseChatSessionOptions {
     sound?: ChatSessionSound;
     onEditError?: (message: string) => void;
     editLastBlocked?: boolean;
+    onDelivered?: (message: ChatMessage) => void;
+    draftRecipientId?: string;
+    onAdopted?: (room: ChatRoom) => void;
+}
+
+export interface ChatSessionSends {
+    sender: ChatSender | null;
+    draftSender: DraftSender | null;
+    retry: (nonce: string) => void;
+    discard: (nonce: string) => void;
 }
 
 export interface ChatSessionHistory {
@@ -94,6 +106,8 @@ export interface ChatSessionTyping {
 export interface ChatSession {
     status: ChatSessionStatus;
     messages: ChatMessage[];
+    entries: ThreadEntry[];
+    sends: ChatSessionSends;
     history: ChatSessionHistory;
     scroll: ChatSessionScroll;
     editing: ChatSessionEditing;
@@ -128,7 +142,18 @@ function shouldPlayMessageSound(
 }
 
 export function useChatSession(options: UseChatSessionOptions): ChatSession {
-    const { roomId, user, maxMessages, scrollMode = "smooth", sound, onEditError, editLastBlocked } = options;
+    const {
+        roomId,
+        user,
+        maxMessages,
+        scrollMode = "smooth",
+        sound,
+        onEditError,
+        editLastBlocked,
+        onDelivered,
+        draftRecipientId,
+        onAdopted,
+    } = options;
 
     const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
     const [boundRoomId, setBoundRoomId] = useState<string | null>(roomId ?? null);
@@ -137,6 +162,49 @@ export function useChatSession(options: UseChatSessionOptions): ChatSession {
     const history = useMessageHistory(roomId, editingMessageId === null ? maxMessages : undefined);
     const typing = useTypingIndicator(roomId);
     const markReadDebounced = useDebouncedMarkChatRoomRead();
+
+    const { addMessage, seedMessages, scrollToBottom, scrollToBottomInstant } = history;
+    const scrollToLatest = useCallback(() => {
+        if (scrollMode === "instant") {
+            scrollToBottomInstant({ force: true });
+            return;
+        }
+
+        scrollToBottom({ force: true });
+    }, [scrollMode, scrollToBottom, scrollToBottomInstant]);
+
+    const handleDelivered = useCallback(
+        (message: ChatMessage) => {
+            if (message.room_id === roomId) {
+                addMessage(message);
+            }
+
+            onDelivered?.(message);
+        },
+        [roomId, addMessage, onDelivered],
+    );
+
+    const handleAdopted = useCallback(
+        (message: ChatMessage, room: ChatRoom) => {
+            seedMessages(room.id, [message]);
+            onAdopted?.(room);
+            scrollToLatest();
+        },
+        [seedMessages, onAdopted, scrollToLatest],
+    );
+
+    const sends = useOptimisticSends({
+        roomId,
+        draftRecipientId,
+        onSending: scrollToLatest,
+        onDelivered: handleDelivered,
+        onAdopted: handleAdopted,
+    });
+    const viewerId = user?.id;
+    const entries = useMemo(
+        () => mergeThread(history.messages, sends.pending, viewerId),
+        [history.messages, sends.pending, viewerId],
+    );
 
     const { handleDeleteMessage, handleEditMessage, handleEditLast } = useChatMessageHandlers({
         user,
@@ -177,6 +245,11 @@ export function useChatSession(options: UseChatSessionOptions): ChatSession {
 
                 typing.clearUser(message.sender.id);
                 history.setMessages(current => appendIfUnknown(current, message));
+
+                const landedNonce = deliveredNonce(message, user.id);
+                if (landedNonce) {
+                    sends.reconcile(landedNonce);
+                }
 
                 if (scrollMode === "instant") {
                     history.scrollToBottomInstant();
@@ -306,6 +379,13 @@ export function useChatSession(options: UseChatSessionOptions): ChatSession {
     return {
         status,
         messages: history.messages,
+        entries,
+        sends: {
+            sender: sends.sender,
+            draftSender: sends.draftSender,
+            retry: sends.retry,
+            discard: sends.discard,
+        },
         history: {
             hasMore: live && history.hasMore,
             loadingMore: live && history.loadingMore,

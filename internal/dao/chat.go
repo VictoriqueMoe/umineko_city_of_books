@@ -274,6 +274,10 @@ func toChatMessageRow(row chatMessageJoinRow) model.ChatMessageRow {
 		msg.EditedAt = new(row.EditedAt.Time.UTC().Format(time.RFC3339))
 	}
 
+	if row.ClientNonce.Valid {
+		msg.ClientNonce = row.ClientNonce.String
+	}
+
 	return msg
 }
 
@@ -531,6 +535,9 @@ func (r *chatDAO) CreateDMRoom(ctx context.Context, s spec.ChatDMPair, tx ...*sq
 		CreatedBy: &s.UserA,
 		DmPairKey: sql.NullString{String: dmPairKey(s.UserA, s.UserB), Valid: true},
 	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("create dm: insert room: %w", err)
 	}
@@ -782,13 +789,29 @@ func (r *chatDAO) FindDMRoom(ctx context.Context, s spec.ChatDMPair, tx ...*sql.
 }
 
 func (r *chatDAO) InsertMessageRow(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, error) {
-	msg, err := genQueries(r.db, tx).InsertChatMessage(ctx, sqlcgen.InsertChatMessageParams{
-		RoomID:    s.RoomID,
-		SenderID:  s.SenderID,
-		Body:      s.Body,
-		ReplyToID: s.ReplyToID,
-		IsSystem:  s.IsSystem,
+	queries := genQueries(r.db, tx)
+
+	clientNonce := sql.NullString{String: s.ClientNonce, Valid: s.ClientNonce != ""}
+
+	msg, err := queries.InsertChatMessage(ctx, sqlcgen.InsertChatMessageParams{
+		RoomID:      s.RoomID,
+		SenderID:    s.SenderID,
+		Body:        s.Body,
+		ReplyToID:   s.ReplyToID,
+		IsSystem:    s.IsSystem,
+		ClientNonce: clientNonce,
 	})
+	if errors.Is(err, sql.ErrNoRows) && clientNonce.Valid {
+		existing, lookupErr := queries.GetChatMessageBySenderNonce(ctx, sqlcgen.GetChatMessageBySenderNonceParams{
+			SenderID:    s.SenderID,
+			ClientNonce: s.ClientNonce,
+		})
+		if lookupErr != nil {
+			return nil, fmt.Errorf("load message sent with this client nonce: %w", lookupErr)
+		}
+
+		return nil, &ChatMessageReplayError{Existing: toChatMessageRow(chatMessageJoinRow(existing))}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("insert message: %w", err)
 	}

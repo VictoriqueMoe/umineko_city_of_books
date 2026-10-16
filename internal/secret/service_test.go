@@ -21,6 +21,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/secrets"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
 
@@ -40,6 +41,7 @@ type testMocks struct {
 	notif          *notification.MockService
 	settings       *settings.MockService
 	upload         *upload.MockService
+	activity       *sidebar.MockActivityBumper
 }
 
 func newTestService(t *testing.T) (*service, *testMocks) {
@@ -53,12 +55,13 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	uploadSvc := upload.NewMockService(t)
 
 	hub := ws.NewHub()
+	activity := sidebar.NewMockActivityBumper(t)
 	mediaProc := &media.Processor{}
 	secretComments := dao.NewMockCommentDAO[string](t)
 	mentionSvc := mention.NewService(userRepo, blockSvc, notif, dao.CommentDAOs{
 		BySlug: map[string]dao.CommentDAO[string]{string(mention.KindSecretComment): secretComments},
 	})
-	svc := NewService(secretRepo, userSecretRepo, userRepo, authzSvc, blockSvc, notif, mentionSvc, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New()).(*service)
+	svc := NewService(secretRepo, userSecretRepo, userRepo, authzSvc, blockSvc, notif, mentionSvc, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New(), activity).(*service)
 
 	secretRepo.EXPECT().GetCommentEntityID(mock.Anything, mock.Anything).Return("", nil).Maybe()
 	userRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
@@ -75,6 +78,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		notif:          notif,
 		settings:       settingsSvc,
 		upload:         uploadSvc,
+		activity:       activity,
 	}
 }
 
@@ -241,13 +245,14 @@ func TestCreateComment_EmptyBody(t *testing.T) {
 	require.ErrorIs(t, err, ErrEmptyBody)
 }
 
-func TestCreateComment_Persists(t *testing.T) {
+func TestCreateComment_PersistsAndBumpsTheSecretsSection(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	user := uuid.New()
 	m.secretComments.EXPECT().
 		CreateComment(mock.Anything, spec.NewComment[string]{TargetID: "witchHunter", UserID: user, Body: "hello"}).
 		Return(&model.CommentRow{ID: uuid.New()}, nil)
+	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeySecrets).Return().Once()
 	m.userRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, errors.New("skip")).Maybe()
 
 	// when
@@ -272,7 +277,8 @@ func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
 	mentionSvc := mention.NewService(userRepo, blockSvc, notif, dao.CommentDAOs{
 		BySlug: map[string]dao.CommentDAO[string]{string(mention.KindSecretComment): secretComments},
 	})
-	svc := NewService(secretRepo, userSecretRepo, userRepo, authzSvc, blockSvc, notif, mentionSvc, settingsSvc, uploadSvc, &media.Processor{}, ws.NewHub(), contentfilter.New())
+	activity := sidebar.NewMockActivityBumper(t)
+	svc := NewService(secretRepo, userSecretRepo, userRepo, authzSvc, blockSvc, notif, mentionSvc, settingsSvc, uploadSvc, &media.Processor{}, ws.NewHub(), contentfilter.New(), activity)
 
 	userID := uuid.New()
 	commentID := uuid.New()
@@ -281,6 +287,7 @@ func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
 	secretComments.EXPECT().
 		CreateComment(mock.Anything, spec.NewComment[string]{TargetID: "witchHunter", UserID: userID, Body: "look at this @alice"}).
 		Return(&model.CommentRow{ID: commentID}, nil)
+	activity.EXPECT().BumpSidebarActivity(sidebar.KeySecrets).Return().Once()
 	var fanout sync.WaitGroup
 	fanout.Add(1)
 

@@ -53,6 +53,7 @@ type (
 		IsDraft     bool                `json:"is_draft"`
 		HasPrev     bool                `json:"has_prev"`
 		HasNext     bool                `json:"has_next"`
+		PublishedAt *string             `json:"published_at,omitempty"`
 		CreatedAt   string              `json:"created_at"`
 		UpdatedAt   *string             `json:"updated_at,omitempty"`
 		Media       []PostMediaResponse `json:"media"`
@@ -64,6 +65,7 @@ type (
 		Title       *string   `json:"title,omitempty"`
 		WordCount   int       `json:"word_count"`
 		IsDraft     bool      `json:"is_draft"`
+		PublishedAt *string   `json:"published_at,omitempty"`
 		CreatedAt   string    `json:"created_at"`
 	}
 

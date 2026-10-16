@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makeChatMessage, makeDmRoom, makePublicUser, makeUser } from "../../test-utils/fixtures";
+import { makeChatMessage, makeDmRoom, makePendingSend, makePublicUser, makeUser } from "../../test-utils/fixtures";
 import type { ChatMessage, ChatRoom, User } from "../../types/api";
 import { getRoomAvatarUser, getRoomDisplayName, seenLabel } from "./dm";
 
@@ -199,5 +199,29 @@ describe("seenLabel", () => {
 
         // then
         expect(label).toBeNull();
+    });
+
+    it("keeps the label on the newest delivered message while a later send is pending or has failed", () => {
+        // given
+        const delivered = makeMessage({
+            id: "m1",
+            sender: { id: "u1", username: "beatrice", display_name: "Beatrice" },
+        });
+        const entries = [
+            delivered,
+            makePendingSend({ nonce: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", createdAt: "2026-08-02T10:40:00Z" }),
+            makePendingSend({
+                nonce: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                delivery: "failed",
+                error: "network is down",
+            }),
+        ];
+        const receipts = { "room-1": { u2: readAt } };
+
+        // when
+        const label = seenLabel(delivered, 0, entries, makeRoom(), "u1", receipts);
+
+        // then
+        expect(label).toBe(`seen ${time}`);
     });
 });

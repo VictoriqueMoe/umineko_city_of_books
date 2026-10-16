@@ -342,7 +342,7 @@ export function FanfictionListPage() {
                                             Updated <RelativeTimestamp value={f.updated_at} />
                                         </span>
                                     ) : (
-                                        <RelativeTimestamp value={f.published_at} />
+                                        <RelativeTimestamp value={f.published_at ?? f.created_at} />
                                     )}
                                 </div>
 

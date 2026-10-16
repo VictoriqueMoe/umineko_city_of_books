@@ -82,7 +82,7 @@ describe("direct message uploads", () => {
         const second = new File(["b"], "b.png", { type: "image/png" });
 
         // when
-        await api.sendFirstDMMessage("u-1", "good evening", [first, second]);
+        await api.sendFirstDMMessage("u-1", { body: "good evening", files: [first, second] });
 
         // then
         const formData = postFormDataMock.mock.calls[0][1];
@@ -91,17 +91,30 @@ describe("direct message uploads", () => {
         expect(formData.getAll("media")).toEqual([first, second]);
     });
 
-    it("sendFirstDMMessage omits the media when no files are given", async () => {
+    it("sendFirstDMMessage omits the media and the nonce when none are given", async () => {
         // given
         const recipientId = "u-1";
 
         // when
-        await api.sendFirstDMMessage(recipientId, "good evening");
+        await api.sendFirstDMMessage(recipientId, { body: "good evening" });
 
         // then
         const formData = postFormDataMock.mock.calls[0][1];
         expect(formData.get("body")).toBe("good evening");
         expect(formData.has("media")).toBe(false);
+        expect(formData.has("client_nonce")).toBe(false);
+    });
+
+    it("sendFirstDMMessage carries the client nonce the server deduplicates a retried first message by", async () => {
+        // given
+        const nonce = "0f1e2d3c4b5a69788796a5b4c3d2e1f0";
+
+        // when
+        await api.sendFirstDMMessage("u-1", { body: "good evening", client_nonce: nonce });
+
+        // then
+        const formData = postFormDataMock.mock.calls[0][1];
+        expect(formData.get("client_nonce")).toBe(nonce);
     });
 });
 

@@ -18,6 +18,7 @@ type (
 		IsDraft     bool
 		HasPrev     bool
 		HasNext     bool
+		PublishedAt *string
 		CreatedAt   string
 		UpdatedAt   *string
 	}
@@ -28,6 +29,7 @@ type (
 		Title       *string
 		WordCount   int
 		IsDraft     bool
+		PublishedAt *string
 		CreatedAt   string
 	}
 )
@@ -67,6 +69,7 @@ func JournalEntryToDTO(e *JournalEntryRow, media []PostMediaRow) dto.JournalEntr
 		IsDraft:     e.IsDraft,
 		HasPrev:     e.HasPrev,
 		HasNext:     e.HasNext,
+		PublishedAt: e.PublishedAt,
 		CreatedAt:   e.CreatedAt,
 		UpdatedAt:   e.UpdatedAt,
 		Media:       mediaList,
@@ -80,6 +83,7 @@ func JournalEntrySummaryToDTO(s JournalEntrySummaryRow) dto.JournalEntrySummary 
 		Title:       s.Title,
 		WordCount:   s.WordCount,
 		IsDraft:     s.IsDraft,
+		PublishedAt: s.PublishedAt,
 		CreatedAt:   s.CreatedAt,
 	}
 }

@@ -35,6 +35,7 @@ export interface JournalEntrySummary {
     title?: string | null;
     word_count: number;
     is_draft: boolean;
+    published_at?: string;
     created_at: string;
 }
 
@@ -48,6 +49,7 @@ export interface JournalEntry {
     is_draft: boolean;
     has_prev: boolean;
     has_next: boolean;
+    published_at?: string;
     created_at: string;
     updated_at?: string;
     media: PostMedia[];

@@ -3,6 +3,7 @@ package engines
 import (
 	"container/list"
 	"context"
+	"fmt"
 	"strconv"
 	"sync"
 	"time"
@@ -63,19 +64,10 @@ func (c *InMemory) Get(_ context.Context, key string) ([]byte, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	el, ok := c.items[key]
+	entry, ok := c.lookup(key, c.now())
 	if !ok {
 		return nil, engine.ErrMiss
 	}
-
-	entry := el.Value.(*inMemoryEntry)
-	if !entry.expiresAt.IsZero() && c.now().After(entry.expiresAt) {
-		c.drop(el)
-
-		return nil, engine.ErrMiss
-	}
-
-	c.order.MoveToFront(el)
 
 	return entry.data, nil
 }
@@ -102,6 +94,77 @@ func (c *InMemory) SetMany(_ context.Context, entries map[string][]byte, ttl tim
 	}
 
 	return nil
+}
+
+func (c *InMemory) SetIfAbsent(_ context.Context, key string, data []byte, ttl time.Duration) (bool, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if _, ok := c.lookup(key, c.now()); ok {
+		return false, nil
+	}
+
+	c.store(key, data, ttl)
+
+	return true, nil
+}
+
+func (c *InMemory) IncrementWindow(_ context.Context, key string, window time.Duration) (int64, time.Duration, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	now := c.now()
+
+	entry, ok := c.lookup(key, now)
+	if !ok {
+		c.store(key, strconv.AppendInt(nil, 1, 10), window)
+
+		return 1, window, nil
+	}
+
+	count, err := strconv.ParseInt(string(entry.data), 10, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("%w: %s", engine.ErrNotCounter, key)
+	}
+
+	count++
+	next := strconv.AppendInt(nil, count, 10)
+	c.bytes += len(next) - len(entry.data)
+	entry.data = next
+
+	if entry.expiresAt.IsZero() {
+		entry.expiresAt = now.Add(window)
+	}
+
+	remaining := entry.expiresAt.Sub(now)
+
+	c.evict()
+
+	return count, remaining, nil
+}
+
+func (c *InMemory) ExtendDeadline(_ context.Context, key string, deadline time.Time) (time.Time, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	now := c.now()
+	if !deadline.After(now) {
+		return time.Time{}, engine.ErrDeadlinePassed
+	}
+
+	requestedMS := deadline.UnixMilli()
+
+	if entry, ok := c.lookup(key, now); ok {
+		currentMS, err := strconv.ParseInt(string(entry.data), 10, 64)
+		if err == nil && currentMS >= requestedMS {
+			return time.UnixMilli(currentMS), nil
+		}
+	}
+
+	inForce := time.UnixMilli(requestedMS)
+	c.storeUntil(key, strconv.AppendInt(nil, requestedMS, 10), inForce)
+
+	return inForce, nil
 }
 
 func (c *InMemory) Del(_ context.Context, keys ...string) error {
@@ -149,6 +212,24 @@ func (c *InMemory) Bytes() int {
 	return c.bytes
 }
 
+func (c *InMemory) lookup(key string, now time.Time) (*inMemoryEntry, bool) {
+	el, ok := c.items[key]
+	if !ok {
+		return nil, false
+	}
+
+	entry := el.Value.(*inMemoryEntry)
+	if !entry.expiresAt.IsZero() && now.After(entry.expiresAt) {
+		c.drop(el)
+
+		return nil, false
+	}
+
+	c.order.MoveToFront(el)
+
+	return entry, true
+}
+
 func (c *InMemory) drop(el *list.Element) {
 	entry := el.Value.(*inMemoryEntry)
 	c.order.Remove(el)
@@ -162,6 +243,10 @@ func (c *InMemory) store(key string, data []byte, ttl time.Duration) {
 		expiresAt = c.now().Add(ttl)
 	}
 
+	c.storeUntil(key, data, expiresAt)
+}
+
+func (c *InMemory) storeUntil(key string, data []byte, expiresAt time.Time) {
 	if el, ok := c.items[key]; ok {
 		entry := el.Value.(*inMemoryEntry)
 		c.bytes += len(data) - len(entry.data)

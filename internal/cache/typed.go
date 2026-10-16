@@ -52,6 +52,19 @@ func (m *Manager) SetMany[T any](ctx context.Context, values map[string]T, ttl t
 	return m.setManyBytes(ctx, entries, ttl)
 }
 
+func (m *Manager) SetIfAbsent[T any](ctx context.Context, key string, value T, ttl time.Duration) (bool, error) {
+	if ttl < time.Millisecond {
+		return false, ErrTTLTooShort
+	}
+
+	data, err := encode(value)
+	if err != nil {
+		return false, err
+	}
+
+	return m.setIfAbsentBytes(ctx, key, data, ttl)
+}
+
 func (m *Manager) Load[T any](ctx context.Context, ns Namespace, load func(context.Context) (T, error), parts ...string) (T, error) {
 	key := ns.Key(parts...)
 

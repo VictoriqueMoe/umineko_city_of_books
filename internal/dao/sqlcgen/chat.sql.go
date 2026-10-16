@@ -244,6 +244,7 @@ func (q *Queries) CountUnreadChatDMRoomsForUser(ctx context.Context, userID uuid
 const createChatDMRoom = `-- name: CreateChatDMRoom :one
 INSERT INTO chat_rooms (name, type, created_by, dm_pair_key)
 VALUES ('', 'dm', $1, $2)
+ON CONFLICT (dm_pair_key) WHERE type = 'dm' DO NOTHING
 RETURNING id, name, description, type, is_public, is_rp, is_system, system_kind, created_by, created_at, last_message_at, archived_at
 `
 
@@ -593,7 +594,8 @@ SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url
        parent.body AS reply_to_body,
        cm.pinned_at, cm.pinned_by, cm.edited_at,
        COALESCE(mem.nickname, '')::text AS sender_nickname,
-       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar
+       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar,
+       cm.client_nonce
 FROM chat_messages cm
 JOIN users u ON cm.sender_id = u.id
 LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -626,6 +628,7 @@ type GetChatMessageByIDRow struct {
 	EditedAt            sql.NullTime
 	SenderNickname      string
 	SenderMemberAvatar  string
+	ClientNonce         sql.NullString
 }
 
 func (q *Queries) GetChatMessageByID(ctx context.Context, id uuid.UUID) (GetChatMessageByIDRow, error) {
@@ -653,6 +656,90 @@ func (q *Queries) GetChatMessageByID(ctx context.Context, id uuid.UUID) (GetChat
 		&i.EditedAt,
 		&i.SenderNickname,
 		&i.SenderMemberAvatar,
+		&i.ClientNonce,
+	)
+	return i, err
+}
+
+const getChatMessageBySenderNonce = `-- name: GetChatMessageBySenderNonce :one
+SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
+       COALESCE(ur.role, '')::text AS sender_role,
+       cm.body, cm.is_system, cm.created_at, cm.reply_to_id,
+       parent.sender_id AS reply_to_sender_id,
+       pmem.nickname AS reply_member_nickname,
+       pu.display_name AS reply_display_name,
+       pu.username AS reply_username,
+       parent.body AS reply_to_body,
+       cm.pinned_at, cm.pinned_by, cm.edited_at,
+       COALESCE(mem.nickname, '')::text AS sender_nickname,
+       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar,
+       cm.client_nonce
+FROM chat_messages cm
+JOIN users u ON cm.sender_id = u.id
+LEFT JOIN user_roles ur ON ur.user_id = u.id
+LEFT JOIN chat_messages parent ON cm.reply_to_id = parent.id
+LEFT JOIN users pu ON parent.sender_id = pu.id
+LEFT JOIN chat_room_members pmem ON pmem.room_id = cm.room_id AND pmem.user_id = parent.sender_id
+LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
+WHERE cm.sender_id = $1 AND cm.client_nonce = $2::text
+`
+
+type GetChatMessageBySenderNonceParams struct {
+	SenderID    uuid.UUID
+	ClientNonce string
+}
+
+type GetChatMessageBySenderNonceRow struct {
+	ID                  uuid.UUID
+	RoomID              uuid.UUID
+	SenderID            uuid.UUID
+	Username            string
+	DisplayName         string
+	AvatarUrl           string
+	SenderRole          string
+	Body                string
+	IsSystem            bool
+	CreatedAt           time.Time
+	ReplyToID           *uuid.UUID
+	ReplyToSenderID     *uuid.UUID
+	ReplyMemberNickname sql.NullString
+	ReplyDisplayName    sql.NullString
+	ReplyUsername       sql.NullString
+	ReplyToBody         sql.NullString
+	PinnedAt            sql.NullTime
+	PinnedBy            *uuid.UUID
+	EditedAt            sql.NullTime
+	SenderNickname      string
+	SenderMemberAvatar  string
+	ClientNonce         sql.NullString
+}
+
+func (q *Queries) GetChatMessageBySenderNonce(ctx context.Context, arg GetChatMessageBySenderNonceParams) (GetChatMessageBySenderNonceRow, error) {
+	row := q.db.QueryRowContext(ctx, getChatMessageBySenderNonce, arg.SenderID, arg.ClientNonce)
+	var i GetChatMessageBySenderNonceRow
+	err := row.Scan(
+		&i.ID,
+		&i.RoomID,
+		&i.SenderID,
+		&i.Username,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.SenderRole,
+		&i.Body,
+		&i.IsSystem,
+		&i.CreatedAt,
+		&i.ReplyToID,
+		&i.ReplyToSenderID,
+		&i.ReplyMemberNickname,
+		&i.ReplyDisplayName,
+		&i.ReplyUsername,
+		&i.ReplyToBody,
+		&i.PinnedAt,
+		&i.PinnedBy,
+		&i.EditedAt,
+		&i.SenderNickname,
+		&i.SenderMemberAvatar,
+		&i.ClientNonce,
 	)
 	return i, err
 }
@@ -1086,9 +1173,10 @@ func (q *Queries) HasActiveChatMemberTimeout(ctx context.Context, arg HasActiveC
 
 const insertChatMessage = `-- name: InsertChatMessage :one
 WITH ins AS (
-    INSERT INTO chat_messages (room_id, sender_id, body, reply_to_id, is_system)
-    VALUES ($1, $2, $3, $4, $5)
-    RETURNING id, room_id, sender_id, body, reply_to_id, pinned_at, pinned_by, is_system, edited_at, created_at
+     INSERT INTO chat_messages (room_id, sender_id, body, reply_to_id, is_system, client_nonce)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    ON CONFLICT (sender_id, client_nonce) WHERE client_nonce IS NOT NULL DO NOTHING
+    RETURNING id, room_id, sender_id, body, reply_to_id, pinned_at, pinned_by, is_system, edited_at, created_at, client_nonce
 )
 SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
        COALESCE(ur.role, '')::text AS sender_role,
@@ -1100,7 +1188,8 @@ SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url
        parent.body AS reply_to_body,
        cm.pinned_at, cm.pinned_by, cm.edited_at,
        COALESCE(mem.nickname, '')::text AS sender_nickname,
-       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar
+       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar,
+       cm.client_nonce
 FROM ins cm
 JOIN users u ON cm.sender_id = u.id
 LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -1111,11 +1200,12 @@ LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm
 `
 
 type InsertChatMessageParams struct {
-	RoomID    uuid.UUID
-	SenderID  uuid.UUID
-	Body      string
-	ReplyToID *uuid.UUID
-	IsSystem  bool
+	RoomID      uuid.UUID
+	SenderID    uuid.UUID
+	Body        string
+	ReplyToID   *uuid.UUID
+	IsSystem    bool
+	ClientNonce sql.NullString
 }
 
 type InsertChatMessageRow struct {
@@ -1140,6 +1230,7 @@ type InsertChatMessageRow struct {
 	EditedAt            sql.NullTime
 	SenderNickname      string
 	SenderMemberAvatar  string
+	ClientNonce         sql.NullString
 }
 
 func (q *Queries) InsertChatMessage(ctx context.Context, arg InsertChatMessageParams) (InsertChatMessageRow, error) {
@@ -1149,6 +1240,7 @@ func (q *Queries) InsertChatMessage(ctx context.Context, arg InsertChatMessagePa
 		arg.Body,
 		arg.ReplyToID,
 		arg.IsSystem,
+		arg.ClientNonce,
 	)
 	var i InsertChatMessageRow
 	err := row.Scan(
@@ -1173,6 +1265,7 @@ func (q *Queries) InsertChatMessage(ctx context.Context, arg InsertChatMessagePa
 		&i.EditedAt,
 		&i.SenderNickname,
 		&i.SenderMemberAvatar,
+		&i.ClientNonce,
 	)
 	return i, err
 }
@@ -1300,7 +1393,8 @@ SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url
        parent.body AS reply_to_body,
        cm.pinned_at, cm.pinned_by, cm.edited_at,
        COALESCE(mem.nickname, '')::text AS sender_nickname,
-       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar
+       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar,
+       cm.client_nonce
 FROM chat_messages cm
 JOIN users u ON cm.sender_id = u.id
 LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -1354,6 +1448,7 @@ type ListChatRoomLinkAttachmentsRow struct {
 	EditedAt            sql.NullTime
 	SenderNickname      string
 	SenderMemberAvatar  string
+	ClientNonce         sql.NullString
 }
 
 func (q *Queries) ListChatRoomLinkAttachments(ctx context.Context, arg ListChatRoomLinkAttachmentsParams) ([]ListChatRoomLinkAttachmentsRow, error) {
@@ -1393,6 +1488,7 @@ func (q *Queries) ListChatRoomLinkAttachments(ctx context.Context, arg ListChatR
 			&i.EditedAt,
 			&i.SenderNickname,
 			&i.SenderMemberAvatar,
+			&i.ClientNonce,
 		); err != nil {
 			return nil, err
 		}
@@ -1418,7 +1514,8 @@ SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url
        parent.body AS reply_to_body,
        cm.pinned_at, cm.pinned_by, cm.edited_at,
        COALESCE(mem.nickname, '')::text AS sender_nickname,
-       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar
+       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar,
+       cm.client_nonce
 FROM chat_messages cm
 JOIN users u ON cm.sender_id = u.id
 LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -1472,6 +1569,7 @@ type ListChatRoomMediaAttachmentsRow struct {
 	EditedAt            sql.NullTime
 	SenderNickname      string
 	SenderMemberAvatar  string
+	ClientNonce         sql.NullString
 }
 
 func (q *Queries) ListChatRoomMediaAttachments(ctx context.Context, arg ListChatRoomMediaAttachmentsParams) ([]ListChatRoomMediaAttachmentsRow, error) {
@@ -1511,6 +1609,7 @@ func (q *Queries) ListChatRoomMediaAttachments(ctx context.Context, arg ListChat
 			&i.EditedAt,
 			&i.SenderNickname,
 			&i.SenderMemberAvatar,
+			&i.ClientNonce,
 		); err != nil {
 			return nil, err
 		}
@@ -1591,7 +1690,7 @@ const listChatRoomMessages = `-- name: ListChatRoomMessages :many
 SELECT sub.id, sub.room_id, sub.sender_id, sub.username, sub.display_name, sub.avatar_url,
        sub.sender_role, sub.body, sub.is_system, sub.created_at, sub.reply_to_id,
        sub.reply_to_sender_id, sub.reply_member_nickname, sub.reply_display_name, sub.reply_username, sub.reply_to_body,
-       sub.pinned_at, sub.pinned_by, sub.edited_at, sub.sender_nickname, sub.sender_member_avatar
+       sub.pinned_at, sub.pinned_by, sub.edited_at, sub.sender_nickname, sub.sender_member_avatar, sub.client_nonce
 FROM (
     SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
            COALESCE(ur.role, '')::text AS sender_role,
@@ -1603,7 +1702,8 @@ FROM (
            parent.body AS reply_to_body,
            cm.pinned_at, cm.pinned_by, cm.edited_at,
            COALESCE(mem.nickname, '')::text AS sender_nickname,
-           COALESCE(mem.avatar_url, '')::text AS sender_member_avatar
+           COALESCE(mem.avatar_url, '')::text AS sender_member_avatar,
+           cm.client_nonce
     FROM chat_messages cm
     JOIN users u ON cm.sender_id = u.id
     LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -1652,6 +1752,7 @@ type ListChatRoomMessagesRow struct {
 	EditedAt            sql.NullTime
 	SenderNickname      string
 	SenderMemberAvatar  string
+	ClientNonce         sql.NullString
 }
 
 func (q *Queries) ListChatRoomMessages(ctx context.Context, arg ListChatRoomMessagesParams) ([]ListChatRoomMessagesRow, error) {
@@ -1685,6 +1786,7 @@ func (q *Queries) ListChatRoomMessages(ctx context.Context, arg ListChatRoomMess
 			&i.EditedAt,
 			&i.SenderNickname,
 			&i.SenderMemberAvatar,
+			&i.ClientNonce,
 		); err != nil {
 			return nil, err
 		}
@@ -1703,7 +1805,7 @@ const listChatRoomMessagesBefore = `-- name: ListChatRoomMessagesBefore :many
 SELECT sub.id, sub.room_id, sub.sender_id, sub.username, sub.display_name, sub.avatar_url,
        sub.sender_role, sub.body, sub.is_system, sub.created_at, sub.reply_to_id,
        sub.reply_to_sender_id, sub.reply_member_nickname, sub.reply_display_name, sub.reply_username, sub.reply_to_body,
-       sub.pinned_at, sub.pinned_by, sub.edited_at, sub.sender_nickname, sub.sender_member_avatar
+       sub.pinned_at, sub.pinned_by, sub.edited_at, sub.sender_nickname, sub.sender_member_avatar, sub.client_nonce
 FROM (
     SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
            COALESCE(ur.role, '')::text AS sender_role,
@@ -1715,7 +1817,8 @@ FROM (
            parent.body AS reply_to_body,
            cm.pinned_at, cm.pinned_by, cm.edited_at,
            COALESCE(mem.nickname, '')::text AS sender_nickname,
-           COALESCE(mem.avatar_url, '')::text AS sender_member_avatar
+           COALESCE(mem.avatar_url, '')::text AS sender_member_avatar,
+           cm.client_nonce
     FROM chat_messages cm
     JOIN users u ON cm.sender_id = u.id
     LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -1769,6 +1872,7 @@ type ListChatRoomMessagesBeforeRow struct {
 	EditedAt            sql.NullTime
 	SenderNickname      string
 	SenderMemberAvatar  string
+	ClientNonce         sql.NullString
 }
 
 func (q *Queries) ListChatRoomMessagesBefore(ctx context.Context, arg ListChatRoomMessagesBeforeParams) ([]ListChatRoomMessagesBeforeRow, error) {
@@ -1808,6 +1912,7 @@ func (q *Queries) ListChatRoomMessagesBefore(ctx context.Context, arg ListChatRo
 			&i.EditedAt,
 			&i.SenderNickname,
 			&i.SenderMemberAvatar,
+			&i.ClientNonce,
 		); err != nil {
 			return nil, err
 		}
@@ -1938,7 +2043,8 @@ SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url
        parent.body AS reply_to_body,
        cm.pinned_at, cm.pinned_by, cm.edited_at,
        COALESCE(mem.nickname, '')::text AS sender_nickname,
-       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar
+       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar,
+       cm.client_nonce
 FROM chat_messages cm
 JOIN users u ON cm.sender_id = u.id
 LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -1983,6 +2089,7 @@ type ListPinnedChatMessagesRow struct {
 	EditedAt            sql.NullTime
 	SenderNickname      string
 	SenderMemberAvatar  string
+	ClientNonce         sql.NullString
 }
 
 func (q *Queries) ListPinnedChatMessages(ctx context.Context, arg ListPinnedChatMessagesParams) ([]ListPinnedChatMessagesRow, error) {
@@ -2016,6 +2123,7 @@ func (q *Queries) ListPinnedChatMessages(ctx context.Context, arg ListPinnedChat
 			&i.EditedAt,
 			&i.SenderNickname,
 			&i.SenderMemberAvatar,
+			&i.ClientNonce,
 		); err != nil {
 			return nil, err
 		}

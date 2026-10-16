@@ -62,12 +62,30 @@ var (
 
 	ChatbotBasePrompts    = Namespace{Prefix: "chatbot:base-prompts", TTL: noExpiry}
 	ChatbotBasePromptByID = Namespace{Prefix: "chatbot:base-prompt:", TTL: noExpiry}
+	ChatbotSummonCooldown = Namespace{Prefix: "chatbot:summon-cooldown:"}
+	ChatbotRefusalNotice  = Namespace{Prefix: "chatbot:refusal-notice:", TTL: 10 * minute}
+	ChatbotScopeLease     = Namespace{Prefix: "chatbot:scope-lease:"}
 
 	SecretHolders = Namespace{Prefix: "secret:holders:", TTL: noExpiry}
 	SecretSolved  = Namespace{Prefix: "secret:solved:", TTL: noExpiry}
 
-	GiphyResponse = Namespace{Prefix: "giphy:response:", TTL: noExpiry}
-	GiphyGifUser  = Namespace{Prefix: "giphy:gif-user:", TTL: week}
+	GiphyResponse         = Namespace{Prefix: "giphy:response:", TTL: noExpiry}
+	GiphyGifUser          = Namespace{Prefix: "giphy:gif-user:", TTL: week}
+	GiphyRateLimitedUntil = Namespace{Prefix: "giphy:rate-limited-until"}
+
+	OpenAIRateLimitedUntil = Namespace{Prefix: "openai:rate-limited-until"}
+
+	StreamThumbnailSlot = Namespace{Prefix: "stream:thumbnail-slot:", TTL: 20 * time.Second}
+
+	RateLimitCredentials            = Namespace{Prefix: "ratelimit:credentials:", TTL: minute}
+	RateLimitMail                   = Namespace{Prefix: "ratelimit:mail:", TTL: hour}
+	RateLimitChatSend               = Namespace{Prefix: "ratelimit:chat-send:", TTL: 5 * time.Second}
+	RateLimitLinkPreview            = Namespace{Prefix: "ratelimit:link-preview:", TTL: minute}
+	RateLimitStreamViewerToken      = Namespace{Prefix: "ratelimit:stream-viewer-token:", TTL: minute}
+	RateLimitStreamThumbnail        = Namespace{Prefix: "ratelimit:stream-thumbnail:", TTL: minute}
+	RateLimitStreamCredentialsReset = Namespace{Prefix: "ratelimit:stream-credentials-reset:", TTL: minute}
+
+	LastSeenIP = Namespace{Prefix: "last-seen-ip:", TTL: hour}
 )
 
 func (n Namespace) Key(parts ...string) string {

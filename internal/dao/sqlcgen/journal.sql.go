@@ -281,9 +281,9 @@ func (q *Queries) CreateJournalCommentWithEntry(ctx context.Context, arg CreateJ
 }
 
 const createJournalEntry = `-- name: CreateJournalEntry :one
-INSERT INTO journal_entries (journal_id, entry_number, title, body, word_count, is_draft)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, journal_id, entry_number, title, body, word_count, is_draft, created_at, updated_at
+INSERT INTO journal_entries (journal_id, entry_number, title, body, word_count, is_draft, published_at)
+VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $6::boolean THEN NULL ELSE NOW() END)
+RETURNING id, journal_id, entry_number, title, body, word_count, is_draft, published_at, created_at, updated_at
 `
 
 type CreateJournalEntryParams struct {
@@ -303,6 +303,7 @@ type CreateJournalEntryRow struct {
 	Body        string
 	WordCount   int32
 	IsDraft     bool
+	PublishedAt sql.NullTime
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -325,6 +326,7 @@ func (q *Queries) CreateJournalEntry(ctx context.Context, arg CreateJournalEntry
 		&i.Body,
 		&i.WordCount,
 		&i.IsDraft,
+		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -378,7 +380,7 @@ SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity
        le.entry_number AS latest_entry_number,
        le.title AS latest_entry_title,
        le.body AS latest_entry_body,
-       le.created_at AS latest_entry_at
+       le.published_at AS latest_entry_at
 FROM journals j
 JOIN users u ON j.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = u.id
@@ -453,7 +455,7 @@ func (q *Queries) GetJournalCommentEntryNumber(ctx context.Context, id uuid.UUID
 }
 
 const getJournalEntry = `-- name: GetJournalEntry :one
-SELECT e.id, e.journal_id, e.entry_number, e.title, e.body, e.word_count, e.is_draft, e.created_at, e.updated_at,
+SELECT e.id, e.journal_id, e.entry_number, e.title, e.body, e.word_count, e.is_draft, e.published_at, e.created_at, e.updated_at,
        EXISTS(SELECT 1 FROM journal_entries p WHERE p.journal_id = $1 AND p.entry_number < $2 AND NOT p.is_draft) AS has_prev,
        EXISTS(SELECT 1 FROM journal_entries n WHERE n.journal_id = $1 AND n.entry_number > $2 AND NOT n.is_draft) AS has_next
 FROM journal_entries e
@@ -473,6 +475,7 @@ type GetJournalEntryRow struct {
 	Body        string
 	WordCount   int32
 	IsDraft     bool
+	PublishedAt sql.NullTime
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	HasPrev     bool
@@ -490,6 +493,7 @@ func (q *Queries) GetJournalEntry(ctx context.Context, arg GetJournalEntryParams
 		&i.Body,
 		&i.WordCount,
 		&i.IsDraft,
+		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.HasPrev,
@@ -510,7 +514,7 @@ func (q *Queries) GetJournalEntryAuthorID(ctx context.Context, id uuid.UUID) (uu
 }
 
 const getJournalEntryByID = `-- name: GetJournalEntryByID :one
-SELECT id, journal_id, entry_number, title, body, word_count, is_draft, created_at, updated_at
+SELECT id, journal_id, entry_number, title, body, word_count, is_draft, published_at, created_at, updated_at
 FROM journal_entries
 WHERE id = $1
 `
@@ -523,6 +527,7 @@ type GetJournalEntryByIDRow struct {
 	Body        string
 	WordCount   int32
 	IsDraft     bool
+	PublishedAt sql.NullTime
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -538,6 +543,7 @@ func (q *Queries) GetJournalEntryByID(ctx context.Context, id uuid.UUID) (GetJou
 		&i.Body,
 		&i.WordCount,
 		&i.IsDraft,
+		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -659,7 +665,7 @@ SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity
        le.entry_number AS latest_entry_number,
        le.title AS latest_entry_title,
        le.body AS latest_entry_body,
-       le.created_at AS latest_entry_at
+       le.published_at AS latest_entry_at
 FROM journals j
 JOIN users u ON j.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = u.id
@@ -745,7 +751,7 @@ func (q *Queries) ListFollowedJournals(ctx context.Context, arg ListFollowedJour
 }
 
 const listJournalEntries = `-- name: ListJournalEntries :many
-SELECT id, entry_number, title, word_count, is_draft, created_at
+SELECT id, entry_number, title, word_count, is_draft, published_at, created_at
 FROM journal_entries
 WHERE journal_id = $1
 ORDER BY entry_number DESC
@@ -757,6 +763,7 @@ type ListJournalEntriesRow struct {
 	Title       sql.NullString
 	WordCount   int32
 	IsDraft     bool
+	PublishedAt sql.NullTime
 	CreatedAt   time.Time
 }
 
@@ -775,6 +782,7 @@ func (q *Queries) ListJournalEntries(ctx context.Context, journalID uuid.UUID) (
 			&i.Title,
 			&i.WordCount,
 			&i.IsDraft,
+			&i.PublishedAt,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -1027,7 +1035,7 @@ SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity
        le.entry_number AS latest_entry_number,
        le.title AS latest_entry_title,
        le.body AS latest_entry_body,
-       le.created_at AS latest_entry_at
+       le.published_at AS latest_entry_at
 FROM journals j
 JOIN users u ON j.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = u.id
@@ -1137,7 +1145,7 @@ SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity
        le.entry_number AS latest_entry_number,
        le.title AS latest_entry_title,
        le.body AS latest_entry_body,
-       le.created_at AS latest_entry_at
+       le.published_at AS latest_entry_at
 FROM journals j
 JOIN users u ON j.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = u.id
@@ -1247,7 +1255,7 @@ SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity
        le.entry_number AS latest_entry_number,
        le.title AS latest_entry_title,
        le.body AS latest_entry_body,
-       le.created_at AS latest_entry_at
+       le.published_at AS latest_entry_at
 FROM journals j
 JOIN users u ON j.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = u.id
@@ -1357,7 +1365,7 @@ SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity
        le.entry_number AS latest_entry_number,
        le.title AS latest_entry_title,
        le.body AS latest_entry_body,
-       le.created_at AS latest_entry_at
+       le.published_at AS latest_entry_at
 FROM journals j
 JOIN users u ON j.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = u.id
@@ -1455,6 +1463,18 @@ func (q *Queries) ListJournalsByRecentlyActive(ctx context.Context, arg ListJour
 		return nil, err
 	}
 	return items, nil
+}
+
+const markJournalEntryFirstPublished = `-- name: MarkJournalEntryFirstPublished :execrows
+UPDATE journal_entries SET published_at = NOW() WHERE id = $1 AND published_at IS NULL AND NOT is_draft
+`
+
+func (q *Queries) MarkJournalEntryFirstPublished(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.ExecContext(ctx, markJournalEntryFirstPublished, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const setJournalPaused = `-- name: SetJournalPaused :execrows

@@ -2,11 +2,13 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Room } from "livekit-client";
+import { isPendingSend, type PendingSend, type ThreadEntry } from "../../domain/chat/optimisticSend";
 import { roomCapabilities } from "../../domain/chat/roomPolicy";
+import type { ComposerTarget } from "../../components/chat/ChatComposer/ChatComposer";
 import type { DmThreadView } from "../../components/chat/mobile/MobileDmView";
 import type { DmController } from "../../hooks/useDmController";
 import { makeDmController } from "../../hooks/useDmController.fixture";
-import { makeChatMessage, makeDmRoom, makeRoomMember, makeUser } from "../../test-utils/fixtures";
+import { makeChatMessage, makeDmRoom, makePendingSend, makeRoomMember, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import { emitRealtimeEvent } from "../../test-utils/ws";
 import type { ChatMessage, ChatRoom, ChatRoomMember, User, UserProfile } from "../../types/api";
@@ -54,16 +56,15 @@ vi.mock("../../components/chat/mobile/MobileDmView", () => ({
 
 vi.mock("../../components/chat/ChatComposer/ChatComposer", () => ({
     ChatComposer: (props: {
-        roomId: string | null;
-        draftRecipientId: string | null;
+        target: ComposerTarget | null;
         mentionPool?: User[];
         timeoutUntil?: string;
         extraActions?: React.ReactNode;
     }) => (
         <div
             data-testid="composer"
-            data-room={String(props.roomId)}
-            data-draft={String(props.draftRecipientId)}
+            data-room={props.target?.kind === "room" ? props.target.sender.roomId : "null"}
+            data-draft={props.target?.kind === "draft" ? props.target.sender.recipientId : "null"}
             data-mention-pool={
                 props.mentionPool === undefined ? "none" : props.mentionPool.map(u => u.username).join(",")
             }
@@ -76,20 +77,28 @@ vi.mock("../../components/chat/ChatComposer/ChatComposer", () => ({
 
 vi.mock("../../components/chat/MessageList/MessageList", () => ({
     MessageList: (props: {
-        messages: ChatMessage[];
+        room: ChatRoom | null;
+        emptyLabel?: React.ReactNode;
+        entries: ThreadEntry[];
         highlightedMessageId?: string | null;
         viewerTimedOut?: boolean;
     }) => (
         <div
             data-testid="dm-messages"
+            data-room={props.room?.id ?? "none"}
             data-highlighted={props.highlightedMessageId ?? ""}
             data-timed-out={String(Boolean(props.viewerTimedOut))}
         >
-            {props.messages.map(message => (
-                <div key={message.id} id={`chat-msg-${message.id}`}>
-                    {message.body}
-                </div>
-            ))}
+            {props.entries.length === 0 && props.emptyLabel}
+            {props.entries.map(entry => {
+                const id = isPendingSend(entry) ? entry.nonce : entry.id;
+
+                return (
+                    <div key={id} id={`chat-msg-${id}`}>
+                        {entry.body}
+                    </div>
+                );
+            })}
         </div>
     ),
 }));
@@ -145,6 +154,7 @@ interface ControllerOptions {
     activeRoomId?: string | null;
     draftRecipient?: User | null;
     messages?: ChatMessage[];
+    pending?: PendingSend[];
     roomMembers?: ChatRoomMember[];
     route?: string;
     typingNames?: string[];
@@ -170,7 +180,6 @@ function stubController(options: ControllerOptions = {}) {
         setDmSearch: vi.fn(),
         handleRoomSelect: vi.fn(),
         handleMobileBack: vi.fn(),
-        handleSentMessage: vi.fn(),
         handleSelectUser: vi.fn(),
         handleEditLast: vi.fn(),
         handleDeleteChat: vi.fn(),
@@ -184,6 +193,8 @@ function stubController(options: ControllerOptions = {}) {
     const base = makeDmController();
     const viewerUser = options.user === undefined ? viewer : options.user;
     const activeRoom = options.activeRoom ?? null;
+    const draftRecipient = options.draftRecipient ?? null;
+    const messages = options.messages ?? [];
 
     mocks.useChatRoomMembers.mockReturnValue({
         members: options.roomMembers ?? [],
@@ -198,9 +209,12 @@ function stubController(options: ControllerOptions = {}) {
         rooms: options.rooms ?? [],
         activeRoomId: options.activeRoomId ?? activeRoom?.id ?? null,
         activeRoom: activeRoom ?? undefined,
-        messages: options.messages ?? [],
+        messages,
+        entries: [...messages, ...(options.pending ?? [])],
+        sender: activeRoom ? { roomId: activeRoom.id, send: vi.fn() } : null,
+        draftSender: !activeRoom && draftRecipient ? { recipientId: draftRecipient.id, send: vi.fn() } : null,
         loadUntilMessage: handlers.loadUntilMessage,
-        draftRecipient: options.draftRecipient ?? null,
+        draftRecipient,
         setDraftRecipient: handlers.setDraftRecipient,
         typingNames: options.typingNames ?? [],
         voice: {
@@ -226,7 +240,6 @@ function stubController(options: ControllerOptions = {}) {
         showToast: handlers.showToast,
         handleRoomSelect: handlers.handleRoomSelect,
         handleMobileBack: handlers.handleMobileBack,
-        handleSentMessage: handlers.handleSentMessage,
         handleSelectUser: handlers.handleSelectUser,
         handleEditLast: handlers.handleEditLast,
         handleDeleteChat: handlers.handleDeleteChat,
@@ -373,7 +386,44 @@ describe("ChatPage message area", () => {
         expect(screen.getByText(/Send your first message to/)).toHaveTextContent(
             "Send your first message to Beatrice.",
         );
+        expect(screen.getByTestId("dm-messages")).toHaveAttribute("data-room", "none");
         expect(screen.getByTestId("composer")).toHaveAttribute("data-draft", "user-b");
+    });
+
+    it("shows a first message that is still on its way in the brand new conversation's thread", () => {
+        // given
+        const pending = [
+            makePendingSend({ thread: { kind: "draft", recipientId: beatrice.id }, body: "are you there" }),
+        ];
+
+        // when
+        renderChat({ draftRecipient: beatrice, pending });
+
+        // then
+        expect(screen.getByTestId("dm-messages")).toHaveTextContent("are you there");
+        expect(screen.queryByText(/Send your first message to/)).not.toBeInTheDocument();
+    });
+
+    it("keeps the same thread and composer on screen when the brand new conversation becomes its room", () => {
+        // given a first message on its way in the draft
+        const pending = makePendingSend({ thread: { kind: "draft", recipientId: beatrice.id }, body: "hello" });
+        const { rerender } = renderChat({ draftRecipient: beatrice, pending: [pending] });
+        const threadBefore = screen.getByTestId("dm-messages");
+        const composerBefore = screen.getByTestId("composer");
+
+        // when the room it opened is adopted
+        stubController({
+            activeRoom: makeRoom({ id: "room-9" }),
+            messages: [makeChatMessage({ id: "m1", body: "hello", client_nonce: pending.nonce })],
+        });
+        rerender(<ChatPage />);
+
+        // then
+        expect(screen.getByTestId("dm-messages")).toBe(threadBefore);
+        expect(screen.getByTestId("composer")).toBe(composerBefore);
+        expect(threadBefore).toHaveAttribute("data-room", "room-9");
+        expect(composerBefore).toHaveAttribute("data-room", "room-9");
+        expect(threadBefore).toHaveTextContent("hello");
     });
 
     it("abandons a brand new conversation when cancelled", async () => {

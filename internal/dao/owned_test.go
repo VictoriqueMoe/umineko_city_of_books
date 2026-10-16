@@ -48,7 +48,9 @@ func TestOwnedWrites_AMissingOrForeignRowReadsAsNotFound(t *testing.T) {
 			return repos.OC.Update(ctx, spec.OCUpdate{ID: missing, UserID: user, Name: "n"})
 		}},
 		{name: "fanfic update", write: func(ctx context.Context, repos *repository.Repositories) error {
-			return repos.Fanfic.Update(ctx, spec.FanficUpdate{ID: missing, UserID: user, Title: "t"})
+			_, err := repos.Fanfic.Update(ctx, spec.FanficUpdate{ID: missing, UserID: user, Title: "t"})
+
+			return err
 		}},
 		{name: "post update", write: func(ctx context.Context, repos *repository.Repositories) error {
 			return repos.Post.UpdatePost(ctx, spec.PostUpdate{ID: missing, UserID: user, Body: "b"})

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
@@ -38,9 +39,17 @@ const (
 	promptByteBudget = 200000
 	safetyIDSalt     = "umineko-chatbot-safety-id:"
 	shutdownMessage  = "chatbot worker pool drained"
-	refusalCooldown  = 10 * time.Minute
 	quotaWindow      = 24 * time.Hour
 	noticeTimeout    = 15 * time.Second
+
+	jobsAheadWorstCase = queueCap - 1 + workerCount
+	roundsBeforeStart  = (jobsAheadWorstCase + workerCount - 1) / workerCount
+	jobLifetimeMax     = jobTimeout + noticeTimeout
+	scopeLeaseTTL      = (roundsBeforeStart + 1) * jobLifetimeMax
+
+	purposeSummonCooldown = "summon cooldown"
+	purposeRefusalNotice  = "refusal notice"
+	purposeScopeLease     = "scope lease"
 )
 
 type (
@@ -72,11 +81,7 @@ type (
 		ev       botEvent
 		bot      model.Chatbot
 		useChain bool
-	}
-
-	noticeKey struct {
-		user   uuid.UUID
-		reason Reason
+		leased   bool
 	}
 
 	quotaState struct {
@@ -96,14 +101,12 @@ type (
 		authzSvc    authz.Service
 		settingsSvc settings.Service
 		hub         *ws.Hub
+		cache       *cache.Manager
 
-		mu         sync.RWMutex
-		tune       tuning
-		bots       map[uuid.UUID]model.Chatbot
-		loaded     bool
-		lastUse    sync.Map
-		lastNotice sync.Map
-		inScope    sync.Map
+		mu     sync.RWMutex
+		tune   tuning
+		bots   map[uuid.UUID]model.Chatbot
+		loaded bool
 
 		jobs     chan job
 		quit     chan struct{}
@@ -124,6 +127,7 @@ func NewService(
 	authzSvc authz.Service,
 	settingsSvc settings.Service,
 	hub *ws.Hub,
+	cacheMgr *cache.Manager,
 ) Service {
 	s := &service{
 		openaiSvc:   openaiSvc,
@@ -136,6 +140,7 @@ func NewService(
 		authzSvc:    authzSvc,
 		settingsSvc: settingsSvc,
 		hub:         hub,
+		cache:       cacheMgr,
 		bots:        make(map[uuid.UUID]model.Chatbot),
 		jobs:        make(chan job, queueCap),
 		quit:        make(chan struct{}),
@@ -326,8 +331,26 @@ func (s *service) Shutdown(ctx context.Context) error {
 
 		return nil
 	case <-ctx.Done():
-		logger.Ctx(ctx).Warn().Int("abandoned", len(s.jobs)).Msg("chatbot drain timed out")
+		abandoned := s.abandonQueued(context.WithoutCancel(ctx))
+
+		logger.Ctx(ctx).Warn().Int("abandoned", abandoned).Msg("chatbot drain timed out")
 
 		return ctx.Err()
+	}
+}
+
+func (s *service) abandonQueued(ctx context.Context) int {
+	abandoned := 0
+
+	for {
+		select {
+		case j := <-s.jobs:
+			s.releaseScope(ctx, j)
+			abandoned++
+		default:
+			queueDepth.Set(float64(len(s.jobs)))
+
+			return abandoned
+		}
 	}
 }

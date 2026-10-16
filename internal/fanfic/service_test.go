@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
@@ -25,6 +26,7 @@ import (
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
@@ -35,15 +37,19 @@ import (
 
 type (
 	testMocks struct {
-		fanficRepo     *repository.MockFanficRepository
-		fanficComments *dao.MockCommentDAO[uuid.UUID]
-		userRepo       *repository.MockUserRepository
-		auditRepo      *repository.MockAuditLogRepository
-		authz          *authz.MockService
-		blockSvc       *block.MockService
-		notifSvc       *notification.MockService
-		uploadSvc      *upload.MockService
-		settingsSvc    *settings.MockService
+		fanficRepo      *repository.MockFanficRepository
+		fanficComments  *dao.MockCommentDAO[uuid.UUID]
+		userRepo        *repository.MockUserRepository
+		followRepo      *repository.MockFollowRepository
+		auditRepo       *repository.MockAuditLogRepository
+		authz           *authz.MockService
+		blockSvc        *block.MockService
+		notifSvc        *notification.MockService
+		uploadSvc       *upload.MockService
+		settingsSvc     *settings.MockService
+		activity        *sidebar.MockActivityBumper
+		followerID      uuid.UUID
+		followerNotices chan []dto.NotifyParams
 	}
 
 	givenFunc func(m *testMocks, id, userID uuid.UUID)
@@ -59,7 +65,8 @@ const (
 	fanficOthers
 	fanficOthersBlockLookupFails
 
-	savedImageURL = "/uploads/fanfics/x.png"
+	savedImageURL    = "/uploads/fanfics/x.png"
+	publishedEarlier = "2026-01-01T00:00:00Z"
 )
 
 var (
@@ -69,23 +76,44 @@ var (
 
 func newTestService(t *testing.T) (*service, *testMocks) {
 	m := &testMocks{
-		fanficRepo:     repository.NewMockFanficRepository(t),
-		fanficComments: dao.NewMockCommentDAO[uuid.UUID](t),
-		userRepo:       repository.NewMockUserRepository(t),
-		auditRepo:      repository.NewMockAuditLogRepository(t),
-		authz:          authz.NewMockService(t),
-		blockSvc:       block.NewMockService(t),
-		notifSvc:       notification.NewMockService(t),
-		uploadSvc:      upload.NewMockService(t),
-		settingsSvc:    settings.NewMockService(t),
+		fanficRepo:      repository.NewMockFanficRepository(t),
+		fanficComments:  dao.NewMockCommentDAO[uuid.UUID](t),
+		userRepo:        repository.NewMockUserRepository(t),
+		followRepo:      repository.NewMockFollowRepository(t),
+		auditRepo:       repository.NewMockAuditLogRepository(t),
+		authz:           authz.NewMockService(t),
+		blockSvc:        block.NewMockService(t),
+		notifSvc:        notification.NewMockService(t),
+		uploadSvc:       upload.NewMockService(t),
+		settingsSvc:     settings.NewMockService(t),
+		activity:        sidebar.NewMockActivityBumper(t),
+		followerID:      uuid.New(),
+		followerNotices: make(chan []dto.NotifyParams, 8),
 	}
 
 	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifSvc, dao.CommentDAOs{
 		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindFanficComment): m.fanficComments},
 	})
-	svc := NewService(m.fanficRepo, m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.uploadSvc, media.NewProcessor(1), m.settingsSvc, contentfilter.New(), nil).(*service)
+	svc := NewService(m.fanficRepo, m.userRepo, m.followRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.uploadSvc, media.NewProcessor(1), m.settingsSvc, contentfilter.New(), nil, m.activity).(*service)
+
+	m.followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Return([]uuid.UUID{m.followerID}, nil).Maybe()
+	m.notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Run(func(_ context.Context, params []dto.NotifyParams) {
+		m.followerNotices <- params
+	}).Return().Maybe()
 
 	return svc, m
+}
+
+func receive[T any](t *testing.T, ch <-chan T, what string) (got T) {
+	t.Helper()
+
+	select {
+	case got = <-ch:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timed out waiting for %s", what)
+	}
+
+	return got
 }
 
 func expectImageSave(m *testMocks, err error) {
@@ -197,10 +225,11 @@ func TestCreateFanfic(t *testing.T) {
 	}
 
 	cases := []struct {
-		name    string
-		req     dto.CreateFanficRequest
-		want    spec.NewFanficWithDetails
-		repoErr error
+		name     string
+		req      dto.CreateFanficRequest
+		want     spec.NewFanficWithDetails
+		repoErr  error
+		wantBump sidebar.Key
 	}{
 		{
 			name: "fields are trimmed, blank and duplicate tags dropped and an unknown status defaulted",
@@ -216,9 +245,10 @@ func TestCreateFanfic(t *testing.T) {
 				NewFanfic: spec.NewFanfic{Title: "Title", Summary: "sum", Series: "My Series", Rating: "K", Language: "English", Status: "in_progress"},
 				Tags:      []string{"a", "b", "c"},
 			},
+			wantBump: sidebar.KeyFanfiction,
 		},
 		{
-			name: "a body becomes the first chapter with its word count",
+			name: "a draft body becomes the first chapter with its word count and does not bump the sidebar",
 			req:  dto.CreateFanficRequest{Title: "Title", Status: "draft", Body: "<p>hello <b>world</b></p>", Characters: characters, Rating: "M"},
 			want: spec.NewFanficWithDetails{
 				NewFanfic:    spec.NewFanfic{Title: "Title", Series: "Umineko", Rating: "M", Language: "English", Status: "draft"},
@@ -233,6 +263,7 @@ func TestCreateFanfic(t *testing.T) {
 				NewFanfic:    spec.NewFanfic{Title: "Title", Series: "Umineko", Rating: "K", Language: "English", Status: "in_progress"},
 				FirstChapter: &spec.NewChapter{Number: 1, Body: "<p>hello</p>", WordCount: 1},
 			},
+			wantBump: sidebar.KeyFanfiction,
 		},
 		{
 			name: "a body that sanitises to nothing creates no first chapter",
@@ -240,9 +271,10 @@ func TestCreateFanfic(t *testing.T) {
 			want: spec.NewFanficWithDetails{
 				NewFanfic: spec.NewFanfic{Title: "Title", Series: "Umineko", Rating: "K", Language: "English", Status: "in_progress"},
 			},
+			wantBump: sidebar.KeyFanfiction,
 		},
 		{
-			name:    "blank optional fields take their defaults and a repo error propagates",
+			name:    "blank optional fields take their defaults and a repo error propagates without bumping the sidebar",
 			req:     dto.CreateFanficRequest{Title: "Title"},
 			want:    spec.NewFanficWithDetails{NewFanfic: spec.NewFanfic{Title: "Title", Series: "Umineko", Rating: "K", Language: "English", Status: "in_progress"}},
 			repoErr: errDB,
@@ -263,6 +295,9 @@ func TestCreateFanfic(t *testing.T) {
 				created = &model.FanficRow{ID: createdID}
 			}
 			m.fanficRepo.EXPECT().CreateWithDetails(mock.Anything, want).Return(created, tc.repoErr)
+			if tc.wantBump != "" {
+				m.activity.EXPECT().BumpSidebarActivity(tc.wantBump).Return().Once()
+			}
 
 			// when
 			id, err := svc.CreateFanfic(context.Background(), userID, tc.req)
@@ -308,6 +343,7 @@ func TestCreateFanfic_MentionFanOut(t *testing.T) {
 
 			if tt.wantFanOut {
 				wg.Add(1)
+				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyFanfiction).Return().Once()
 				m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
 				m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
 				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
@@ -561,6 +597,15 @@ func TestUpdateFanfic(t *testing.T) {
 			wantErr: errDB,
 		},
 		{
+			name: "a fanfic deleted between the author check and the snapshot is not found",
+			req:  dto.UpdateFanficRequest{Title: "T"},
+			given: func(m *testMocks, id, userID uuid.UUID) {
+				m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+				m.fanficRepo.EXPECT().GetByID(mock.Anything, spec.FanficLookup{ID: id, ViewerID: userID}).Return(nil, nil)
+			},
+			wantErr: ErrNotFound,
+		},
+		{
 			name: "someone else without edit rights is refused",
 			req:  dto.UpdateFanficRequest{Title: "T"},
 			given: func(m *testMocks, id, userID uuid.UUID) {
@@ -577,10 +622,10 @@ func TestUpdateFanfic(t *testing.T) {
 				m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(authorID, nil)
 				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
 				m.fanficRepo.EXPECT().GetByID(mock.Anything, spec.FanficLookup{ID: id, ViewerID: userID}).
-					Return(&model.FanficRow{ID: id, UserID: authorID, Title: "old", Series: "ser", Rating: "K", Language: "en", Status: "in_progress"}, nil)
+					Return(&model.FanficRow{ID: id, UserID: authorID, Title: "old", Series: "ser", Rating: "K", Language: "en", Status: "in_progress", PublishedAt: new(publishedEarlier)}, nil)
 				m.fanficRepo.EXPECT().UpdateWithDetails(mock.Anything, spec.FanficUpdateWithDetails{
 					ID: id, UserID: userID, Title: "T", Summary: "s", Series: "ser", Rating: "K", Language: "en", Status: "in_progress", AsAdmin: true,
-				}).Return(nil)
+				}).Return(false, nil)
 				m.auditRepo.EXPECT().
 					Create(mock.Anything, audit.NewEntry{ActorID: userID, Action: audit.ActionFanficUpdateAdmin, TargetType: audit.TargetFanfic, TargetID: id.String(), Details: "changed=title,summary", SubjectID: authorID}).
 					Return(nil)
@@ -591,20 +636,106 @@ func TestUpdateFanfic(t *testing.T) {
 			req:  dto.UpdateFanficRequest{Title: "T", Characters: characters},
 			given: func(m *testMocks, id, userID uuid.UUID) {
 				m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+				m.fanficRepo.EXPECT().GetByID(mock.Anything, spec.FanficLookup{ID: id, ViewerID: userID}).
+					Return(&model.FanficRow{ID: id, UserID: userID, Status: "in_progress", PublishedAt: new(publishedEarlier)}, nil)
 				m.fanficRepo.EXPECT().UpdateWithDetails(mock.Anything, spec.FanficUpdateWithDetails{
-					ID: id, UserID: userID, Title: "T", Series: "Umineko", Rating: "K", Language: "English",
+					ID: id, UserID: userID, Title: "T", Series: "Umineko", Rating: "K", Language: "English", Status: "in_progress",
 					Characters: characters,
-				}).Return(nil)
+				}).Return(false, nil)
 			},
 		},
 		{
-			name: "repo error propagates",
+			name: "an unknown status is refused before anything is read or written",
+			req:  dto.UpdateFanficRequest{Title: "T", Status: "published"},
+			given: func(m *testMocks, id, userID uuid.UUID) {
+				m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+			},
+			wantErr: ErrInvalidStatus,
+		},
+		{
+			name: "an empty status keeps a draft a draft and publishes nothing",
 			req:  dto.UpdateFanficRequest{Title: "T"},
 			given: func(m *testMocks, id, userID uuid.UUID) {
 				m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+				m.fanficRepo.EXPECT().GetByID(mock.Anything, spec.FanficLookup{ID: id, ViewerID: userID}).
+					Return(&model.FanficRow{ID: id, UserID: userID, Status: "draft"}, nil)
 				m.fanficRepo.EXPECT().UpdateWithDetails(mock.Anything, spec.FanficUpdateWithDetails{
-					ID: id, UserID: userID, Title: "T", Series: "Umineko", Rating: "K", Language: "English",
-				}).Return(errDB)
+					ID: id, UserID: userID, Title: "T", Series: "Umineko", Rating: "K", Language: "English", Status: "draft",
+				}).Return(false, nil)
+			},
+		},
+		{
+			name: "publishing a draft for the first time bumps the fanfiction section",
+			req:  dto.UpdateFanficRequest{Title: "T", Status: "complete"},
+			given: func(m *testMocks, id, userID uuid.UUID) {
+				m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+				m.fanficRepo.EXPECT().GetByID(mock.Anything, spec.FanficLookup{ID: id, ViewerID: userID}).
+					Return(&model.FanficRow{ID: id, UserID: userID, Status: "draft"}, nil)
+				m.fanficRepo.EXPECT().ListChapters(mock.Anything, id).Return(nil, nil)
+				m.fanficRepo.EXPECT().UpdateWithDetails(mock.Anything, spec.FanficUpdateWithDetails{
+					ID: id, UserID: userID, Title: "T", Series: "Umineko", Rating: "K", Language: "English", Status: "complete",
+				}).Return(true, nil)
+				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyFanfiction).Return().Once()
+			},
+		},
+		{
+			name: "republishing a fanfic that was published before neither reads its first chapter nor bumps the sidebar",
+			req:  dto.UpdateFanficRequest{Title: "T", Status: "complete"},
+			given: func(m *testMocks, id, userID uuid.UUID) {
+				m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+				m.fanficRepo.EXPECT().GetByID(mock.Anything, spec.FanficLookup{ID: id, ViewerID: userID}).
+					Return(&model.FanficRow{ID: id, UserID: userID, Status: "draft", PublishedAt: new(publishedEarlier)}, nil)
+				m.fanficRepo.EXPECT().UpdateWithDetails(mock.Anything, spec.FanficUpdateWithDetails{
+					ID: id, UserID: userID, Title: "T", Series: "Umineko", Rating: "K", Language: "English", Status: "complete",
+				}).Return(false, nil)
+			},
+		},
+		{
+			name: "a draft saved as a draft does not bump the sidebar",
+			req:  dto.UpdateFanficRequest{Title: "T", Status: "draft"},
+			given: func(m *testMocks, id, userID uuid.UUID) {
+				m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+				m.fanficRepo.EXPECT().GetByID(mock.Anything, spec.FanficLookup{ID: id, ViewerID: userID}).
+					Return(&model.FanficRow{ID: id, UserID: userID, Status: "draft"}, nil)
+				m.fanficRepo.EXPECT().UpdateWithDetails(mock.Anything, spec.FanficUpdateWithDetails{
+					ID: id, UserID: userID, Title: "T", Series: "Umineko", Rating: "K", Language: "English", Status: "draft",
+				}).Return(false, nil)
+			},
+		},
+		{
+			name: "a repo error while publishing a draft propagates without bumping the sidebar",
+			req:  dto.UpdateFanficRequest{Title: "T", Status: "complete"},
+			given: func(m *testMocks, id, userID uuid.UUID) {
+				m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+				m.fanficRepo.EXPECT().GetByID(mock.Anything, spec.FanficLookup{ID: id, ViewerID: userID}).
+					Return(&model.FanficRow{ID: id, UserID: userID, Status: "draft"}, nil)
+				m.fanficRepo.EXPECT().ListChapters(mock.Anything, id).Return(nil, nil)
+				m.fanficRepo.EXPECT().UpdateWithDetails(mock.Anything, spec.FanficUpdateWithDetails{
+					ID: id, UserID: userID, Title: "T", Series: "Umineko", Rating: "K", Language: "English", Status: "complete",
+				}).Return(false, errDB)
+			},
+			wantErr: errDB,
+		},
+		{
+			name: "a failed chapter listing while publishing a draft is surfaced before anything is written",
+			req:  dto.UpdateFanficRequest{Title: "T", Status: "complete"},
+			given: func(m *testMocks, id, userID uuid.UUID) {
+				m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+				m.fanficRepo.EXPECT().GetByID(mock.Anything, spec.FanficLookup{ID: id, ViewerID: userID}).
+					Return(&model.FanficRow{ID: id, UserID: userID, Status: "draft"}, nil)
+				m.fanficRepo.EXPECT().ListChapters(mock.Anything, id).Return(nil, errDB)
+			},
+			wantErr: errDB,
+		},
+		{
+			name: "a failed first chapter read while publishing a draft is surfaced before anything is written",
+			req:  dto.UpdateFanficRequest{Title: "T", Status: "complete"},
+			given: func(m *testMocks, id, userID uuid.UUID) {
+				m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+				m.fanficRepo.EXPECT().GetByID(mock.Anything, spec.FanficLookup{ID: id, ViewerID: userID}).
+					Return(&model.FanficRow{ID: id, UserID: userID, Status: "draft"}, nil)
+				m.fanficRepo.EXPECT().ListChapters(mock.Anything, id).Return([]model.FanficChapterSummaryRow{{ChapterNum: 1}}, nil)
+				m.fanficRepo.EXPECT().GetChapter(mock.Anything, spec.FanficChapterLookup{FanficID: id, ChapterNumber: 1}).Return(nil, errDB)
 			},
 			wantErr: errDB,
 		},
@@ -623,6 +754,229 @@ func TestUpdateFanfic(t *testing.T) {
 
 			// then
 			require.ErrorIs(t, err, tc.wantErr)
+		})
+	}
+}
+
+func TestUpdateFanfic_MentionFanOut(t *testing.T) {
+	tests := []struct {
+		name            string
+		beforeStatus    string
+		publishedBefore bool
+		status          string
+		summary         string
+		chapters        []model.FanficChapterSummaryRow
+		chapterBody     string
+		asAdmin         bool
+		readsChapters   bool
+		firstPublished  bool
+	}{
+		{
+			name:           "publishing a draft for the first time notifies a user mentioned in the summary",
+			beforeStatus:   "draft",
+			status:         "complete",
+			summary:        "written for @alice",
+			readsChapters:  true,
+			firstPublished: true,
+		},
+		{
+			name:           "publishing a draft for the first time notifies a user mentioned in the lowest numbered chapter",
+			beforeStatus:   "draft",
+			status:         "in_progress",
+			chapters:       []model.FanficChapterSummaryRow{{ChapterNum: 2}, {ChapterNum: 3}},
+			chapterBody:    "a gift to @alice",
+			readsChapters:  true,
+			firstPublished: true,
+		},
+		{
+			name:           "an admin publishing a draft for the first time notifies in the author's name",
+			beforeStatus:   "draft",
+			status:         "complete",
+			summary:        "written for @alice",
+			asAdmin:        true,
+			readsChapters:  true,
+			firstPublished: true,
+		},
+		{
+			name:            "republishing a fanfic that was unpublished notifies nobody again",
+			beforeStatus:    "draft",
+			publishedBefore: true,
+			status:          "complete",
+			summary:         "written for @alice",
+		},
+		{
+			name:          "a draft another edit published first notifies nobody a second time",
+			beforeStatus:  "draft",
+			status:        "complete",
+			summary:       "written for @alice",
+			readsChapters: true,
+		},
+		{
+			name:            "editing a published fanfic notifies nobody",
+			beforeStatus:    "in_progress",
+			publishedBefore: true,
+			status:          "complete",
+			summary:         "written for @alice",
+		},
+		{
+			name:         "saving a draft as a draft notifies nobody",
+			beforeStatus: "draft",
+			status:       "draft",
+			summary:      "written for @alice",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			fanficID := uuid.New()
+			userID := uuid.New()
+			mentionedID := uuid.New()
+
+			authorID := userID
+			if tt.asAdmin {
+				authorID = uuid.New()
+				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
+				m.auditRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+			}
+
+			before := &model.FanficRow{ID: fanficID, UserID: authorID, Status: tt.beforeStatus}
+			if tt.publishedBefore {
+				before.PublishedAt = new(publishedEarlier)
+			}
+
+			m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, fanficID).Return(authorID, nil)
+			m.fanficRepo.EXPECT().GetByID(mock.Anything, spec.FanficLookup{ID: fanficID, ViewerID: userID}).Return(before, nil)
+			m.fanficRepo.EXPECT().UpdateWithDetails(mock.Anything, mock.Anything).Return(tt.firstPublished, nil)
+
+			if tt.readsChapters {
+				m.fanficRepo.EXPECT().ListChapters(mock.Anything, fanficID).Return(tt.chapters, nil)
+				if len(tt.chapters) > 0 {
+					m.fanficRepo.EXPECT().
+						GetChapter(mock.Anything, spec.FanficChapterLookup{FanficID: fanficID, ChapterNumber: tt.chapters[0].ChapterNum}).
+						Return(&model.FanficChapterRow{Body: tt.chapterBody}, nil)
+				}
+			}
+
+			var wg sync.WaitGroup
+			var mentioned dto.NotifyParams
+
+			if tt.firstPublished {
+				wg.Add(1)
+				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyFanfiction).Return().Once()
+				m.userRepo.EXPECT().GetByID(mock.Anything, authorID).Return(&model.User{ID: authorID, DisplayName: "Battler"}, nil)
+				m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, authorID, mentionedID).Return(false, nil)
+				m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
+					RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+						mentioned = p
+						wg.Done()
+
+						return nil
+					})
+			}
+
+			req := dto.UpdateFanficRequest{Title: "Title", Summary: tt.summary, Status: tt.status}
+
+			// when
+			err := svc.UpdateFanfic(context.Background(), fanficID, userID, req)
+
+			// then
+			require.NoError(t, err)
+			wg.Wait()
+
+			if !tt.firstPublished {
+				m.userRepo.AssertNotCalled(t, "GetByUsernames", mock.Anything, mock.Anything)
+				return
+			}
+
+			assert.Equal(t, dto.NotifMention, mentioned.Type)
+			assert.Equal(t, mentionedID, mentioned.RecipientID)
+			assert.Equal(t, authorID, mentioned.ActorID)
+			assert.Equal(t, fanficID, mentioned.ReferenceID)
+			assert.Equal(t, "fanfic", mentioned.ReferenceType)
+			assert.Equal(t, "/fanfiction/"+fanficID.String(), mentioned.EmailLink)
+		})
+	}
+}
+
+func TestFanficPublish_NotifiesTheAuthorsFollowersOnlyOnTheFirstPublish(t *testing.T) {
+	tests := []struct {
+		name            string
+		create          bool
+		status          string
+		publishedBefore bool
+		firstPublished  bool
+		asAdmin         bool
+		wantNotified    bool
+	}{
+		{name: "a fanfic created published notifies the author's followers", create: true, status: "in_progress", wantNotified: true},
+		{name: "a fanfic created as a draft notifies nobody", create: true, status: "draft"},
+		{name: "publishing a draft for the first time notifies the author's followers", status: "complete", firstPublished: true, wantNotified: true},
+		{name: "an admin publishing a draft notifies the author's followers in the author's name", status: "complete", firstPublished: true, asAdmin: true, wantNotified: true},
+		{name: "republishing a fanfic that was published before notifies nobody", status: "complete", publishedBefore: true},
+		{name: "saving a draft as a draft notifies nobody", status: "draft"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			fanficID := uuid.New()
+			userID := uuid.New()
+
+			authorID := userID
+			if tt.asAdmin {
+				authorID = uuid.New()
+				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
+				m.auditRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+			}
+
+			if tt.create {
+				m.fanficRepo.EXPECT().CreateWithDetails(mock.Anything, mock.Anything).Return(&model.FanficRow{ID: fanficID}, nil)
+			} else {
+				before := &model.FanficRow{ID: fanficID, UserID: authorID, Status: "draft"}
+				if tt.publishedBefore {
+					before.PublishedAt = new(publishedEarlier)
+				}
+
+				m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, fanficID).Return(authorID, nil)
+				m.fanficRepo.EXPECT().GetByID(mock.Anything, spec.FanficLookup{ID: fanficID, ViewerID: userID}).Return(before, nil)
+				m.fanficRepo.EXPECT().ListChapters(mock.Anything, fanficID).Return(nil, nil).Maybe()
+				m.fanficRepo.EXPECT().UpdateWithDetails(mock.Anything, mock.Anything).Return(tt.firstPublished, nil)
+			}
+
+			if tt.wantNotified {
+				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyFanfiction).Return().Once()
+			}
+
+			// when
+			var err error
+			if tt.create {
+				_, err = svc.CreateFanfic(context.Background(), userID, dto.CreateFanficRequest{Title: "Title", Status: tt.status})
+			} else {
+				err = svc.UpdateFanfic(context.Background(), fanficID, userID, dto.UpdateFanficRequest{Title: "Title", Status: tt.status})
+			}
+
+			// then
+			require.NoError(t, err)
+
+			if !tt.wantNotified {
+				assert.Empty(t, m.followerNotices)
+				return
+			}
+
+			notices := receive(t, m.followerNotices, "the follower fan-out")
+			assert.Equal(t, []dto.NotifyParams{{
+				RecipientID:   m.followerID,
+				Type:          dto.NotifFanficPublished,
+				ReferenceID:   fanficID,
+				ReferenceType: "fanfic",
+				ActorID:       authorID,
+				Message:       "published a new fanfic: Title",
+			}}, notices)
+			assert.Empty(t, m.followerNotices, "the followers are notified once")
 		})
 	}
 }

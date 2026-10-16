@@ -2,17 +2,12 @@ package controllers
 
 import (
 	"errors"
-	"time"
 
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/linkpreview"
+	"umineko_city_of_books/internal/middleware"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/limiter"
-)
-
-const (
-	linkPreviewsPerMinute = 120
 )
 
 func (s *Service) getAllLinkPreviewRoutes() []FSetupRoute {
@@ -22,10 +17,7 @@ func (s *Service) getAllLinkPreviewRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupLinkPreviewRoute(r fiber.Router) {
-	r.Get("/link-preview", s.optionalAuth(), limiter.New(limiter.Config{
-		Max:        linkPreviewsPerMinute,
-		Expiration: time.Minute,
-	}), s.linkPreview)
+	r.Get("/link-preview", s.optionalAuth(), s.RateLimiter.Limit(middleware.LinkPreviews, middleware.ByClientIP), s.linkPreview)
 }
 
 func (s *Service) linkPreview(ctx fiber.Ctx) error {

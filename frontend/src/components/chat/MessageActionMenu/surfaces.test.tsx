@@ -1,4 +1,4 @@
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeChatMessage, makeChatRoom, makeDmRoom, makeUser } from "../../../test-utils/fixtures";
@@ -67,7 +67,7 @@ function listProps(
     return {
         viewer,
         room,
-        messages,
+        entries: messages,
         hasMore: false,
         loadingMore: false,
         editingMessageId: null,
@@ -84,6 +84,9 @@ function listProps(
         onTogglePin: vi.fn(),
         onDelete: vi.fn(),
         onEdit: vi.fn(),
+        onRetrySend: vi.fn(),
+        onDiscardSend: vi.fn(),
+        onNotify: vi.fn(),
         classes: { messages: "messages", loadMoreBar: "load-more", empty: "empty" },
         ...overrides,
     };
@@ -100,6 +103,13 @@ function stubSession(messages: ChatMessage[]) {
     const session: ChatSession = {
         status: "live",
         messages,
+        entries: messages,
+        sends: {
+            sender: { roomId: "session-7", send: vi.fn() },
+            draftSender: null,
+            retry: vi.fn(),
+            discard: vi.fn(),
+        },
         history: {
             hasMore: false,
             loadingMore: false,
@@ -151,7 +161,15 @@ function bubbleOf(id: string): HTMLElement {
     return bubble;
 }
 
-const ALL_LABELS = ["React", "Reply", "Pin message", "Unpin message", "Edit message", "Delete message"];
+const ALL_LABELS = [
+    "React",
+    "Reply",
+    "Pin message",
+    "Unpin message",
+    "Edit message",
+    "Copy message link",
+    "Delete message",
+];
 
 function labelOf(control: HTMLElement): string {
     const text = control.getAttribute("aria-label") ?? control.textContent ?? "";
@@ -184,17 +202,17 @@ const surfaceCases: SurfaceCase[] = [
     {
         name: "a private thread showing the viewer's own message",
         open: () => renderList(privateThread(), [ownMessage()]),
-        want: ["React", "Reply", "Pin message", "Edit message", "Delete message"],
+        want: ["React", "Reply", "Pin message", "Edit message", "Copy message link", "Delete message"],
     },
     {
         name: "a chat room showing another member's message to its host",
         open: () => renderList(hostedRoom(), [theirMessage()]),
-        want: ["React", "Reply", "Pin message", "Delete message"],
+        want: ["React", "Reply", "Pin message", "Copy message link", "Delete message"],
     },
     {
         name: "a chat room showing another member's message to an ordinary member",
         open: () => renderList(makeChatRoom({ viewer_role: "member" }), [theirMessage()]),
-        want: ["React", "Reply"],
+        want: ["React", "Reply", "Copy message link"],
     },
     {
         name: "a live stream chat showing the viewer's own message",
@@ -303,5 +321,96 @@ describe("the message action menu on every chat surface", () => {
         // then
         expect(screen.queryByRole("menu")).not.toBeInTheDocument();
         expect(mocks.startEditing).not.toHaveBeenCalled();
+    });
+});
+
+describe("copying a link to a message", () => {
+    interface LinkCase {
+        name: string;
+        room: () => ChatRoom;
+        want: string;
+    }
+
+    const linkCases: LinkCase[] = [
+        {
+            name: "a chat room",
+            room: hostedRoom,
+            want: "https://whentheycry.social/rooms/room-1?at=2026-08-02T10%3A00%3A00Z#msg-m1",
+        },
+        {
+            name: "a private thread",
+            room: privateThread,
+            want: "https://whentheycry.social/chat/room-1?at=2026-08-02T10%3A00%3A00Z#msg-m1",
+        },
+    ];
+
+    for (const linkCase of linkCases) {
+        it(`copies the canonical address of a message in ${linkCase.name} and says so`, async () => {
+            // given
+            const user = userEvent.setup();
+            const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
+            const props = renderList(linkCase.room(), [theirMessage({ created_at: "2026-08-02T10:00:00Z" })]);
+            fireEvent.contextMenu(bubbleOf("m1"));
+
+            // when
+            await user.click(screen.getByRole("menuitem", { name: "Copy message link" }));
+
+            // then
+            expect(writeText).toHaveBeenCalledExactlyOnceWith(linkCase.want);
+            await waitFor(() => expect(props.onNotify).toHaveBeenCalledExactlyOnceWith("Link copied"));
+        });
+    }
+
+    interface RefusalCase {
+        name: string;
+        refuse: () => Promise<void>;
+        want: string;
+    }
+
+    const refusalCases: RefusalCase[] = [
+        {
+            name: "the browser refuses the write",
+            refuse: () => Promise.reject(new Error("Document is not focused.")),
+            want: "Couldn't copy the link: Document is not focused.",
+        },
+        {
+            name: "the page has no clipboard to write to",
+            refuse: () => {
+                throw new TypeError("navigator.clipboard is undefined");
+            },
+            want: "Couldn't copy the link: navigator.clipboard is undefined",
+        },
+        {
+            name: "the refusal gives no reason",
+            refuse: () => Promise.reject(new Error("")),
+            want: "Couldn't copy the link",
+        },
+    ];
+
+    for (const refusalCase of refusalCases) {
+        it(`tells the reader nothing was copied when ${refusalCase.name}`, async () => {
+            // given
+            const user = userEvent.setup();
+            vi.spyOn(navigator.clipboard, "writeText").mockImplementation(refusalCase.refuse);
+            const props = renderList(hostedRoom(), [theirMessage()]);
+            fireEvent.contextMenu(bubbleOf("m1"));
+
+            // when
+            await user.click(screen.getByRole("menuitem", { name: "Copy message link" }));
+
+            // then
+            await waitFor(() => expect(props.onNotify).toHaveBeenCalledExactlyOnceWith(refusalCase.want));
+        });
+    }
+
+    it("offers no link to a live stream chat message, which is gone once the stream ends", () => {
+        // given
+        renderPanel([theirMessage()]);
+
+        // when
+        fireEvent.contextMenu(bubbleOf("m1"));
+
+        // then
+        expect(screen.queryByRole("menuitem", { name: "Copy message link" })).not.toBeInTheDocument();
     });
 });

@@ -189,6 +189,7 @@ func TestCreateTheory_ServiceErrors(t *testing.T) {
 		wantBody string
 	}{
 		{"rate limited", theorysvc.ErrRateLimited, http.StatusTooManyRequests, "daily theory limit reached"},
+		{"invalid series", theorysvc.ErrInvalidSeries, http.StatusBadRequest, theorysvc.ErrInvalidSeries.Error()},
 		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to create theory"},
 	}
 	for _, tc := range cases {

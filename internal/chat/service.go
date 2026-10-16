@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
 
@@ -32,7 +33,7 @@ type (
 		DeleteStreamRoom(ctx context.Context, streamID uuid.UUID) error
 
 		ResolveDMRoom(ctx context.Context, senderID, recipientID uuid.UUID) (*dto.ResolveDMResponse, error)
-		SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, body string, files []FileUpload) (*dto.SendDMResponse, error)
+		SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, req dto.SendDMRequest, files []FileUpload) (*dto.SendDMResponse, error)
 		CreateGroupRoom(ctx context.Context, creatorID uuid.UUID, req dto.CreateGroupRoomRequest) (*dto.ChatRoomResponse, error)
 		UpdateGroupRoom(ctx context.Context, roomID, actorID uuid.UUID, req dto.UpdateGroupRoomRequest) (*dto.ChatRoomResponse, error)
 		ListRooms(ctx context.Context, userID uuid.UUID) (*dto.ChatRoomListResponse, error)
@@ -144,6 +145,7 @@ func NewService(
 	livekitSvc livekit.Service,
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
+	activity sidebar.ActivityBumper,
 ) Service {
 	c := &core{
 		chatRepo:        chatRepo,
@@ -166,6 +168,7 @@ func NewService(
 		contentFilter:   contentFilter,
 		bannedWordsRule: contentfilter.NewChatBannedWordsRule(bannedWordRepo),
 		ogCache:         ogCache,
+		activity:        activity,
 	}
 
 	svs := &service{

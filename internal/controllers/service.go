@@ -21,6 +21,7 @@ import (
 	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/linkpreview"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/middleware"
 	mysterysvc "umineko_city_of_books/internal/mystery"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/notification/push"
@@ -79,6 +80,7 @@ type (
 		VanityRoleService     vanityrole.Service
 		UserSecretService     usersecret.Service
 		AuthSession           *session.Manager
+		RateLimiter           *middleware.RateLimiter
 		Hub                   *ws.Hub
 		GiphyService          giphy.Service
 		GiphyFavouriteService giphyfavourite.Service

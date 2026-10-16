@@ -2,7 +2,9 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -171,6 +173,55 @@ func (m *Manager) setManyBytes(ctx context.Context, entries map[string][]byte, t
 	}
 
 	return active.SetMany(ctx, entries, ttl)
+}
+
+func (m *Manager) IncrementWindow(ctx context.Context, key string, window time.Duration) (int64, time.Duration, error) {
+	if window < time.Millisecond {
+		return 0, 0, ErrTTLTooShort
+	}
+
+	active := m.current()
+	if active == nil {
+		return 0, 0, ErrUnavailable
+	}
+
+	return active.IncrementWindow(ctx, key, window)
+}
+
+func (m *Manager) ExtendDeadline(ctx context.Context, key string, deadline time.Time) (time.Time, error) {
+	if !deadline.After(time.Now()) {
+		return time.Time{}, ErrDeadlinePassed
+	}
+
+	active := m.current()
+	if active == nil {
+		return time.Time{}, ErrUnavailable
+	}
+
+	return active.ExtendDeadline(ctx, key, deadline)
+}
+
+func (m *Manager) GetDeadline(ctx context.Context, key string) (time.Time, error) {
+	data, err := m.getBytes(ctx, key)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	deadlineMS, err := strconv.ParseInt(string(data), 10, 64)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("%w: %s", ErrNotDeadline, key)
+	}
+
+	return time.UnixMilli(deadlineMS), nil
+}
+
+func (m *Manager) setIfAbsentBytes(ctx context.Context, key string, data []byte, ttl time.Duration) (bool, error) {
+	active := m.current()
+	if active == nil {
+		return false, ErrUnavailable
+	}
+
+	return active.SetIfAbsent(ctx, key, data, ttl)
 }
 
 func (m *Manager) current() engine.Engine {

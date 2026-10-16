@@ -1,4 +1,4 @@
-export type MessageActionId = "react" | "reply" | "pin" | "edit" | "delete";
+export type MessageActionId = "react" | "reply" | "pin" | "edit" | "delete" | "copy-link";
 
 export interface MessageAction {
     id: MessageActionId;
@@ -9,6 +9,7 @@ export interface MessageAction {
 }
 
 export interface MessageActionContext {
+    undelivered: boolean;
     pinned: boolean;
     isOwn: boolean;
     editing: boolean;
@@ -20,6 +21,7 @@ export interface MessageActionContext {
     hasReply: boolean;
     hasPinToggle: boolean;
     hasEdit: boolean;
+    hasCopyLink: boolean;
     hasDelete: boolean;
 }
 
@@ -29,8 +31,13 @@ const PIN_ICON = "\u{1F4CC}";
 const UNPIN_ICON = "\u{1F4CC}✕";
 const EDIT_ICON = "✎";
 const DELETE_ICON = "\u{1F5D1}";
+const COPY_LINK_ICON = "\u{1F517}";
 
 export function messageActions(context: MessageActionContext): MessageAction[] {
+    if (context.undelivered) {
+        return [];
+    }
+
     const actions: MessageAction[] = [];
 
     if (context.canToggleReaction) {
@@ -53,6 +60,16 @@ export function messageActions(context: MessageActionContext): MessageAction[] {
 
     if (context.isOwn && context.canEdit && context.hasEdit && !context.editing) {
         actions.push({ id: "edit", label: "Edit message", icon: EDIT_ICON, destructive: false, opensPicker: false });
+    }
+
+    if (context.hasCopyLink) {
+        actions.push({
+            id: "copy-link",
+            label: "Copy message link",
+            icon: COPY_LINK_ICON,
+            destructive: false,
+            opensPicker: false,
+        });
     }
 
     if ((context.isOwn || (context.canModerate && !context.senderIsStaff)) && context.hasDelete) {

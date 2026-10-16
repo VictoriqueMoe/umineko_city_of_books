@@ -44,6 +44,7 @@ import { invalidateViews } from "../../api/cache/invalidate";
 import { queryKeys } from "../../api/queryKeys";
 
 const NO_ROOM_OPEN = "No chat room is open.";
+const SEND_FAILED = "Failed to send message";
 
 export const FORCE_MUTE_FAILED = "Could not change that microphone.";
 
@@ -82,6 +83,23 @@ export function readChatSendRejection(error: unknown): ChatSendRejection | null 
             : null;
 
     return { bannedWord, serverMessage: body?.error ?? null };
+}
+
+export function describeChatSendFailure(error: unknown): string {
+    const rejection = readChatSendRejection(error);
+    if (rejection?.bannedWord) {
+        const suffix = rejection.bannedWord.kicked ? " You have been kicked from this room." : "";
+
+        return `Message blocked by banned-word rule "${rejection.bannedWord.pattern}".${suffix}`;
+    }
+    if (rejection?.serverMessage) {
+        return rejection.serverMessage;
+    }
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    return SEND_FAILED;
 }
 
 export function readBotsWillBeKicked(error: unknown): User[] | null {
@@ -240,26 +258,32 @@ export function useInviteChatRoomMembers(roomId: string) {
     });
 }
 
-export function useSendChatMessage(roomId: string) {
+export interface SendChatMessageInput {
+    roomId: string;
+    body: string;
+    reply_to_id?: string;
+    files?: File[];
+    spoilers?: boolean[];
+    client_nonce?: string;
+}
+
+export function useSendChatMessage() {
     return useMutation({
-        mutationFn: (payload: { body: string; reply_to_id?: string; files?: File[]; spoilers?: boolean[] }) =>
-            sendChatMessage(roomId, payload),
+        mutationFn: ({ roomId, ...payload }: SendChatMessageInput) => sendChatMessage(roomId, payload),
     });
+}
+
+export interface SendFirstDMMessageInput {
+    recipientId: string;
+    body: string;
+    files?: File[];
+    spoilers?: boolean[];
+    client_nonce?: string;
 }
 
 export function useSendFirstDMMessage() {
     return useMutation({
-        mutationFn: ({
-            recipientId,
-            body,
-            files,
-            spoilers,
-        }: {
-            recipientId: string;
-            body: string;
-            files?: File[];
-            spoilers?: boolean[];
-        }) => sendFirstDMMessage(recipientId, body, files, spoilers),
+        mutationFn: ({ recipientId, ...payload }: SendFirstDMMessageInput) => sendFirstDMMessage(recipientId, payload),
     });
 }
 

@@ -134,7 +134,7 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
                 <div className={styles.endedPartyNotice}>That watch party has ended.</div>
             )}
             {toast.message && (
-                <div dir="auto" className={styles.toast}>
+                <div dir="auto" className={styles.toast} role="status">
                     {toast.message}
                 </div>
             )}
@@ -284,8 +284,9 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
 
             <MessageList
                 viewer={user}
+                viewerIdentity={members.current}
                 room={currentRoom}
-                messages={session.messages}
+                entries={session.entries}
                 hasMore={session.hasMore}
                 loadingMore={session.loadingMore}
                 highlightedMessageId={anchor.highlightedMsgId}
@@ -304,6 +305,9 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
                 onTogglePin={session.togglePin}
                 onDelete={session.deleteMessage}
                 onEdit={session.editMessage}
+                onRetrySend={session.retrySend}
+                onDiscardSend={session.discardSend}
+                onNotify={toast.show}
                 classes={MESSAGE_LIST_CLASSES}
             />
 
@@ -311,9 +315,7 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
 
             <div className={styles.composerWrap}>
                 <ChatComposer
-                    roomId={currentRoom.id}
-                    draftRecipientId={null}
-                    onSent={session.onSent}
+                    target={session.sender ? { kind: "room", sender: session.sender } : null}
                     mentionPool={mentionPool}
                     replyingTo={session.replyingTo}
                     onCancelReply={() => session.setReplyingTo(null)}

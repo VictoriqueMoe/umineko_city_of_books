@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
@@ -25,6 +26,7 @@ import (
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
 
@@ -47,6 +49,7 @@ type (
 		uploadSvc    *upload.MockService
 		settingsSvc  *settings.MockService
 		hub          *ws.Hub
+		activity     *sidebar.MockActivityBumper
 	}
 
 	authorGuard struct {
@@ -87,13 +90,14 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := &media.Processor{}
 	hub := ws.NewHub()
+	activity := sidebar.NewMockActivityBumper(t)
 
 	postComments := dao.NewMockCommentDAO[uuid.UUID](t)
 	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, dao.CommentDAOs{
 		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindPostComment): postComments},
 	})
 
-	svc := NewService(postRepo, userRepo, roleRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, hub, contentfilter.New(), nil, nil).(*service)
+	svc := NewService(postRepo, userRepo, roleRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, hub, contentfilter.New(), nil, nil, activity).(*service)
 
 	return svc, &testMocks{
 		postRepo:     postRepo,
@@ -107,6 +111,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		uploadSvc:    uploadSvc,
 		settingsSvc:  settingsSvc,
 		hub:          hub,
+		activity:     activity,
 	}
 }
 
@@ -288,6 +293,8 @@ func TestCreatePost_Rejected(t *testing.T) {
 		wantErr     error
 	}{
 		{name: "an unknown share type", req: dto.CreatePostRequest{Corner: "general", Body: "hello", SharedContentID: "abc", SharedContentType: "bogus"}, wantErr: ErrInvalidShareType},
+		{name: "a made-up corner before any limit check, write or sidebar bump", req: dto.CreatePostRequest{Corner: "phantom", Body: "hello"}, wantErr: corner.ErrInvalidCorner},
+		{name: "a real corner in the wrong case", req: dto.CreatePostRequest{Corner: "Umineko", Body: "hello"}, wantErr: corner.ErrInvalidCorner},
 		{name: "a failed daily post count", req: hello, postsPerDay: new(5), postsToday: new(0), countErr: countErr, wantErr: countErr},
 		{name: "the daily post limit", req: hello, postsPerDay: new(3), postsToday: new(3), wantErr: ErrRateLimited},
 		{name: "a poll with a single option", req: pollPostRequest(3600, "only"), postsPerDay: new(0), wantErr: ErrInvalidPoll},
@@ -344,12 +351,14 @@ func TestCreatePost(t *testing.T) {
 		req       dto.CreatePostRequest
 		want      spec.NewPost
 		createErr error
+		wantBump  sidebar.Key
 	}{
-		{name: "an empty corner defaults to general", req: dto.CreatePostRequest{Body: "hello"}, want: hello},
-		{name: "a poll is created with the post", req: pollPostRequest(3600, "a", "b"), want: helloWithPoll},
-		{name: "a share needs no body", req: dto.CreatePostRequest{SharedContentID: sharedID, SharedContentType: "theory"}, want: spec.NewPost{Corner: "general", SharedContent: &model.SharedContentRef{ID: sharedID, Type: "theory"}}},
-		{name: "a create failure is surfaced", req: dto.CreatePostRequest{Corner: "general", Body: "hello"}, want: hello, createErr: createErr},
-		{name: "a create failure with a poll is surfaced", req: pollPostRequest(3600, "a", "b"), want: helloWithPoll, createErr: createErr},
+		{name: "an empty corner defaults to general and bumps the general board", req: dto.CreatePostRequest{Body: "hello"}, want: hello, wantBump: sidebar.GameBoardKey(corner.GameBoardGeneral)},
+		{name: "a chosen corner is kept and bumps that board", req: dto.CreatePostRequest{Corner: "umineko", Body: "hello"}, want: spec.NewPost{Corner: "umineko", Body: "hello"}, wantBump: sidebar.GameBoardKey(corner.GameBoardUmineko)},
+		{name: "a poll is created with the post", req: pollPostRequest(3600, "a", "b"), want: helloWithPoll, wantBump: sidebar.GameBoardKey(corner.GameBoardGeneral)},
+		{name: "a share needs no body", req: dto.CreatePostRequest{SharedContentID: sharedID, SharedContentType: "theory"}, want: spec.NewPost{Corner: "general", SharedContent: &model.SharedContentRef{ID: sharedID, Type: "theory"}}, wantBump: sidebar.GameBoardKey(corner.GameBoardGeneral)},
+		{name: "a create failure is surfaced without bumping the sidebar", req: dto.CreatePostRequest{Corner: "general", Body: "hello"}, want: hello, createErr: createErr},
+		{name: "a create failure with a poll is surfaced without bumping the sidebar", req: pollPostRequest(3600, "a", "b"), want: helloWithPoll, createErr: createErr},
 	}
 
 	for _, tc := range cases {
@@ -371,6 +380,9 @@ func TestCreatePost(t *testing.T) {
 			if tc.createErr == nil {
 				expectBackgroundSocial(m)
 			}
+			if tc.wantBump != "" {
+				m.activity.EXPECT().BumpSidebarActivity(tc.wantBump).Return().Once()
+			}
 
 			// when
 			id, err := svc.CreatePost(context.Background(), userID, tc.req)
@@ -388,14 +400,51 @@ func TestCreatePost(t *testing.T) {
 	}
 }
 
+func TestCreatePost_EveryRealCornerIsStoredAndBumped(t *testing.T) {
+	cases := []struct {
+		name     string
+		corner   string
+		wantBump sidebar.Key
+	}{
+		{name: "general", corner: "general", wantBump: "game_board_general"},
+		{name: "umineko", corner: "umineko", wantBump: "game_board_umineko"},
+		{name: "higurashi", corner: "higurashi", wantBump: "game_board_higurashi"},
+		{name: "ciconia", corner: "ciconia", wantBump: "game_board_ciconia"},
+		{name: "higanbana", corner: "higanbana", wantBump: "game_board_higanbana"},
+		{name: "roseguns", corner: "roseguns", wantBump: "game_board_roseguns"},
+		{name: "suggestions", corner: "suggestions", wantBump: "game_board_suggestions"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			userID := uuid.New()
+			postID := uuid.New()
+
+			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
+			m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: tc.corner, Body: "hello"}).Return(&model.PostRow{ID: postID}, nil)
+			m.activity.EXPECT().BumpSidebarActivity(tc.wantBump).Return().Once()
+			expectBackgroundSocial(m)
+
+			// when
+			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: tc.corner, Body: "hello"})
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, postID, id)
+		})
+	}
+}
+
 func TestCreatePost_MentionNotifiesTheNamedUserOutsideSuggestions(t *testing.T) {
 	tests := []struct {
 		name       string
-		corner     string
+		corner     corner.GameBoard
 		wantNotify bool
 	}{
-		{name: "the general corner pings the named user", corner: "general", wantNotify: true},
-		{name: "the suggestions corner pings nobody", corner: "suggestions"},
+		{name: "the general corner pings the named user", corner: corner.GameBoardGeneral, wantNotify: true},
+		{name: "the suggestions corner pings nobody", corner: corner.GameBoardSuggestions},
 	}
 
 	for _, tt := range tests {
@@ -408,8 +457,9 @@ func TestCreatePost_MentionNotifiesTheNamedUserOutsideSuggestions(t *testing.T) 
 
 			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
 			m.postRepo.EXPECT().
-				CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: tt.corner, Body: "look at this @alice"}).
+				CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: string(tt.corner), Body: "look at this @alice"}).
 				Return(&model.PostRow{ID: postID}, nil)
+			m.activity.EXPECT().BumpSidebarActivity(sidebar.GameBoardKey(tt.corner)).Return().Once()
 
 			var wg sync.WaitGroup
 			var mentioned dto.NotifyParams
@@ -431,7 +481,7 @@ func TestCreatePost_MentionNotifiesTheNamedUserOutsideSuggestions(t *testing.T) 
 			}
 
 			// when
-			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: tt.corner, Body: "look at this @alice"})
+			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: string(tt.corner), Body: "look at this @alice"})
 
 			// then
 			require.NoError(t, err)
@@ -775,6 +825,47 @@ func TestListFeed(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, got)
 			assert.Equal(t, len(tc.rows), got.Total)
+		})
+	}
+}
+
+func TestListFeed_Corner(t *testing.T) {
+	cases := []struct {
+		name       string
+		corner     string
+		wantCorner string
+		wantErr    error
+	}{
+		{name: "an empty corner lists the general board", corner: "", wantCorner: "general"},
+		{name: "a series corner lists that board", corner: "roseguns", wantCorner: "roseguns"},
+		{name: "the suggestions corner lists suggestions", corner: "suggestions", wantCorner: "suggestions"},
+		{name: "a made-up corner is rejected before anything is looked up", corner: "phantom", wantErr: corner.ErrInvalidCorner},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			viewer := uuid.New()
+
+			if tc.wantErr == nil {
+				m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
+				m.postRepo.EXPECT().ListAll(mock.Anything, spec.PostFeedQuery{ViewerID: viewer, Corner: tc.wantCorner, Sort: "new", Limit: 10}).Return(nil, 0, nil)
+				expectPostListBatch(m, nil, viewer)
+			}
+
+			// when
+			got, err := svc.ListFeed(context.Background(), "all", viewer, tc.corner, "", "new", bounds.NewPage(10, 0), "")
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+			if tc.wantErr != nil {
+				assert.Nil(t, got)
+
+				return
+			}
+
+			require.NotNil(t, got)
 		})
 	}
 }

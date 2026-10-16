@@ -4221,7 +4221,7 @@ func (_c *MockJournalRepository_UpdateCommentMediaURL_Call) RunAndReturn(run fun
 }
 
 // UpdateEntry provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) UpdateEntry(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx) error {
+func (_mock *MockJournalRepository) UpdateEntry(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx) (bool, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, s, tx)
@@ -4234,13 +4234,22 @@ func (_mock *MockJournalRepository) UpdateEntry(ctx context.Context, s spec.Jour
 		panic("no return value specified for UpdateEntry")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalEntryUpdate, ...*sql.Tx) error); ok {
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalEntryUpdate, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, s, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalEntryUpdate, ...*sql.Tx) bool); ok {
 		r0 = returnFunc(ctx, s, tx...)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(bool)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.JournalEntryUpdate, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockJournalRepository_UpdateEntry_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateEntry'
@@ -4282,12 +4291,12 @@ func (_c *MockJournalRepository_UpdateEntry_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockJournalRepository_UpdateEntry_Call) Return(err error) *MockJournalRepository_UpdateEntry_Call {
-	_c.Call.Return(err)
+func (_c *MockJournalRepository_UpdateEntry_Call) Return(firstPublished bool, err error) *MockJournalRepository_UpdateEntry_Call {
+	_c.Call.Return(firstPublished, err)
 	return _c
 }
 
-func (_c *MockJournalRepository_UpdateEntry_Call) RunAndReturn(run func(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx) error) *MockJournalRepository_UpdateEntry_Call {
+func (_c *MockJournalRepository_UpdateEntry_Call) RunAndReturn(run func(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx) (bool, error)) *MockJournalRepository_UpdateEntry_Call {
 	_c.Call.Return(run)
 	return _c
 }

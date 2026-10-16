@@ -3,6 +3,7 @@ package engines
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -32,6 +33,28 @@ type (
 		healthy atomic.Bool
 		downAt  atomic.Int64
 	}
+)
+
+var (
+	fixedWindowScript = valkey.NewLuaScript(`
+local count = redis.call('INCR', KEYS[1])
+local remaining = redis.call('PTTL', KEYS[1])
+if remaining < 0 then
+	redis.call('PEXPIRE', KEYS[1], ARGV[1])
+	remaining = tonumber(ARGV[1])
+end
+return {count, remaining}
+`)
+
+	extendDeadlineScript = valkey.NewLuaScript(`
+local requested = tonumber(ARGV[1])
+local current = tonumber(redis.call('GET', KEYS[1]) or '')
+if current and current >= requested then
+	return current
+end
+redis.call('SET', KEYS[1], ARGV[1], 'PXAT', ARGV[1])
+return requested
+`)
 )
 
 func NewValkey() *Valkey {
@@ -208,6 +231,71 @@ func (v *Valkey) SetMany(ctx context.Context, entries map[string][]byte, ttl tim
 	}
 
 	return v.observe(nil)
+}
+
+func (v *Valkey) SetIfAbsent(ctx context.Context, key string, data []byte, ttl time.Duration) (bool, error) {
+	client := v.current()
+	if client == nil {
+		return false, engine.ErrUnavailable
+	}
+
+	cmd := client.B().Set().Key(key).Value(valkey.BinaryString(data)).Nx().Px(ttl).Build()
+
+	err := v.observe(client.Do(ctx, cmd).Error())
+	if valkey.IsValkeyNil(err) {
+		return false, nil
+	}
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (v *Valkey) IncrementWindow(ctx context.Context, key string, window time.Duration) (int64, time.Duration, error) {
+	client := v.current()
+	if client == nil {
+		return 0, 0, engine.ErrUnavailable
+	}
+
+	windowMS := strconv.FormatInt(max(window.Milliseconds(), 1), 10)
+
+	reply, err := fixedWindowScript.Exec(ctx, client, []string{key}, []string{windowMS}).AsIntSlice()
+	if err := v.observe(err); err != nil {
+		return 0, 0, err
+	}
+
+	if len(reply) != 2 {
+		return 0, 0, fmt.Errorf("%w: fixed window returned %d values", engine.ErrUnexpectedReply, len(reply))
+	}
+
+	return reply[0], time.Duration(reply[1]) * time.Millisecond, nil
+}
+
+func (v *Valkey) ExtendDeadline(ctx context.Context, key string, deadline time.Time) (time.Time, error) {
+	if !deadline.After(time.Now()) {
+		return time.Time{}, engine.ErrDeadlinePassed
+	}
+
+	client := v.current()
+	if client == nil {
+		return time.Time{}, engine.ErrUnavailable
+	}
+
+	requestedMS := strconv.FormatInt(deadline.UnixMilli(), 10)
+
+	reply := extendDeadlineScript.Exec(ctx, client, []string{key}, []string{requestedMS})
+	if err := v.observe(reply.Error()); err != nil {
+		return time.Time{}, err
+	}
+
+	inForceMS, err := reply.AsInt64()
+	if err != nil {
+		return time.Time{}, fmt.Errorf("%w: extend deadline: %w", engine.ErrUnexpectedReply, err)
+	}
+
+	return time.UnixMilli(inForceMS), nil
 }
 
 func (v *Valkey) Del(ctx context.Context, keys ...string) error {

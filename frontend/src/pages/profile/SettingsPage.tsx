@@ -464,7 +464,7 @@ export function SettingsPage() {
                             enabled={form.followActivityNotifications}
                             onChange={form.setFollowActivityNotifications}
                             label="Following Activity"
-                            description="Get notified when someone you follow goes live, poses a new mystery or declares a new theory"
+                            description="Get notified when someone you follow goes live, poses a new mystery, declares a new theory or publishes a new fanfic"
                         />
                         <ToggleSwitch
                             enabled={form.echoesEnabled}

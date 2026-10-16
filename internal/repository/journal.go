@@ -115,11 +115,16 @@ func (r *journalRepository) CreateEntry(ctx context.Context, s spec.NewJournalEn
 	return created, nil
 }
 
-func (r *journalRepository) UpdateEntry(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx) error {
-	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
-		if err := r.JournalDAO.UpdateEntry(ctx, s, tx); err != nil {
+func (r *journalRepository) UpdateEntry(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx) (bool, error) {
+	var firstPublished bool
+
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
+		published, err := r.JournalDAO.UpdateEntry(ctx, s, tx)
+		if err != nil {
 			return err
 		}
+
+		firstPublished = published
 
 		if !s.RecordAuthorActivity {
 			return nil
@@ -127,6 +132,11 @@ func (r *journalRepository) UpdateEntry(ctx context.Context, s spec.JournalEntry
 
 		return r.JournalDAO.UpdateLastAuthorActivity(ctx, s.JournalID, tx)
 	})
+	if err != nil {
+		return false, err
+	}
+
+	return firstPublished, nil
 }
 
 func (r *journalRepository) DeleteEntryWithMedia(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) ([]string, error) {

@@ -1,8 +1,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeChatMessage, makeUser } from "../../test-utils/fixtures";
+import { isPendingSend, threadEntryKey } from "../../domain/chat/optimisticSend";
+import { makeChatMessage, makeChatRoom, makeUser } from "../../test-utils/fixtures";
 import { emitRealtimeEvent } from "../../test-utils/ws";
-import type { ChatMessage, ChatMessageListResponse } from "../../types/api";
+import type { ChatMessage, ChatMessageListResponse, ChatRoom } from "../../types/api";
+import type * as ChatMutations from "../mutations/chat";
 import { useChatSession, type UseChatSessionOptions } from "./useChatSession";
 
 const mocks = vi.hoisted(() => ({
@@ -11,6 +13,8 @@ const mocks = vi.hoisted(() => ({
     markReadDebounced: vi.fn(),
     deleteMessage: vi.fn(),
     editMessage: vi.fn(),
+    sendChatMessage: vi.fn(),
+    sendFirstDMMessage: vi.fn(),
     playMessageSound: vi.fn(),
     playAudio: vi.fn(),
 }));
@@ -20,11 +24,18 @@ vi.mock("../queries/chat", () => ({
     fetchRoomMessagesBefore: mocks.fetchRoomMessagesBefore,
 }));
 
-vi.mock("../mutations/chat", () => ({
-    useMarkChatRoomRead: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
-    useDeleteChatMessage: () => ({ mutateAsync: mocks.deleteMessage }),
-    useEditChatMessage: () => ({ mutateAsync: mocks.editMessage }),
-}));
+vi.mock("../mutations/chat", async importOriginal => {
+    const actual = await importOriginal<typeof ChatMutations>();
+
+    return {
+        ...actual,
+        useMarkChatRoomRead: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
+        useDeleteChatMessage: () => ({ mutateAsync: mocks.deleteMessage }),
+        useEditChatMessage: () => ({ mutateAsync: mocks.editMessage }),
+        useSendChatMessage: () => ({ mutateAsync: mocks.sendChatMessage }),
+        useSendFirstDMMessage: () => ({ mutateAsync: mocks.sendFirstDMMessage }),
+    };
+});
 
 vi.mock("./useDebouncedMarkChatRoomRead", () => ({
     useDebouncedMarkChatRoomRead: () => mocks.markReadDebounced,
@@ -739,5 +750,203 @@ describe("useChatSession editing", () => {
 
         // then the window is not trimmed out from under the editor
         expect(result.current.messages.map(m => m.id)).toEqual(["m1", "m2", "m3"]);
+    });
+});
+
+describe("useChatSession optimistic sending", () => {
+    const viewerAsSender = { id: "viewer-1", username: "battler", display_name: "Battler" };
+
+    function holdTheResponse(): { resolve: (message: ChatMessage) => void } {
+        const held: { resolve: (message: ChatMessage) => void } = { resolve: () => {} };
+        const response = new Promise<ChatMessage>(resolve => {
+            held.resolve = resolve;
+        });
+        mocks.sendChatMessage.mockReset();
+        mocks.sendChatMessage.mockReturnValueOnce(response);
+
+        return held;
+    }
+
+    function sentNonce(): string {
+        return mocks.sendChatMessage.mock.calls[0][0].client_nonce;
+    }
+
+    function entryIds(entries: ReturnType<typeof useChatSession>["entries"]): string[] {
+        return entries.map(entry => (isPendingSend(entry) ? `pending:${entry.body}` : entry.id));
+    }
+
+    it("hands back the transcript itself as its entries while nothing is pending", async () => {
+        // given
+        mocks.fetchRoomMessages.mockResolvedValue(historyOf([makeMessage({ id: "m1" })]));
+
+        // when
+        const { result } = await openSession();
+
+        // then
+        expect(result.current.entries).toBe(result.current.messages);
+    });
+
+    it("shows the viewer's message at once and scrolls to it even when they had scrolled up", async () => {
+        // given
+        holdTheResponse();
+        const { result } = await openSession();
+        const container = document.createElement("div");
+        Object.defineProperty(container, "scrollTo", { configurable: true, writable: true, value: vi.fn() });
+        Object.defineProperty(container, "scrollHeight", { configurable: true, value: 2000 });
+        Object.defineProperty(container, "clientHeight", { configurable: true, value: 400 });
+        act(() => {
+            result.current.scroll.containerRef(container);
+        });
+        container.scrollTop = 0;
+        act(() => {
+            result.current.scroll.onScroll();
+        });
+
+        // when
+        act(() => {
+            result.current.sends.sender?.send({ body: "hello", replyTo: null, attachments: [] });
+        });
+
+        // then
+        expect(entryIds(result.current.entries)).toEqual(["pending:hello"]);
+        await waitFor(() => {
+            expect(container.scrollTo).toHaveBeenCalled();
+        });
+    });
+
+    it("swaps the pending message for the real one the moment its echo arrives, before the request returns", async () => {
+        // given
+        holdTheResponse();
+        const { result } = await openSession();
+        act(() => {
+            result.current.sends.sender?.send({ body: "hello", replyTo: null, attachments: [] });
+        });
+
+        // when
+        emitRealtimeEvent({
+            type: "chat_message",
+            data: makeMessage({ id: "m-real", sender: viewerAsSender, body: "hello", client_nonce: sentNonce() }),
+        });
+
+        // then
+        expect(entryIds(result.current.entries)).toEqual(["m-real"]);
+    });
+
+    it("leaves the viewer's pending message alone when someone else's message carries the same nonce", async () => {
+        // given
+        holdTheResponse();
+        const { result } = await openSession();
+        act(() => {
+            result.current.sends.sender?.send({ body: "hello", replyTo: null, attachments: [] });
+        });
+
+        // when
+        emitRealtimeEvent({
+            type: "chat_message",
+            data: makeMessage({ id: "m-other", created_at: "2026-08-01T10:06:00Z", client_nonce: sentNonce() }),
+        });
+
+        // then
+        expect(entryIds(result.current.entries)).toEqual(["m-other", "pending:hello"]);
+    });
+
+    it("puts the confirmed message in place of the pending one when the response wins the race", async () => {
+        // given
+        const held = holdTheResponse();
+        const onDelivered = vi.fn();
+        const { result } = await openSession({ onDelivered });
+        act(() => {
+            result.current.sends.sender?.send({ body: "hello", replyTo: null, attachments: [] });
+        });
+        const confirmed = makeMessage({
+            id: "m-real",
+            sender: viewerAsSender,
+            body: "hello",
+            client_nonce: sentNonce(),
+        });
+
+        // when
+        await act(async () => {
+            held.resolve(confirmed);
+        });
+
+        // then
+        expect(entryIds(result.current.entries)).toEqual(["m-real"]);
+        expect(onDelivered).toHaveBeenCalledExactlyOnceWith(confirmed);
+
+        // when the echo follows
+        emitRealtimeEvent({ type: "chat_message", data: confirmed });
+
+        // then it is still shown once
+        expect(entryIds(result.current.entries)).toEqual(["m-real"]);
+    });
+
+    it("never drops a message confirmed after the viewer left its room into the room they opened next", async () => {
+        // given
+        const held = holdTheResponse();
+        const onDelivered = vi.fn();
+        const { result, rerender } = await openSession({ onDelivered });
+        act(() => {
+            result.current.sends.sender?.send({ body: "hello", replyTo: null, attachments: [] });
+        });
+        const confirmed = makeMessage({ id: "m-real", sender: viewerAsSender, client_nonce: sentNonce() });
+        rerender({ roomId: "room-2", user: viewer, onDelivered });
+        await act(async () => {});
+
+        // when
+        await act(async () => {
+            held.resolve(confirmed);
+        });
+
+        // then
+        expect(result.current.messages).toEqual([]);
+        expect(result.current.entries).toEqual([]);
+        expect(onDelivered).toHaveBeenCalledExactlyOnceWith(confirmed);
+    });
+});
+
+describe("useChatSession first direct message", () => {
+    const viewerAsSender = { id: "viewer-1", username: "battler", display_name: "Battler" };
+
+    it("shows the first message in the draft, seeds the opened room with it under the same key and hands the room over", async () => {
+        // given a draft to someone never messaged
+        let open: (created: { room: ChatRoom; message: ChatMessage }) => void = () => {};
+        mocks.sendFirstDMMessage.mockReset();
+        mocks.sendFirstDMMessage.mockReturnValueOnce(
+            new Promise(resolve => {
+                open = resolve;
+            }),
+        );
+        const onAdopted = vi.fn();
+        const initialProps: UseChatSessionOptions = {
+            roomId: undefined,
+            user: viewer,
+            draftRecipientId: "u-ange",
+            onAdopted,
+        };
+        const { result, rerender } = renderHook((props: UseChatSessionOptions) => useChatSession(props), {
+            initialProps,
+        });
+        act(() => {
+            result.current.sends.draftSender?.send({ body: "hello", replyTo: null, attachments: [] });
+        });
+        const [pending] = result.current.entries;
+        const nonce = mocks.sendFirstDMMessage.mock.calls[0][0].client_nonce;
+        const room = makeChatRoom({ id: "room-9" });
+        const message = makeMessage({ id: "m-first", room_id: "room-9", sender: viewerAsSender, client_nonce: nonce });
+        mocks.fetchRoomMessages.mockResolvedValue(historyOf([message]));
+
+        // when the conversation is opened and the page moves into its room
+        await act(async () => {
+            open({ room, message });
+        });
+        rerender({ roomId: "room-9", user: viewer, onAdopted });
+        await act(async () => {});
+
+        // then
+        expect(pending).toMatchObject({ body: "hello", delivery: "sending" });
+        expect(onAdopted).toHaveBeenCalledExactlyOnceWith(room);
+        expect(result.current.entries.map(entry => threadEntryKey(entry))).toEqual([threadEntryKey(pending)]);
+        expect(result.current.entries.map(entry => (isPendingSend(entry) ? "pending" : entry.id))).toEqual(["m-first"]);
     });
 });

@@ -1,7 +1,7 @@
 import { Button } from "../../Button/Button";
 import { Input } from "../../Input/Input";
 import { Modal } from "../../Modal/Modal";
-import { ChatComposer } from "../ChatComposer/ChatComposer";
+import { ChatComposer, type ComposerTarget } from "../ChatComposer/ChatComposer";
 import { VoiceBar } from "../Voice/VoiceBar";
 import { VoiceButton } from "../Voice/VoiceButton";
 import { TypingIndicator } from "../TypingIndicator/TypingIndicator";
@@ -15,7 +15,7 @@ import { errorMessage } from "../../../utils/errorMessage";
 import { type MessageAnchor } from "../../../hooks/chat/useMessageAnchor";
 import { type DmController } from "../../../hooks/useDmController";
 import { useChatViewport } from "../../../hooks/useChatViewport";
-import type { User } from "../../../types/api";
+import type { ChatRoomMember, User } from "../../../types/api";
 import styles from "./mobileChat.module.css";
 
 const DM_MESSAGE_LIST_CLASSES = {
@@ -27,6 +27,7 @@ const DM_MESSAGE_LIST_CLASSES = {
 export interface DmThreadView {
     anchor: MessageAnchor;
     mentionPool: User[];
+    viewerMember: ChatRoomMember | null;
     viewerTimeoutUntil?: string;
     viewerTimedOut: boolean;
     searchOpen: boolean;
@@ -43,7 +44,11 @@ export function MobileDmView({ controller, thread }: { controller: DmController;
         capabilities,
         draftRecipient,
         setDraftRecipient,
-        messages,
+        entries,
+        sender,
+        draftSender,
+        retrySend,
+        discardSend,
         hasMore,
         loadingMore,
         messagesContainerRef,
@@ -78,7 +83,6 @@ export function MobileDmView({ controller, thread }: { controller: DmController;
         showToast,
         handleRoomSelect,
         handleMobileBack,
-        handleSentMessage,
         handleSelectUser,
         handleEditLast,
         handleDeleteChat,
@@ -166,6 +170,8 @@ export function MobileDmView({ controller, thread }: { controller: DmController;
 
     const headerUser = activeRoom ? getRoomAvatarUser(activeRoom, user) : draftRecipient;
     const headerName = activeRoom ? getRoomDisplayName(activeRoom, user) : (draftRecipient?.display_name ?? "");
+    const composerTarget: ComposerTarget | null =
+        activeRoom && sender ? { kind: "room", sender } : draftSender ? { kind: "draft", sender: draftSender } : null;
 
     return (
         <div className={styles.shell}>
@@ -244,47 +250,47 @@ export function MobileDmView({ controller, thread }: { controller: DmController;
                 />
             )}
 
-            {activeRoom ? (
-                <MessageList
-                    viewer={user}
-                    room={activeRoom}
-                    messages={messages}
-                    hasMore={hasMore}
-                    loadingMore={loadingMore}
-                    highlightedMessageId={thread.anchor.highlightedMsgId}
-                    editingMessageId={editingMessageId}
-                    viewerTimedOut={thread.viewerTimedOut}
-                    readReceipts={readReceipts}
-                    matchesViewerMention={matchesViewerMention}
-                    containerRef={messagesContainerRef}
-                    contentRef={messagesContentRef}
-                    endRef={messagesEndRef}
-                    onScroll={handleDmScroll}
-                    onLightbox={setLightboxSrc}
-                    onReply={setReplyingTo}
-                    onStartEditing={startEditing}
-                    onCancelEditing={cancelEditing}
-                    onToggleReaction={handleReactionToggle}
-                    onDelete={handleDeleteMessage}
-                    onEdit={handleEditMessage}
-                    classes={DM_MESSAGE_LIST_CLASSES}
-                />
-            ) : (
-                <div className={styles.draftEmpty}>
-                    <span>
-                        Send your first message to <bdi>{draftRecipient?.display_name}</bdi>.
-                    </span>
-                    <div ref={messagesEndRef} />
-                </div>
-            )}
+            <MessageList
+                viewer={user}
+                viewerIdentity={thread.viewerMember}
+                room={activeRoom ?? null}
+                emptyLabel={
+                    activeRoom ? undefined : (
+                        <span>
+                            Send your first message to <bdi>{headerName}</bdi>.
+                        </span>
+                    )
+                }
+                entries={entries}
+                hasMore={hasMore}
+                loadingMore={loadingMore}
+                highlightedMessageId={thread.anchor.highlightedMsgId}
+                editingMessageId={editingMessageId}
+                viewerTimedOut={thread.viewerTimedOut}
+                readReceipts={readReceipts}
+                matchesViewerMention={matchesViewerMention}
+                containerRef={messagesContainerRef}
+                contentRef={messagesContentRef}
+                endRef={messagesEndRef}
+                onScroll={handleDmScroll}
+                onLightbox={setLightboxSrc}
+                onReply={setReplyingTo}
+                onStartEditing={startEditing}
+                onCancelEditing={cancelEditing}
+                onToggleReaction={handleReactionToggle}
+                onDelete={handleDeleteMessage}
+                onEdit={handleEditMessage}
+                onRetrySend={retrySend}
+                onDiscardSend={discardSend}
+                onNotify={showToast}
+                classes={DM_MESSAGE_LIST_CLASSES}
+            />
 
             {activeRoom && <TypingIndicator names={typingNames} />}
 
             <div className={styles.composerWrap}>
                 <ChatComposer
-                    roomId={activeRoom ? activeRoomId : null}
-                    draftRecipientId={activeRoom ? null : (draftRecipient?.id ?? null)}
-                    onSent={handleSentMessage}
+                    target={composerTarget}
                     mentionPool={activeRoom ? thread.mentionPool : undefined}
                     replyingTo={activeRoom ? replyingTo : null}
                     onCancelReply={() => setReplyingTo(null)}
@@ -318,7 +324,7 @@ export function MobileDmView({ controller, thread }: { controller: DmController;
             )}
 
             {toast && (
-                <div dir="auto" className={styles.toast}>
+                <div dir="auto" className={styles.toast} role="status">
                     {toast}
                 </div>
             )}

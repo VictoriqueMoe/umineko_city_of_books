@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/coalesce"
+	"umineko_city_of_books/internal/sidebar"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -504,7 +505,7 @@ func TestHub_BumpSidebarActivity_ThrottlesEachKey(t *testing.T) {
 		{
 			name: "a lone bump is sent at once and never repeated",
 			act: func(hub *Hub) {
-				hub.BumpSidebarActivity("ships")
+				hub.BumpSidebarActivity(sidebar.KeyShips)
 			},
 			wantNow:        1,
 			wantEventually: 1,
@@ -513,7 +514,7 @@ func TestHub_BumpSidebarActivity_ThrottlesEachKey(t *testing.T) {
 			name: "a burst sends one leading and one trailing message",
 			act: func(hub *Hub) {
 				for range 5 {
-					hub.BumpSidebarActivity("ships")
+					hub.BumpSidebarActivity(sidebar.KeyShips)
 				}
 			},
 			wantNow:        1,
@@ -522,8 +523,8 @@ func TestHub_BumpSidebarActivity_ThrottlesEachKey(t *testing.T) {
 		{
 			name: "different keys are throttled independently",
 			act: func(hub *Hub) {
-				hub.BumpSidebarActivity("ships")
-				hub.BumpSidebarActivity("journals")
+				hub.BumpSidebarActivity(sidebar.KeyShips)
+				hub.BumpSidebarActivity(sidebar.KeyJournals)
 			},
 			wantNow:        2,
 			wantEventually: 2,
@@ -567,7 +568,7 @@ func TestHub_BroadcastSidebarActivity_CarriesTheKeyAndTimestamp(t *testing.T) {
 	at := time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC)
 
 	// when
-	hub.broadcastSidebarActivity(context.Background(), "ships", at)
+	hub.broadcastSidebarActivity(context.Background(), sidebar.KeyShips, at)
 
 	// then
 	var got struct {

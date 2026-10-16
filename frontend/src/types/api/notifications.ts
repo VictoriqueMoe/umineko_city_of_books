@@ -50,6 +50,7 @@ export type NotificationType =
     | "fanfic_comment_reply"
     | "fanfic_comment_liked"
     | "fanfic_favourited"
+    | "fanfic_published"
     | "ship_commented"
     | "ship_comment_reply"
     | "ship_comment_liked"

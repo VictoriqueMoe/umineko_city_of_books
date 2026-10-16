@@ -18,10 +18,9 @@ import (
 )
 
 func (s *service) run(id int, j job) {
-	defer s.inScope.Delete(j.ev.scopeKey())
-
 	ctx, cancel := context.WithTimeout(context.Background(), jobTimeout)
 	defer cancel()
+	defer s.releaseScope(context.WithoutCancel(ctx), j)
 
 	tune, _ := s.snapshot()
 
@@ -61,14 +60,14 @@ func logOutcome(id int, j job, out outcome) {
 func (s *service) settle(ctx context.Context, j job, out outcome) {
 	droppedTotal.WithLabelValues(string(out.reason), string(out.stage), string(j.ev.channel())).Inc()
 
-	if out.reason.policy() && !takeSlot(&s.lastNotice, noticeKey{user: j.ev.SenderID, reason: out.reason}, refusalCooldown) {
+	sendCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), noticeTimeout)
+	defer cancel()
+
+	if out.reason.policy() && !s.takeNoticeSlot(sendCtx, j.ev.SenderID, out.reason) {
 		noticesTotal.WithLabelValues(string(out.reason), noticeSuppressed).Inc()
 
 		return
 	}
-
-	sendCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), noticeTimeout)
-	defer cancel()
 
 	if err := s.deliver(sendCtx, j, s.noticeText(sendCtx, out)); err != nil {
 		noticesTotal.WithLabelValues(string(out.reason), noticeFailed).Inc()

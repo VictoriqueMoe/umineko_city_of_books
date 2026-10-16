@@ -25,6 +25,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
 	"umineko_city_of_books/internal/ws"
@@ -116,6 +117,7 @@ type (
 		settingsSvc   settings.Service
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
+		activity      sidebar.ActivityBumper
 	}
 )
 
@@ -133,6 +135,7 @@ func NewService(
 	hub *ws.Hub,
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
+	activity sidebar.ActivityBumper,
 ) Service {
 	return &service{
 		ocRepo:        ocRepo,
@@ -148,6 +151,7 @@ func NewService(
 		settingsSvc:   settingsSvc,
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
+		activity:      activity,
 	}
 }
 
@@ -297,7 +301,7 @@ func (s *service) CreateOC(ctx context.Context, userID uuid.UUID, req dto.Create
 
 	s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindOC, EntityID: created.ID}, userID, description)
 
-	s.hub.BumpSidebarActivity("ocs")
+	s.activity.BumpSidebarActivity(sidebar.KeyOCs)
 
 	return created.ID, nil
 }

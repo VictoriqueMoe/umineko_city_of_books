@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
+	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/upload"
@@ -472,10 +473,11 @@ func TestListArt(t *testing.T) {
 		wantCode      int
 		wantBody      string
 	}{
-		{name: "anonymous gets the defaults", corner: "general", sort: "new", limit: 24, wantCode: http.StatusOK},
-		{name: "authenticated passes the viewer", authenticated: true, corner: "general", sort: "new", limit: 24, wantCode: http.StatusOK},
-		{name: "custom query", query: "?corner=nsfw&type=drawing&search=beato&tag=cute&sort=top&limit=10&offset=5", corner: "nsfw", artType: "drawing", search: "beato", tag: "cute", sort: "top", limit: 10, offset: 5, wantCode: http.StatusOK},
-		{name: "internal", corner: "general", sort: "new", limit: 24, svcErr: errors.New("boom"), wantCode: http.StatusInternalServerError, wantBody: "failed to list art"},
+		{name: "anonymous gets the defaults", sort: "new", limit: 24, wantCode: http.StatusOK},
+		{name: "authenticated passes the viewer", authenticated: true, sort: "new", limit: 24, wantCode: http.StatusOK},
+		{name: "custom query", query: "?corner=umineko&type=drawing&search=beato&tag=cute&sort=top&limit=10&offset=5", corner: "umineko", artType: "drawing", search: "beato", tag: "cute", sort: "top", limit: 10, offset: 5, wantCode: http.StatusOK},
+		{name: "internal", sort: "new", limit: 24, svcErr: errors.New("boom"), wantCode: http.StatusInternalServerError, wantBody: "failed to list art"},
+		{name: "an unknown corner is a bad request", query: "?corner=phantom", corner: "phantom", sort: "new", limit: 24, svcErr: fmt.Errorf("%w %q", corner.ErrInvalidCorner, "phantom"), wantCode: http.StatusBadRequest, wantBody: "invalid corner"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -536,8 +538,9 @@ func TestGetPopularTags(t *testing.T) {
 		wantBody string
 	}{
 		{"every corner", "", "", nil, http.StatusOK, ""},
-		{"one corner", "?corner=nsfw", "nsfw", nil, http.StatusOK, ""},
+		{"one corner", "?corner=umineko", "umineko", nil, http.StatusOK, ""},
 		{"internal", "", "", errors.New("boom"), http.StatusInternalServerError, "failed to get tags"},
+		{"unknown corner", "?corner=phantom", "phantom", fmt.Errorf("%w %q", corner.ErrInvalidCorner, "phantom"), http.StatusBadRequest, "invalid corner"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -617,6 +620,7 @@ func TestCreateArt_MissingMetadata_BadRequest(t *testing.T) {
 func TestCreateArt_ServiceOutcomes(t *testing.T) {
 	cases := []artCtlOutcome{
 		{"empty title", artsvc.ErrEmptyTitle, http.StatusBadRequest, artsvc.ErrEmptyTitle.Error()},
+		{"unknown corner", fmt.Errorf("%w %q", corner.ErrInvalidCorner, "phantom"), http.StatusBadRequest, "invalid corner"},
 		{"too large", fmt.Errorf("%w: file size 9MB exceeds maximum 5MB", upload.ErrFileTooLarge), http.StatusBadRequest, "exceeds maximum 5MB"},
 		{"a server failure is a 500, not a 400 carrying the database error", errors.New("pq: connection refused"), http.StatusInternalServerError, "failed to create art"},
 	}
@@ -705,8 +709,9 @@ func TestListAllGalleries(t *testing.T) {
 		wantBody string
 	}{
 		{"every corner", "", "", nil, http.StatusOK, ""},
-		{"one corner", "?corner=nsfw", "nsfw", nil, http.StatusOK, ""},
+		{"one corner", "?corner=umineko", "umineko", nil, http.StatusOK, ""},
 		{"internal", "", "", errors.New("boom"), http.StatusInternalServerError, "failed to list galleries"},
+		{"unknown corner", "?corner=phantom", "phantom", fmt.Errorf("%w %q", corner.ErrInvalidCorner, "phantom"), http.StatusBadRequest, "invalid corner"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

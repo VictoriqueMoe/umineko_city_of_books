@@ -28,10 +28,10 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
-	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 )
@@ -40,6 +40,9 @@ const (
 	defaultSeries     = "Umineko"
 	defaultLanguage   = "English"
 	maxFanficTagRunes = 30
+	statusDraft       = "draft"
+	statusInProgress  = "in_progress"
+	statusComplete    = "complete"
 )
 
 type (
@@ -84,6 +87,7 @@ type (
 	service struct {
 		fanficRepo    repository.FanficRepository
 		userRepo      repository.UserRepository
+		followRepo    repository.FollowRepository
 		auditRepo     repository.AuditLogRepository
 		authz         authz.Service
 		blockSvc      block.Service
@@ -95,13 +99,14 @@ type (
 		settingsSvc   settings.Service
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
-		hub           *ws.Hub
+		activity      sidebar.ActivityBumper
 	}
 )
 
 func NewService(
 	fanficRepo repository.FanficRepository,
 	userRepo repository.UserRepository,
+	followRepo repository.FollowRepository,
 	auditRepo repository.AuditLogRepository,
 	authzSvc authz.Service,
 	blockSvc block.Service,
@@ -112,11 +117,12 @@ func NewService(
 	settingsSvc settings.Service,
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
-	hub *ws.Hub,
+	activity sidebar.ActivityBumper,
 ) Service {
 	return &service{
 		fanficRepo:    fanficRepo,
 		userRepo:      userRepo,
+		followRepo:    followRepo,
 		auditRepo:     auditRepo,
 		authz:         authzSvc,
 		blockSvc:      blockSvc,
@@ -128,7 +134,7 @@ func NewService(
 		settingsSvc:   settingsSvc,
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
-		hub:           hub,
+		activity:      activity,
 	}
 }
 
@@ -207,11 +213,11 @@ func validateFanficFields(genres, rawTags []string, rawRating, rawSeries, rawLan
 	}, nil
 }
 
-func fanficUpdateDetails(before *model.FanficRow, update spec.FanficUpdate) string {
-	if before == nil {
-		return ""
-	}
+func validStatus(status string) bool {
+	return status == statusDraft || status == statusInProgress || status == statusComplete
+}
 
+func fanficUpdateDetails(before *model.FanficRow, update spec.FanficUpdate) string {
 	var changed []string
 
 	if before.Title != update.Title {
@@ -268,10 +274,8 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 	}
 
 	status := strings.TrimSpace(req.Status)
-	switch status {
-	case "draft", "in_progress", "complete":
-	default:
-		status = "in_progress"
+	if !validStatus(status) {
+		status = statusInProgress
 	}
 
 	newFanfic := spec.NewFanficWithDetails{
@@ -300,12 +304,26 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 		return uuid.Nil, err
 	}
 
-	if status != "draft" {
+	if status != statusDraft {
 		s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindFanfic, EntityID: created.ID}, userID, newFanfic.Summary+"\n"+body)
-		s.hub.BumpSidebarActivity("fanfiction")
+
+		go notification.SendFollowerNotification(context.Background(), s.followRepo, s.notifSvc, publishedNotice(created.ID, userID, title))
+
+		s.activity.BumpSidebarActivity(sidebar.KeyFanfiction)
 	}
 
 	return created.ID, nil
+}
+
+func publishedNotice(fanficID, authorID uuid.UUID, title string) notification.FollowerNotifyParams {
+	return notification.FollowerNotifyParams{
+		ActorID:       authorID,
+		Type:          dto.NotifFanficPublished,
+		ReferenceID:   fanficID,
+		ReferenceType: "fanfic",
+		Action:        "published a new fanfic",
+		Title:         title,
+	}
 }
 
 func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerHash string) (*dto.FanficDetailResponse, error) {
@@ -448,6 +466,11 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 		return err
 	}
 
+	status := strings.TrimSpace(req.Status)
+	if status != "" && !validStatus(status) {
+		return ErrInvalidStatus
+	}
+
 	update := spec.FanficUpdateWithDetails{
 		ID:             id,
 		UserID:         userID,
@@ -456,7 +479,7 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 		Series:         fields.Series,
 		Rating:         fields.Rating,
 		Language:       fields.Language,
-		Status:         strings.TrimSpace(req.Status),
+		Status:         status,
 		IsOneshot:      req.IsOneshot,
 		ContainsLemons: req.ContainsLemons,
 		AsAdmin:        asAdmin,
@@ -466,15 +489,29 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 		Characters:     req.Characters,
 	}
 
-	var before *model.FanficRow
-	if asAdmin {
-		before, err = s.fanficRepo.GetByID(ctx, spec.FanficLookup{ID: id, ViewerID: userID})
+	before, err := s.fanficRepo.GetByID(ctx, spec.FanficLookup{ID: id, ViewerID: userID})
+	if err != nil {
+		return fmt.Errorf("fanfic before edit: %w", err)
+	}
+	if before == nil {
+		return ErrNotFound
+	}
+	if update.Status == "" {
+		update.Status = before.Status
+	}
+
+	mayFirstPublish := before.PublishedAt == nil && update.Status != statusDraft
+
+	var firstChapterBody string
+	if mayFirstPublish {
+		firstChapterBody, err = s.firstChapterBody(ctx, id)
 		if err != nil {
-			return fmt.Errorf("fanfic before admin edit: %w", err)
+			return err
 		}
 	}
 
-	if err := s.fanficRepo.UpdateWithDetails(ctx, update); err != nil {
+	firstPublished, err := s.fanficRepo.UpdateWithDetails(ctx, update)
+	if err != nil {
 		return err
 	}
 
@@ -489,7 +526,35 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 		})
 	}
 
+	if firstPublished {
+		s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindFanfic, EntityID: id}, authorID, update.Summary+"\n"+firstChapterBody)
+
+		go notification.SendFollowerNotification(context.Background(), s.followRepo, s.notifSvc, publishedNotice(id, authorID, title))
+
+		s.activity.BumpSidebarActivity(sidebar.KeyFanfiction)
+	}
+
 	return nil
+}
+
+func (s *service) firstChapterBody(ctx context.Context, fanficID uuid.UUID) (string, error) {
+	chapters, err := s.fanficRepo.ListChapters(ctx, fanficID)
+	if err != nil {
+		return "", fmt.Errorf("fanfic chapters: %w", err)
+	}
+	if len(chapters) == 0 {
+		return "", nil
+	}
+
+	first, err := s.fanficRepo.GetChapter(ctx, spec.FanficChapterLookup{FanficID: fanficID, ChapterNumber: chapters[0].ChapterNum})
+	if err != nil {
+		return "", fmt.Errorf("fanfic first chapter: %w", err)
+	}
+	if first == nil {
+		return "", nil
+	}
+
+	return first.Body, nil
 }
 
 func (s *service) DeleteFanfic(ctx context.Context, id, userID uuid.UUID) error {
@@ -693,7 +758,7 @@ func (s *service) CreateChapter(ctx context.Context, fanficID, userID uuid.UUID,
 }
 
 func (s *service) hiddenDraft(ctx context.Context, row *model.FanficRow, viewerID uuid.UUID) bool {
-	return row.Status == "draft" && row.UserID != viewerID && !s.authz.Can(ctx, viewerID, authz.PermEditAnyTheory)
+	return row.Status == statusDraft && row.UserID != viewerID && !s.authz.Can(ctx, viewerID, authz.PermEditAnyTheory)
 }
 
 func (s *service) GetChapter(ctx context.Context, fanficID uuid.UUID, chapterNumber int, viewerID uuid.UUID) (*dto.FanficChapterResponse, error) {

@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router";
+import { isPendingSend, pendingPreview, threadEntryKey } from "../../../domain/chat/optimisticSend";
 import { replyPreview } from "../../../domain/chat/replyPreview";
 import { useAuth } from "../../../hooks/useAuth";
 import { useBlockedUserIds } from "../../../hooks/useBlockedUserIds";
@@ -71,18 +72,11 @@ function RoomChatPanelInner({
     const composerRef = useRef<ChatComposerHandle>(null);
 
     const session = useChatSession({ roomId, user, maxMessages, scrollMode: "instant" });
-    const { messages, status } = session;
-    const { hasMore, loadingMore, addMessage } = session.history;
-    const { containerRef, contentRef, endRef, onScroll, toBottomInstant } = session.scroll;
+    const { entries, status } = session;
+    const { sender, retry: retrySend, discard: discardSend } = session.sends;
+    const { hasMore, loadingMore } = session.history;
+    const { containerRef, contentRef, endRef, onScroll } = session.scroll;
     const { messageId: editingMessageId, start: startEditing, cancel: cancelEditing, save: saveEdit } = session.editing;
-
-    const handleSent = useCallback(
-        (message: ChatMessage) => {
-            addMessage(message);
-            toBottomInstant({ force: true });
-        },
-        [addMessage, toBottomInstant],
-    );
 
     const handleReply = useCallback((message: ChatMessage) => {
         setReplyingTo({
@@ -133,30 +127,40 @@ function RoomChatPanelInner({
                             {loadingMore ? "Loading older messages..." : "Scroll up for more"}
                         </div>
                     )}
-                    {messages.map(m => (
-                        <MessageBubble
-                            key={m.id}
-                            message={m}
-                            isOwn={m.sender.id === user.id}
-                            senderBlocked={blockedIDs.has(m.sender.id)}
-                            onLightbox={setLightboxSrc}
-                            onReply={handleReply}
-                            onEdit={saveEdit}
-                            onEditStart={startEditing}
-                            onEditCancel={handleEditCancel}
-                            editing={editingMessageId === m.id}
-                        />
-                    ))}
+                    {entries.map(entry =>
+                        isPendingSend(entry) ? (
+                            <MessageBubble
+                                key={threadEntryKey(entry)}
+                                message={pendingPreview(entry, user, null)}
+                                isOwn
+                                delivery={entry}
+                                onRetrySend={retrySend}
+                                onDiscardSend={discardSend}
+                                onLightbox={setLightboxSrc}
+                            />
+                        ) : (
+                            <MessageBubble
+                                key={threadEntryKey(entry)}
+                                message={entry}
+                                isOwn={entry.sender.id === user.id}
+                                senderBlocked={blockedIDs.has(entry.sender.id)}
+                                onLightbox={setLightboxSrc}
+                                onReply={handleReply}
+                                onEdit={saveEdit}
+                                onEditStart={startEditing}
+                                onEditCancel={handleEditCancel}
+                                editing={editingMessageId === entry.id}
+                            />
+                        ),
+                    )}
                     <div ref={endRef} />
                 </div>
             </div>
-            {canSend && roomId && status === "live" && (
+            {canSend && sender && status === "live" && (
                 <div className={styles.composerSlot}>
                     <ChatComposer
                         ref={composerRef}
-                        roomId={roomId}
-                        draftRecipientId={null}
-                        onSent={handleSent}
+                        target={{ kind: "room", sender }}
                         replyingTo={replyingTo}
                         onCancelReply={handleCancelReply}
                         sendOnEnter

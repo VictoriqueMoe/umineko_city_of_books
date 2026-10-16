@@ -3,6 +3,7 @@ import { messageActions, type MessageActionContext, type MessageActionId } from 
 
 function context(overrides: Partial<MessageActionContext> = {}): MessageActionContext {
     return {
+        undelivered: false,
         pinned: false,
         isOwn: false,
         editing: false,
@@ -14,6 +15,7 @@ function context(overrides: Partial<MessageActionContext> = {}): MessageActionCo
         hasReply: false,
         hasPinToggle: false,
         hasEdit: false,
+        hasCopyLink: false,
         hasDelete: false,
         ...overrides,
     };
@@ -64,6 +66,16 @@ const gateCases: GateCase[] = [
         want: [],
     },
     { name: "offers editing on your own message", overrides: { isOwn: true, hasEdit: true }, want: ["edit"] },
+    {
+        name: "offers copying a link once the surface gives the message a lasting address",
+        overrides: { hasCopyLink: true },
+        want: ["copy-link"],
+    },
+    {
+        name: "offers copying a link to someone else's message as readily as to your own",
+        overrides: { isOwn: false, hasCopyLink: true },
+        want: ["copy-link"],
+    },
     { name: "offers deleting your own message", overrides: { isOwn: true, hasDelete: true }, want: ["delete"] },
     {
         name: "withholds deleting someone else's message from an ordinary member",
@@ -100,14 +112,31 @@ const gateCases: GateCase[] = [
             hasReply: true,
             hasPinToggle: true,
             hasEdit: true,
+            hasCopyLink: true,
             hasDelete: true,
         },
-        want: ["react", "reply", "pin", "edit", "delete"],
+        want: ["react", "reply", "pin", "edit", "copy-link", "delete"],
     },
     {
-        name: "gives a live stream viewer the thin set the panel wired up",
+        name: "gives a live stream viewer the thin set the panel wired up, with no link to a chat that will not last",
         overrides: { isOwn: true, hasReply: true, hasEdit: true },
         want: ["reply", "edit"],
+    },
+    {
+        name: "offers nothing at all on a message the server has not confirmed yet",
+        overrides: {
+            undelivered: true,
+            isOwn: true,
+            canToggleReaction: true,
+            canPin: true,
+            canModerate: true,
+            hasReply: true,
+            hasPinToggle: true,
+            hasEdit: true,
+            hasCopyLink: true,
+            hasDelete: true,
+        },
+        want: [],
     },
 ];
 
@@ -158,6 +187,7 @@ describe("messageActions", () => {
             hasReply: true,
             hasPinToggle: true,
             hasEdit: true,
+            hasCopyLink: true,
             hasDelete: true,
         });
 
@@ -177,6 +207,7 @@ describe("messageActions", () => {
             hasReply: true,
             hasPinToggle: true,
             hasEdit: true,
+            hasCopyLink: true,
             hasDelete: true,
         });
 
@@ -196,6 +227,7 @@ describe("messageActions", () => {
             hasReply: true,
             hasPinToggle: true,
             hasEdit: true,
+            hasCopyLink: true,
             hasDelete: true,
         });
 
@@ -208,6 +240,7 @@ describe("messageActions", () => {
             "Reply",
             "Pin message",
             "Edit message",
+            "Copy message link",
             "Delete message",
         ]);
     });

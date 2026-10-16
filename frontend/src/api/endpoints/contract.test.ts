@@ -533,7 +533,19 @@ describe("multipart uploads", () => {
         // then
         const formData = lastFormData();
         expect(formData.has("reply_to_id")).toBe(false);
+        expect(formData.has("client_nonce")).toBe(false);
         expect(formData.getAll("media")).toEqual([]);
+    });
+
+    it("sendChatMessage carries the client nonce the server reconciles and deduplicates by", async () => {
+        // given
+        const payload = { body: "hello", client_nonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0" };
+
+        // when
+        await api.sendChatMessage("r-1", payload);
+
+        // then
+        expect(lastFormData().get("client_nonce")).toBe("0f1e2d3c4b5a69788796a5b4c3d2e1f0");
     });
 
     it("createArt serialises the metadata alongside the image", async () => {

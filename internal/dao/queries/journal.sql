@@ -28,7 +28,7 @@ SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity
        le.entry_number AS latest_entry_number,
        le.title AS latest_entry_title,
        le.body AS latest_entry_body,
-       le.created_at AS latest_entry_at
+       le.published_at AS latest_entry_at
 FROM journals j
 JOIN users u ON j.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = u.id
@@ -54,7 +54,7 @@ SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity
        le.entry_number AS latest_entry_number,
        le.title AS latest_entry_title,
        le.body AS latest_entry_body,
-       le.created_at AS latest_entry_at
+       le.published_at AS latest_entry_at
 FROM journals j
 JOIN users u ON j.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = u.id
@@ -78,7 +78,7 @@ SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity
        le.entry_number AS latest_entry_number,
        le.title AS latest_entry_title,
        le.body AS latest_entry_body,
-       le.created_at AS latest_entry_at
+       le.published_at AS latest_entry_at
 FROM journals j
 JOIN users u ON j.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = u.id
@@ -102,7 +102,7 @@ SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity
        le.entry_number AS latest_entry_number,
        le.title AS latest_entry_title,
        le.body AS latest_entry_body,
-       le.created_at AS latest_entry_at
+       le.published_at AS latest_entry_at
 FROM journals j
 JOIN users u ON j.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = u.id
@@ -126,7 +126,7 @@ SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity
        le.entry_number AS latest_entry_number,
        le.title AS latest_entry_title,
        le.body AS latest_entry_body,
-       le.created_at AS latest_entry_at
+       le.published_at AS latest_entry_at
 FROM journals j
 JOIN users u ON j.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = u.id
@@ -153,7 +153,7 @@ SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity
        le.entry_number AS latest_entry_number,
        le.title AS latest_entry_title,
        le.body AS latest_entry_body,
-       le.created_at AS latest_entry_at
+       le.published_at AS latest_entry_at
 FROM journals j
 JOIN users u ON j.user_id = u.id
 LEFT JOIN user_roles r ON r.user_id = u.id
@@ -222,32 +222,35 @@ WITH RECURSIVE tree AS (
 SELECT t.id FROM tree t;
 
 -- name: CreateJournalEntry :one
-INSERT INTO journal_entries (journal_id, entry_number, title, body, word_count, is_draft)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, journal_id, entry_number, title, body, word_count, is_draft, created_at, updated_at;
+INSERT INTO journal_entries (journal_id, entry_number, title, body, word_count, is_draft, published_at)
+VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $6::boolean THEN NULL ELSE NOW() END)
+RETURNING id, journal_id, entry_number, title, body, word_count, is_draft, published_at, created_at, updated_at;
 
 -- name: UpdateJournalEntry :execrows
 UPDATE journal_entries
 SET title = $1, body = $2, word_count = $3, is_draft = $4, updated_at = NOW()
 WHERE id = $5;
 
+-- name: MarkJournalEntryFirstPublished :execrows
+UPDATE journal_entries SET published_at = NOW() WHERE id = $1 AND published_at IS NULL AND NOT is_draft;
+
 -- name: DeleteJournalEntry :execrows
 DELETE FROM journal_entries WHERE id = $1;
 
 -- name: GetJournalEntry :one
-SELECT e.id, e.journal_id, e.entry_number, e.title, e.body, e.word_count, e.is_draft, e.created_at, e.updated_at,
+SELECT e.id, e.journal_id, e.entry_number, e.title, e.body, e.word_count, e.is_draft, e.published_at, e.created_at, e.updated_at,
        EXISTS(SELECT 1 FROM journal_entries p WHERE p.journal_id = $1 AND p.entry_number < $2 AND NOT p.is_draft) AS has_prev,
        EXISTS(SELECT 1 FROM journal_entries n WHERE n.journal_id = $1 AND n.entry_number > $2 AND NOT n.is_draft) AS has_next
 FROM journal_entries e
 WHERE e.journal_id = $1 AND e.entry_number = $2;
 
 -- name: GetJournalEntryByID :one
-SELECT id, journal_id, entry_number, title, body, word_count, is_draft, created_at, updated_at
+SELECT id, journal_id, entry_number, title, body, word_count, is_draft, published_at, created_at, updated_at
 FROM journal_entries
 WHERE id = $1;
 
 -- name: ListJournalEntries :many
-SELECT id, entry_number, title, word_count, is_draft, created_at
+SELECT id, entry_number, title, word_count, is_draft, published_at, created_at
 FROM journal_entries
 WHERE journal_id = $1
 ORDER BY entry_number DESC;

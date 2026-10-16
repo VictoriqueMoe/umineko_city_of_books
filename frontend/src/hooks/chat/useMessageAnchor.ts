@@ -6,10 +6,41 @@ const HASH_PREFIX = "#msg-";
 const HIGHLIGHT_MS = 3000;
 const SETTLE_MS = 300;
 const RESETTLE_MS = 600;
+const ANCHOR_HOLD_MS = 3000;
+const ANCHOR_VISIBLE_RATIO = 0.5;
+const USER_SCROLL_INPUTS = ["wheel", "touchmove", "keydown", "pointerdown"] as const;
+const USER_SCROLL_LISTENER: AddEventListenerOptions = { capture: true, passive: true };
 const NOT_FOUND = "Couldn't locate that message.";
 
 function messageElement(messageId: string): HTMLElement | null {
     return document.getElementById(`chat-msg-${messageId}`);
+}
+
+function holdInView(el: HTMLElement, release: () => void): () => void {
+    const observer = new IntersectionObserver(
+        entries => {
+            for (const entry of entries) {
+                if (entry.intersectionRatio < ANCHOR_VISIBLE_RATIO) {
+                    el.scrollIntoView({ behavior: "auto", block: "center" });
+                }
+            }
+        },
+        { threshold: ANCHOR_VISIBLE_RATIO },
+    );
+    observer.observe(el);
+
+    const giveUp = setTimeout(release, ANCHOR_HOLD_MS);
+    for (const type of USER_SCROLL_INPUTS) {
+        document.addEventListener(type, release, USER_SCROLL_LISTENER);
+    }
+
+    return () => {
+        observer.disconnect();
+        clearTimeout(giveUp);
+        for (const type of USER_SCROLL_INPUTS) {
+            document.removeEventListener(type, release, USER_SCROLL_LISTENER);
+        }
+    };
 }
 
 export interface MessageAnchorOptions {
@@ -30,10 +61,20 @@ export function useMessageAnchor(options: MessageAnchorOptions): MessageAnchor {
     const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
     const [handledHash, setHandledHash] = useState<string | null>(null);
     const hashLoadRef = useRef<string | null>(null);
+    const releaseHoldRef = useRef<(() => void) | null>(null);
 
     const targetMsgId = location.hash.startsWith(HASH_PREFIX) ? location.hash.slice(HASH_PREFIX.length) : null;
     const targetMsgCreatedAt = new URLSearchParams(location.search).get("at") ?? undefined;
     const pendingTargetMsgId = targetMsgId && handledHash !== targetMsgId ? targetMsgId : null;
+
+    const releaseAnchor = useCallback(() => {
+        releaseHoldRef.current?.();
+        releaseHoldRef.current = null;
+    }, []);
+
+    useEffect(() => {
+        return releaseAnchor;
+    }, [releaseAnchor]);
 
     useEffect(() => {
         if (!pendingTargetMsgId || messages.length === 0) {
@@ -46,6 +87,7 @@ export function useMessageAnchor(options: MessageAnchorOptions): MessageAnchor {
                 loadUntilMessage(pendingTargetMsgId, targetMsgCreatedAt).then(found => {
                     if (!found) {
                         setHandledHash(pendingTargetMsgId);
+                        onError(NOT_FOUND);
                     }
                 });
             }
@@ -53,17 +95,41 @@ export function useMessageAnchor(options: MessageAnchorOptions): MessageAnchor {
             return;
         }
 
+        const msgId = pendingTargetMsgId;
+        let awaitElement: MutationObserver | null = null;
+
+        const land = (el: HTMLElement) => {
+            releaseAnchor();
+            el.scrollIntoView({ behavior: "auto", block: "center" });
+            releaseHoldRef.current = holdInView(el, releaseAnchor);
+            setHighlightedMsgId(msgId);
+            setHandledHash(msgId);
+        };
+
         const t = setTimeout(() => {
-            const el = messageElement(pendingTargetMsgId);
+            const el = messageElement(msgId);
             if (el) {
-                el.scrollIntoView({ behavior: "smooth", block: "center" });
-                setHighlightedMsgId(pendingTargetMsgId);
-                setHandledHash(pendingTargetMsgId);
+                land(el);
+                return;
             }
+
+            awaitElement = new MutationObserver(() => {
+                const mounted = messageElement(msgId);
+                if (!mounted) {
+                    return;
+                }
+
+                awaitElement?.disconnect();
+                land(mounted);
+            });
+            awaitElement.observe(document.body, { childList: true, subtree: true });
         }, SETTLE_MS);
 
-        return () => clearTimeout(t);
-    }, [pendingTargetMsgId, targetMsgCreatedAt, messages, loadUntilMessage]);
+        return () => {
+            clearTimeout(t);
+            awaitElement?.disconnect();
+        };
+    }, [pendingTargetMsgId, targetMsgCreatedAt, messages, loadUntilMessage, onError, releaseAnchor]);
 
     useEffect(() => {
         if (!highlightedMsgId) {
@@ -77,6 +143,8 @@ export function useMessageAnchor(options: MessageAnchorOptions): MessageAnchor {
 
     const handleJumpToMessage = useCallback(
         async (messageId: string, targetCreatedAt?: string) => {
+            releaseAnchor();
+
             const scrollToEl = (smooth: boolean) => {
                 const el = messageElement(messageId);
                 if (el) {
@@ -100,7 +168,7 @@ export function useMessageAnchor(options: MessageAnchorOptions): MessageAnchor {
             setTimeout(() => scrollToEl(false), SETTLE_MS);
             setTimeout(() => scrollToEl(true), RESETTLE_MS);
         },
-        [messages, loadUntilMessage, onError],
+        [messages, loadUntilMessage, onError, releaseAnchor],
     );
 
     return { highlightedMsgId, handleJumpToMessage };

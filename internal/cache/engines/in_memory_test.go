@@ -404,6 +404,342 @@ func TestInMemoryIsAlwaysAvailable(t *testing.T) {
 	require.NoError(t, c.Ping(context.Background()))
 }
 
+func TestInMemoryIncrementWindowCountsWithinTheWindow(t *testing.T) {
+	tests := []struct {
+		name          string
+		advance       time.Duration
+		wantCount     int64
+		wantRemaining time.Duration
+	}{
+		{name: "same instant", advance: 0, wantCount: 2, wantRemaining: time.Minute},
+		{name: "part way through", advance: 20 * time.Second, wantCount: 2, wantRemaining: 40 * time.Second},
+		{name: "exactly at expiry, matching get", advance: time.Minute, wantCount: 2, wantRemaining: 0},
+		{name: "past expiry starts a fresh window", advance: 90 * time.Second, wantCount: 1, wantRemaining: time.Minute},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			c, clock := newClockedInMemory(t, 0)
+			ctx := context.Background()
+
+			first, firstRemaining, err := c.IncrementWindow(ctx, "k", time.Minute)
+			require.NoError(t, err)
+			require.Equal(t, int64(1), first)
+			require.Equal(t, time.Minute, firstRemaining)
+
+			// when
+			clock.advance(tt.advance)
+			count, remaining, err := c.IncrementWindow(ctx, "k", time.Minute)
+
+			// then the window is fixed from the first hit and never slides
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantCount, count)
+			assert.Equal(t, tt.wantRemaining, remaining)
+		})
+	}
+}
+
+func TestInMemoryIncrementWindowStoresTheCountLikeValkey(t *testing.T) {
+	// given
+	c, _ := newClockedInMemory(t, 0)
+	ctx := context.Background()
+
+	// when
+	for range 3 {
+		_, _, err := c.IncrementWindow(ctx, "k", time.Minute)
+		require.NoError(t, err)
+	}
+
+	// then
+	got, err := c.Get(ctx, "k")
+	require.NoError(t, err)
+	assert.Equal(t, []byte("3"), got)
+	assert.Equal(t, entrySize("k", []byte("3")), c.Bytes())
+}
+
+func TestInMemoryIncrementWindowAttachesTheWindowToAKeyWithoutExpiry(t *testing.T) {
+	// given a counter that was stored with no expiry
+	c, clock := newClockedInMemory(t, 0)
+	ctx := context.Background()
+	require.NoError(t, c.Set(ctx, "k", []byte("5"), 0))
+
+	// when
+	count, remaining, err := c.IncrementWindow(ctx, "k", time.Minute)
+
+	// then it keeps counting and now expires with the window
+	require.NoError(t, err)
+	assert.Equal(t, int64(6), count)
+	assert.Equal(t, time.Minute, remaining)
+
+	clock.advance(2 * time.Minute)
+
+	_, err = c.Get(ctx, "k")
+	require.ErrorIs(t, err, engine.ErrMiss)
+}
+
+func TestInMemoryIncrementWindowRefusesAValueThatIsNotACounter(t *testing.T) {
+	// given
+	c, _ := newClockedInMemory(t, 0)
+	ctx := context.Background()
+	require.NoError(t, c.Set(ctx, "k", []byte("golden"), time.Minute))
+
+	// when
+	_, _, err := c.IncrementWindow(ctx, "k", time.Minute)
+
+	// then
+	require.ErrorIs(t, err, engine.ErrNotCounter)
+
+	got, getErr := c.Get(ctx, "k")
+	require.NoError(t, getErr)
+	assert.Equal(t, []byte("golden"), got)
+}
+
+func TestInMemoryIncrementWindowIsAtomicUnderConcurrency(t *testing.T) {
+	// given
+	c := NewInMemory(0)
+	ctx := context.Background()
+
+	// when
+	var wg sync.WaitGroup
+	for range 64 {
+		wg.Go(func() {
+			_, _, err := c.IncrementWindow(ctx, "k", time.Minute)
+			assert.NoError(t, err)
+		})
+	}
+	wg.Wait()
+
+	// then no increment was lost
+	count, _, err := c.IncrementWindow(ctx, "k", time.Minute)
+	require.NoError(t, err)
+	assert.Equal(t, int64(65), count)
+}
+
+func TestInMemorySetIfAbsent(t *testing.T) {
+	tests := []struct {
+		name      string
+		existing  []byte
+		ttl       time.Duration
+		advance   time.Duration
+		wantClaim bool
+		wantValue []byte
+	}{
+		{name: "absent key is claimed", existing: nil, wantClaim: true, wantValue: []byte("new")},
+		{name: "live key is kept", existing: []byte("old"), ttl: time.Minute, advance: 30 * time.Second, wantClaim: false, wantValue: []byte("old")},
+		{name: "key without expiry is kept", existing: []byte("old"), ttl: 0, advance: 24 * time.Hour, wantClaim: false, wantValue: []byte("old")},
+		{name: "expired key is claimed again", existing: []byte("old"), ttl: time.Minute, advance: 90 * time.Second, wantClaim: true, wantValue: []byte("new")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			c, clock := newClockedInMemory(t, 0)
+			ctx := context.Background()
+
+			if tt.existing != nil {
+				require.NoError(t, c.Set(ctx, "k", tt.existing, tt.ttl))
+			}
+
+			clock.advance(tt.advance)
+
+			// when
+			claimed, err := c.SetIfAbsent(ctx, "k", []byte("new"), time.Minute)
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantClaim, claimed)
+
+			got, getErr := c.Get(ctx, "k")
+			require.NoError(t, getErr)
+			assert.Equal(t, tt.wantValue, got)
+		})
+	}
+}
+
+func TestInMemorySetIfAbsentExpiresWithItsTTL(t *testing.T) {
+	// given
+	c, clock := newClockedInMemory(t, 0)
+	ctx := context.Background()
+
+	claimed, err := c.SetIfAbsent(ctx, "k", []byte("v"), time.Minute)
+	require.NoError(t, err)
+	require.True(t, claimed)
+
+	// when
+	clock.advance(90 * time.Second)
+
+	// then
+	_, err = c.Get(ctx, "k")
+	require.ErrorIs(t, err, engine.ErrMiss)
+}
+
+func TestInMemorySetIfAbsentAdmitsExactlyOneConcurrentClaim(t *testing.T) {
+	// given
+	c := NewInMemory(0)
+	ctx := context.Background()
+
+	// when
+	var (
+		wg   sync.WaitGroup
+		mu   sync.Mutex
+		wins int
+	)
+	for range 64 {
+		wg.Go(func() {
+			claimed, err := c.SetIfAbsent(ctx, "lease", []byte("v"), time.Minute)
+			assert.NoError(t, err)
+
+			if !claimed {
+				return
+			}
+
+			mu.Lock()
+			wins++
+			mu.Unlock()
+		})
+	}
+	wg.Wait()
+
+	// then
+	assert.Equal(t, 1, wins)
+}
+
+func TestInMemoryExtendDeadline(t *testing.T) {
+	tests := []struct {
+		name             string
+		existingDeadline time.Duration
+		existingRaw      []byte
+		existingTTL      time.Duration
+		advance          time.Duration
+		requested        time.Duration
+		wantInForce      time.Duration
+	}{
+		{name: "absent key takes the deadline", requested: time.Minute, wantInForce: time.Minute},
+		{name: "a later deadline extends the one held", existingDeadline: time.Minute, existingTTL: time.Minute, requested: time.Hour, wantInForce: time.Hour},
+		{name: "an earlier deadline never overwrites a later one", existingDeadline: time.Hour, existingTTL: time.Hour, requested: time.Minute, wantInForce: time.Hour},
+		{name: "the same deadline holds", existingDeadline: time.Minute, existingTTL: time.Minute, requested: time.Minute, wantInForce: time.Minute},
+		{name: "a lapsed deadline is replaced", existingDeadline: time.Hour, existingTTL: time.Second, advance: 2 * time.Second, requested: time.Minute, wantInForce: time.Minute},
+		{name: "a value that is not a deadline is replaced", existingRaw: []byte("golden"), existingTTL: time.Hour, requested: time.Minute, wantInForce: time.Minute},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			c, clock := newClockedInMemory(t, 0)
+			ctx := context.Background()
+			start := clock.now
+
+			existing := tt.existingRaw
+			if tt.existingDeadline > 0 {
+				existing = strconv.AppendInt(nil, start.Add(tt.existingDeadline).UnixMilli(), 10)
+			}
+
+			if existing != nil {
+				require.NoError(t, c.Set(ctx, "k", existing, tt.existingTTL))
+			}
+
+			clock.advance(tt.advance)
+
+			// when
+			inForce, err := c.ExtendDeadline(ctx, "k", start.Add(tt.requested))
+
+			// then
+			require.NoError(t, err)
+			want := start.Add(tt.wantInForce)
+			assert.True(t, want.Equal(inForce))
+
+			stored, getErr := c.Get(ctx, "k")
+			require.NoError(t, getErr)
+			assert.Equal(t, strconv.FormatInt(want.UnixMilli(), 10), string(stored))
+		})
+	}
+}
+
+func TestInMemoryExtendDeadlineExpiresAtTheDeadline(t *testing.T) {
+	tests := []struct {
+		name    string
+		advance time.Duration
+		wantHit bool
+	}{
+		{name: "before the deadline", advance: 30 * time.Second, wantHit: true},
+		{name: "exactly at the deadline, matching get", advance: time.Minute, wantHit: true},
+		{name: "past the deadline", advance: time.Minute + time.Millisecond, wantHit: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			c, clock := newClockedInMemory(t, 0)
+			ctx := context.Background()
+
+			_, err := c.ExtendDeadline(ctx, "k", clock.now.Add(time.Minute))
+			require.NoError(t, err)
+
+			// when
+			clock.advance(tt.advance)
+			_, getErr := c.Get(ctx, "k")
+
+			// then
+			if tt.wantHit {
+				require.NoError(t, getErr)
+
+				return
+			}
+
+			require.ErrorIs(t, getErr, engine.ErrMiss)
+		})
+	}
+}
+
+func TestInMemoryExtendDeadlineRejectsADeadlineThatIsNotInTheFuture(t *testing.T) {
+	tests := []struct {
+		name   string
+		offset time.Duration
+	}{
+		{name: "in the past", offset: -time.Minute},
+		{name: "exactly now", offset: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			c, clock := newClockedInMemory(t, 0)
+			ctx := context.Background()
+
+			// when
+			inForce, err := c.ExtendDeadline(ctx, "k", clock.now.Add(tt.offset))
+
+			// then nothing is stored, because a zero or negative expiry would read as forever
+			require.ErrorIs(t, err, engine.ErrDeadlinePassed)
+			assert.True(t, inForce.IsZero())
+			assert.Zero(t, c.Len())
+		})
+	}
+}
+
+func TestInMemoryExtendDeadlineKeepsTheLatestUnderConcurrency(t *testing.T) {
+	// given
+	c, clock := newClockedInMemory(t, 0)
+	ctx := context.Background()
+	latest := clock.now.Add(64 * time.Minute)
+
+	// when every caller races its own deadline in
+	var wg sync.WaitGroup
+	for i := range 64 {
+		wg.Go(func() {
+			_, err := c.ExtendDeadline(ctx, "k", clock.now.Add(time.Duration(i+1)*time.Minute))
+			assert.NoError(t, err)
+		})
+	}
+	wg.Wait()
+
+	// then the latest one wins whatever order they landed in
+	inForce, err := c.ExtendDeadline(ctx, "k", clock.now.Add(time.Minute))
+	require.NoError(t, err)
+	assert.True(t, latest.Equal(inForce))
+}
+
 func TestInMemoryHandlesConcurrentAccess(t *testing.T) {
 	c := NewInMemory(0)
 	ctx := context.Background()

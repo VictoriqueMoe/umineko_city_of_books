@@ -22,6 +22,10 @@ export function makeRoomController(overrides: Partial<RoomController> = {}): Roo
         session: {
             viewer: session.viewer,
             messages: session.messages,
+            entries: session.entries,
+            sender: session.sender,
+            retrySend: session.retrySend,
+            discardSend: session.discardSend,
             hasMore: session.hasMore,
             loadingMore: session.loadingMore,
             containerRef: session.containerRef,
@@ -37,7 +41,6 @@ export function makeRoomController(overrides: Partial<RoomController> = {}): Roo
             typingNames: [],
             notifyTyping: session.notifyTyping,
             matchesViewerMention: session.matchesViewerMention,
-            onSent: session.onSent,
             deleteMessage: session.deleteMessage,
             editMessage: session.editMessage,
             editLast: session.editLast,

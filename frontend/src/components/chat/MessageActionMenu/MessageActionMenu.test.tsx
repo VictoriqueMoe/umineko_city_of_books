@@ -6,6 +6,7 @@ import { renderWithProviders } from "../../../test-utils/render";
 import { MessageActionMenu } from "./MessageActionMenu";
 
 const ITEMS = messageActions({
+    undelivered: false,
     pinned: false,
     isOwn: true,
     editing: false,
@@ -17,6 +18,7 @@ const ITEMS = messageActions({
     hasReply: true,
     hasPinToggle: true,
     hasEdit: true,
+    hasCopyLink: true,
     hasDelete: true,
 });
 

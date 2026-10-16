@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync/atomic"
 	"time"
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/httpclient"
+	"umineko_city_of_books/internal/logger"
 )
 
 type (
@@ -49,12 +49,11 @@ type (
 	}
 
 	service struct {
-		apiKey             string
-		baseURL            string
-		httpClient         *httpclient.Client
-		cache              *cache.Manager
-		rateLimitedUntilNs atomic.Int64
-		banlist            Banlist
+		apiKey     string
+		baseURL    string
+		httpClient *httpclient.Client
+		cache      *cache.Manager
+		banlist    Banlist
 	}
 
 	gifUserEntry struct {
@@ -133,7 +132,7 @@ func baseParams(apiKey string, limit, offset int) url.Values {
 }
 
 func (s *service) fetch(ctx context.Context, path string, params url.Values, out any) error {
-	if resetAt, blocked := s.rateLimitResetAt(); blocked {
+	if resetAt, blocked := s.rateLimitResetAt(ctx); blocked {
 		return &RateLimitError{ResetAt: resetAt}
 	}
 
@@ -152,8 +151,7 @@ func (s *service) fetch(ctx context.Context, path string, params url.Values, out
 	}
 
 	if statusErr.StatusCode == http.StatusTooManyRequests {
-		resetAt := parseRateLimitReset(statusErr.Header, time.Now())
-		s.rateLimitedUntilNs.Store(resetAt.UnixNano())
+		resetAt := s.tripRateLimit(ctx, parseRateLimitReset(statusErr.Header, time.Now()))
 
 		return &RateLimitError{ResetAt: resetAt}
 	}
@@ -240,15 +238,37 @@ func (s *service) filterBannedGifs(resp *Response) {
 	resp.Pagination.Count = len(kept)
 }
 
-func (s *service) rateLimitResetAt() (time.Time, bool) {
-	ns := s.rateLimitedUntilNs.Load()
-	if ns == 0 {
+func (s *service) tripRateLimit(ctx context.Context, resetAt time.Time) time.Time {
+	inForce, err := s.cache.ExtendDeadline(ctx, cache.GiphyRateLimitedUntil.Key(), resetAt)
+	if errors.Is(err, cache.ErrDeadlinePassed) {
+		return resetAt
+	}
+
+	if err != nil {
+		logger.Ctx(ctx).Error().Err(err).Time("reset_at", resetAt).Msg("giphy could not record its upstream rate limit, later calls will reach giphy until it is stored")
+
+		return resetAt
+	}
+
+	return inForce
+}
+
+func (s *service) rateLimitResetAt(ctx context.Context) (time.Time, bool) {
+	resetAt, err := s.cache.GetDeadline(ctx, cache.GiphyRateLimitedUntil.Key())
+	if errors.Is(err, cache.ErrMiss) {
 		return time.Time{}, false
 	}
-	resetAt := time.Unix(0, ns)
+
+	if err != nil {
+		logger.Ctx(ctx).Error().Err(err).Msg("giphy could not read its upstream rate limit, letting this call through")
+
+		return time.Time{}, false
+	}
+
 	if time.Now().After(resetAt) {
 		return time.Time{}, false
 	}
+
 	return resetAt, true
 }
 

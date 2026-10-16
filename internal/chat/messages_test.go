@@ -4,11 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -64,7 +67,14 @@ func messagesExpectRoom(m *testMocks, ref spec.ChatMemberRef, members []uuid.UUI
 func messagesExpectInsert(m *testMocks, message spec.NewChatMessage, detailed []model.ChatRoomMemberRow) uuid.UUID {
 	msgID := uuid.New()
 	m.userRepo.EXPECT().GetByID(mock.Anything, message.SenderID).Return(sampleUser(message.SenderID), nil)
-	m.chatRepo.EXPECT().InsertMessageAndMarkRead(mock.Anything, message).Return(&model.ChatMessageRow{ID: msgID}, nil)
+	m.chatRepo.EXPECT().InsertMessageAndMarkRead(mock.Anything, message).Return(&model.ChatMessageRow{
+		ID:          msgID,
+		RoomID:      message.RoomID,
+		SenderID:    message.SenderID,
+		Body:        message.Body,
+		ReplyToID:   message.ReplyToID,
+		ClientNonce: message.ClientNonce,
+	}, nil)
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, message.RoomID).Return(detailed, nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, message.SenderID).Return(nil, nil)
 
@@ -705,6 +715,125 @@ func TestSendMessage_RecipientOptInGatesNewThreadsOnTheRoomRoute(t *testing.T) {
 
 			// then the opt-in gates new threads only, and the room-id route no longer bypasses it
 			require.ErrorIs(t, err, tc.wantErr)
+		})
+	}
+}
+
+func TestSendMessage_RefusesAMalformedClientNonce(t *testing.T) {
+	cases := []struct {
+		name  string
+		nonce string
+	}{
+		{name: "a nonce shorter than sixteen characters", nonce: "abc123"},
+		{name: "a nonce longer than sixty-four characters", nonce: strings.Repeat("a", 65)},
+		{name: "a nonce with spaces and punctuation", nonce: "not a nonce at all!!"},
+		{name: "a nonce with characters outside ascii", nonce: "nönce-0000000000000"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, _ := newTestService(t)
+
+			// when
+			_, err := svc.SendMessage(context.Background(), uuid.New(), uuid.New(), dto.SendMessageRequest{Body: "hi", ClientNonce: tc.nonce}, nil)
+
+			// then
+			require.ErrorIs(t, err, ErrInvalidClientNonce)
+		})
+	}
+}
+
+func TestSendMessage_CarriesTheClientNonceIntoTheStoredMessage(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	senderID := uuid.New()
+	roomID := uuid.New()
+	nonce := "0f1e2d3c4b5a69788796a5b4c3d2e1f0"
+	messagesExpectRoom(m, spec.ChatMemberRef{RoomID: roomID, UserID: senderID}, []uuid.UUID{senderID},
+		&model.ChatRoomSendContext{Type: dto.RoomTypeGroup, Name: "G", CreatedBy: senderID})
+	msgID := messagesExpectInsert(m, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: "hi", ClientNonce: nonce}, nil)
+
+	// when
+	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi", ClientNonce: nonce}, nil)
+	svc.sideEffectsWG.Wait()
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, msgID, got.ID)
+	assert.Equal(t, nonce, got.ClientNonce)
+}
+
+func TestSendMessage_ResendWithTheSameClientNonce(t *testing.T) {
+	cases := []struct {
+		name         string
+		storedInRoom func(roomID uuid.UUID) uuid.UUID
+		wantErr      error
+	}{
+		{
+			name:         "in the same room answers with the stored message and sends nothing again",
+			storedInRoom: func(roomID uuid.UUID) uuid.UUID { return roomID },
+		},
+		{
+			name:         "in another room is refused",
+			storedInRoom: func(uuid.UUID) uuid.UUID { return uuid.New() },
+			wantErr:      ErrClientNonceReused,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a message that already landed under this nonce
+			svc, m := newTestService(t)
+			senderID := uuid.New()
+			recipientID := uuid.New()
+			roomID := uuid.New()
+			storedID := uuid.New()
+			nonce := "0f1e2d3c4b5a69788796a5b4c3d2e1f0"
+			stored := model.ChatMessageRow{
+				ID:          storedID,
+				RoomID:      tc.storedInRoom(roomID),
+				SenderID:    senderID,
+				Body:        "hi",
+				CreatedAt:   "2026-10-16T10:00:00.123456Z",
+				ClientNonce: nonce,
+			}
+			storedMedia := []dto.PostMediaResponse{{ID: 7, MediaURL: "/uploads/chat/a.png", MediaType: "image"}}
+
+			messagesExpectRoom(m, spec.ChatMemberRef{RoomID: roomID, UserID: senderID}, []uuid.UUID{senderID, recipientID},
+				&model.ChatRoomSendContext{Type: dto.RoomTypeGroup, Name: "G", CreatedBy: senderID})
+			m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(sampleUser(senderID), nil)
+			m.chatRepo.EXPECT().
+				InsertMessageAndMarkRead(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: "hi", ClientNonce: nonce}).
+				Return(nil, fmt.Errorf("insert message: %w", &dao.ChatMessageReplayError{Existing: stored}))
+			if tc.wantErr == nil {
+				m.chatRepo.EXPECT().GetMessageMediaBatch(mock.Anything, []uuid.UUID{storedID}).Return(map[uuid.UUID][]dto.PostMediaResponse{storedID: storedMedia}, nil)
+				m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return(nil, nil)
+				m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, senderID).Return(nil, nil)
+			}
+			m.hub.JoinRoom(roomID, recipientID)
+
+			// when the client sends it again
+			got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi", ClientNonce: nonce}, nil)
+			svc.sideEffectsWG.Wait()
+
+			// then
+			m.notifSvc.AssertNotCalled(t, "NotifyMany", mock.Anything, mock.Anything)
+			m.chatRepo.AssertNotCalled(t, "ListMutedMemberIDs", mock.Anything, mock.Anything)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				assert.Nil(t, got)
+
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, storedID, got.ID)
+			assert.Equal(t, roomID, got.RoomID)
+			assert.Equal(t, "hi", got.Body)
+			assert.Equal(t, stored.CreatedAt, got.CreatedAt)
+			assert.Equal(t, nonce, got.ClientNonce)
+			assert.Equal(t, storedMedia, got.Media)
 		})
 	}
 }

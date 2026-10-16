@@ -1,4 +1,4 @@
-export { makeChatMessage, makeChatRoom, makeDmRoom, makeRoomMember } from "./chat";
+export { makeChatMessage, makeChatRoom, makeDmRoom, makePendingSend, makeRoomMember } from "./chat";
 export {
     makeAuthContext,
     makeGifFavouritesContext,

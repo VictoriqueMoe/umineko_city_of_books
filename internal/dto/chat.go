@@ -35,8 +35,14 @@ type (
 	}
 
 	SendMessageRequest struct {
-		Body      string     `json:"body"`
-		ReplyToID *uuid.UUID `json:"reply_to_id,omitempty"`
+		Body        string     `json:"body"`
+		ReplyToID   *uuid.UUID `json:"reply_to_id,omitempty"`
+		ClientNonce string     `json:"client_nonce,omitempty"`
+	}
+
+	SendDMRequest struct {
+		Body        string `json:"body"`
+		ClientNonce string `json:"client_nonce,omitempty"`
 	}
 
 	ChatMessageReplyPreview struct {
@@ -125,6 +131,7 @@ type (
 		PinnedBy              *uuid.UUID               `json:"pinned_by,omitempty"`
 		EditedAt              *string                  `json:"edited_at,omitempty"`
 		Reactions             []ReactionGroup          `json:"reactions"`
+		ClientNonce           string                   `json:"client_nonce,omitempty"`
 	}
 
 	EditMessageRequest struct {

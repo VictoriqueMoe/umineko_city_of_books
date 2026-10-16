@@ -2,13 +2,24 @@ package chatbot
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
 
 	"github.com/google/uuid"
+)
+
+type (
+	claimResult int
+)
+
+const (
+	claimGranted claimResult = iota
+	claimRefused
+	claimUnchecked
 )
 
 func (s *service) observe(ev botEvent) {
@@ -28,24 +39,28 @@ func (s *service) observe(ev botEvent) {
 		return
 	}
 
-	if !s.takeCooldown(ev.SenderID, tune.cooldown) {
+	ctx := context.Background()
+
+	if !s.takeCooldown(ctx, ev.SenderID, tune.cooldown) {
 		droppedTotal.WithLabelValues(string(reasonCooldown), string(stagePreTrigger), string(ev.channel())).Inc()
 
 		return
 	}
 
-	key := ev.scopeKey()
-	if _, busy := s.inScope.LoadOrStore(key, struct{}{}); busy {
+	lease := s.claim(ctx, purposeScopeLease, ev.scopeKey(), ev.ItemID.String(), scopeLeaseTTL)
+	if lease == claimRefused {
 		droppedTotal.WithLabelValues(string(reasonRoomInflight), string(stagePreTrigger), string(ev.channel())).Inc()
 
 		return
 	}
 
+	j := job{ev: ev, bot: bot, useChain: useChain(ev, threaded), leased: lease == claimGranted}
+
 	select {
-	case s.jobs <- job{ev: ev, bot: bot, useChain: useChain(ev, threaded)}:
+	case s.jobs <- j:
 		queueDepth.Set(float64(len(s.jobs)))
 	default:
-		s.inScope.Delete(key)
+		s.releaseScope(ctx, j)
 		droppedTotal.WithLabelValues(string(reasonQueueFull), string(stagePreTrigger), string(ev.channel())).Inc()
 		silentTotal.WithLabelValues(string(reasonQueueFull), string(stagePreTrigger)).Inc()
 	}
@@ -97,28 +112,45 @@ func (s *service) allowedToSummon(userID uuid.UUID, tune tuning) bool {
 	return s.authzSvc.Can(context.Background(), userID, authz.PermUseChatbot)
 }
 
-func (s *service) takeCooldown(userID uuid.UUID, window time.Duration) bool {
-	return takeSlot(&s.lastUse, userID, window)
-}
-
-func takeSlot(seen *sync.Map, key any, window time.Duration) bool {
+func (s *service) takeCooldown(ctx context.Context, userID uuid.UUID, window time.Duration) bool {
 	if window <= 0 {
 		return true
 	}
 
-	now := time.Now()
+	key := cache.ChatbotSummonCooldown.Key(userID.String())
 
-	prev, ok := seen.Load(key)
-	if ok {
-		last, valid := prev.(time.Time)
-		if valid && now.Sub(last) < window {
-			return false
-		}
+	return s.claim(ctx, purposeSummonCooldown, key, time.Now().UTC().Format(time.RFC3339Nano), window) != claimRefused
+}
+
+func (s *service) takeNoticeSlot(ctx context.Context, userID uuid.UUID, reason Reason) bool {
+	key := cache.ChatbotRefusalNotice.Key(userID.String(), string(reason))
+
+	return s.claim(ctx, purposeRefusalNotice, key, time.Now().UTC().Format(time.RFC3339Nano), cache.ChatbotRefusalNotice.TTL) != claimRefused
+}
+
+func (s *service) claim(ctx context.Context, purpose, key, value string, ttl time.Duration) claimResult {
+	claimed, err := s.cache.SetIfAbsent(ctx, key, value, ttl)
+	if err != nil {
+		logger.Ctx(ctx).Error().Err(err).Str("purpose", purpose).Msg("chatbot could not reach the coordination store, letting this one through")
+
+		return claimUnchecked
 	}
 
-	seen.Store(key, now)
+	if !claimed {
+		return claimRefused
+	}
 
-	return true
+	return claimGranted
+}
+
+func (s *service) releaseScope(ctx context.Context, j job) {
+	if !j.leased {
+		return
+	}
+
+	if err := s.cache.Del(ctx, j.ev.scopeKey()); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Str("purpose", purposeScopeLease).Msg("chatbot could not release a scope lease, the scope stays busy until the lease expires")
+	}
 }
 
 func (s *service) notify(ev botEvent, bot model.Chatbot, out outcome) {

@@ -190,7 +190,7 @@ export function FanficDetailPage() {
 
                         <div className={styles.detailByline}>
                             <ProfileLink user={fanfic.author} size="small" />
-                            <RelativeTimestamp value={fanfic.published_at} />
+                            <RelativeTimestamp value={fanfic.published_at ?? fanfic.created_at} />
                         </div>
 
                         <div className={styles.detailBadges}>

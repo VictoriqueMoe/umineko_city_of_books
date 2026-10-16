@@ -24,6 +24,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
@@ -81,6 +82,7 @@ type (
 		hub           *ws.Hub
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
+		activity      sidebar.ActivityBumper
 	}
 )
 
@@ -99,6 +101,7 @@ func NewService(
 	hub *ws.Hub,
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
+	activity sidebar.ActivityBumper,
 ) Service {
 	return &service{
 		mysteryRepo:   mysteryRepo,
@@ -115,6 +118,7 @@ func NewService(
 		hub:           hub,
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
+		activity:      activity,
 	}
 }
 
@@ -438,7 +442,7 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 		Title:         req.Title,
 	})
 
-	s.hub.BumpSidebarActivity("mysteries")
+	s.activity.BumpSidebarActivity(sidebar.KeyMysteries)
 
 	return created.ID, nil
 }

@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
@@ -32,9 +34,11 @@ type streamMocks struct {
 	settings   *settings.MockService
 	upload     *upload.MockService
 	notif      *notification.MockService
+	cache      *cache.Manager
 }
 
 func newTestStreamService(t *testing.T) (Service, *streamMocks) {
+	cacheMgr := cache.NewManager(engines.NewInMemory(0))
 	repo := repository.NewMockLiveStreamRepository(t)
 	creds := repository.NewMockStreamCredentialsRepository(t)
 	followRepo := repository.NewMockFollowRepository(t)
@@ -43,14 +47,14 @@ func newTestStreamService(t *testing.T) (Service, *streamMocks) {
 	uploadSvc := upload.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
 
-	svc := NewService(repo, creds, followRepo, lk, settingsSvc, uploadSvc, notifSvc, ws.NewHub(), nil)
+	svc := NewService(repo, creds, followRepo, lk, settingsSvc, uploadSvc, notifSvc, ws.NewHub(), nil, cacheMgr)
 
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingStreamHLSOutputDir).Return("").Maybe()
 	followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	notifSvc.EXPECT().HasRecentFromActor(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(false).Maybe()
 	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
 
-	return svc, &streamMocks{repo: repo, creds: creds, followRepo: followRepo, lk: lk, settings: settingsSvc, upload: uploadSvc, notif: notifSvc}
+	return svc, &streamMocks{repo: repo, creds: creds, followRepo: followRepo, lk: lk, settings: settingsSvc, upload: uploadSvc, notif: notifSvc, cache: cacheMgr}
 }
 
 func credentialsSpec(userID uuid.UUID, ingressID, whipURL, streamKey string) spec.NewStreamCredentials {
@@ -437,22 +441,47 @@ func TestSaveThumbnail_StoresAndDeletesOldThumbnail(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestSaveThumbnail_ThrottlesRapidUploads(t *testing.T) {
-	// given
-	svc, m := newTestStreamService(t)
-	streamID := uuid.New()
-	ownerID := uuid.New()
-	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&model.LiveStreamRow{ID: streamID, UserID: ownerID, Status: "live"}, nil).Twice()
-	m.upload.EXPECT().SaveImage(mock.Anything, "stream-thumbnails", streamID, mock.Anything, mock.Anything, mock.Anything).Return("/uploads/new.webp", nil).Once()
-	m.repo.EXPECT().SetThumbnail(mock.Anything, spec.LiveStreamThumbnailUpdate{ID: streamID, URL: "/uploads/new.webp"}).Return(nil).Once()
+func TestSaveThumbnail_Throttle(t *testing.T) {
+	cases := []struct {
+		name         string
+		cache        *cache.Manager
+		secondStream bool
+		wantSaves    int
+	}{
+		{"a second upload for the same stream inside the window is skipped", cache.NewManager(engines.NewInMemory(0)), false, 1},
+		{"each stream keeps its own throttle window", cache.NewManager(engines.NewInMemory(0)), true, 2},
+		{"an unreachable coordination store lets every upload through", cache.NewManager(), false, 2},
+	}
 
-	// when
-	err1 := svc.SaveThumbnail(context.Background(), ownerID, streamID, 100, bytes.NewReader([]byte("x")))
-	err2 := svc.SaveThumbnail(context.Background(), ownerID, streamID, 100, bytes.NewReader([]byte("y")))
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestStreamService(t)
+			svc.(*service).cache = tc.cache
+			ownerID := uuid.New()
+			firstID := uuid.New()
+			secondID := firstID
+			if tc.secondStream {
+				secondID = uuid.New()
+			}
 
-	// then
-	require.NoError(t, err1)
-	require.NoError(t, err2)
+			for _, streamID := range []uuid.UUID{firstID, secondID} {
+				m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&model.LiveStreamRow{ID: streamID, UserID: ownerID, Status: "live"}, nil).Maybe()
+				m.upload.EXPECT().SaveImage(mock.Anything, "stream-thumbnails", streamID, mock.Anything, mock.Anything, mock.Anything).Return("/uploads/"+streamID.String()+".webp", nil).Maybe()
+				m.repo.EXPECT().SetThumbnail(mock.Anything, spec.LiveStreamThumbnailUpdate{ID: streamID, URL: "/uploads/" + streamID.String() + ".webp"}).Return(nil).Maybe()
+			}
+
+			// when
+			err1 := svc.SaveThumbnail(context.Background(), ownerID, firstID, 100, bytes.NewReader([]byte("x")))
+			err2 := svc.SaveThumbnail(context.Background(), ownerID, secondID, 100, bytes.NewReader([]byte("y")))
+
+			// then
+			require.NoError(t, err1)
+			require.NoError(t, err2)
+			m.upload.AssertNumberOfCalls(t, "SaveImage", tc.wantSaves)
+			m.repo.AssertNumberOfCalls(t, "SetThumbnail", tc.wantSaves)
+		})
+	}
 }
 
 func TestJoinChat_NilBinderReturnsDisabled(t *testing.T) {
@@ -616,12 +645,13 @@ func newFanoutStreamService(t *testing.T) (Service, *streamMocks) {
 	settingsSvc := settings.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
+	cacheMgr := cache.NewManager(engines.NewInMemory(0))
 
-	svc := NewService(repo, creds, followRepo, lk, settingsSvc, uploadSvc, notifSvc, ws.NewHub(), nil)
+	svc := NewService(repo, creds, followRepo, lk, settingsSvc, uploadSvc, notifSvc, ws.NewHub(), nil, cacheMgr)
 
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingStreamHLSOutputDir).Return("").Maybe()
 
-	return svc, &streamMocks{repo: repo, creds: creds, followRepo: followRepo, lk: lk, settings: settingsSvc, upload: uploadSvc, notif: notifSvc}
+	return svc, &streamMocks{repo: repo, creds: creds, followRepo: followRepo, lk: lk, settings: settingsSvc, upload: uploadSvc, notif: notifSvc, cache: cacheMgr}
 }
 
 func expectBroadcasterJoined(m *streamMocks, streamID uuid.UUID, userID uuid.UUID, room string) *model.LiveStreamRow {
@@ -771,12 +801,19 @@ func TestHandleWebhook_BroadcasterLeftTearsDown(t *testing.T) {
 	m.repo.EXPECT().GetByRoom(mock.Anything, room).Return(row, nil)
 	m.repo.EXPECT().MarkOffline(mock.Anything, streamID).Return(true, nil)
 
+	slotKey := cache.StreamThumbnailSlot.Key(streamID.String())
+	claimed, claimErr := m.cache.SetIfAbsent(context.Background(), slotKey, "held", cache.StreamThumbnailSlot.TTL)
+	require.NoError(t, claimErr)
+	require.True(t, claimed)
+
 	// when
 	handled, err := svc.HandleWebhook(context.Background(), "auth", []byte("body"))
 
 	// then
 	require.NoError(t, err)
 	assert.True(t, handled)
+	_, getErr := m.cache.Get[string](context.Background(), slotKey)
+	assert.ErrorIs(t, getErr, cache.ErrMiss, "teardown must clear the thumbnail slot")
 }
 
 func TestHandleWebhook_ViewerJoinedAdjustsCount(t *testing.T) {

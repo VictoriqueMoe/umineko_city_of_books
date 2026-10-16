@@ -115,6 +115,9 @@ func (s *Service) createTheory(ctx fiber.Ctx) error {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
+		if errors.Is(err, theory.ErrInvalidSeries) {
+			return utils.BadRequest(ctx, err.Error())
+		}
 		if errors.Is(err, theory.ErrRateLimited) {
 			return ctx.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
 				"error": "daily theory limit reached",

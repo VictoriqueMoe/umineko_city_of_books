@@ -1,14 +1,20 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeChatMessage, makeUser } from "../../../test-utils/fixtures";
+import type { PendingSend, ThreadEntry } from "../../../domain/chat/optimisticSend";
+import { makeChatMessage, makePendingSend, makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { ChatSession, ChatSessionStatus, UseChatSessionOptions } from "../../../hooks/chat/useChatSession";
+import type { ChatSender } from "../../../hooks/chat/useOptimisticSends";
 import type { ChatMessage, UserProfile } from "../../../types/api";
+import type { ComposerTarget } from "../ChatComposer/ChatComposer";
 import { RoomChatPanel } from "./RoomChatPanel";
 
 const mocks = vi.hoisted(() => ({
     useChatSession: vi.fn(),
     useBlockedUserIds: vi.fn(),
+    send: vi.fn(),
+    retrySend: vi.fn(),
+    discardSend: vi.fn(),
     addMessage: vi.fn(),
     setMessages: vi.fn(),
     seedMessages: vi.fn(),
@@ -32,11 +38,27 @@ vi.mock("../../../hooks/chat/useChatSession", () => ({ useChatSession: mocks.use
 vi.mock("../../../hooks/useBlockedUserIds", () => ({ useBlockedUserIds: mocks.useBlockedUserIds }));
 
 vi.mock("../MessageBubble/MessageBubble", () => ({
-    MessageBubble: (props: { message: ChatMessage }) => <div data-testid="bubble">{props.message.body}</div>,
+    MessageBubble: (props: {
+        message: ChatMessage;
+        delivery?: Pick<PendingSend, "nonce" | "delivery" | "error">;
+        onRetrySend?: (nonce: string) => void;
+        onDiscardSend?: (nonce: string) => void;
+    }) => (
+        <div data-testid="bubble" data-delivery={props.delivery?.delivery ?? "delivered"}>
+            {props.message.body}
+            {props.delivery && (
+                <button type="button" onClick={() => props.onRetrySend?.(props.delivery?.nonce ?? "")}>
+                    retry
+                </button>
+            )}
+        </div>
+    ),
 }));
 
 vi.mock("../ChatComposer/ChatComposer", () => ({
-    ChatComposer: (props: { roomId: string | null }) => <div data-testid="composer">{props.roomId}</div>,
+    ChatComposer: (props: { target: ComposerTarget | null }) => (
+        <div data-testid="composer">{props.target?.kind === "room" ? props.target.sender.roomId : ""}</div>
+    ),
 }));
 
 vi.mock("../../Lightbox/Lightbox", () => ({
@@ -58,14 +80,31 @@ function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
 interface SessionStub {
     status?: ChatSessionStatus;
     messages?: ChatMessage[];
+    pending?: PendingSend[];
+    sender?: ChatSender | null;
     hasMore?: boolean;
     loadingMore?: boolean;
 }
 
-function stubSession({ status = "live", messages = [], hasMore = false, loadingMore = false }: SessionStub = {}) {
+function stubSession({
+    status = "live",
+    messages = [],
+    pending = [],
+    sender = { roomId: "session-7", send: mocks.send },
+    hasMore = false,
+    loadingMore = false,
+}: SessionStub = {}) {
+    const entries: ThreadEntry[] = [...messages, ...pending];
     const session: ChatSession = {
         status,
         messages,
+        entries,
+        sends: {
+            sender,
+            draftSender: null,
+            retry: mocks.retrySend,
+            discard: mocks.discardSend,
+        },
         history: {
             hasMore,
             loadingMore,
@@ -197,7 +236,7 @@ describe("RoomChatPanel", () => {
 
     it("stays inert until it has a room to show", () => {
         // given a party that has not been joined yet
-        stubSession({ status: "idle" });
+        stubSession({ status: "idle", sender: null });
 
         // when
         renderPanel({ roomId: undefined, canSend: false, notice: "Joining chat..." });
@@ -245,5 +284,31 @@ describe("RoomChatPanel", () => {
         // then
         expect(screen.getByText("Chat is closed while the stream is offline.")).toBeInTheDocument();
         expect(screen.queryByText("This chat has ended.")).not.toBeInTheDocument();
+    });
+
+    it("shows the viewer's unconfirmed message after the transcript as undelivered", () => {
+        // given a stream chat message that is still on its way
+        stubSession({ messages: [makeMessage()], pending: [makePendingSend({ body: "first!" })] });
+
+        // when
+        renderPanel();
+
+        // then
+        const bubbles = screen.getAllByTestId("bubble");
+        expect(bubbles.map(bubble => bubble.getAttribute("data-delivery"))).toEqual(["delivered", "sending"]);
+        expect(bubbles[1]).toHaveTextContent("first!");
+    });
+
+    it("lets the viewer retry a failed stream chat message from its bubble", () => {
+        // given
+        const failed = makePendingSend({ delivery: "failed", error: "network is down" });
+        stubSession({ pending: [failed] });
+
+        // when
+        renderPanel();
+        fireEvent.click(screen.getByRole("button", { name: "retry" }));
+
+        // then
+        expect(mocks.retrySend).toHaveBeenCalledExactlyOnceWith(failed.nonce);
     });
 });

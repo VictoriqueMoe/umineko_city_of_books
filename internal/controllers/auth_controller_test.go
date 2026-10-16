@@ -7,6 +7,9 @@ import (
 
 	authsvc "umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/cache/engines"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/gameroom"
@@ -63,6 +66,7 @@ func newAuthHarness(t *testing.T) (*testutil.Harness, authDeps) {
 		SiteInfoService:   siteinfo.NewService(h.SettingsService, deps.mysterySvc, deps.gameRoomSvc, deps.vanityRoleSvc, deps.userSecretSvc, deps.authSvc, nil),
 		AuthSession:       h.SessionManager,
 		AuthzService:      h.AuthzService,
+		RateLimiter:       middleware.NewRateLimiter(cache.NewManager(engines.NewInMemory(0))),
 	}
 	for _, setup := range s.getAllAuthRoutes() {
 		setup(h.App)
@@ -751,6 +755,41 @@ func TestGetRules_UnknownPage(t *testing.T) {
 	// then
 	require.Equal(t, http.StatusNotFound, status)
 	assert.Contains(t, string(body), "unknown page")
+}
+
+func TestRulesSettings_CoverEveryPageAndCorner(t *testing.T) {
+	// given
+	want := map[string]*config.SiteSettingDef{
+		"theories":             config.SettingRulesTheories,
+		"theories_higurashi":   config.SettingRulesTheoriesHigurashi,
+		"theories_ciconia":     config.SettingRulesTheoriesCiconia,
+		"mysteries":            config.SettingRulesMysteries,
+		"ships":                config.SettingRulesShips,
+		"game_board":           config.SettingRulesGameBoard,
+		"game_board_umineko":   config.SettingRulesGameBoardUmineko,
+		"game_board_higurashi": config.SettingRulesGameBoardHigurashi,
+		"game_board_ciconia":   config.SettingRulesGameBoardCiconia,
+		"game_board_higanbana": config.SettingRulesGameBoardHiganbana,
+		"game_board_roseguns":  config.SettingRulesGameBoardRoseguns,
+		"gallery":              config.SettingRulesGallery,
+		"gallery_umineko":      config.SettingRulesGalleryUmineko,
+		"gallery_higurashi":    config.SettingRulesGalleryHigurashi,
+		"gallery_ciconia":      config.SettingRulesGalleryCiconia,
+		"fanfiction":           config.SettingRulesFanfiction,
+		"journals":             config.SettingRulesJournals,
+		"suggestions":          config.SettingRulesSuggestions,
+		"chat_rooms":           config.SettingRulesChatRooms,
+		"landing":              config.SettingRulesLanding,
+	}
+
+	// when
+	got := rulesSettings
+
+	// then
+	require.Len(t, got, len(want))
+	for page, def := range want {
+		assert.Same(t, def, got[page], page)
+	}
 }
 
 func TestGetRules_Landing(t *testing.T) {

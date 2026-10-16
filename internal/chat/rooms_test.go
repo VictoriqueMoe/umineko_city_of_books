@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -15,6 +16,8 @@ import (
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/sidebar"
+	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -176,6 +179,68 @@ func TestCreateGroupRoom_SkipsBlockedMembers(t *testing.T) {
 	require.NotNil(t, got)
 	assert.True(t, m.hub.IsUserInRoom(roomID, memberB))
 	assert.False(t, m.hub.IsUserInRoom(roomID, memberA))
+}
+
+func TestCreateGroupRoom_BumpsTheRoomsSectionOnlyOnceAPublicRoomIsBuilt(t *testing.T) {
+	readFailed := errors.New("read failed")
+
+	cases := []struct {
+		name     string
+		isPublic bool
+		readErr  error
+		wantBump bool
+	}{
+		{name: "a public group room bumps the rooms section", isPublic: true, wantBump: true},
+		{name: "a private group room does not bump the rooms section"},
+		{name: "a public room whose response cannot be built does not bump the rooms section", isPublic: true, readErr: readFailed},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			creator := uuid.New()
+			roomID := uuid.New()
+			viewer := ws.NewClient(uuid.New(), nil)
+			m.hub.Register(viewer)
+
+			m.chatRepo.EXPECT().CreateGroupRoom(mock.Anything, spec.NewChatGroupRoom{Name: "Room", IsPublic: tc.isPublic, CreatedBy: creator, MemberIDs: []uuid.UUID{}}).
+				Return(&model.ChatRoomRow{ID: roomID, Type: dto.RoomTypeGroup, IsPublic: tc.isPublic}, nil)
+			if tc.readErr != nil {
+				m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: roomID, ViewerID: creator}).Return(nil, tc.readErr)
+			} else {
+				m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: roomID, ViewerID: creator}).Return(&model.ChatRoomRow{ID: roomID, Name: "Room"}, nil)
+				m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{creator}, nil)
+				m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{creator}).Return([]model.User{*sampleUser(creator)}, nil)
+				m.userRepo.EXPECT().GetByID(mock.Anything, creator).Return(sampleUser(creator), nil).Maybe()
+			}
+
+			// when
+			_, err := svc.CreateGroupRoom(context.Background(), creator, dto.CreateGroupRoomRequest{Name: "Room", IsPublic: tc.isPublic})
+
+			// then
+			require.ErrorIs(t, err, tc.readErr)
+
+			frame, sent := viewer.TryReceive()
+			if !tc.wantBump {
+				assert.False(t, sent, "no sidebar activity may be broadcast")
+
+				return
+			}
+
+			require.True(t, sent, "the rooms section must be bumped")
+
+			var got struct {
+				Type string `json:"type"`
+				Data struct {
+					Key string `json:"key"`
+				} `json:"data"`
+			}
+			require.NoError(t, json.Unmarshal(frame, &got))
+			assert.Equal(t, "sidebar_activity", got.Type)
+			assert.Equal(t, string(sidebar.KeyRooms), got.Data.Key)
+		})
+	}
 }
 
 func TestCreateGroupRoom_AFailedBlockLookupRefusesTheRoom(t *testing.T) {

@@ -44,6 +44,8 @@ var (
 	ErrBannedWordRuleMismatch   = errors.New("banned word rule does not belong to this room")
 	ErrLockedNonStaffDM         = errors.New("locked accounts can only message site staff")
 	ErrBotsRPRoomsOnly          = errors.New("bots can only be added to roleplay rooms")
+	ErrInvalidClientNonce       = errors.New("client nonce must be 16 to 64 letters, digits, hyphens or underscores")
+	ErrClientNonceReused        = errors.New("this client nonce was already used for a message in another room")
 
 	ErrWatchPartyDisabled       = errors.New("watch parties are not configured")
 	ErrWatchPartyNotActive      = errors.New("no such active watch party")

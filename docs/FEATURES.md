@@ -288,7 +288,7 @@ A standalone interface for browsing the full quote corpus across all three serie
 - **Achievements** panel showing every solved unlock hunt as a live-updating trophy
 - Stats box: theory count, response count, votes received, ship count, mystery count, fanfic count, follower/following counts
 - Follow system with follower and following lists, "Follows you" label, follower counts
-- Following is a live subscription, not just a count: when someone you follow goes live, posts a mystery, or posts a theory, the fan-out runs over `follows` through `notification.SendFollowerNotification`. Governed by a `follow_activity_notifications` preference (default on) filtered inside the DAO query, with an actor-scoped cooldown (`HasRecentFromActor`) so a flapping stream cannot spam every follower. These notifications deliberately carry no email leg
+- Following is a live subscription, not just a count: when someone you follow goes live, posts a mystery, posts a theory, or first publishes a fanfic (`fanfic_published`, once per fanfic, keyed on `fanfics.published_at` going from NULL to set), the fan-out runs over `follows` through `notification.SendFollowerNotification`. Governed by a `follow_activity_notifications` preference (default on) filtered inside the DAO query, with an actor-scoped cooldown (`HasRecentFromActor`) so a flapping stream cannot spam every follower. These notifications deliberately carry no email leg
 - Online/offline status
 - **Players Page**: browse all users grouped by role (Reality Authors, Voyager Witches, Witches) and online/offline status, with a name search
 - Per-user **blocks** with enforcement across feeds, comments, DMs, and notifications, managed from a blocked-users panel in settings

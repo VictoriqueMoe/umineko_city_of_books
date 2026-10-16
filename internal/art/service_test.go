@@ -13,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
@@ -22,6 +23,7 @@ import (
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
@@ -41,6 +43,7 @@ type (
 		notifSvc    *notification.MockService
 		uploadSvc   *upload.MockService
 		settingsSvc *settings.MockService
+		activity    *sidebar.MockActivityBumper
 	}
 )
 
@@ -63,13 +66,14 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		notifSvc:    notification.NewMockService(t),
 		uploadSvc:   upload.NewMockService(t),
 		settingsSvc: settings.NewMockService(t),
+		activity:    sidebar.NewMockActivityBumper(t),
 	}
 
 	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifSvc, dao.CommentDAOs{
 		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindArtComment): m.artComments},
 	})
 
-	svc := NewService(m.artRepo, repository.NewMockPostRepository(t), m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.uploadSvc, media.NewProcessor(1), m.settingsSvc, contentfilter.New(), nil, nil).(*service)
+	svc := NewService(m.artRepo, repository.NewMockPostRepository(t), m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.uploadSvc, media.NewProcessor(1), m.settingsSvc, contentfilter.New(), nil, nil, m.activity).(*service)
 
 	return svc, m
 }
@@ -139,6 +143,18 @@ func TestCreateArt_RejectedBeforeWriting(t *testing.T) {
 			wantErr: ErrEmptyTitle,
 		},
 		{
+			name:    "a made-up corner before any limit check, upload, write or sidebar bump",
+			req:     dto.CreateArtRequest{Title: "t", Corner: "phantom"},
+			given:   func(*testMocks) {},
+			wantErr: corner.ErrInvalidCorner,
+		},
+		{
+			name:    "a game board corner that has no gallery",
+			req:     dto.CreateArtRequest{Title: "t", Corner: "roseguns"},
+			given:   func(*testMocks) {},
+			wantErr: corner.ErrInvalidCorner,
+		},
+		{
 			name: "daily count lookup failure propagates",
 			req:  dto.CreateArtRequest{Title: "t"},
 			given: func(m *testMocks) {
@@ -190,15 +206,16 @@ func TestCreateArt_WritesTrimmedSpecWithDefaults(t *testing.T) {
 	tags := []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"}
 
 	cases := []struct {
-		name    string
-		req     dto.CreateArtRequest
-		want    spec.NewArtWithTags
-		created *model.ArtRow
-		repoErr error
-		wantID  uuid.UUID
+		name     string
+		req      dto.CreateArtRequest
+		want     spec.NewArtWithTags
+		created  *model.ArtRow
+		repoErr  error
+		wantID   uuid.UUID
+		wantBump sidebar.Key
 	}{
 		{
-			name: "trims title and description and propagates a repo failure",
+			name: "trims title and description and propagates a repo failure without bumping the sidebar",
 			req:  dto.CreateArtRequest{Title: "  t  ", Description: "  d  ", Tags: []string{"a"}},
 			want: spec.NewArtWithTags{
 				NewArt: spec.NewArt{UserID: userID, Corner: "general", ArtType: "drawing", Title: "t", Description: "d", ImageURL: uploaded},
@@ -207,23 +224,25 @@ func TestCreateArt_WritesTrimmedSpecWithDefaults(t *testing.T) {
 			repoErr: errDB,
 		},
 		{
-			name: "defaults corner and type and caps tags at ten",
+			name: "defaults corner and type, caps tags at ten and bumps the general gallery",
 			req:  dto.CreateArtRequest{Title: "t", Tags: tags, IsSpoiler: true},
 			want: spec.NewArtWithTags{
 				NewArt: spec.NewArt{UserID: userID, Corner: "general", ArtType: "drawing", Title: "t", ImageURL: uploaded, IsSpoiler: true},
 				Tags:   tags[:10],
 			},
-			created: &model.ArtRow{ID: artID},
-			wantID:  artID,
+			created:  &model.ArtRow{ID: artID},
+			wantID:   artID,
+			wantBump: sidebar.GalleryKey(corner.GalleryGeneral),
 		},
 		{
-			name: "keeps a custom corner and type",
+			name: "keeps a custom corner and type and bumps that corner's gallery",
 			req:  dto.CreateArtRequest{Title: "t", Corner: "umineko", ArtType: "sketch"},
 			want: spec.NewArtWithTags{
 				NewArt: spec.NewArt{UserID: userID, Corner: "umineko", ArtType: "sketch", Title: "t", ImageURL: uploaded},
 			},
-			created: &model.ArtRow{ID: artID},
-			wantID:  artID,
+			created:  &model.ArtRow{ID: artID},
+			wantID:   artID,
+			wantBump: sidebar.GalleryKey(corner.GalleryUmineko),
 		},
 	}
 
@@ -234,6 +253,9 @@ func TestCreateArt_WritesTrimmedSpecWithDefaults(t *testing.T) {
 			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxArtPerDay).Return(0)
 			expectImageSave(m, uploaded, nil)
 			m.artRepo.EXPECT().CreateWithTags(mock.Anything, tc.want).Return(tc.created, tc.repoErr)
+			if tc.wantBump != "" {
+				m.activity.EXPECT().BumpSidebarActivity(tc.wantBump).Return().Once()
+			}
 
 			// when
 			id, err := svc.CreateArt(context.Background(), userID, tc.req, "image/png", 10, bytes.NewReader(nil))
@@ -241,6 +263,43 @@ func TestCreateArt_WritesTrimmedSpecWithDefaults(t *testing.T) {
 			// then
 			require.ErrorIs(t, err, tc.repoErr)
 			assert.Equal(t, tc.wantID, id)
+		})
+	}
+}
+
+func TestCreateArt_EveryRealCornerIsStoredAndBumped(t *testing.T) {
+	cases := []struct {
+		name     string
+		corner   string
+		wantBump sidebar.Key
+	}{
+		{name: "general", corner: "general", wantBump: "gallery_general"},
+		{name: "umineko", corner: "umineko", wantBump: "gallery_umineko"},
+		{name: "higurashi", corner: "higurashi", wantBump: "gallery_higurashi"},
+		{name: "ciconia", corner: "ciconia", wantBump: "gallery_ciconia"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			userID := uuid.New()
+			artID := uuid.New()
+			uploaded := "/uploads/art/x.png"
+
+			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxArtPerDay).Return(0)
+			expectImageSave(m, uploaded, nil)
+			m.artRepo.EXPECT().
+				CreateWithTags(mock.Anything, spec.NewArtWithTags{NewArt: spec.NewArt{UserID: userID, Corner: tc.corner, ArtType: "drawing", Title: "t", ImageURL: uploaded}}).
+				Return(&model.ArtRow{ID: artID}, nil)
+			m.activity.EXPECT().BumpSidebarActivity(tc.wantBump).Return().Once()
+
+			// when
+			id, err := svc.CreateArt(context.Background(), userID, dto.CreateArtRequest{Title: "t", Corner: tc.corner}, "image/png", 10, bytes.NewReader(nil))
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, artID, id)
 		})
 	}
 }
@@ -255,6 +314,7 @@ func TestCreateArt_MentionOnTheDescriptionNotifiesTheNamedUser(t *testing.T) {
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxArtPerDay).Return(0)
 	expectImageSave(m, "/u/a.png", nil)
 	m.artRepo.EXPECT().CreateWithTags(mock.Anything, mock.Anything).Return(&model.ArtRow{ID: artID}, nil)
+	m.activity.EXPECT().BumpSidebarActivity(sidebar.GalleryKey(corner.GalleryGeneral)).Return().Once()
 	sent, mentioned := expectMentionOfAlice(m, userID, mentionedID, 1)
 
 	req := dto.CreateArtRequest{Title: "Golden", Description: "drawn for @alice"}
@@ -619,6 +679,85 @@ func TestListArt_AFailedBlockListIsSurfacedBeforeAnythingIsListed(t *testing.T) 
 	assert.Nil(t, got)
 }
 
+func TestListArt_Corner(t *testing.T) {
+	cases := []struct {
+		name       string
+		corner     string
+		wantCorner string
+		wantErr    error
+	}{
+		{name: "an empty corner lists the general gallery", corner: "", wantCorner: "general"},
+		{name: "a series corner lists that gallery", corner: "ciconia", wantCorner: "ciconia"},
+		{name: "a made-up corner is rejected before anything is looked up", corner: "phantom", wantErr: corner.ErrInvalidCorner},
+		{name: "a game board corner that has no gallery is rejected", corner: "higanbana", wantErr: corner.ErrInvalidCorner},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			viewerID := uuid.New()
+
+			if tc.wantErr == nil {
+				m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewerID).Return(nil, nil)
+				m.artRepo.EXPECT().ListAll(mock.Anything, spec.ArtFilter{ViewerID: viewerID, Corner: tc.wantCorner, Limit: 10}).Return(nil, 0, nil)
+				m.artRepo.EXPECT().GetTagsBatch(mock.Anything, []uuid.UUID{}).Return(nil, nil)
+			}
+
+			// when
+			got, err := svc.ListArt(context.Background(), viewerID, tc.corner, "", "", "", "", bounds.NewPage(10, 0))
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+			if tc.wantErr != nil {
+				assert.Nil(t, got)
+
+				return
+			}
+
+			require.NotNil(t, got)
+		})
+	}
+}
+
+func TestCornerFilters_RejectAnUnknownCornerBeforeTheRepo(t *testing.T) {
+	cases := []struct {
+		name   string
+		corner string
+		call   func(svc *service, cornerFilter string) error
+	}{
+		{name: "popular tags with a made-up corner", corner: "phantom", call: popularTagsFor},
+		{name: "popular tags with a game board only corner", corner: "roseguns", call: popularTagsFor},
+		{name: "galleries with a made-up corner", corner: "phantom", call: galleriesFor},
+		{name: "galleries with the suggestions corner", corner: "suggestions", call: galleriesFor},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, _ := newTestService(t)
+
+			// when
+			err := tc.call(svc, tc.corner)
+
+			// then
+			require.ErrorIs(t, err, corner.ErrInvalidCorner)
+		})
+	}
+}
+
+func popularTagsFor(svc *service, cornerFilter string) error {
+	_, err := svc.GetPopularTags(context.Background(), cornerFilter)
+
+	return err
+}
+
+func galleriesFor(svc *service, cornerFilter string) error {
+	_, err := svc.ListAllGalleries(context.Background(), cornerFilter)
+
+	return err
+}
+
 func TestListByUser_AFailedTagLookupIsSurfaced(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -803,6 +942,12 @@ func TestGetPopularTags(t *testing.T) {
 			corner: "umineko",
 			rows:   []model.TagCount{{Tag: "a", Count: 4}},
 			want:   []dto.TagCountResponse{{Tag: "a", Count: 4}},
+		},
+		{
+			name:   "an empty corner counts tags across every corner",
+			corner: "",
+			rows:   []model.TagCount{{Tag: "b", Count: 9}},
+			want:   []dto.TagCountResponse{{Tag: "b", Count: 9}},
 		},
 		{name: "repo failure propagates", corner: "general", repoErr: errDB},
 	}
@@ -1619,6 +1764,7 @@ func TestListAllGalleries(t *testing.T) {
 		repoErr error
 	}{
 		{name: "lists the corner's galleries", corner: "umineko", rows: []model.GalleryRow{{ID: uuid.New(), Name: "G", ArtCount: 0}}},
+		{name: "an empty corner lists galleries across every corner", corner: "", rows: []model.GalleryRow{{ID: uuid.New(), Name: "H", ArtCount: 0}}},
 		{name: "repo failure propagates", corner: "general", repoErr: errDB},
 	}
 

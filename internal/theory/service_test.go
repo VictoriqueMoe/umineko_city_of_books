@@ -24,6 +24,7 @@ import (
 	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/theory/params"
 
 	"github.com/google/uuid"
@@ -41,6 +42,7 @@ type (
 		blockSvc    *block.MockService
 		notifSvc    *notification.MockService
 		settingsSvc *settings.MockService
+		activity    *sidebar.MockActivityBumper
 		fanout      chan uuid.UUID
 	}
 )
@@ -59,11 +61,12 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		blockSvc:    block.NewMockService(t),
 		notifSvc:    notification.NewMockService(t),
 		settingsSvc: settings.NewMockService(t),
+		activity:    sidebar.NewMockActivityBumper(t),
 		fanout:      make(chan uuid.UUID, 8),
 	}
 	followRepo := repository.NewMockFollowRepository(t)
 	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifSvc, dao.CommentDAOs{})
-	svc := NewService(m.repo, m.userRepo, followRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.settingsSvc, credibility.NewService(m.repo), quotefinder.NewClient(nil), contentfilter.New(), nil, nil).(*service)
+	svc := NewService(m.repo, m.userRepo, followRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.settingsSvc, credibility.NewService(m.repo), quotefinder.NewClient(nil), contentfilter.New(), nil, nil, m.activity).(*service)
 
 	followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Run(func(_ context.Context, userID uuid.UUID, _ ...*sql.Tx) {
 		m.fanout <- userID
@@ -169,7 +172,10 @@ func TestCreateTheory(t *testing.T) {
 						Episode:  req.Episode,
 						Series:   req.Series,
 						Evidence: req.Evidence,
-					}).Return(&dto.TheoryDetailResponse{ID: theoryID}, tc.createErr)
+					}).Return(&dto.TheoryDetailResponse{ID: theoryID, Series: req.Series}, tc.createErr)
+				}
+				if tc.reachesCreate && tc.createErr == nil {
+					m.activity.EXPECT().BumpSidebarActivity(sidebar.TheoriesKey("umineko")).Return().Once()
 				}
 
 				var mentioned <-chan struct{}
@@ -199,6 +205,74 @@ func TestCreateTheory(t *testing.T) {
 				if tc.mention {
 					receive(t, mentioned, "the mention notification")
 				}
+			})
+		})
+	}
+}
+
+func TestCreateTheory_ValidatesTheSeriesAndBumpsTheStoredOne(t *testing.T) {
+	cases := []struct {
+		name       string
+		series     string
+		wantStored string
+		repoSeries string
+		wantErr    error
+	}{
+		{
+			name:       "an omitted series takes the stored default and bumps that section",
+			series:     "",
+			wantStored: "",
+			repoSeries: "umineko",
+		},
+		{
+			name:       "a series is normalised before it is stored and bumps its own section",
+			series:     " Higurashi ",
+			wantStored: "higurashi",
+			repoSeries: "higurashi",
+		},
+		{
+			name:    "an unknown series is rejected before anything is written or bumped",
+			series:  "zzz",
+			wantErr: ErrInvalidSeries,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				// given
+				svc, m := newTestService(t)
+				userID := uuid.New()
+				theoryID := uuid.New()
+				req := validCreateTheoryReq()
+				req.Series = tc.series
+
+				if tc.wantErr == nil {
+					m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxTheoriesPerDay).Return(0)
+					m.repo.EXPECT().Create(mock.Anything, spec.NewTheory{
+						UserID:   userID,
+						Title:    req.Title,
+						Body:     req.Body,
+						Episode:  req.Episode,
+						Series:   tc.wantStored,
+						Evidence: req.Evidence,
+					}).Return(&dto.TheoryDetailResponse{ID: theoryID, Series: tc.repoSeries}, nil)
+					m.activity.EXPECT().BumpSidebarActivity(sidebar.TheoriesKey(tc.repoSeries)).Return().Once()
+				}
+
+				// when
+				got, err := svc.CreateTheory(context.Background(), userID, req)
+
+				// then
+				if tc.wantErr != nil {
+					require.ErrorIs(t, err, tc.wantErr)
+					assert.Equal(t, uuid.Nil, got)
+					return
+				}
+
+				require.NoError(t, err)
+				assert.Equal(t, theoryID, got)
+				assert.Equal(t, userID, receive(t, m.fanout, "the follower fan-out"))
 			})
 		})
 	}

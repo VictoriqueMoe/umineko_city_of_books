@@ -3981,8 +3981,8 @@ func (_c *MockService_ResolveDMRoom_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // SendDMMessage provides a mock function for the type MockService
-func (_mock *MockService) SendDMMessage(ctx context.Context, senderID uuid.UUID, recipientID uuid.UUID, body string, files []FileUpload) (*dto.SendDMResponse, error) {
-	ret := _mock.Called(ctx, senderID, recipientID, body, files)
+func (_mock *MockService) SendDMMessage(ctx context.Context, senderID uuid.UUID, recipientID uuid.UUID, req dto.SendDMRequest, files []FileUpload) (*dto.SendDMResponse, error) {
+	ret := _mock.Called(ctx, senderID, recipientID, req, files)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SendDMMessage")
@@ -3990,18 +3990,18 @@ func (_mock *MockService) SendDMMessage(ctx context.Context, senderID uuid.UUID,
 
 	var r0 *dto.SendDMResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, []FileUpload) (*dto.SendDMResponse, error)); ok {
-		return returnFunc(ctx, senderID, recipientID, body, files)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.SendDMRequest, []FileUpload) (*dto.SendDMResponse, error)); ok {
+		return returnFunc(ctx, senderID, recipientID, req, files)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, []FileUpload) *dto.SendDMResponse); ok {
-		r0 = returnFunc(ctx, senderID, recipientID, body, files)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.SendDMRequest, []FileUpload) *dto.SendDMResponse); ok {
+		r0 = returnFunc(ctx, senderID, recipientID, req, files)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.SendDMResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, []FileUpload) error); ok {
-		r1 = returnFunc(ctx, senderID, recipientID, body, files)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.SendDMRequest, []FileUpload) error); ok {
+		r1 = returnFunc(ctx, senderID, recipientID, req, files)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4017,13 +4017,13 @@ type MockService_SendDMMessage_Call struct {
 //   - ctx context.Context
 //   - senderID uuid.UUID
 //   - recipientID uuid.UUID
-//   - body string
+//   - req dto.SendDMRequest
 //   - files []FileUpload
-func (_e *MockService_Expecter) SendDMMessage(ctx any, senderID any, recipientID any, body any, files any) *MockService_SendDMMessage_Call {
-	return &MockService_SendDMMessage_Call{Call: _e.mock.On("SendDMMessage", ctx, senderID, recipientID, body, files)}
+func (_e *MockService_Expecter) SendDMMessage(ctx any, senderID any, recipientID any, req any, files any) *MockService_SendDMMessage_Call {
+	return &MockService_SendDMMessage_Call{Call: _e.mock.On("SendDMMessage", ctx, senderID, recipientID, req, files)}
 }
 
-func (_c *MockService_SendDMMessage_Call) Run(run func(ctx context.Context, senderID uuid.UUID, recipientID uuid.UUID, body string, files []FileUpload)) *MockService_SendDMMessage_Call {
+func (_c *MockService_SendDMMessage_Call) Run(run func(ctx context.Context, senderID uuid.UUID, recipientID uuid.UUID, req dto.SendDMRequest, files []FileUpload)) *MockService_SendDMMessage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4037,9 +4037,9 @@ func (_c *MockService_SendDMMessage_Call) Run(run func(ctx context.Context, send
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
-		var arg3 string
+		var arg3 dto.SendDMRequest
 		if args[3] != nil {
-			arg3 = args[3].(string)
+			arg3 = args[3].(dto.SendDMRequest)
 		}
 		var arg4 []FileUpload
 		if args[4] != nil {
@@ -4061,7 +4061,7 @@ func (_c *MockService_SendDMMessage_Call) Return(sendDMResponse *dto.SendDMRespo
 	return _c
 }
 
-func (_c *MockService_SendDMMessage_Call) RunAndReturn(run func(ctx context.Context, senderID uuid.UUID, recipientID uuid.UUID, body string, files []FileUpload) (*dto.SendDMResponse, error)) *MockService_SendDMMessage_Call {
+func (_c *MockService_SendDMMessage_Call) RunAndReturn(run func(ctx context.Context, senderID uuid.UUID, recipientID uuid.UUID, req dto.SendDMRequest, files []FileUpload) (*dto.SendDMResponse, error)) *MockService_SendDMMessage_Call {
 	_c.Call.Return(run)
 	return _c
 }

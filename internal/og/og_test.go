@@ -601,3 +601,65 @@ func TestResolver_Resolve_PostSpoilerImageStaysOffTheCard(t *testing.T) {
 		})
 	}
 }
+
+func TestResolver_Resolve_CornerPages(t *testing.T) {
+	tests := []struct {
+		path      string
+		wantTitle string
+		wantDesc  string
+	}{
+		{path: "/game-board/umineko", wantTitle: "Umineko Game Board - When They Cry City of Books", wantDesc: "Discuss Umineko with fellow players on the game board."},
+		{path: "/game-board/higurashi", wantTitle: "Higurashi Game Board - When They Cry City of Books", wantDesc: "Discuss Higurashi with fellow players on the game board."},
+		{path: "/game-board/ciconia", wantTitle: "Ciconia Game Board - When They Cry City of Books", wantDesc: "Discuss Ciconia with fellow players on the game board."},
+		{path: "/game-board/higanbana", wantTitle: "Higanbana Game Board - When They Cry City of Books", wantDesc: "Discuss Higanbana with fellow players on the game board."},
+		{path: "/game-board/roseguns", wantTitle: "Rose Guns Days Game Board - When They Cry City of Books", wantDesc: "Discuss Rose Guns Days with fellow players on the game board."},
+		{path: "/gallery/umineko", wantTitle: "Umineko Gallery - When They Cry City of Books", wantDesc: "Browse umineko fan art from the Umineko community."},
+		{path: "/gallery/higurashi", wantTitle: "Higurashi Gallery - When They Cry City of Books", wantDesc: "Browse higurashi fan art from the Umineko community."},
+		{path: "/gallery/ciconia", wantTitle: "Ciconia Gallery - When They Cry City of Books", wantDesc: "Browse ciconia fan art from the Umineko community."},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.path, func(t *testing.T) {
+			// given
+			r := newTestResolver(t, "")
+
+			// when
+			html := r.Resolve(context.Background(), tc.path, "")
+
+			// then
+			assert.Contains(t, html, `property="og:title" content="`+tc.wantTitle+`"`)
+			assert.Contains(t, html, `<title>`+tc.wantTitle+`</title>`)
+			assert.Contains(t, html, `property="og:description" content="`+tc.wantDesc+`"`)
+			assert.Contains(t, html, `property="og:url" content="https://example.com`+tc.path+`"`)
+			assert.Contains(t, html, `<link rel="canonical" href="https://example.com`+tc.path+`">`)
+		})
+	}
+}
+
+func TestResolver_Resolve_PathsThatAreNotCornerPagesKeepTheDefaults(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "a made-up game board corner", path: "/game-board/phantom"},
+		{name: "the general board has no sub-page", path: "/game-board/general"},
+		{name: "suggestions has its own page", path: "/game-board/suggestions"},
+		{name: "a made-up gallery corner", path: "/gallery/phantom"},
+		{name: "the general gallery has no sub-page", path: "/gallery/general"},
+		{name: "a game board only corner has no gallery", path: "/gallery/roseguns"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			r := newTestResolver(t, "")
+
+			// when
+			html := r.Resolve(context.Background(), tc.path, "")
+
+			// then
+			assert.Contains(t, html, `property="og:title" content="When They Cry City of Books"`)
+			assert.Contains(t, html, `property="og:url" content="https://example.com/"`)
+		})
+	}
+}

@@ -28,9 +28,9 @@ import (
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
-	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 )
@@ -84,7 +84,7 @@ type (
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
 		echoCache     homefeed.Service
-		hub           *ws.Hub
+		activity      sidebar.ActivityBumper
 	}
 )
 
@@ -102,7 +102,7 @@ func NewService(
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
 	echoCache homefeed.Service,
-	hub *ws.Hub,
+	activity sidebar.ActivityBumper,
 ) Service {
 	return &service{
 		repo:          repo,
@@ -118,7 +118,7 @@ func NewService(
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
 		echoCache:     echoCache,
-		hub:           hub,
+		activity:      activity,
 	}
 }
 
@@ -229,7 +229,7 @@ func (s *service) CreateJournal(ctx context.Context, userID uuid.UUID, req dto.C
 
 	s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindJournal, EntityID: created.ID}, userID, req.Title)
 
-	s.hub.BumpSidebarActivity("journals")
+	s.activity.BumpSidebarActivity(sidebar.KeyJournals)
 
 	return created.ID, nil
 }
@@ -559,22 +559,22 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 	}
 
 	if !req.IsDraft {
-		s.notifyEntryMentions(ctx, journalID, nextNumber, userID, body)
+		s.notifyEntryMentions(ctx, journalID, nextNumber, authorID, body)
 
-		go s.notifyEntryPublished(journalID, nextNumber, userID)
+		go s.notifyEntryPublished(journalID, nextNumber, authorID)
 
-		s.hub.BumpSidebarActivity("journals")
+		s.activity.BumpSidebarActivity(sidebar.KeyJournals)
 	}
 
 	return created.ID, nextNumber, nil
 }
 
-func (s *service) notifyEntryMentions(ctx context.Context, journalID uuid.UUID, entryNumber int, actorID uuid.UUID, body string) {
+func (s *service) notifyEntryMentions(ctx context.Context, journalID uuid.UUID, entryNumber int, authorID uuid.UUID, body string) {
 	s.mentionSvc.NotifyAsync(ctx, mention.Reference{
 		Kind:        mention.KindJournalEntry,
 		EntityID:    journalID,
 		EntryNumber: entryNumber,
-	}, actorID, body)
+	}, authorID, body)
 }
 
 func (s *service) eligibleFollowerIDs(ctx context.Context, journalID uuid.UUID, actorUserID uuid.UUID) ([]uuid.UUID, error) {
@@ -607,16 +607,16 @@ func (s *service) eligibleFollowerIDs(ctx context.Context, journalID uuid.UUID, 
 	return eligible, nil
 }
 
-func (s *service) notifyEntryPublished(journalID uuid.UUID, entryNumber int, actorUserID uuid.UUID) {
+func (s *service) notifyEntryPublished(journalID uuid.UUID, entryNumber int, authorID uuid.UUID) {
 	bgCtx := context.Background()
 	title, err := s.repo.GetTitle(bgCtx, journalID)
 	if err != nil {
 		logger.Ctx(bgCtx).Warn().Err(err).Str("journal_id", journalID.String()).Msg("entry published notifications skipped, title lookup failed")
 		return
 	}
-	actor := s.actorName(bgCtx, actorUserID)
+	actor := s.actorName(bgCtx, authorID)
 
-	followerIDs, err := s.eligibleFollowerIDs(bgCtx, journalID, actorUserID)
+	followerIDs, err := s.eligibleFollowerIDs(bgCtx, journalID, authorID)
 	if err != nil {
 		logger.Ctx(bgCtx).Error().Err(err).Msg("get follower ids failed on entry publish")
 		return
@@ -629,7 +629,7 @@ func (s *service) notifyEntryPublished(journalID uuid.UUID, entryNumber int, act
 			Type:          dto.NotifJournalUpdate,
 			ReferenceID:   journalID,
 			ReferenceType: fmt.Sprintf("journal_entry:%d", entryNumber),
-			ActorID:       actorUserID,
+			ActorID:       authorID,
 			EmailActor:    actor,
 			EmailAction:   "posted a new entry on",
 			EmailTitle:    title,
@@ -745,7 +745,7 @@ func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uui
 
 	publishing := existing.IsDraft && !req.IsDraft
 
-	if err := s.repo.UpdateEntry(ctx, spec.JournalEntryUpdate{
+	firstPublished, err := s.repo.UpdateEntry(ctx, spec.JournalEntryUpdate{
 		ID:                   entryID,
 		JournalID:            existing.JournalID,
 		Title:                titlePtr,
@@ -753,7 +753,8 @@ func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uui
 		WordCount:            countWords(body),
 		IsDraft:              req.IsDraft,
 		RecordAuthorActivity: publishing,
-	}); err != nil {
+	})
+	if err != nil {
 		return err
 	}
 
@@ -768,10 +769,12 @@ func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uui
 		})
 	}
 
-	if publishing {
-		s.notifyEntryMentions(ctx, existing.JournalID, existing.EntryNumber, userID, body)
+	if firstPublished {
+		s.notifyEntryMentions(ctx, existing.JournalID, existing.EntryNumber, authorID, body)
 
-		go s.notifyEntryPublished(existing.JournalID, existing.EntryNumber, userID)
+		go s.notifyEntryPublished(existing.JournalID, existing.EntryNumber, authorID)
+
+		s.activity.BumpSidebarActivity(sidebar.KeyJournals)
 	}
 
 	return nil

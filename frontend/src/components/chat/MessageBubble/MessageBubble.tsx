@@ -11,6 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { messageActions, type MessageActionId } from "../../../domain/chat/messageActions";
+import type { PendingSend } from "../../../domain/chat/optimisticSend";
 import type { ChatMessage, ReactionGroup, User } from "../../../types/api";
 import { MessageActionMenu } from "../MessageActionMenu/MessageActionMenu";
 import { placeMenu, type MenuPoint } from "../MessageActionMenu/placeMenu";
@@ -26,9 +27,14 @@ import { formatExactDateTime } from "../../../utils/time";
 import { extractGif } from "../../../utils/gif";
 import styles from "./MessageBubble.module.css";
 
+export type MessageDelivery = Pick<PendingSend, "nonce" | "delivery" | "error">;
+
 interface MessageBubbleProps {
     message: ChatMessage;
     isOwn: boolean;
+    delivery?: MessageDelivery;
+    onRetrySend?: (nonce: string) => void;
+    onDiscardSend?: (nonce: string) => void;
     onLightbox?: (src: string) => void;
     onReply?: (msg: ChatMessage) => void;
     onReactionToggle?: (msg: ChatMessage, emoji: string) => void;
@@ -37,6 +43,7 @@ interface MessageBubbleProps {
     onEdit?: (msg: ChatMessage, newBody: string) => Promise<void>;
     onEditStart?: (msg: ChatMessage) => void;
     onEditCancel?: () => void;
+    onCopyLink?: (msg: ChatMessage) => void;
     editing?: boolean;
     canPin?: boolean;
     canModerate?: boolean;
@@ -130,6 +137,9 @@ function applySenderOverrides(message: ChatMessage): User {
 function MessageBubbleBase({
     message,
     isOwn,
+    delivery,
+    onRetrySend,
+    onDiscardSend,
     onLightbox,
     onReply,
     onReactionToggle,
@@ -138,6 +148,7 @@ function MessageBubbleBase({
     onEdit,
     onEditStart,
     onEditCancel,
+    onCopyLink,
     editing = false,
     canPin,
     canModerate,
@@ -150,6 +161,7 @@ function MessageBubbleBase({
     senderBlocked,
 }: MessageBubbleProps) {
     const canToggleReaction = canReact && onReactionToggle !== undefined;
+    const undelivered = delivery !== undefined;
 
     const [pickerOrigin, setPickerOrigin] = useState<MenuPoint | null>(null);
     const [menuOrigin, setMenuOrigin] = useState<MenuPoint | null>(null);
@@ -168,6 +180,7 @@ function MessageBubbleBase({
     const actions = useMemo(
         () =>
             messageActions({
+                undelivered,
                 pinned: message.pinned === true,
                 isOwn,
                 editing,
@@ -179,9 +192,11 @@ function MessageBubbleBase({
                 hasReply: onReply !== undefined,
                 hasPinToggle: onPinToggle !== undefined,
                 hasEdit: onEdit !== undefined,
+                hasCopyLink: onCopyLink !== undefined,
                 hasDelete: onDelete !== undefined,
             }),
         [
+            undelivered,
             message.pinned,
             isOwn,
             editing,
@@ -193,6 +208,7 @@ function MessageBubbleBase({
             onReply,
             onPinToggle,
             onEdit,
+            onCopyLink,
             onDelete,
         ],
     );
@@ -327,6 +343,9 @@ function MessageBubbleBase({
                     onDelete?.(message);
                 }
                 return;
+            case "copy-link":
+                onCopyLink?.(message);
+                return;
         }
     }
 
@@ -380,6 +399,8 @@ function MessageBubbleBase({
     }
 
     const isSystemMessage = message.is_system;
+    const sending = delivery?.delivery === "sending";
+    const failure = delivery?.delivery === "failed" ? delivery : null;
     const classes = [styles.messageBubble];
     if (isOwn && !isSystemMessage) {
         classes.push(styles.ownMessage);
@@ -395,6 +416,12 @@ function MessageBubbleBase({
     }
     if (message.pinned) {
         classes.push(styles.messagePinned);
+    }
+    if (sending) {
+        classes.push(styles.messageSending);
+    }
+    if (failure) {
+        classes.push(styles.messageFailed);
     }
 
     const effectiveSender = useMemo(() => applySenderOverrides(message), [message]);
@@ -442,6 +469,7 @@ function MessageBubbleBase({
             id={`chat-msg-${message.id}`}
             ref={rootRef}
             className={classes.join(" ")}
+            aria-busy={sending || undefined}
             onContextMenu={handleContextMenu}
             onPointerDown={handleBubblePointerDown}
             onPointerUp={handleBubblePointerEnd}
@@ -587,16 +615,42 @@ function MessageBubbleBase({
                         })}
                     </div>
                 )}
-                <div className={styles.messageTime}>
-                    <RelativeTimestamp value={message.created_at} variant="message" />
-                    {message.edited_at && (
-                        <span className={styles.editedLabel} title={`Edited ${editedFull}`}>
-                            {" "}
-                            (edited)
+                {sending && <div className={styles.messageTime}>Sending...</div>}
+                {failure && (
+                    <div className={styles.sendFailure} role="alert">
+                        <span className={styles.sendFailureText}>
+                            <strong>Not sent.</strong> <span dir="auto">{failure.error}</span>
                         </span>
-                    )}
-                    {seenLabel && <span className={styles.seenLabel}> · {seenLabel}</span>}
-                </div>
+                        <span className={styles.sendFailureActions}>
+                            <button
+                                type="button"
+                                className={`${styles.editBtn} ${styles.editBtnPrimary}`}
+                                onClick={() => onRetrySend?.(failure.nonce)}
+                            >
+                                Retry
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.editBtn}
+                                onClick={() => onDiscardSend?.(failure.nonce)}
+                            >
+                                Discard
+                            </button>
+                        </span>
+                    </div>
+                )}
+                {!undelivered && (
+                    <div className={styles.messageTime}>
+                        <RelativeTimestamp value={message.created_at} variant="message" />
+                        {message.edited_at && (
+                            <span className={styles.editedLabel} title={`Edited ${editedFull}`}>
+                                {" "}
+                                (edited)
+                            </span>
+                        )}
+                        {seenLabel && <span className={styles.seenLabel}> · {seenLabel}</span>}
+                    </div>
+                )}
             </div>
             {actions.length > 0 && (
                 <div ref={actionsRef} className={styles.actions}>

@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/upload"
 
@@ -81,7 +82,7 @@ func (s *Service) setupResolveDMRoute(r fiber.Router) {
 }
 
 func (s *Service) setupSendFirstDMRoute(r fiber.Router) {
-	r.Post("/chat/dm/:userID/messages", s.requireAuth(), s.requireEstablished(), s.sendFirstDM)
+	r.Post("/chat/dm/:userID/messages", s.requireAuth(), s.requireEstablished(), s.RateLimiter.Limit(middleware.ChatSends, middleware.ByUser), s.sendFirstDM)
 }
 
 func (s *Service) setupCreateGroupRoomRoute(r fiber.Router) {
@@ -122,6 +123,45 @@ func dmRouteError(ctx fiber.Ctx, err error) error {
 	return utils.InternalError(ctx, "chat operation failed")
 }
 
+func messageSendError(ctx fiber.Ctx, err error) error {
+	if utils.MapFilterError(ctx, err) {
+		return nil
+	}
+	if bw, ok := errors.AsType[*chat.ErrBannedWordMatch](err); ok {
+		return utils.UnprocessableEntity(ctx, fiber.Map{
+			"error":   bw.Error(),
+			"code":    "banned_word",
+			"pattern": bw.Pattern,
+			"action":  bw.Action,
+		})
+	}
+	if errors.Is(err, chat.ErrUserBlocked) {
+		return utils.Forbidden(ctx, "you cannot message this user")
+	}
+	if errors.Is(err, chat.ErrBlockedByRoomHost) || errors.Is(err, chat.ErrTimedOut) {
+		return utils.Forbidden(ctx, err.Error())
+	}
+	if errors.Is(err, chat.ErrMissingFields) {
+		return utils.BadRequest(ctx, "message body is required")
+	}
+	if errors.Is(err, chat.ErrInvalidClientNonce) {
+		return utils.BadRequest(ctx, "invalid client_nonce")
+	}
+	if errors.Is(err, chat.ErrClientNonceReused) {
+		return utils.Conflict(ctx, err.Error())
+	}
+	if errors.Is(err, chat.ErrNotMember) {
+		return utils.Forbidden(ctx, "you are not a member of this room")
+	}
+	if errors.Is(err, chat.ErrLockedNonStaffDM) {
+		return utils.Forbidden(ctx, "your account is locked and can only message site staff")
+	}
+	if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) || errors.Is(err, upload.ErrInvalidVideoType) {
+		return utils.BadRequest(ctx, err.Error())
+	}
+	return utils.InternalError(ctx, "failed to send message")
+}
+
 func (s *Service) resolveDM(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 	recipientID, ok := utils.ParseIDParam(ctx, "userID")
@@ -153,18 +193,18 @@ func (s *Service) sendFirstDM(ctx fiber.Ctx) error {
 		return utils.BadRequest(ctx, "invalid spoiler_indexes")
 	}
 
-	body := formValue(form, "body")
+	req := dto.SendDMRequest{
+		Body:        formValue(form, "body"),
+		ClientNonce: formValue(form, "client_nonce"),
+	}
 	files := collectChatFileUploads(form, spoilers)
 
-	resp, err := s.ChatService.SendDMMessage(ctx.Context(), userID, recipientID, body, files)
-	if err != nil {
-		if utils.MapFilterError(ctx, err) {
-			return nil
-		}
-		if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) || errors.Is(err, upload.ErrInvalidVideoType) {
-			return utils.BadRequest(ctx, err.Error())
-		}
+	resp, err := s.ChatService.SendDMMessage(ctx.Context(), userID, recipientID, req, files)
+	if errors.Is(err, chat.ErrDmsDisabled) || errors.Is(err, chat.ErrUserNotFound) || errors.Is(err, chat.ErrCannotDMSelf) {
 		return dmRouteError(ctx, err)
+	}
+	if err != nil {
+		return messageSendError(ctx, err)
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(resp)
 }
@@ -253,7 +293,7 @@ func (s *Service) listRooms(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupSendMessageRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/messages", s.requireAuth(), s.requireEstablished(), s.sendMessage)
+	r.Post("/chat/rooms/:roomID/messages", s.requireAuth(), s.requireEstablished(), s.RateLimiter.Limit(middleware.ChatSends, middleware.ByUser), s.sendMessage)
 }
 
 func (s *Service) sendMessage(ctx fiber.Ctx) error {
@@ -280,46 +320,15 @@ func (s *Service) sendMessage(ctx fiber.Ctx) error {
 	}
 
 	req := dto.SendMessageRequest{
-		Body:      formValue(form, "body"),
-		ReplyToID: replyToID,
+		Body:        formValue(form, "body"),
+		ReplyToID:   replyToID,
+		ClientNonce: formValue(form, "client_nonce"),
 	}
 	files := collectChatFileUploads(form, spoilers)
 
 	resp, err := s.ChatService.SendMessage(ctx.Context(), userID, roomID, req, files)
 	if err != nil {
-		if utils.MapFilterError(ctx, err) {
-			return nil
-		}
-		if bw, ok2 := errors.AsType[*chat.ErrBannedWordMatch](err); ok2 {
-			return utils.UnprocessableEntity(ctx, fiber.Map{
-				"error":   bw.Error(),
-				"code":    "banned_word",
-				"pattern": bw.Pattern,
-				"action":  bw.Action,
-			})
-		}
-		if errors.Is(err, chat.ErrUserBlocked) {
-			return utils.Forbidden(ctx, "you cannot message this user")
-		}
-		if errors.Is(err, chat.ErrBlockedByRoomHost) {
-			return utils.Forbidden(ctx, err.Error())
-		}
-		if errors.Is(err, chat.ErrTimedOut) {
-			return utils.Forbidden(ctx, err.Error())
-		}
-		if errors.Is(err, chat.ErrMissingFields) {
-			return utils.BadRequest(ctx, "message body is required")
-		}
-		if errors.Is(err, chat.ErrNotMember) {
-			return utils.Forbidden(ctx, "you are not a member of this room")
-		}
-		if errors.Is(err, chat.ErrLockedNonStaffDM) {
-			return utils.Forbidden(ctx, "your account is locked and can only message site staff")
-		}
-		if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) || errors.Is(err, upload.ErrInvalidVideoType) {
-			return utils.BadRequest(ctx, err.Error())
-		}
-		return utils.InternalError(ctx, "failed to send message")
+		return messageSendError(ctx, err)
 	}
 
 	return ctx.Status(fiber.StatusCreated).JSON(resp)

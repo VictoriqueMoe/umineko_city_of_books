@@ -7,6 +7,7 @@ import { makeRoomController } from "../../../hooks/useRoomController.fixture";
 import { makeChatRoom, makeRoomMember, makeUser, makeWatchPartySession } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { ChatRoom, ChatRoomMember, User, UserProfile } from "../../../types/api";
+import type { ComposerTarget } from "../ChatComposer/ChatComposer";
 import { MobileRoomView } from "./MobileRoomView";
 
 const mocks = vi.hoisted(() => ({
@@ -123,19 +124,19 @@ vi.mock("../Voice/VoiceBar", () => ({
 
 vi.mock("../ChatComposer/ChatComposer", () => ({
     ChatComposer: ({
-        roomId,
+        target,
         timeoutUntil,
         mentionPool,
         extraActions,
     }: {
-        roomId: string | null;
+        target: ComposerTarget | null;
         timeoutUntil?: string;
         mentionPool?: User[];
         extraActions?: React.ReactNode;
     }) => (
         <div
             data-testid="composer"
-            data-room-id={roomId ?? ""}
+            data-room-id={target?.kind === "room" ? target.sender.roomId : ""}
             data-timeout-until={timeoutUntil ?? ""}
             data-mention-pool={(mentionPool ?? []).map(u => u.username).join(",")}
         >
@@ -177,7 +178,7 @@ function renderView(patch: ControllerPatch = {}, view: "chat" | "members" = "cha
 
     const controller = makeRoomController({
         room: { ...defaults.room, data: makeRoom(), ...patch.room },
-        session: { ...defaults.session, viewer, ...patch.session },
+        session: { ...defaults.session, viewer, sender: { roomId: "room-1", send: vi.fn() }, ...patch.session },
         members: {
             ...defaults.members,
             list: members,

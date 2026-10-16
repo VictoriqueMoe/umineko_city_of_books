@@ -379,6 +379,7 @@ type ChatMessage struct {
 	EditedAt     sql.NullTime
 	CreatedAt    time.Time
 	SearchVector interface{}
+	ClientNonce  sql.NullString
 }
 
 type ChatMessageMedium struct {
@@ -554,7 +555,7 @@ type Fanfic struct {
 	ViewCount         int32
 	CommentCount      int32
 	ContainsLemons    bool
-	PublishedAt       time.Time
+	PublishedAt       sql.NullTime
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	SearchVector      interface{}
@@ -774,6 +775,7 @@ type JournalEntry struct {
 	UpdatedAt    time.Time
 	SearchVector interface{}
 	IsDraft      bool
+	PublishedAt  sql.NullTime
 }
 
 type JournalEntryMedium struct {

@@ -80,12 +80,15 @@ func (d *dmService) ResolveDMRoom(ctx context.Context, senderID, recipientID uui
 	return resp, nil
 }
 
-func (d *dmService) SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, body string, files []FileUpload) (*dto.SendDMResponse, error) {
-	if body == "" && len(files) == 0 {
+func (d *dmService) SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, req dto.SendDMRequest, files []FileUpload) (*dto.SendDMResponse, error) {
+	if req.Body == "" && len(files) == 0 {
 		return nil, ErrMissingFields
 	}
-	if body != "" {
-		if err := d.contentFilter.Check(ctx, body); err != nil {
+	if !validClientNonce(req.ClientNonce) {
+		return nil, ErrInvalidClientNonce
+	}
+	if req.Body != "" {
+		if err := d.contentFilter.Check(ctx, req.Body); err != nil {
 			return nil, err
 		}
 	}
@@ -105,7 +108,7 @@ func (d *dmService) SendDMMessage(ctx context.Context, senderID, recipientID uui
 	d.hub.JoinRoom(room.ID, senderID)
 	d.hub.JoinRoom(room.ID, recipientID)
 
-	msgResp, err := d.parent.SendMessage(ctx, senderID, room.ID, dto.SendMessageRequest{Body: body}, files)
+	msgResp, err := d.parent.SendMessage(ctx, senderID, room.ID, dto.SendMessageRequest{Body: req.Body, ClientNonce: req.ClientNonce}, files)
 	if err != nil {
 		return nil, err
 	}
