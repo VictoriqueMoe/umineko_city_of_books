@@ -321,14 +321,12 @@ func validCreateSpec(userID uuid.UUID, clues ...spec.NewClue) spec.NewMysteryWit
 	}
 
 	return spec.NewMysteryWithClues{
-		NewMystery: spec.NewMystery{
-			UserID:     userID,
-			Title:      "Title",
-			Body:       "Body",
-			Difficulty: "medium",
-			Knox:       dto.DefaultKnoxContract(),
-		},
-		Clues: clues,
+		UserID:     userID,
+		Title:      "Title",
+		Body:       "Body",
+		Difficulty: "medium",
+		Knox:       dto.DefaultKnoxContract(),
+		Clues:      clues,
 	}
 }
 
@@ -494,14 +492,12 @@ func validUpdateSpec(id uuid.UUID, knox dto.KnoxContract, clues ...spec.NewClue)
 	}
 
 	return spec.MysteryUpdateWithClues{
-		MysteryUpdate: spec.MysteryUpdate{
-			ID:         id,
-			Title:      "Title",
-			Body:       "Body",
-			Difficulty: "medium",
-			Knox:       knox,
-		},
-		Clues: clues,
+		ID:         id,
+		Title:      "Title",
+		Body:       "Body",
+		Difficulty: "medium",
+		Knox:       knox,
+		Clues:      clues,
 	}
 }
 

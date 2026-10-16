@@ -313,16 +313,14 @@ func (s *service) GetUser(ctx context.Context, targetID uuid.UUID) (*dto.AdminUs
 	}
 
 	resp := &dto.AdminUserDetailResponse{
-		AdminUserItem: dto.AdminUserItem{
-			ID:          u.ID,
-			Username:    u.Username,
-			DisplayName: u.DisplayName,
-			AvatarURL:   u.AvatarURL,
-			Role:        role.Role(u.Role),
-			Banned:      u.BannedAt != nil,
-			Locked:      u.LockedAt != nil,
-			CreatedAt:   u.CreatedAt,
-		},
+		ID:                u.ID,
+		Username:          u.Username,
+		DisplayName:       u.DisplayName,
+		AvatarURL:         u.AvatarURL,
+		Role:              role.Role(u.Role),
+		Banned:            u.BannedAt != nil,
+		Locked:            u.LockedAt != nil,
+		CreatedAt:         u.CreatedAt,
 		Email:             u.Email,
 		EmailVerified:     u.EmailVerified,
 		DisplayNameLocked: u.DisplayNameLocked,

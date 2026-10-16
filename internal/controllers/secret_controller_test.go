@@ -54,8 +54,8 @@ func TestGetSecret_OK(t *testing.T) {
 	// given
 	h, ms := newSecretHarness(t)
 	ms.EXPECT().Get(mock.Anything, "witchHunter", uuid.Nil).Return(&dto.SecretDetailResponse{
-		SecretSummary: dto.SecretSummary{ID: "witchHunter", Title: "The Witch's Epitaph"},
-		Riddle:        "Uu~",
+		ID: "witchHunter", Title: "The Witch's Epitaph",
+		Riddle: "Uu~",
 	}, nil)
 
 	// when

@@ -122,7 +122,7 @@ func TestChatDAO_ListUserGroupRooms(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, spec.ChatUserRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: tc.search, IsRPOnly: tc.rpOnly, Tag: tc.tag, Limit: 20}, UserID: user.ID, Role: tc.role})
+			rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, spec.ChatUserRoomFilter{Search: tc.search, IsRPOnly: tc.rpOnly, Tag: tc.tag, Limit: 20, UserID: user.ID, Role: tc.role})
 
 			// then
 			require.NoError(t, err)
@@ -139,7 +139,7 @@ func TestChatDAO_ListUserGroupRooms(t *testing.T) {
 
 	t.Run("limit caps the page but not the total", func(t *testing.T) {
 		// when
-		rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, spec.ChatUserRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Limit: 2}, UserID: user.ID})
+		rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, spec.ChatUserRoomFilter{Limit: 2, UserID: user.ID})
 
 		// then
 		require.NoError(t, err)
@@ -235,7 +235,7 @@ func TestChatDAO_ListPublicRooms(t *testing.T) {
 			}
 
 			// when
-			rooms, total, err := repos.Chat.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: tc.search, IsRPOnly: tc.rpOnly, Tag: tc.tag, Limit: 20}, ViewerID: viewerID, ExcludeUserIDs: tc.exclude})
+			rooms, total, err := repos.Chat.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{Search: tc.search, IsRPOnly: tc.rpOnly, Tag: tc.tag, Limit: 20, ViewerID: viewerID, ExcludeUserIDs: tc.exclude})
 
 			// then
 			require.NoError(t, err)
@@ -252,7 +252,7 @@ func TestChatDAO_ListPublicRooms(t *testing.T) {
 
 	t.Run("limit caps the page but not the total", func(t *testing.T) {
 		// when
-		rooms, total, err := repos.Chat.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Limit: 2}, ViewerID: viewer.ID})
+		rooms, total, err := repos.Chat.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{Limit: 2, ViewerID: viewer.ID})
 
 		// then
 		require.NoError(t, err)

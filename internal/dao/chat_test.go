@@ -377,11 +377,11 @@ func TestChatDAO_DeleteRoomWithMessages_ReturnsEveryOrphanedFile(t *testing.T) {
 	require.NoError(t, repos.Chat.SetMemberAvatar(ctx, spec.ChatMemberAvatarUpdate{RoomID: roomID, UserID: guest.ID, AvatarURL: "/uploads/chat-avatars/guest.webp"}))
 
 	first := daotest.SendChatMessage(t, repos, roomID, host.ID, "look")
-	_, err := repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: first, MediaURL: "/uploads/chat/one.webp", MediaType: "image", ThumbnailURL: "/uploads/chat/one_thumb.webp", SortOrder: 0}})
+	_, err := repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{TargetID: first, MediaURL: "/uploads/chat/one.webp", MediaType: "image", ThumbnailURL: "/uploads/chat/one_thumb.webp", SortOrder: 0})
 	require.NoError(t, err)
 
 	second := daotest.SendChatMessage(t, repos, roomID, guest.ID, "clip")
-	_, err = repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: second, MediaURL: "/uploads/chat/two.mp4", MediaType: "video", ThumbnailURL: "", SortOrder: 0}})
+	_, err = repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{TargetID: second, MediaURL: "/uploads/chat/two.mp4", MediaType: "video", ThumbnailURL: "", SortOrder: 0})
 	require.NoError(t, err)
 
 	daotest.SendChatMessage(t, repos, roomID, bare.ID, "bye")

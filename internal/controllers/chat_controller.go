@@ -1175,7 +1175,7 @@ func parseSpoilerIndexes(form *multipart.Form) (map[int]struct{}, bool) {
 	}
 
 	indexes := make(map[int]struct{})
-	for _, token := range strings.Split(values[0], ",") {
+	for token := range strings.SplitSeq(values[0], ",") {
 		i, err := strconv.Atoi(strings.TrimSpace(token))
 		if err != nil || i < 0 {
 			return nil, false

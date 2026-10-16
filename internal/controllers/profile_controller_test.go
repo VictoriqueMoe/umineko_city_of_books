@@ -49,7 +49,7 @@ func TestGetProfile_Anonymous_OK(t *testing.T) {
 	// given
 	h, deps := newProfileHarness(t)
 	userID := uuid.New()
-	expected := &dto.UserProfileResponse{UserResponse: dto.UserResponse{ID: userID, Username: "beato"}}
+	expected := &dto.UserProfileResponse{ID: userID, Username: "beato"}
 	deps.profileSvc.EXPECT().GetProfile(mock.Anything, "beato", uuid.Nil).Return(expected, nil)
 
 	// when
@@ -68,7 +68,7 @@ func TestGetProfile_Authenticated_OK(t *testing.T) {
 	viewerID := uuid.New()
 	profileID := uuid.New()
 	h.ExpectValidSession("valid-cookie", viewerID)
-	expected := &dto.UserProfileResponse{UserResponse: dto.UserResponse{ID: profileID, Username: "beato"}}
+	expected := &dto.UserProfileResponse{ID: profileID, Username: "beato"}
 	deps.profileSvc.EXPECT().GetProfile(mock.Anything, "beato", viewerID).Return(expected, nil)
 
 	// when

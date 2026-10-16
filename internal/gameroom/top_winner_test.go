@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"maps"
 	"testing"
 
 	"umineko_city_of_books/internal/contentfilter"
@@ -34,9 +35,7 @@ func TestRecordTopWinners(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			m := newTestService(t)
-			for gameType, ids := range tc.seed {
-				m.svc.topWinners[gameType] = ids
-			}
+			maps.Copy(m.svc.topWinners, tc.seed)
 
 			// when
 			got := m.svc.recordTopWinners(tc.gameType, tc.ids)

@@ -144,8 +144,8 @@ func expectFailingActorLookup(m *testMocks, userID uuid.UUID) <-chan struct{} {
 
 func fanficCommentDelete(id, actorID, authorID uuid.UUID, asAdmin bool, action audit.Action) spec.FanficCommentDelete {
 	return spec.FanficCommentDelete{
-		CommentDeletion: spec.CommentDeletion{CommentID: id, UserID: actorID, AsAdmin: asAdmin},
-		Audit:           audit.NewEntry{ActorID: actorID, Action: action, TargetType: audit.TargetFanficComment, TargetID: id.String(), SubjectID: authorID},
+		CommentID: id, UserID: actorID, AsAdmin: asAdmin,
+		Audit: audit.NewEntry{ActorID: actorID, Action: action, TargetType: audit.TargetFanficComment, TargetID: id.String(), SubjectID: authorID},
 	}
 }
 
@@ -579,7 +579,7 @@ func TestUpdateFanfic(t *testing.T) {
 				m.fanficRepo.EXPECT().GetByID(mock.Anything, spec.FanficLookup{ID: id, ViewerID: userID}).
 					Return(&model.FanficRow{ID: id, UserID: authorID, Title: "old", Series: "ser", Rating: "K", Language: "en", Status: "in_progress"}, nil)
 				m.fanficRepo.EXPECT().UpdateWithDetails(mock.Anything, spec.FanficUpdateWithDetails{
-					FanficUpdate: spec.FanficUpdate{ID: id, UserID: userID, Title: "T", Summary: "s", Series: "ser", Rating: "K", Language: "en", Status: "in_progress", AsAdmin: true},
+					ID: id, UserID: userID, Title: "T", Summary: "s", Series: "ser", Rating: "K", Language: "en", Status: "in_progress", AsAdmin: true,
 				}).Return(nil)
 				m.auditRepo.EXPECT().
 					Create(mock.Anything, audit.NewEntry{ActorID: userID, Action: audit.ActionFanficUpdateAdmin, TargetType: audit.TargetFanfic, TargetID: id.String(), Details: "changed=title,summary", SubjectID: authorID}).
@@ -592,8 +592,8 @@ func TestUpdateFanfic(t *testing.T) {
 			given: func(m *testMocks, id, userID uuid.UUID) {
 				m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
 				m.fanficRepo.EXPECT().UpdateWithDetails(mock.Anything, spec.FanficUpdateWithDetails{
-					FanficUpdate: spec.FanficUpdate{ID: id, UserID: userID, Title: "T", Series: "Umineko", Rating: "K", Language: "English"},
-					Characters:   characters,
+					ID: id, UserID: userID, Title: "T", Series: "Umineko", Rating: "K", Language: "English",
+					Characters: characters,
 				}).Return(nil)
 			},
 		},
@@ -603,7 +603,7 @@ func TestUpdateFanfic(t *testing.T) {
 			given: func(m *testMocks, id, userID uuid.UUID) {
 				m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
 				m.fanficRepo.EXPECT().UpdateWithDetails(mock.Anything, spec.FanficUpdateWithDetails{
-					FanficUpdate: spec.FanficUpdate{ID: id, UserID: userID, Title: "T", Series: "Umineko", Rating: "K", Language: "English"},
+					ID: id, UserID: userID, Title: "T", Series: "Umineko", Rating: "K", Language: "English",
 				}).Return(errDB)
 			},
 			wantErr: errDB,

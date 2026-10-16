@@ -414,16 +414,14 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 	}
 
 	created, err := s.mysteryRepo.CreateWithClues(ctx, spec.NewMysteryWithClues{
-		NewMystery: spec.NewMystery{
-			UserID:             userID,
-			Title:              req.Title,
-			Body:               req.Body,
-			Difficulty:         req.Difficulty,
-			FreeForAll:         req.FreeForAll,
-			KeepOpenAfterSolve: req.KeepOpenAfterSolve,
-			Knox:               contract,
-		},
-		Clues: newClues(req.Clues),
+		UserID:             userID,
+		Title:              req.Title,
+		Body:               req.Body,
+		Difficulty:         req.Difficulty,
+		FreeForAll:         req.FreeForAll,
+		KeepOpenAfterSolve: req.KeepOpenAfterSolve,
+		Knox:               contract,
+		Clues:              newClues(req.Clues),
 	})
 	if err != nil {
 		return uuid.Nil, err
@@ -473,16 +471,14 @@ func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 
 	if err := s.mysteryRepo.UpdateWithClues(ctx, spec.MysteryUpdateWithClues{
-		MysteryUpdate: spec.MysteryUpdate{
-			ID:                 id,
-			Title:              req.Title,
-			Body:               req.Body,
-			Difficulty:         req.Difficulty,
-			FreeForAll:         req.FreeForAll,
-			KeepOpenAfterSolve: req.KeepOpenAfterSolve,
-			Knox:               contract,
-		},
-		Clues: newClues(req.Clues),
+		ID:                 id,
+		Title:              req.Title,
+		Body:               req.Body,
+		Difficulty:         req.Difficulty,
+		FreeForAll:         req.FreeForAll,
+		KeepOpenAfterSolve: req.KeepOpenAfterSolve,
+		Knox:               contract,
+		Clues:              newClues(req.Clues),
 	}); err != nil {
 		return err
 	}

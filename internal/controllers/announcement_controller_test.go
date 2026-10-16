@@ -94,7 +94,7 @@ func TestGetAnnouncement_OK(t *testing.T) {
 	annID := uuid.New()
 	deps.svc.EXPECT().GetDetail(mock.Anything, annID, uuid.Nil).
 		Return(&dto.AnnouncementDetailResponse{
-			AnnouncementResponse: dto.AnnouncementResponse{ID: annID, Title: "t"},
+			ID: annID, Title: "t",
 		}, nil)
 
 	// when

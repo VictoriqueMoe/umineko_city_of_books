@@ -581,7 +581,7 @@ func TestGetArt(t *testing.T) {
 			viewerID, cookie := artCtlSession(h, tc.authenticated)
 			artID := uuid.New()
 			as.EXPECT().GetArt(mock.Anything, artID, viewerID, mock.AnythingOfType("string")).
-				Return(&dto.ArtDetailResponse{ArtResponse: dto.ArtResponse{ID: artID, Title: "A piece"}}, tc.svcErr)
+				Return(&dto.ArtDetailResponse{ID: artID, Title: "A piece"}, tc.svcErr)
 
 			// when
 			status, body := h.NewRequest("GET", "/art/"+artID.String()).WithCookie(cookie).Do()

@@ -271,21 +271,19 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 	}
 
 	newFanfic := spec.NewFanficWithDetails{
-		NewFanfic: spec.NewFanfic{
-			UserID:         userID,
-			Title:          title,
-			Summary:        strings.TrimSpace(req.Summary),
-			Series:         fields.Series,
-			Rating:         fields.Rating,
-			Language:       fields.Language,
-			Status:         status,
-			IsOneshot:      req.IsOneshot,
-			ContainsLemons: req.ContainsLemons,
-			IsPairing:      req.IsPairing,
-		},
-		Genres:     req.Genres,
-		Tags:       fields.Tags,
-		Characters: req.Characters,
+		UserID:         userID,
+		Title:          title,
+		Summary:        strings.TrimSpace(req.Summary),
+		Series:         fields.Series,
+		Rating:         fields.Rating,
+		Language:       fields.Language,
+		Status:         status,
+		IsOneshot:      req.IsOneshot,
+		ContainsLemons: req.ContainsLemons,
+		IsPairing:      req.IsPairing,
+		Genres:         req.Genres,
+		Tags:           fields.Tags,
+		Characters:     req.Characters,
 	}
 
 	body := strings.TrimSpace(htmlPolicy().Sanitize(req.Body))
@@ -446,23 +444,21 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 	}
 
 	update := spec.FanficUpdateWithDetails{
-		FanficUpdate: spec.FanficUpdate{
-			ID:             id,
-			UserID:         userID,
-			Title:          title,
-			Summary:        strings.TrimSpace(req.Summary),
-			Series:         fields.Series,
-			Rating:         fields.Rating,
-			Language:       fields.Language,
-			Status:         strings.TrimSpace(req.Status),
-			IsOneshot:      req.IsOneshot,
-			ContainsLemons: req.ContainsLemons,
-			AsAdmin:        asAdmin,
-		},
-		IsPairing:  req.IsPairing,
-		Genres:     req.Genres,
-		Tags:       fields.Tags,
-		Characters: req.Characters,
+		ID:             id,
+		UserID:         userID,
+		Title:          title,
+		Summary:        strings.TrimSpace(req.Summary),
+		Series:         fields.Series,
+		Rating:         fields.Rating,
+		Language:       fields.Language,
+		Status:         strings.TrimSpace(req.Status),
+		IsOneshot:      req.IsOneshot,
+		ContainsLemons: req.ContainsLemons,
+		AsAdmin:        asAdmin,
+		IsPairing:      req.IsPairing,
+		Genres:         req.Genres,
+		Tags:           fields.Tags,
+		Characters:     req.Characters,
 	}
 
 	var before *model.FanficRow
@@ -1024,11 +1020,9 @@ func (s *service) DeleteComment(ctx context.Context, id, userID uuid.UUID) error
 	}
 
 	commentDelete := spec.FanficCommentDelete{
-		CommentDeletion: spec.CommentDeletion{
-			CommentID: id,
-			UserID:    userID,
-			AsAdmin:   asAdmin,
-		},
+		CommentID: id,
+		UserID:    userID,
+		AsAdmin:   asAdmin,
 		Audit: audit.NewEntry{
 			ActorID:    userID,
 			Action:     action,

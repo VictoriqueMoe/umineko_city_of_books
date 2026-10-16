@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -69,15 +70,7 @@ func (r *giphyFavouriteDAO) Remove(ctx context.Context, s spec.GiphyFavouriteDel
 }
 
 func (r *giphyFavouriteDAO) List(ctx context.Context, q spec.GiphyFavouritePage, tx ...*sql.Tx) ([]model.GiphyFavourite, int, error) {
-	limit := q.Limit
-	if limit <= 0 {
-		limit = 50
-	}
-
-	offset := q.Offset
-	if offset < 0 {
-		offset = 0
-	}
+	page := bounds.NewPage(q.Limit, q.Offset)
 
 	queries := genQueries(r.db, tx)
 
@@ -88,8 +81,8 @@ func (r *giphyFavouriteDAO) List(ctx context.Context, q spec.GiphyFavouritePage,
 
 	rows, err := queries.ListGiphyFavourites(ctx, sqlcgen.ListGiphyFavouritesParams{
 		UserID: q.UserID,
-		Limit:  int32(limit),
-		Offset: int32(offset),
+		Limit:  int32(page.Limit()),
+		Offset: int32(page.Offset()),
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list giphy favourites: %w", err)

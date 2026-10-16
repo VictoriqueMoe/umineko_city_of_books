@@ -101,7 +101,7 @@ func TestGetOC_OK(t *testing.T) {
 	// given
 	h, os := newOCHarness(t)
 	id := uuid.New()
-	expected := &dto.OCDetailResponse{OCResponse: dto.OCResponse{ID: id, Name: "Linda"}}
+	expected := &dto.OCDetailResponse{ID: id, Name: "Linda"}
 	os.EXPECT().GetOC(mock.Anything, id, uuid.Nil).Return(expected, nil)
 
 	// when

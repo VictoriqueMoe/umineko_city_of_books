@@ -213,11 +213,9 @@ func postCommentDeleteSpec(id uuid.UUID, userID uuid.UUID, authorID uuid.UUID, a
 	}
 
 	return spec.PostCommentDelete{
-		CommentDeletion: spec.CommentDeletion{
-			CommentID: id,
-			UserID:    userID,
-			AsAdmin:   asAdmin,
-		},
+		CommentID: id,
+		UserID:    userID,
+		AsAdmin:   asAdmin,
 		Audit: audit.NewEntry{
 			ActorID:    userID,
 			Action:     action,

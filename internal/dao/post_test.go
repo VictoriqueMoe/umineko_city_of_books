@@ -423,8 +423,8 @@ func TestPostDAO_ListAll_RelevanceFollowsEngagement(t *testing.T) {
 			engage: func(t *testing.T, repos *repository.Repositories, older, fan uuid.UUID) {
 				commentID := createComment(t, repos, older, fan, nil, "great post")
 				_, err := repos.Post.DeleteCommentWithAudit(context.Background(), spec.PostCommentDelete{
-					CommentDeletion: spec.CommentDeletion{CommentID: commentID, UserID: fan},
-					Audit:           audit.NewEntry{ActorID: fan, Action: audit.ActionPostCommentDelete, TargetType: audit.TargetPostComment, TargetID: commentID.String()},
+					CommentID: commentID, UserID: fan,
+					Audit: audit.NewEntry{ActorID: fan, Action: audit.ActionPostCommentDelete, TargetType: audit.TargetPostComment, TargetID: commentID.String()},
 				})
 				require.NoError(t, err)
 			},
@@ -950,11 +950,9 @@ func TestPostDAO_DeleteCommentWithAudit(t *testing.T) {
 
 			// when
 			paths, err := repos.Post.DeleteCommentWithAudit(ctx, spec.PostCommentDelete{
-				CommentDeletion: spec.CommentDeletion{
-					CommentID: commentID,
-					UserID:    actorID,
-					AsAdmin:   tc.asAdmin,
-				},
+				CommentID: commentID,
+				UserID:    actorID,
+				AsAdmin:   tc.asAdmin,
 				Audit: audit.NewEntry{
 					ActorID:    actorID,
 					Action:     tc.action,
@@ -1304,15 +1302,13 @@ func TestGetSharedContentPreviews_DraftFanficFlaggedDeleted(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	created, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
-		NewFanfic: spec.NewFanfic{
-			UserID:   user.ID,
-			Title:    "Secret Draft",
-			Summary:  "unpublished summary",
-			Series:   "Umineko",
-			Rating:   "K",
-			Language: "English",
-			Status:   "draft",
-		},
+		UserID:   user.ID,
+		Title:    "Secret Draft",
+		Summary:  "unpublished summary",
+		Series:   "Umineko",
+		Rating:   "K",
+		Language: "English",
+		Status:   "draft",
 	})
 	require.NoError(t, err)
 

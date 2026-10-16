@@ -76,14 +76,12 @@ func TestSitemapDAO_ListFanfics_ExcludesDrafts(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	publishedID := createFanfic(t, repos, user.ID, "Published")
 	_, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
-		NewFanfic: spec.NewFanfic{
-			UserID:   user.ID,
-			Title:    "Draft",
-			Series:   "Umineko",
-			Rating:   "K",
-			Language: "English",
-			Status:   "draft",
-		},
+		UserID:   user.ID,
+		Title:    "Draft",
+		Series:   "Umineko",
+		Rating:   "K",
+		Language: "English",
+		Status:   "draft",
 	})
 	require.NoError(t, err)
 

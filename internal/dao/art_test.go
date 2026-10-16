@@ -27,17 +27,15 @@ const (
 func createArt(t *testing.T, repos *repository.Repositories, userID uuid.UUID, corner, artType, title string, tags []string, spoiler bool) uuid.UUID {
 	t.Helper()
 	created, err := repos.Art.CreateWithTags(context.Background(), spec.NewArtWithTags{
-		NewArt: spec.NewArt{
-			UserID:       userID,
-			Corner:       corner,
-			ArtType:      artType,
-			Title:        title,
-			Description:  "desc",
-			ImageURL:     artImageURL,
-			ThumbnailURL: artThumbnailURL,
-			IsSpoiler:    spoiler,
-		},
-		Tags: tags,
+		UserID:       userID,
+		Corner:       corner,
+		ArtType:      artType,
+		Title:        title,
+		Description:  "desc",
+		ImageURL:     artImageURL,
+		ThumbnailURL: artThumbnailURL,
+		IsSpoiler:    spoiler,
+		Tags:         tags,
 	})
 	require.NoError(t, err)
 
@@ -206,9 +204,7 @@ func TestArtDAO_UpdateWithTags(t *testing.T) {
 
 			// when
 			err := repos.Art.UpdateWithTags(context.Background(), spec.ArtUpdateWithTags{
-				ArtUpdate: spec.ArtUpdate{
-					ID: id, UserID: editor, Title: "New Title", Description: "New Desc", IsSpoiler: true, AsAdmin: tc.asAdmin,
-				},
+				ID: id, UserID: editor, Title: "New Title", Description: "New Desc", IsSpoiler: true, AsAdmin: tc.asAdmin,
 				Tags: []string{"b", "c"},
 			})
 
@@ -775,11 +771,9 @@ func TestArtDAO_DeleteCommentWithAudit(t *testing.T) {
 
 			// when
 			paths, err := repos.Art.DeleteCommentWithAudit(ctx, spec.ArtCommentDeletion{
-				CommentDeletion: spec.CommentDeletion{
-					CommentID: target,
-					UserID:    deleter,
-					AsAdmin:   tc.asAdmin,
-				},
+				CommentID: target,
+				UserID:    deleter,
+				AsAdmin:   tc.asAdmin,
 				Audit: audit.NewEntry{
 					ActorID:    auditActor,
 					Action:     action,

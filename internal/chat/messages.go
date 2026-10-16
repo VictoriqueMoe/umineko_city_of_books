@@ -148,8 +148,8 @@ func (m *messagesService) ListRoomAttachments(ctx context.Context, userID, roomI
 	limit = bounds.NewPage(limit, 0).Limit()
 
 	rows, err := m.chatRepo.ListRoomAttachments(ctx, spec.ChatRoomAttachmentQuery{
-		ChatMessageCursorPage: spec.ChatMessageCursorPage{RoomID: roomID, ViewerID: userID, Before: before, Limit: limit},
-		Kind:                  kind,
+		RoomID: roomID, ViewerID: userID, Before: before, Limit: limit,
+		Kind: kind,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list room attachments: %w", err)
@@ -757,17 +757,15 @@ func (m *messagesService) saveMessageMedia(ctx context.Context, messageID uuid.U
 		saved, saveErr := m.uploader.SaveAndRecord(ctx, "chat", f.ContentType, f.Filename, f.Size, r, f.IsSpoiler,
 			func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 				return m.chatRepo.AddMessageMedia(ctx, spec.NewChatMessageMedia{
-					NewMedia: spec.NewMedia{
-						TargetID:     messageID,
-						MediaURL:     mediaURL,
-						MediaType:    mediaType,
-						ThumbnailURL: thumbURL,
-						Filename:     filename,
-						SortOrder:    sortOrder,
-						IsSpoiler:    f.IsSpoiler,
-					},
-					Width:  width,
-					Height: height,
+					TargetID:     messageID,
+					MediaURL:     mediaURL,
+					MediaType:    mediaType,
+					ThumbnailURL: thumbURL,
+					Filename:     filename,
+					SortOrder:    sortOrder,
+					IsSpoiler:    f.IsSpoiler,
+					Width:        width,
+					Height:       height,
 				})
 			},
 			m.chatRepo.UpdateMessageMediaURL,

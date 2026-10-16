@@ -423,7 +423,7 @@ func TestUpdateArt(t *testing.T) {
 			given: func(m *testMocks) {
 				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
 				m.artRepo.EXPECT().
-					UpdateWithTags(mock.Anything, spec.ArtUpdateWithTags{ArtUpdate: spec.ArtUpdate{ID: id, UserID: userID, Title: "t"}}).
+					UpdateWithTags(mock.Anything, spec.ArtUpdateWithTags{ID: id, UserID: userID, Title: "t"}).
 					Return(errDB)
 			},
 			wantErr: errDB,
@@ -435,8 +435,8 @@ func TestUpdateArt(t *testing.T) {
 				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
 				m.artRepo.EXPECT().
 					UpdateWithTags(mock.Anything, spec.ArtUpdateWithTags{
-						ArtUpdate: spec.ArtUpdate{ID: id, UserID: userID, Title: "t", Description: "d", IsSpoiler: true},
-						Tags:      tags[:10],
+						ID: id, UserID: userID, Title: "t", Description: "d", IsSpoiler: true,
+						Tags: tags[:10],
 					}).
 					Return(nil)
 			},
@@ -447,7 +447,7 @@ func TestUpdateArt(t *testing.T) {
 			given: func(m *testMocks) {
 				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(true)
 				m.artRepo.EXPECT().
-					UpdateWithTags(mock.Anything, spec.ArtUpdateWithTags{ArtUpdate: spec.ArtUpdate{ID: id, UserID: userID, Title: "t", AsAdmin: true}}).
+					UpdateWithTags(mock.Anything, spec.ArtUpdateWithTags{ID: id, UserID: userID, Title: "t", AsAdmin: true}).
 					Return(nil)
 				m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, id).Return(uuid.Nil, errStop).Maybe()
 			},
@@ -1063,7 +1063,7 @@ func TestDeleteComment(t *testing.T) {
 			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(tc.canDeleteAny)
 			m.artRepo.EXPECT().
 				DeleteCommentWithAudit(mock.Anything, spec.ArtCommentDeletion{
-					CommentDeletion: spec.CommentDeletion{CommentID: commentID, UserID: userID, AsAdmin: tc.canDeleteAny},
+					CommentID: commentID, UserID: userID, AsAdmin: tc.canDeleteAny,
 					Audit: audit.NewEntry{
 						ActorID:    userID,
 						Action:     tc.wantAction,

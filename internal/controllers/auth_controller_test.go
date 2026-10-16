@@ -74,8 +74,8 @@ func TestRegister_OK(t *testing.T) {
 	// given
 	h, deps := newAuthHarness(t)
 	req := dto.RegisterRequest{
-		LoginRequest: dto.LoginRequest{Username: "beato", Password: "goldenwitch"},
-		DisplayName:  "Beatrice",
+		Username: "beato", Password: "goldenwitch",
+		DisplayName: "Beatrice",
 	}
 	userID := uuid.New()
 	user := &dto.UserResponse{ID: userID, Username: "beato", DisplayName: "Beatrice"}
@@ -110,8 +110,8 @@ func TestRegister_MissingCredentials(t *testing.T) {
 		name string
 		req  dto.RegisterRequest
 	}{
-		{"empty username", dto.RegisterRequest{LoginRequest: dto.LoginRequest{Username: "", Password: "pw"}}},
-		{"empty password", dto.RegisterRequest{LoginRequest: dto.LoginRequest{Username: "beato", Password: ""}}},
+		{"empty username", dto.RegisterRequest{Username: "", Password: "pw"}},
+		{"empty password", dto.RegisterRequest{Username: "beato", Password: ""}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -148,7 +148,7 @@ func TestRegister_ServiceErrors(t *testing.T) {
 			// given
 			h, deps := newAuthHarness(t)
 			req := dto.RegisterRequest{
-				LoginRequest: dto.LoginRequest{Username: "beato", Password: "goldenwitch"},
+				Username: "beato", Password: "goldenwitch",
 			}
 			deps.authSvc.EXPECT().Register(mock.Anything, req).Return(nil, "", tc.svcErr)
 

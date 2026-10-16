@@ -402,13 +402,11 @@ func TestMysteryRepo_CreateWithClues(t *testing.T) {
 
 	// when
 	created, err := repos.Mystery.CreateWithClues(context.Background(), spec.NewMysteryWithClues{
-		NewMystery: spec.NewMystery{
-			UserID:     user.ID,
-			Title:      "Locked Room",
-			Body:       "How?",
-			Difficulty: "hard",
-			Knox:       dto.DefaultKnoxContract(),
-		},
+		UserID:     user.ID,
+		Title:      "Locked Room",
+		Body:       "How?",
+		Difficulty: "hard",
+		Knox:       dto.DefaultKnoxContract(),
 		Clues: []spec.NewClue{
 			{Body: "first", TruthType: "red", SortOrder: 0},
 			{Body: "second", TruthType: "blue", SortOrder: 1},
@@ -433,15 +431,13 @@ func TestMysteryRepo_UpdateWithClues_ReplacesPublicCluesOnly(t *testing.T) {
 
 	// when
 	err := repos.Mystery.UpdateWithClues(context.Background(), spec.MysteryUpdateWithClues{
-		MysteryUpdate: spec.MysteryUpdate{
-			ID:         id,
-			Title:      "New Title",
-			Body:       "New Body",
-			Difficulty: "nightmare",
-			FreeForAll: true,
-			Knox:       dto.DefaultKnoxContract(),
-		},
-		Clues: []spec.NewClue{{Body: "new public", TruthType: "blue", SortOrder: 0}},
+		ID:         id,
+		Title:      "New Title",
+		Body:       "New Body",
+		Difficulty: "nightmare",
+		FreeForAll: true,
+		Knox:       dto.DefaultKnoxContract(),
+		Clues:      []spec.NewClue{{Body: "new public", TruthType: "blue", SortOrder: 0}},
 	})
 
 	// then
@@ -461,14 +457,12 @@ func TestMysteryRepo_UpdateWithClues_ClueFailureRollsBackTheUpdate(t *testing.T)
 
 	// when
 	err := repos.Mystery.UpdateWithClues(context.Background(), spec.MysteryUpdateWithClues{
-		MysteryUpdate: spec.MysteryUpdate{
-			ID:         id,
-			Title:      "New Title",
-			Body:       "New Body",
-			Difficulty: "nightmare",
-			Knox:       dto.DefaultKnoxContract(),
-		},
-		Clues: []spec.NewClue{{Body: "doomed", TruthType: "red", SortOrder: -1}},
+		ID:         id,
+		Title:      "New Title",
+		Body:       "New Body",
+		Difficulty: "nightmare",
+		Knox:       dto.DefaultKnoxContract(),
+		Clues:      []spec.NewClue{{Body: "doomed", TruthType: "red", SortOrder: -1}},
 	})
 
 	// then

@@ -87,7 +87,7 @@ func artCornerCountWriters(artID, userID, galleryID uuid.UUID) []artWriterCase {
 				}
 			},
 			call: func(repo ArtRepository) error {
-				_, err := repo.CreateWithTags(context.Background(), spec.NewArtWithTags{NewArt: spec.NewArt{UserID: userID, Corner: "general", Title: "t"}}, new(sql.Tx))
+				_, err := repo.CreateWithTags(context.Background(), spec.NewArtWithTags{UserID: userID, Corner: "general", Title: "t"}, new(sql.Tx))
 
 				return err
 			},
