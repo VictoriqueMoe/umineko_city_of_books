@@ -76,7 +76,7 @@ func TestDeleteJournal_ClearsCachedPages(t *testing.T) {
 	id := uuid.New()
 	authorID := uuid.New()
 	key := cache.OGMeta.Key("/journals/" + id.String())
-	require.NoError(t, mgr.Set(ctx, key, "cached meta", cache.OGMeta.TTL))
+	require.NoError(t, mgr.Set(ctx, key, "cached meta"))
 
 	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.repo.EXPECT().GetTitle(mock.Anything, id).Return("doomed", nil)

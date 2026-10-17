@@ -1166,7 +1166,7 @@ func TestChatSendRoutes_ShareOneRateLimitBudget(t *testing.T) {
 
 			body, err := io.ReadAll(overflow.Body)
 			require.NoError(t, err)
-			assert.JSONEq(t, `{"error":"You're sending messages too quickly. Wait a moment and try again."}`, string(body))
+			assert.JSONEq(t, `{"error":"too many requests, please try again later"}`, string(body))
 		})
 	}
 }

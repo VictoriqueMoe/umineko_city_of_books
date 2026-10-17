@@ -68,7 +68,7 @@ func (r *settingsRepository) Get(ctx context.Context, key config.SiteSettingKey,
 		return r.SettingsDAO.Get(ctx, key, tx...)
 	}
 
-	return r.cache.Load(ctx, cache.Setting, load, string(key))
+	return r.cache.Load(ctx, cache.Setting.Key(string(key)), load)
 }
 
 func (r *settingsRepository) Set(ctx context.Context, s spec.SettingsUpdate, tx ...*sql.Tx) error {
@@ -111,7 +111,7 @@ func (r *settingsRepository) invalidate(ctx context.Context, keys ...config.Site
 		return
 	}
 
-	cacheKeys := make([]string, 0, len(keys))
+	cacheKeys := make([]cache.Key, 0, len(keys))
 	for _, key := range keys {
 		cacheKeys = append(cacheKeys, cache.Setting.Key(string(key)))
 	}

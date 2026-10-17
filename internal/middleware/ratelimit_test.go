@@ -31,6 +31,15 @@ type (
 	}
 )
 
+const (
+	testLimit = 5
+)
+
+var (
+	testBudget  = cache.Namespace{Prefix: "test:budget:", TTL: time.Minute}
+	otherBudget = cache.Namespace{Prefix: "test:other-budget:", TTL: time.Minute}
+)
+
 func newTestRateLimiter() *RateLimiter {
 	return NewRateLimiter(cache.NewManager(engines.NewInMemory(0)))
 }
@@ -57,31 +66,25 @@ func limitedApp(limit fiber.Handler) *fiber.App {
 	return app
 }
 
-func TestRateLimitByClientIP_AllowsBudgetThenRejects(t *testing.T) {
+func TestRateLimit_AllowsTheLimitThenRejects(t *testing.T) {
 	cases := []struct {
-		name        string
-		policy      RateLimitPolicy
-		allowed     int
-		window      time.Duration
-		wantMessage string
+		name   string
+		budget cache.Namespace
+		limit  int
 	}{
-		{"credentials", CredentialAttempts, CredentialAttemptsPerMinute, time.Minute, "too many requests, please try again later"},
-		{"mail", MailAttempts, MailAttemptsPerHour, time.Hour, "too many requests, please try again later"},
-		{"chat sends speak to the sender", ChatSends, ChatSendsPerWindow, 5 * time.Second, "You're sending messages too quickly. Wait a moment and try again."},
-		{"link previews", LinkPreviews, LinkPreviewsPerMinute, time.Minute, "too many requests, please try again later"},
-		{"stream viewer tokens", StreamViewerTokens, StreamViewerTokensPerMinute, time.Minute, "too many requests, please try again later"},
-		{"stream thumbnails", StreamThumbnails, StreamThumbnailsPerMinute, time.Minute, "too many requests, please try again later"},
-		{"stream credential resets", StreamCredentialsResets, StreamCredentialsResetsPerMinute, time.Minute, "too many requests, please try again later"},
+		{"a single attempt per window", cache.Namespace{Prefix: "test:single:", TTL: 5 * time.Second}, 1},
+		{"several attempts per minute", cache.Namespace{Prefix: "test:minute:", TTL: time.Minute}, 10},
+		{"a few attempts per hour", cache.Namespace{Prefix: "test:hour:", TTL: time.Hour}, 5},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			app := limitedApp(newTestRateLimiter().Limit(tc.policy, ByClientIP))
+			app := limitedApp(newTestRateLimiter().Limit(tc.budget, tc.limit, ByClientIP))
 
 			// when
-			allowedStatuses := make([]int, 0, tc.allowed)
-			for range tc.allowed {
+			allowedStatuses := make([]int, 0, tc.limit)
+			for range tc.limit {
 				allowedStatuses = append(allowedStatuses, postLimited(t, app, "/limited").status)
 			}
 			overflow := postLimited(t, app, "/limited")
@@ -94,12 +97,12 @@ func TestRateLimitByClientIP_AllowsBudgetThenRejects(t *testing.T) {
 
 			var payload map[string]string
 			require.NoError(t, json.Unmarshal(overflow.body, &payload))
-			assert.Equal(t, tc.wantMessage, payload["error"])
+			assert.Equal(t, "too many requests, please try again later", payload["error"])
 
 			retryAfter, err := strconv.Atoi(overflow.retryAfter)
 			require.NoError(t, err)
 			assert.Positive(t, retryAfter)
-			assert.LessOrEqual(t, retryAfter, int(tc.window/time.Second))
+			assert.LessOrEqual(t, retryAfter, int(tc.budget.TTL/time.Second))
 		})
 	}
 }
@@ -124,13 +127,13 @@ func TestRateLimitByClientIP_KeysOnResolvedClientIP(t *testing.T) {
 				ctx.SetLocal("client_ip", tc.ipForCall(call))
 				return ctx.Next()
 			})
-			app.Post("/limited", newTestRateLimiter().Limit(MailAttempts, ByClientIP), func(ctx fiber.Ctx) error {
+			app.Post("/limited", newTestRateLimiter().Limit(testBudget, testLimit, ByClientIP), func(ctx fiber.Ctx) error {
 				return ctx.JSON(fiber.Map{"status": "ok"})
 			})
 
 			// when
 			var lastStatus int
-			for range MailAttemptsPerHour + 1 {
+			for range testLimit + 1 {
 				lastStatus = postLimited(t, app, "/limited").status
 			}
 
@@ -169,13 +172,13 @@ func TestRateLimitByAccount_KeysOnBodyFieldNotIP(t *testing.T) {
 				ctx.SetLocal("client_ip", tc.ipFor(call))
 				return ctx.Next()
 			})
-			app.Post("/limited", newTestRateLimiter().Limit(CredentialAttempts, ByAccount("username")), func(ctx fiber.Ctx) error {
+			app.Post("/limited", newTestRateLimiter().Limit(testBudget, testLimit, ByAccount("username")), func(ctx fiber.Ctx) error {
 				return ctx.JSON(fiber.Map{"status": "ok"})
 			})
 
 			// when
 			var lastStatus int
-			for call = 0; call <= CredentialAttemptsPerMinute; call++ {
+			for call = 0; call <= testLimit; call++ {
 				req := httptest.NewRequest("POST", "/limited", strings.NewReader(tc.bodyFor(call)))
 				req.Header.Set("Content-Type", "application/json")
 				resp, err := app.Test(req)
@@ -190,37 +193,36 @@ func TestRateLimitByAccount_KeysOnBodyFieldNotIP(t *testing.T) {
 	}
 }
 
-func TestRateLimit_RouteScope(t *testing.T) {
+func TestRateLimit_OneBudgetPerNamespace(t *testing.T) {
 	cases := []struct {
-		name       string
-		policy     RateLimitPolicy
-		subject    RateLimitSubject
-		wantStatus int
+		name         string
+		secondBudget cache.Namespace
+		wantStatus   int
 	}{
-		{"a per route policy gives every route its own budget", CredentialAttempts, ByClientIP, http.StatusOK},
-		{"a shared policy spends one budget across routes", ChatSends, ByUser, http.StatusTooManyRequests},
+		{"routes on different budgets keep separate counts", otherBudget, http.StatusOK},
+		{"routes on the same budget spend one count", testBudget, http.StatusTooManyRequests},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			userID := uuid.New()
-			limit := newTestRateLimiter().Limit(tc.policy, tc.subject)
+			limiter := newTestRateLimiter()
 
 			app := fiber.New()
 			app.Use(func(ctx fiber.Ctx) error {
-				ctx.SetLocal("client_ip", "203.0.113.7")
 				ctx.SetLocal("userID", userID)
 				return ctx.Next()
 			})
-			for _, path := range []string{"/first", "/second"} {
-				app.Post(path, limit, func(ctx fiber.Ctx) error {
-					return ctx.JSON(fiber.Map{"status": "ok"})
-				})
-			}
+			app.Post("/first", limiter.Limit(testBudget, testLimit, ByUser), func(ctx fiber.Ctx) error {
+				return ctx.JSON(fiber.Map{"status": "ok"})
+			})
+			app.Post("/second", limiter.Limit(tc.secondBudget, testLimit, ByUser), func(ctx fiber.Ctx) error {
+				return ctx.JSON(fiber.Map{"status": "ok"})
+			})
 
 			// when
-			for range tc.policy.Limit {
+			for range testLimit {
 				require.Equal(t, http.StatusOK, postLimited(t, app, "/first").status)
 			}
 			got := postLimited(t, app, "/second")
@@ -235,7 +237,7 @@ func TestRateLimitByUser_RefusesToRunWithoutAUser(t *testing.T) {
 	// given
 	reached := false
 	app := fiber.New()
-	app.Post("/limited", newTestRateLimiter().Limit(ChatSends, ByUser), func(ctx fiber.Ctx) error {
+	app.Post("/limited", newTestRateLimiter().Limit(testBudget, testLimit, ByUser), func(ctx fiber.Ctx) error {
 		reached = true
 		return ctx.JSON(fiber.Map{"status": "ok"})
 	})
@@ -279,11 +281,11 @@ func TestRateLimit_FailsOpenWhenTheStoreFails(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			app := limitedApp(NewRateLimiter(tc.manager(t)).Limit(MailAttempts, ByClientIP))
+			app := limitedApp(NewRateLimiter(tc.manager(t)).Limit(testBudget, testLimit, ByClientIP))
 
 			// when
-			allowedStatuses := make([]int, 0, MailAttemptsPerHour+1)
-			for range MailAttemptsPerHour + 1 {
+			allowedStatuses := make([]int, 0, testLimit+1)
+			for range testLimit + 1 {
 				allowedStatuses = append(allowedStatuses, postLimited(t, app, "/limited").status)
 			}
 			overflow := postLimited(t, app, "/limited")

@@ -137,7 +137,7 @@ func (r *Resolver) resolveMeta(ctx context.Context, path, partyID string) *Meta 
 		return r.metaForPath(ctx, path, partyID), nil
 	}
 
-	meta, _ := r.cache.Load(ctx, cache.OGMeta, load, metaKeyParts(path, partyID)...)
+	meta, _ := r.cache.Load(ctx, cache.OGMeta.Key(metaKeyParts(path, partyID)...), load)
 
 	return meta
 }

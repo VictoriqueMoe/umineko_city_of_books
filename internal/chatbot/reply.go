@@ -20,7 +20,6 @@ import (
 func (s *service) run(id int, j job) {
 	ctx, cancel := context.WithTimeout(context.Background(), jobTimeout)
 	defer cancel()
-	defer s.releaseScope(context.WithoutCancel(ctx), j)
 
 	tune, _ := s.snapshot()
 

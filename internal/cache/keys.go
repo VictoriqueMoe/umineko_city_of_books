@@ -10,6 +10,11 @@ type (
 		Prefix string
 		TTL    time.Duration
 	}
+
+	Key struct {
+		name string
+		ttl  time.Duration
+	}
 )
 
 const (
@@ -38,6 +43,7 @@ var (
 	CrawlerRanges = Namespace{Prefix: "dronebl:crawler-ranges", TTL: noExpiry}
 
 	UserRole = Namespace{Prefix: "role:", TTL: noExpiry}
+	UserIP   = Namespace{Prefix: "user:ip:", TTL: noExpiry}
 
 	Setting = Namespace{Prefix: "setting:", TTL: noExpiry}
 
@@ -64,30 +70,41 @@ var (
 	ChatbotBasePromptByID = Namespace{Prefix: "chatbot:base-prompt:", TTL: noExpiry}
 	ChatbotSummonCooldown = Namespace{Prefix: "chatbot:summon-cooldown:"}
 	ChatbotRefusalNotice  = Namespace{Prefix: "chatbot:refusal-notice:", TTL: 10 * minute}
-	ChatbotScopeLease     = Namespace{Prefix: "chatbot:scope-lease:"}
 
 	SecretHolders = Namespace{Prefix: "secret:holders:", TTL: noExpiry}
 	SecretSolved  = Namespace{Prefix: "secret:solved:", TTL: noExpiry}
 
-	GiphyResponse         = Namespace{Prefix: "giphy:response:", TTL: noExpiry}
+	GiphyResponse         = Namespace{Prefix: "giphy:response:", TTL: hour}
 	GiphyGifUser          = Namespace{Prefix: "giphy:gif-user:", TTL: week}
-	GiphyRateLimitedUntil = Namespace{Prefix: "giphy:rate-limited-until"}
+	GiphyRateLimitedUntil = Namespace{Prefix: "giphy:rate-limited-until", TTL: noExpiry}
 
-	OpenAIRateLimitedUntil = Namespace{Prefix: "openai:rate-limited-until"}
+	OpenAIRateLimitedUntil = Namespace{Prefix: "openai:rate-limited-until", TTL: noExpiry}
 
 	StreamThumbnailSlot = Namespace{Prefix: "stream:thumbnail-slot:", TTL: 20 * time.Second}
 
-	RateLimitCredentials            = Namespace{Prefix: "ratelimit:credentials:", TTL: minute}
-	RateLimitMail                   = Namespace{Prefix: "ratelimit:mail:", TTL: hour}
+	RateLimitRegister               = Namespace{Prefix: "ratelimit:register:", TTL: minute}
+	RateLimitLogin                  = Namespace{Prefix: "ratelimit:login:", TTL: minute}
+	RateLimitResetPassword          = Namespace{Prefix: "ratelimit:reset-password:", TTL: minute}
+	RateLimitForgotPassword         = Namespace{Prefix: "ratelimit:forgot-password:", TTL: hour}
+	RateLimitSetEmail               = Namespace{Prefix: "ratelimit:set-email:", TTL: hour}
+	RateLimitResendVerification     = Namespace{Prefix: "ratelimit:resend-verification:", TTL: hour}
 	RateLimitChatSend               = Namespace{Prefix: "ratelimit:chat-send:", TTL: 5 * time.Second}
 	RateLimitLinkPreview            = Namespace{Prefix: "ratelimit:link-preview:", TTL: minute}
 	RateLimitStreamViewerToken      = Namespace{Prefix: "ratelimit:stream-viewer-token:", TTL: minute}
 	RateLimitStreamThumbnail        = Namespace{Prefix: "ratelimit:stream-thumbnail:", TTL: minute}
 	RateLimitStreamCredentialsReset = Namespace{Prefix: "ratelimit:stream-credentials-reset:", TTL: minute}
-
-	LastSeenIP = Namespace{Prefix: "last-seen-ip:", TTL: hour}
 )
 
-func (n Namespace) Key(parts ...string) string {
-	return n.Prefix + strings.Join(parts, ":")
+func (n Namespace) Key(parts ...string) Key {
+	return Key{name: n.Prefix + strings.Join(parts, ":"), ttl: n.TTL}
+}
+
+func (k Key) String() string {
+	return k.name
+}
+
+func (k Key) WithTTL(ttl time.Duration) Key {
+	k.ttl = ttl
+
+	return k
 }

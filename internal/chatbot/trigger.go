@@ -12,16 +12,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type (
-	claimResult int
-)
-
-const (
-	claimGranted claimResult = iota
-	claimRefused
-	claimUnchecked
-)
-
 func (s *service) observe(ev botEvent) {
 	tune, bots := s.snapshot()
 	if !tune.enabled || len(bots) == 0 || s.closing.Load() {
@@ -47,20 +37,10 @@ func (s *service) observe(ev botEvent) {
 		return
 	}
 
-	lease := s.claim(ctx, purposeScopeLease, ev.scopeKey(), ev.ItemID.String(), scopeLeaseTTL)
-	if lease == claimRefused {
-		droppedTotal.WithLabelValues(string(reasonRoomInflight), string(stagePreTrigger), string(ev.channel())).Inc()
-
-		return
-	}
-
-	j := job{ev: ev, bot: bot, useChain: useChain(ev, threaded), leased: lease == claimGranted}
-
 	select {
-	case s.jobs <- j:
+	case s.jobs <- job{ev: ev, bot: bot, useChain: useChain(ev, threaded)}:
 		queueDepth.Set(float64(len(s.jobs)))
 	default:
-		s.releaseScope(ctx, j)
 		droppedTotal.WithLabelValues(string(reasonQueueFull), string(stagePreTrigger), string(ev.channel())).Inc()
 		silentTotal.WithLabelValues(string(reasonQueueFull), string(stagePreTrigger)).Inc()
 	}
@@ -119,38 +99,24 @@ func (s *service) takeCooldown(ctx context.Context, userID uuid.UUID, window tim
 
 	key := cache.ChatbotSummonCooldown.Key(userID.String())
 
-	return s.claim(ctx, purposeSummonCooldown, key, time.Now().UTC().Format(time.RFC3339Nano), window) != claimRefused
+	return s.claim(ctx, purposeSummonCooldown, key, window)
 }
 
 func (s *service) takeNoticeSlot(ctx context.Context, userID uuid.UUID, reason Reason) bool {
 	key := cache.ChatbotRefusalNotice.Key(userID.String(), string(reason))
 
-	return s.claim(ctx, purposeRefusalNotice, key, time.Now().UTC().Format(time.RFC3339Nano), cache.ChatbotRefusalNotice.TTL) != claimRefused
+	return s.claim(ctx, purposeRefusalNotice, key, cache.ChatbotRefusalNotice.TTL)
 }
 
-func (s *service) claim(ctx context.Context, purpose, key, value string, ttl time.Duration) claimResult {
-	claimed, err := s.cache.SetIfAbsent(ctx, key, value, ttl)
+func (s *service) claim(ctx context.Context, purpose string, key cache.Key, window time.Duration) bool {
+	allowance, err := s.cache.Allow(ctx, key, 1, window)
 	if err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("purpose", purpose).Msg("chatbot could not reach the coordination store, letting this one through")
 
-		return claimUnchecked
+		return true
 	}
 
-	if !claimed {
-		return claimRefused
-	}
-
-	return claimGranted
-}
-
-func (s *service) releaseScope(ctx context.Context, j job) {
-	if !j.leased {
-		return
-	}
-
-	if err := s.cache.Del(ctx, j.ev.scopeKey()); err != nil {
-		logger.Ctx(ctx).Error().Err(err).Str("purpose", purposeScopeLease).Msg("chatbot could not release a scope lease, the scope stays busy until the lease expires")
-	}
+	return allowance.Allowed
 }
 
 func (s *service) notify(ev botEvent, bot model.Chatbot, out outcome) {

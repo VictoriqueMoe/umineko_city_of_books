@@ -114,5 +114,5 @@ func (r *gameRoomRepository) GetTopWinnerIDs(ctx context.Context, gameType strin
 		return r.GameRoomDAO.GetTopWinnerIDs(ctx, gameType, tx...)
 	}
 
-	return r.cache.Load(ctx, cache.GameTopWinners, load, gameType)
+	return r.cache.Load(ctx, cache.GameTopWinners.Key(gameType), load)
 }

@@ -6,8 +6,10 @@ import (
 	"net"
 	"net/netip"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/cache/engine"
 	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/settings"
@@ -97,6 +99,40 @@ func TestCheck_DNSFailureFailsOpen(t *testing.T) {
 
 	// then an unreachable blocklist must never lock the site down
 	assert.False(t, verdict.Listed)
+}
+
+func TestCheck_VerdictLifetimeDependsOnWhetherTheLookupWorked(t *testing.T) {
+	tests := []struct {
+		name      string
+		lookupErr error
+		wantTTL   time.Duration
+	}{
+		{name: "an answered lookup holds for the verdict ttl", lookupErr: notFound(), wantTTL: cache.DroneBL.TTL},
+		{name: "a failed lookup holds only briefly so the address is checked again soon", lookupErr: errors.New("server misbehaving"), wantTTL: failureTTL},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given an empty store that expects the verdict in the slot Check reads
+			key := cache.DroneBL.Key("203.0.113.9").String()
+
+			store := engine.NewMockEngine(t)
+			store.EXPECT().Enabled().Return(true).Maybe()
+			store.EXPECT().Get(mock.Anything, key).Return(nil, cache.ErrMiss).Once()
+			store.EXPECT().Set(mock.Anything, key, []byte(`{"listed":false}`), tt.wantTTL).Return(nil).Once()
+
+			resolver := NewMockResolver(t)
+			resolver.EXPECT().LookupNetIP(mock.Anything, "ip4", mock.Anything).Return(nil, tt.lookupErr).Once()
+
+			checker := New(settings.NewMockService(t), cache.NewManager(store), resolver, nil)
+
+			// when
+			verdict := checker.Check(context.Background(), "203.0.113.9")
+
+			// then the store saw the expected lifetime, which the mock enforces
+			assert.False(t, verdict.Listed)
+		})
+	}
 }
 
 func TestCheck_VerdictIsCachedSoEveryRequestIsNotALookup(t *testing.T) {

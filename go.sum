@@ -508,8 +508,8 @@ github.com/ncruces/julianday v1.0.0/go.mod h1:Dusn2KvZrrovOMJuOt0TNXL6tB7U2E8kvz
 github.com/nwaples/rardecode/v2 v2.1.0 h1:JQl9ZoBPDy+nIZGb1mx8+anfHp/LV3NE2MjMiv0ct/U=
 github.com/nwaples/rardecode/v2 v2.1.0/go.mod h1:7uz379lSxPe6j9nvzxUZ+n7mnJNgjsRNb6IbvGVHRmw=
 github.com/onsi/ginkgo v1.16.5 h1:8xi0RTUf59SOSfEtZMvwTvXYMzG4gV23XVHOZiXNtnE=
-github.com/onsi/ginkgo/v2 v2.32.1 h1:6tlvcDm/3sE8lGJbZ4+d4mO3RLy24/tQWOFzVSQNIfw=
-github.com/onsi/ginkgo/v2 v2.32.1/go.mod h1:+aXOY+vzZ5mu2iI2HpTZUPmM//oQfsNFX6gU9kNcA44=
+github.com/onsi/ginkgo/v2 v2.32.2 h1:2o6vyFvR6snrJWgRVztC+OwuqqPEMI1UzYl2s2iU7Cg=
+github.com/onsi/ginkgo/v2 v2.32.2/go.mod h1:+aXOY+vzZ5mu2iI2HpTZUPmM//oQfsNFX6gU9kNcA44=
 github.com/onsi/gomega v1.42.1 h1:iN1rCUX+44NZ1Dc97MPoeFYbFR0vh8zxoxMFwKdyZ6I=
 github.com/onsi/gomega v1.42.1/go.mod h1:REff/hsDsodHoKlWsP2mAPhu1+5/6hVYNf9rIEBpeSg=
 github.com/openai/openai-go/v3 v3.78.0 h1:KdQbpdzY5Y5O5PgnNXeE09J7MHuQuus4DiQz4W9tzyo=
@@ -710,6 +710,8 @@ github.com/valkey-io/valkey-go/mock v1.0.79 h1:6oWOiUyoIVCSlt0KjaOvF5cEntEAW0McR
 github.com/valkey-io/valkey-go/mock v1.0.79/go.mod h1:/YYjs1rrpnWvTIi2uMtiUAUlA+YQXzf6/CZzVywRhgE=
 github.com/valkey-io/valkey-go/valkeyhook v1.0.79 h1:LELyvgwYWV66fjn1jogjy+raotlL7EtQCxU8ycB1o2U=
 github.com/valkey-io/valkey-go/valkeyhook v1.0.79/go.mod h1:cSz4tcVkfUVqsHu81w5jbn8bd+30FF/DLn5JMXBk1lM=
+github.com/valkey-io/valkey-go/valkeylimiter v1.0.79 h1:5GSi3NebClGKQbugDaj+Mb2Hdsqw9yceYs0SYEH0+Ck=
+github.com/valkey-io/valkey-go/valkeylimiter v1.0.79/go.mod h1:qnAhpit4OyNYaChOLj08WLlgJPIyprc5Q6QSpfk2PGA=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasthttp v1.75.0 h1:W3xrvNJHG60j2ZCjxpP8kkB+oPG8kh9/g1n4+3xUwNA=

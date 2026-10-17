@@ -33,7 +33,7 @@ func (r *blockRepository) GetBlockedIDs(ctx context.Context, userID uuid.UUID, t
 		return r.BlockDAO.GetBlockedIDs(ctx, userID, tx...)
 	}
 
-	return r.cache.Load(ctx, cache.UserBlockedIDs, load, userID.String())
+	return r.cache.Load(ctx, cache.UserBlockedIDs.Key(userID.String()), load)
 }
 
 func (r *blockRepository) Block(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx) error {
@@ -57,7 +57,7 @@ func (r *blockRepository) Unblock(ctx context.Context, s spec.BlockSpec, tx ...*
 }
 
 func (r *blockRepository) invalidateBlockedIDs(ctx context.Context, s spec.BlockSpec) {
-	keys := []string{
+	keys := []cache.Key{
 		cache.UserBlockedIDs.Key(s.BlockerID.String()),
 		cache.UserBlockedIDs.Key(s.BlockedID.String()),
 	}

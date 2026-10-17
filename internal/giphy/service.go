@@ -79,9 +79,8 @@ const (
 	rating               = "pg-13"
 	bundle               = "messaging_non_clips"
 	requestTimeout       = 10 * time.Second
-	searchTTL            = 1 * time.Hour
-	trendingTTL          = 6 * time.Hour
 	defaultRateLimitHold = 1 * time.Hour
+	trendingTTL          = 6 * time.Hour
 )
 
 func NewService(banlist Banlist, cacheMgr *cache.Manager) Service {
@@ -104,7 +103,7 @@ func (s *service) Search(ctx context.Context, q string, offset, limit int) (*Res
 	}
 	params := baseParams(s.apiKey, limit, offset)
 	params.Set("q", q)
-	return s.get(ctx, "/gifs/search", params, searchTTL)
+	return s.get(ctx, "/gifs/search", params, cache.GiphyResponse.TTL)
 }
 
 func (s *service) Trending(ctx context.Context, offset, limit int) (*Response, error) {
@@ -160,12 +159,10 @@ func (s *service) fetch(ctx context.Context, path string, params url.Values, out
 }
 
 func (s *service) get(ctx context.Context, path string, params url.Values, ttl time.Duration) (*Response, error) {
-	key := cache.GiphyResponse.Key(cacheKeyFor(path, params))
+	key := cache.GiphyResponse.Key(cacheKeyFor(path, params)).WithTTL(ttl)
 
-	if ttl > 0 {
-		if cached, err := s.cache.Get[Response](ctx, key); err == nil {
-			return &cached, nil
-		}
+	if cached, err := s.cache.Get[Response](ctx, key); err == nil {
+		return &cached, nil
 	}
 
 	var out Response
@@ -175,9 +172,7 @@ func (s *service) get(ctx context.Context, path string, params url.Values, ttl t
 
 	s.filterBannedGifs(&out)
 
-	if ttl > 0 {
-		_ = s.cache.Set(ctx, key, out, ttl)
-	}
+	_ = s.cache.Set(ctx, key, out)
 
 	return &out, nil
 }
@@ -204,7 +199,7 @@ func (s *service) UserForGif(ctx context.Context, gifID string) (string, bool) {
 
 	if err := s.fetch(ctx, "/gifs/"+gifID, params, &payload); err != nil {
 		if statusErr, ok := errors.AsType[*httpclient.StatusError](err); ok && statusErr.StatusCode == http.StatusNotFound {
-			_ = s.cache.Set(ctx, key, gifUserEntry{}, cache.GiphyGifUser.TTL)
+			_ = s.cache.Set(ctx, key, gifUserEntry{})
 		}
 
 		return "", false
@@ -215,7 +210,7 @@ func (s *service) UserForGif(ctx context.Context, gifID string) (string, bool) {
 		username = payload.Data.User.Username
 	}
 
-	_ = s.cache.Set(ctx, key, gifUserEntry{Username: username, Known: username != ""}, cache.GiphyGifUser.TTL)
+	_ = s.cache.Set(ctx, key, gifUserEntry{Username: username, Known: username != ""})
 
 	return username, username != ""
 }
@@ -239,22 +234,20 @@ func (s *service) filterBannedGifs(resp *Response) {
 }
 
 func (s *service) tripRateLimit(ctx context.Context, resetAt time.Time) time.Time {
-	inForce, err := s.cache.ExtendDeadline(ctx, cache.GiphyRateLimitedUntil.Key(), resetAt)
-	if errors.Is(err, cache.ErrDeadlinePassed) {
+	if !resetAt.After(time.Now()) {
 		return resetAt
 	}
 
+	err := s.cache.Set(ctx, cache.GiphyRateLimitedUntil.Key(), resetAt)
 	if err != nil {
 		logger.Ctx(ctx).Error().Err(err).Time("reset_at", resetAt).Msg("giphy could not record its upstream rate limit, later calls will reach giphy until it is stored")
-
-		return resetAt
 	}
 
-	return inForce
+	return resetAt
 }
 
 func (s *service) rateLimitResetAt(ctx context.Context) (time.Time, bool) {
-	resetAt, err := s.cache.GetDeadline(ctx, cache.GiphyRateLimitedUntil.Key())
+	resetAt, err := s.cache.Get[time.Time](ctx, cache.GiphyRateLimitedUntil.Key())
 	if errors.Is(err, cache.ErrMiss) {
 		return time.Time{}, false
 	}

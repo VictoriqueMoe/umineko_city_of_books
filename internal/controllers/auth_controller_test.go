@@ -525,7 +525,7 @@ func TestAuthRoutes_RateLimitByIP(t *testing.T) {
 			setup: func(deps authDeps) {
 				deps.authSvc.EXPECT().Login(mock.Anything, mock.Anything).Return(nil, "", usersvc.ErrInvalidCredentials)
 			},
-			allowed:     middleware.CredentialAttemptsPerMinute,
+			allowed:     credentialAttemptLimit,
 			wantAllowed: http.StatusUnauthorized,
 		},
 		{
@@ -535,7 +535,7 @@ func TestAuthRoutes_RateLimitByIP(t *testing.T) {
 			setup: func(deps authDeps) {
 				deps.authSvc.EXPECT().ForgotPassword(mock.Anything, "alice").Return(nil)
 			},
-			allowed:     middleware.MailAttemptsPerHour,
+			allowed:     mailAttemptLimit,
 			wantAllowed: http.StatusOK,
 		},
 	}

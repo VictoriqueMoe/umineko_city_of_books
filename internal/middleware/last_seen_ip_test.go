@@ -2,156 +2,96 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"testing/synctest"
-	"time"
 
-	"umineko_city_of_books/internal/cache"
-	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 )
 
-func newTestLastSeenIP(repo IPWriter) *LastSeenIP {
-	return NewLastSeenIP(repo, cache.NewManager(engines.NewInMemory(0)), time.Hour)
-}
+func TestLastSeenIP_Record(t *testing.T) {
+	uid := uuid.New()
 
-func TestLastSeenIP_FirstCallWrites(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		// given
-		repo := NewMockIPWriter(t)
-		uid := uuid.New()
-		repo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.1"}).Return(nil).Once()
+	cases := []struct {
+		name   string
+		userID uuid.UUID
+		ip     string
+		expect func(repo *MockIPStore)
+	}{
+		{
+			name:   "the same ip as stored writes nothing",
+			userID: uid,
+			ip:     "10.0.0.1",
+			expect: func(repo *MockIPStore) {
+				repo.EXPECT().GetIP(mock.Anything, uid).Return("10.0.0.1", nil).Once()
+			},
+		},
+		{
+			name:   "a changed ip is written",
+			userID: uid,
+			ip:     "10.0.0.2",
+			expect: func(repo *MockIPStore) {
+				repo.EXPECT().GetIP(mock.Anything, uid).Return("10.0.0.1", nil).Once()
+				repo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.2"}).Return(nil).Once()
+			},
+		},
+		{
+			name:   "a user with no ip yet gets one written",
+			userID: uid,
+			ip:     "10.0.0.1",
+			expect: func(repo *MockIPStore) {
+				repo.EXPECT().GetIP(mock.Anything, uid).Return("", nil).Once()
+				repo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.1"}).Return(nil).Once()
+			},
+		},
+		{
+			name:   "a failed read writes nothing",
+			userID: uid,
+			ip:     "10.0.0.1",
+			expect: func(repo *MockIPStore) {
+				repo.EXPECT().GetIP(mock.Anything, uid).Return("", errors.New("db down")).Once()
+			},
+		},
+		{
+			name:   "a failed write is only logged",
+			userID: uid,
+			ip:     "10.0.0.2",
+			expect: func(repo *MockIPStore) {
+				repo.EXPECT().GetIP(mock.Anything, uid).Return("10.0.0.1", nil).Once()
+				repo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.2"}).Return(errors.New("db down")).Once()
+			},
+		},
+		{
+			name:   "an anonymous request is ignored",
+			userID: uuid.Nil,
+			ip:     "10.0.0.1",
+			expect: func(*MockIPStore) {},
+		},
+		{
+			name:   "a request without an ip is ignored",
+			userID: uid,
+			ip:     "",
+			expect: func(*MockIPStore) {},
+		},
+	}
 
-		// when
-		newTestLastSeenIP(repo).Record(context.Background(), uid, "10.0.0.1")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				// given
+				repo := NewMockIPStore(t)
+				tc.expect(repo)
 
-		// then
-		synctest.Wait()
-		repo.AssertExpectations(t)
-	})
-}
+				// when
+				NewLastSeenIP(repo).Record(context.Background(), tc.userID, tc.ip)
 
-func TestLastSeenIP_SameIPWithinWindowIsSkipped(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		// given
-		repo := NewMockIPWriter(t)
-		uid := uuid.New()
-		repo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.1"}).Return(nil).Once()
-
-		r := newTestLastSeenIP(repo)
-
-		// when
-		for range 50 {
-			r.Record(context.Background(), uid, "10.0.0.1")
-		}
-
-		// then
-		synctest.Wait()
-		repo.AssertExpectations(t)
-	})
-}
-
-func TestLastSeenIP_ChangedIPWritesImmediately(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		// given
-		repo := NewMockIPWriter(t)
-		uid := uuid.New()
-		repo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.1"}).Return(nil).Once()
-		repo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.2"}).Return(nil).Once()
-
-		r := newTestLastSeenIP(repo)
-
-		// when
-		r.Record(context.Background(), uid, "10.0.0.1")
-		synctest.Wait()
-
-		r.Record(context.Background(), uid, "10.0.0.2")
-
-		// then
-		synctest.Wait()
-		repo.AssertExpectations(t)
-	})
-}
-
-func TestLastSeenIP_WindowElapsedWritesAgain(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		// given
-		repo := NewMockIPWriter(t)
-		uid := uuid.New()
-		repo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.1"}).Return(nil).Twice()
-
-		r := newTestLastSeenIP(repo)
-
-		// when
-		r.Record(context.Background(), uid, "10.0.0.1")
-		synctest.Wait()
-
-		synctest.Sleep(2 * time.Hour)
-		r.Record(context.Background(), uid, "10.0.0.1")
-
-		// then
-		synctest.Wait()
-		repo.AssertExpectations(t)
-	})
-}
-
-func TestLastSeenIP_NilUserOrEmptyIPNoOp(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		// given
-		repo := NewMockIPWriter(t)
-		r := newTestLastSeenIP(repo)
-
-		// when
-		r.Record(context.Background(), uuid.Nil, "10.0.0.1")
-		r.Record(context.Background(), uuid.New(), "")
-
-		// then
-		synctest.Wait()
-		repo.AssertExpectations(t)
-	})
-}
-
-func TestLastSeenIP_DebounceLivesInTheSharedCache(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		// given two recorders, as two processes would be, behind one cache
-		repo := NewMockIPWriter(t)
-		uid := uuid.New()
-		repo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.1"}).Return(nil).Once()
-
-		shared := cache.NewManager(engines.NewInMemory(0))
-		first := NewLastSeenIP(repo, shared, time.Hour)
-		second := NewLastSeenIP(repo, shared, time.Hour)
-
-		// when
-		first.Record(context.Background(), uid, "10.0.0.1")
-		second.Record(context.Background(), uid, "10.0.0.1")
-
-		// then
-		synctest.Wait()
-		repo.AssertExpectations(t)
-	})
-}
-
-func TestLastSeenIP_StoreFailureStillWrites(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		// given a cache with no engine to hold the debounce
-		repo := NewMockIPWriter(t)
-		uid := uuid.New()
-		repo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.1"}).Return(nil).Twice()
-
-		r := NewLastSeenIP(repo, cache.NewManager(), time.Hour)
-
-		// when
-		r.Record(context.Background(), uid, "10.0.0.1")
-		synctest.Wait()
-
-		r.Record(context.Background(), uid, "10.0.0.1")
-
-		// then it fails open and keeps the ip current rather than dropping the write
-		synctest.Wait()
-		repo.AssertExpectations(t)
-	})
+				// then
+				synctest.Wait()
+				repo.AssertExpectations(t)
+			})
+		})
+	}
 }

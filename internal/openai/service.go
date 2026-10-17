@@ -388,22 +388,20 @@ func errorBody(apiErr *sdk.Error) string {
 }
 
 func (s *service) tripRateLimit(ctx context.Context, resetAt time.Time) time.Time {
-	inForce, err := s.cache.ExtendDeadline(ctx, cache.OpenAIRateLimitedUntil.Key(), resetAt)
-	if errors.Is(err, cache.ErrDeadlinePassed) {
+	if !resetAt.After(time.Now()) {
 		return resetAt
 	}
 
+	err := s.cache.Set(ctx, cache.OpenAIRateLimitedUntil.Key(), resetAt)
 	if err != nil {
 		logger.Ctx(ctx).Error().Err(err).Time("reset_at", resetAt).Msg("openai could not record its upstream rate limit, later calls will reach openai until it is stored")
-
-		return resetAt
 	}
 
-	return inForce
+	return resetAt
 }
 
 func (s *service) rateLimitResetAt(ctx context.Context) (time.Time, bool) {
-	resetAt, err := s.cache.GetDeadline(ctx, cache.OpenAIRateLimitedUntil.Key())
+	resetAt, err := s.cache.Get[time.Time](ctx, cache.OpenAIRateLimitedUntil.Key())
 	if errors.Is(err, cache.ErrMiss) {
 		return time.Time{}, false
 	}

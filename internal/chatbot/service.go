@@ -42,14 +42,8 @@ const (
 	quotaWindow      = 24 * time.Hour
 	noticeTimeout    = 15 * time.Second
 
-	jobsAheadWorstCase = queueCap - 1 + workerCount
-	roundsBeforeStart  = (jobsAheadWorstCase + workerCount - 1) / workerCount
-	jobLifetimeMax     = jobTimeout + noticeTimeout
-	scopeLeaseTTL      = (roundsBeforeStart + 1) * jobLifetimeMax
-
 	purposeSummonCooldown = "summon cooldown"
 	purposeRefusalNotice  = "refusal notice"
-	purposeScopeLease     = "scope lease"
 )
 
 type (
@@ -81,7 +75,6 @@ type (
 		ev       botEvent
 		bot      model.Chatbot
 		useChain bool
-		leased   bool
 	}
 
 	quotaState struct {
@@ -331,7 +324,7 @@ func (s *service) Shutdown(ctx context.Context) error {
 
 		return nil
 	case <-ctx.Done():
-		abandoned := s.abandonQueued(context.WithoutCancel(ctx))
+		abandoned := s.abandonQueued()
 
 		logger.Ctx(ctx).Warn().Int("abandoned", abandoned).Msg("chatbot drain timed out")
 
@@ -339,13 +332,12 @@ func (s *service) Shutdown(ctx context.Context) error {
 	}
 }
 
-func (s *service) abandonQueued(ctx context.Context) int {
+func (s *service) abandonQueued() int {
 	abandoned := 0
 
 	for {
 		select {
-		case j := <-s.jobs:
-			s.releaseScope(ctx, j)
+		case <-s.jobs:
 			abandoned++
 		default:
 			queueDepth.Set(float64(len(s.jobs)))

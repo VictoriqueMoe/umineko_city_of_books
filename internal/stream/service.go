@@ -225,18 +225,18 @@ func (s *service) SaveThumbnail(ctx context.Context, userID, streamID uuid.UUID,
 func (s *service) claimThumbnailSlot(ctx context.Context, streamID uuid.UUID) bool {
 	key := cache.StreamThumbnailSlot.Key(streamID.String())
 
-	claimed, err := s.cache.SetIfAbsent(ctx, key, time.Now().UTC().Format(time.RFC3339Nano), cache.StreamThumbnailSlot.TTL)
+	allowance, err := s.cache.Allow(ctx, key, 1, cache.StreamThumbnailSlot.TTL)
 	if err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("stream_id", streamID.String()).Msg("could not reach the coordination store, saving this stream thumbnail unthrottled")
 
 		return true
 	}
 
-	return claimed
+	return allowance.Allowed
 }
 
 func (s *service) clearThumbnailSlot(ctx context.Context, streamID uuid.UUID) {
-	if err := s.cache.Del(ctx, cache.StreamThumbnailSlot.Key(streamID.String())); err != nil {
+	if err := s.cache.Reset(ctx, cache.StreamThumbnailSlot.Key(streamID.String())); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("stream_id", streamID.String()).Msg("could not clear the stream thumbnail slot, it lapses on its own when the throttle window ends")
 	}
 }

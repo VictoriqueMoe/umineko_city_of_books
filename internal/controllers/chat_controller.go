@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
@@ -17,6 +18,10 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
+)
+
+const (
+	chatSendLimit = 5
 )
 
 func (s *Service) getAllChatRoutes() []FSetupRoute {
@@ -82,7 +87,7 @@ func (s *Service) setupResolveDMRoute(r fiber.Router) {
 }
 
 func (s *Service) setupSendFirstDMRoute(r fiber.Router) {
-	r.Post("/chat/dm/:userID/messages", s.requireAuth(), s.requireEstablished(), s.RateLimiter.Limit(middleware.ChatSends, middleware.ByUser), s.sendFirstDM)
+	r.Post("/chat/dm/:userID/messages", s.requireAuth(), s.requireEstablished(), s.RateLimiter.Limit(cache.RateLimitChatSend, chatSendLimit, middleware.ByUser), s.sendFirstDM)
 }
 
 func (s *Service) setupCreateGroupRoomRoute(r fiber.Router) {
@@ -293,7 +298,7 @@ func (s *Service) listRooms(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupSendMessageRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/messages", s.requireAuth(), s.requireEstablished(), s.RateLimiter.Limit(middleware.ChatSends, middleware.ByUser), s.sendMessage)
+	r.Post("/chat/rooms/:roomID/messages", s.requireAuth(), s.requireEstablished(), s.RateLimiter.Limit(cache.RateLimitChatSend, chatSendLimit, middleware.ByUser), s.sendMessage)
 }
 
 func (s *Service) sendMessage(ctx fiber.Ctx) error {

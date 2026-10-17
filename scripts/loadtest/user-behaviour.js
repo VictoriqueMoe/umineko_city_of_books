@@ -430,8 +430,9 @@ export function socket() {
         }
     };
 
-    ws.onerror = () => {
+    ws.onerror = event => {
         wsErrors.add(1);
+        console.warn(`ws error (opened=${opened}): ${event.error}`);
     };
 
     ws.onclose = () => {

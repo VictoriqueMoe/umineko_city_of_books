@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/valkey-io/valkey-go"
 	"github.com/valkey-io/valkey-go/mock"
+	"github.com/valkey-io/valkey-go/valkeylimiter"
 	"go.uber.org/mock/gomock"
 )
 
@@ -23,6 +24,10 @@ func newMockValkey(t *testing.T) (*Valkey, *mock.Client) {
 	client := mock.NewClient(gomock.NewController(t))
 
 	return NewValkeyWithClient(client), client
+}
+
+func fixedWindowReply(count int64, resetAt time.Time) valkey.ValkeyResult {
+	return mock.Result(mock.ValkeyArray(mock.ValkeyInt64(count), mock.ValkeyInt64(resetAt.UnixMilli())))
 }
 
 func TestValkeyDisabledWithoutClient(t *testing.T) {
@@ -300,41 +305,41 @@ func TestValkeySetManyDisablesEngineOnFailure(t *testing.T) {
 	assert.False(t, v.Enabled())
 }
 
-func TestValkeyUnconfiguredRateStateReportsUnavailable(t *testing.T) {
+func TestValkeyUnconfiguredAllowanceReportsUnavailable(t *testing.T) {
 	// given
 	v := new(Valkey)
 	ctx := context.Background()
 
 	// when
-	_, _, incrementErr := v.IncrementWindow(ctx, "k", time.Minute)
-	claimed, claimErr := v.SetIfAbsent(ctx, "k", []byte("v"), time.Minute)
-	inForce, deadlineErr := v.ExtendDeadline(ctx, "k", time.Now().Add(time.Minute))
+	got, allowErr := v.Allow(ctx, "k", 1, time.Minute)
+	resetErr := v.Reset(ctx, "k")
 
 	// then
-	require.ErrorIs(t, incrementErr, engine.ErrUnavailable)
-	require.ErrorIs(t, claimErr, engine.ErrUnavailable)
-	require.ErrorIs(t, deadlineErr, engine.ErrUnavailable)
-	assert.False(t, claimed)
-	assert.True(t, inForce.IsZero())
+	require.ErrorIs(t, allowErr, engine.ErrUnavailable)
+	require.ErrorIs(t, resetErr, engine.ErrUnavailable)
+	assert.Zero(t, got)
 }
 
-func TestValkeyExtendDeadlineRunsTheDeadlineScript(t *testing.T) {
-	requested := time.Now().Add(time.Minute)
-	later := requested.Add(time.Hour)
-
+func TestValkeyAllowRunsTheLibraryFixedWindowOnTheCurrentClient(t *testing.T) {
 	tests := []struct {
-		name        string
-		replyMS     int64
-		wantInForce time.Time
+		name               string
+		count              int64
+		resetIn            time.Duration
+		wantAllowed        bool
+		wantRetryAfterLow  time.Duration
+		wantRetryAfterHigh time.Duration
 	}{
-		{name: "the requested deadline is stored", replyMS: requested.UnixMilli(), wantInForce: time.UnixMilli(requested.UnixMilli())},
-		{name: "a later deadline already held is kept", replyMS: later.UnixMilli(), wantInForce: time.UnixMilli(later.UnixMilli())},
+		{name: "within the budget is allowed and never reports a negative wait", count: 5, resetIn: 42 * time.Second, wantAllowed: true},
+		{name: "over the budget waits out the rest of the window", count: 6, resetIn: 42 * time.Second, wantAllowed: false, wantRetryAfterLow: 40 * time.Second, wantRetryAfterHigh: 42 * time.Second},
+		{name: "a window that has just ended still never reports a negative wait", count: 6, resetIn: -time.Second, wantAllowed: false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// given
 			v, client := newMockValkey(t)
+			before := time.Now()
+			resetAt := before.Add(tt.resetIn)
 
 			var captured []string
 
@@ -343,84 +348,35 @@ func TestValkeyExtendDeadlineRunsTheDeadlineScript(t *testing.T) {
 				DoAndReturn(func(ctx context.Context, cmd valkey.Completed) valkey.ValkeyResult {
 					captured = cmd.Commands()
 
-					return mock.Result(mock.ValkeyInt64(tt.replyMS))
+					return fixedWindowReply(tt.count, resetAt)
 				}).
 				Times(1)
 
 			// when
-			inForce, err := v.ExtendDeadline(context.Background(), "giphy:rate-limited-until", requested)
+			got, err := v.Allow(context.Background(), "ratelimit:k", 5, time.Minute)
 
-			// then the server decides which deadline is in force, so the reply is what comes back
+			// then
+			after := time.Now()
+
 			require.NoError(t, err)
-			assert.True(t, tt.wantInForce.Equal(inForce))
-			require.Len(t, captured, 5)
-			assert.Equal(t, "EVALSHA", captured[0])
-			assert.Equal(t, []string{"1", "giphy:rate-limited-until", strconv.FormatInt(requested.UnixMilli(), 10)}, captured[2:])
+			assert.Equal(t, tt.wantAllowed, got.Allowed)
+			assert.GreaterOrEqual(t, got.RetryAfter, tt.wantRetryAfterLow)
+			assert.LessOrEqual(t, got.RetryAfter, tt.wantRetryAfterHigh)
 			assert.True(t, v.Enabled())
+
+			require.Len(t, captured, 8)
+			assert.Equal(t, "EVALSHA", captured[0])
+			assert.Equal(t, []string{"2", "allowance:{ratelimit:k}", "allowance:{ratelimit:k}:ex", "1"}, captured[2:6])
+
+			windowEndMS, parseErr := strconv.ParseInt(captured[6], 10, 64)
+			require.NoError(t, parseErr)
+			assert.GreaterOrEqual(t, windowEndMS, before.Add(time.Minute).UnixMilli())
+			assert.LessOrEqual(t, windowEndMS, after.Add(time.Minute).UnixMilli())
 		})
 	}
 }
 
-func TestValkeyExtendDeadlineRejectsADeadlineThatIsNotInTheFuture(t *testing.T) {
-	// given a client that fails the test on any command
-	v, _ := newMockValkey(t)
-
-	// when
-	inForce, err := v.ExtendDeadline(context.Background(), "k", time.Now().Add(-time.Minute))
-
-	// then
-	require.ErrorIs(t, err, engine.ErrDeadlinePassed)
-	assert.True(t, inForce.IsZero())
-	assert.True(t, v.Enabled())
-}
-
-func TestValkeyExtendDeadlineRejectsAMalformedReply(t *testing.T) {
-	// given
-	v, client := newMockValkey(t)
-
-	client.EXPECT().
-		Do(gomock.Any(), gomock.Any()).
-		Return(mock.Result(mock.ValkeyString("golden"))).
-		Times(1)
-
-	// when
-	inForce, err := v.ExtendDeadline(context.Background(), "k", time.Now().Add(time.Minute))
-
-	// then a malformed answer is not an outage, so the engine stays enabled
-	require.ErrorIs(t, err, engine.ErrUnexpectedReply)
-	assert.True(t, inForce.IsZero())
-	assert.True(t, v.Enabled())
-}
-
-func TestValkeyIncrementWindowRunsTheFixedWindowScript(t *testing.T) {
-	// given
-	v, client := newMockValkey(t)
-
-	var captured []string
-
-	client.EXPECT().
-		Do(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, cmd valkey.Completed) valkey.ValkeyResult {
-			captured = cmd.Commands()
-
-			return mock.Result(mock.ValkeyArray(mock.ValkeyInt64(3), mock.ValkeyInt64(42_000)))
-		}).
-		Times(1)
-
-	// when
-	count, remaining, err := v.IncrementWindow(context.Background(), "ratelimit:k", time.Minute)
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, int64(3), count)
-	assert.Equal(t, 42*time.Second, remaining)
-	require.Len(t, captured, 5)
-	assert.Equal(t, "EVALSHA", captured[0])
-	assert.Equal(t, []string{"1", "ratelimit:k", "60000"}, captured[2:])
-	assert.True(t, v.Enabled())
-}
-
-func TestValkeyIncrementWindowLoadsTheScriptWhenTheServerHasNotSeenIt(t *testing.T) {
+func TestValkeyAllowLoadsTheScriptWhenTheServerHasNotSeenIt(t *testing.T) {
 	// given
 	v, client := newMockValkey(t)
 
@@ -435,96 +391,73 @@ func TestValkeyIncrementWindowLoadsTheScriptWhenTheServerHasNotSeenIt(t *testing
 				return mock.Result(mock.ValkeyError("NOSCRIPT No matching script"))
 			}
 
-			return mock.Result(mock.ValkeyArray(mock.ValkeyInt64(1), mock.ValkeyInt64(60_000)))
+			return fixedWindowReply(1, time.Now().Add(time.Minute))
 		}).
 		Times(2)
 
 	// when
-	count, remaining, err := v.IncrementWindow(context.Background(), "k", time.Minute)
+	got, err := v.Allow(context.Background(), "k", 1, time.Minute)
 
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, []string{"EVALSHA", "EVAL"}, sent)
-	assert.Equal(t, int64(1), count)
-	assert.Equal(t, time.Minute, remaining)
+	assert.True(t, got.Allowed)
 	assert.True(t, v.Enabled())
 }
 
-func TestValkeyIncrementWindowRejectsAMalformedReply(t *testing.T) {
+func TestValkeyResetDeletesBothLibraryKeys(t *testing.T) {
 	// given
 	v, client := newMockValkey(t)
 
 	client.EXPECT().
-		Do(gomock.Any(), gomock.Any()).
-		Return(mock.Result(mock.ValkeyArray(mock.ValkeyInt64(1)))).
+		Do(gomock.Any(), mock.Match("DEL", "allowance:{stream:thumbnail-slot:k}", "allowance:{stream:thumbnail-slot:k}:ex")).
+		Return(mock.Result(mock.ValkeyInt64(2))).
 		Times(1)
 
 	// when
-	_, _, err := v.IncrementWindow(context.Background(), "k", time.Minute)
+	err := v.Reset(context.Background(), "stream:thumbnail-slot:k")
 
 	// then
-	require.ErrorIs(t, err, engine.ErrUnexpectedReply)
+	require.NoError(t, err)
+	assert.True(t, v.Enabled())
 }
 
-func TestValkeySetIfAbsentSendsSetNXWithTTL(t *testing.T) {
+func TestValkeyAllowanceFailureDisablesTheEngine(t *testing.T) {
+	connectionRefused := errors.New("connection refused")
+
 	tests := []struct {
-		name      string
-		reply     valkey.ValkeyResult
-		wantClaim bool
-	}{
-		{name: "key was free", reply: mock.Result(mock.ValkeyString("OK")), wantClaim: true},
-		{name: "key was taken", reply: mock.Result(mock.ValkeyNil()), wantClaim: false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// given
-			v, client := newMockValkey(t)
-
-			client.EXPECT().
-				Do(gomock.Any(), mock.Match("SET", "k", "v", "NX", "PX", "60000")).
-				Return(tt.reply).
-				Times(1)
-
-			// when
-			claimed, err := v.SetIfAbsent(context.Background(), "k", []byte("v"), time.Minute)
-
-			// then a taken key is a normal answer, not an outage
-			require.NoError(t, err)
-			assert.Equal(t, tt.wantClaim, claimed)
-			assert.True(t, v.Enabled())
-		})
-	}
-}
-
-func TestValkeyRateStateFailureDisablesTheEngine(t *testing.T) {
-	tests := []struct {
-		name string
-		call func(v *Valkey) error
+		name    string
+		reply   valkey.ValkeyResult
+		call    func(v *Valkey) error
+		wantErr error
 	}{
 		{
-			name: "increment window",
+			name:  "allow on an unreachable server",
+			reply: mock.ErrorResult(connectionRefused),
 			call: func(v *Valkey) error {
-				_, _, err := v.IncrementWindow(context.Background(), "k", time.Minute)
+				_, err := v.Allow(context.Background(), "k", 1, time.Minute)
 
 				return err
 			},
+			wantErr: connectionRefused,
 		},
 		{
-			name: "set if absent",
+			name:  "allow answered with a malformed reply",
+			reply: mock.Result(mock.ValkeyArray(mock.ValkeyInt64(1))),
 			call: func(v *Valkey) error {
-				_, err := v.SetIfAbsent(context.Background(), "k", []byte("v"), time.Minute)
+				_, err := v.Allow(context.Background(), "k", 1, time.Minute)
 
 				return err
 			},
+			wantErr: valkeylimiter.ErrInvalidResponse,
 		},
 		{
-			name: "extend deadline",
+			name:  "reset on an unreachable server",
+			reply: mock.ErrorResult(connectionRefused),
 			call: func(v *Valkey) error {
-				_, err := v.ExtendDeadline(context.Background(), "k", time.Now().Add(time.Minute))
-
-				return err
+				return v.Reset(context.Background(), "k")
 			},
+			wantErr: connectionRefused,
 		},
 	}
 
@@ -532,21 +465,76 @@ func TestValkeyRateStateFailureDisablesTheEngine(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// given
 			v, client := newMockValkey(t)
-			wantErr := errors.New("connection refused")
 
 			client.EXPECT().
 				Do(gomock.Any(), gomock.Any()).
-				Return(mock.ErrorResult(wantErr)).
+				Return(tt.reply).
 				Times(1)
 
 			// when
 			err := tt.call(v)
 
 			// then
-			require.ErrorIs(t, err, wantErr)
+			require.ErrorIs(t, err, tt.wantErr)
 			assert.False(t, v.Enabled())
 		})
 	}
+}
+
+func TestValkeyRebindingRebuildsTheLimiterOnTheNewClient(t *testing.T) {
+	// given an engine bound to a client that is then swapped out
+	v, previous := newMockValkey(t)
+	next := mock.NewClient(gomock.NewController(t))
+
+	previous.EXPECT().Close().Times(1)
+
+	next.EXPECT().
+		Do(gomock.Any(), gomock.Any()).
+		Return(fixedWindowReply(1, time.Now().Add(time.Minute))).
+		Times(1)
+
+	v.mu.Lock()
+	v.unbind()
+	v.bind(next)
+	v.mu.Unlock()
+
+	// when
+	got, err := v.Allow(context.Background(), "k", 1, time.Minute)
+
+	// then the closed client sees nothing, which its mock enforces
+	require.NoError(t, err)
+	assert.True(t, got.Allowed)
+}
+
+func TestValkeyClearingURLDropsTheLimiterWithTheClient(t *testing.T) {
+	// given
+	v, client := newMockValkey(t)
+	v.url = "valkey://localhost:6379"
+
+	client.EXPECT().Close().Times(1)
+
+	// when
+	v.OnSettingChanged(config.SettingValkeyURL.Key, "")
+	_, allowErr := v.Allow(context.Background(), "k", 1, time.Minute)
+	resetErr := v.Reset(context.Background(), "k")
+
+	// then no limiter is left holding the closed client, which its mock enforces
+	require.ErrorIs(t, allowErr, engine.ErrUnavailable)
+	require.ErrorIs(t, resetErr, engine.ErrUnavailable)
+}
+
+func TestValkeyCloseNeverClosesTheSharedClientTwice(t *testing.T) {
+	// given an engine whose limiter shares its client
+	v, client := newMockValkey(t)
+
+	client.EXPECT().Close().Times(1)
+
+	// when
+	require.NoError(t, v.Close())
+
+	// then the limiter is dropped rather than closed, so the client is closed exactly once
+	_, err := v.Allow(context.Background(), "k", 1, time.Minute)
+	require.ErrorIs(t, err, engine.ErrUnavailable)
 }
 
 func TestProbeURLValidatesInput(t *testing.T) {

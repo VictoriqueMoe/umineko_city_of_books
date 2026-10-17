@@ -280,7 +280,7 @@ func (r *mysteryRepository) GetTopDetectiveIDs(ctx context.Context, tx ...*sql.T
 		return r.MysteryDAO.GetTopDetectiveIDs(ctx, tx...)
 	}
 
-	return r.cache.Load(ctx, cache.MysteryTopDetectives, load)
+	return r.cache.Load(ctx, cache.MysteryTopDetectives.Key(), load)
 }
 
 func (r *mysteryRepository) GetTopGMIDs(ctx context.Context, tx ...*sql.Tx) ([]string, error) {
@@ -288,7 +288,7 @@ func (r *mysteryRepository) GetTopGMIDs(ctx context.Context, tx ...*sql.Tx) ([]s
 		return r.MysteryDAO.GetTopGMIDs(ctx, tx...)
 	}
 
-	return r.cache.Load(ctx, cache.MysteryTopGMs, load)
+	return r.cache.Load(ctx, cache.MysteryTopGMs.Key(), load)
 }
 
 func (r *mysteryRepository) DeleteCommentWithAudit(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) ([]string, error) {

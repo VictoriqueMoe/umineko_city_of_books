@@ -3,7 +3,6 @@ package engines
 import (
 	"container/list"
 	"context"
-	"fmt"
 	"strconv"
 	"sync"
 	"time"
@@ -26,6 +25,7 @@ type (
 	inMemoryEntry struct {
 		key       string
 		data      []byte
+		hits      int64
 		expiresAt time.Time
 	}
 
@@ -96,83 +96,56 @@ func (c *InMemory) SetMany(_ context.Context, entries map[string][]byte, ttl tim
 	return nil
 }
 
-func (c *InMemory) SetIfAbsent(_ context.Context, key string, data []byte, ttl time.Duration) (bool, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if _, ok := c.lookup(key, c.now()); ok {
-		return false, nil
-	}
-
-	c.store(key, data, ttl)
-
-	return true, nil
-}
-
-func (c *InMemory) IncrementWindow(_ context.Context, key string, window time.Duration) (int64, time.Duration, error) {
+func (c *InMemory) Allow(_ context.Context, key string, limit int, window time.Duration) (engine.Allowance, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	now := c.now()
+	slot := allowanceSlot(key)
 
-	entry, ok := c.lookup(key, now)
+	entry, ok := c.lookup(slot, now)
 	if !ok {
-		c.store(key, strconv.AppendInt(nil, 1, 10), window)
+		c.storeUntil(slot, nil, now.Add(window))
+		if el, stored := c.items[slot]; stored {
+			el.Value.(*inMemoryEntry).hits = 1
+		}
 
-		return 1, window, nil
+		return allowance(1, limit, window), nil
 	}
 
-	count, err := strconv.ParseInt(string(entry.data), 10, 64)
-	if err != nil {
-		return 0, 0, fmt.Errorf("%w: %s", engine.ErrNotCounter, key)
-	}
+	entry.hits++
 
-	count++
-	next := strconv.AppendInt(nil, count, 10)
-	c.bytes += len(next) - len(entry.data)
-	entry.data = next
-
-	if entry.expiresAt.IsZero() {
-		entry.expiresAt = now.Add(window)
-	}
-
-	remaining := entry.expiresAt.Sub(now)
-
-	c.evict()
-
-	return count, remaining, nil
+	return allowance(entry.hits, limit, entry.expiresAt.Sub(now)), nil
 }
 
-func (c *InMemory) ExtendDeadline(_ context.Context, key string, deadline time.Time) (time.Time, error) {
+func (c *InMemory) Reset(_ context.Context, key string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	now := c.now()
-	if !deadline.After(now) {
-		return time.Time{}, engine.ErrDeadlinePassed
+	el, ok := c.items[allowanceSlot(key)]
+	if !ok {
+		return nil
 	}
 
-	requestedMS := deadline.UnixMilli()
+	c.drop(el)
 
-	if entry, ok := c.lookup(key, now); ok {
-		currentMS, err := strconv.ParseInt(string(entry.data), 10, 64)
-		if err == nil && currentMS >= requestedMS {
-			return time.UnixMilli(currentMS), nil
-		}
+	return nil
+}
+
+func allowance(hits int64, limit int, remaining time.Duration) engine.Allowance {
+	if hits <= int64(limit) {
+		return engine.Allowance{Allowed: true}
 	}
 
-	inForce := time.UnixMilli(requestedMS)
-	c.storeUntil(key, strconv.AppendInt(nil, requestedMS, 10), inForce)
-
-	return inForce, nil
+	return engine.Allowance{RetryAfter: max(remaining, 0)}
 }
 
 func (c *InMemory) Del(_ context.Context, keys ...string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	for i := range keys {
-		el, ok := c.items[keys[i]]
+	for _, key := range keys {
+		el, ok := c.items[key]
 		if !ok {
 			continue
 		}

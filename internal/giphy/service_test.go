@@ -285,17 +285,16 @@ func TestService_RateLimitIsSharedThroughTheCache(t *testing.T) {
 	assert.True(t, tripped.ResetAt.Equal(blocked.ResetAt))
 }
 
-func TestService_TripRateLimitNeverShortensABan(t *testing.T) {
+func TestService_TripRateLimitLatestResetWins(t *testing.T) {
 	now := time.Now()
 
 	tests := []struct {
-		name        string
-		first       time.Time
-		second      time.Time
-		wantInForce time.Time
+		name   string
+		first  time.Time
+		second time.Time
 	}{
-		{name: "a later reset extends the ban", first: now.Add(time.Minute), second: now.Add(5 * time.Minute), wantInForce: now.Add(5 * time.Minute)},
-		{name: "an earlier reset leaves the ban alone", first: now.Add(5 * time.Minute), second: now.Add(time.Minute), wantInForce: now.Add(5 * time.Minute)},
+		{name: "a later reset extends the ban", first: now.Add(time.Minute), second: now.Add(5 * time.Minute)},
+		{name: "an earlier reset replaces the ban, since competing resets differ by seconds", first: now.Add(5 * time.Minute), second: now.Add(time.Minute)},
 	}
 
 	for _, tt := range tests {
@@ -311,14 +310,31 @@ func TestService_TripRateLimitNeverShortensABan(t *testing.T) {
 			inForce := s.tripRateLimit(ctx, tt.second)
 
 			// then
-			want := time.UnixMilli(tt.wantInForce.UnixMilli())
-			assert.True(t, want.Equal(inForce))
+			assert.True(t, tt.second.Equal(inForce))
 
 			resetAt, blocked := s.rateLimitResetAt(ctx)
 			assert.True(t, blocked)
-			assert.True(t, want.Equal(resetAt))
+			assert.True(t, tt.second.Equal(resetAt))
 		})
 	}
+}
+
+func TestService_TripRateLimitIgnoresAResetThatHasPassed(t *testing.T) {
+	// given
+	s := newTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("tripping the breaker must not call giphy")
+	})
+	ctx := context.Background()
+	passed := time.Now().Add(-time.Minute)
+
+	// when
+	inForce := s.tripRateLimit(ctx, passed)
+
+	// then nothing is stored, so a passed reset never lifts a ban another call recorded
+	assert.True(t, passed.Equal(inForce))
+
+	_, blocked := s.rateLimitResetAt(ctx)
+	assert.False(t, blocked)
 }
 
 func TestService_RateLimitFailsOpenWhenTheStoreFails(t *testing.T) {
@@ -330,8 +346,8 @@ func TestService_RateLimitFailsOpenWhenTheStoreFails(t *testing.T) {
 	failing.EXPECT().Get(mock.Anything, mock.MatchedBy(func(key string) bool {
 		return strings.HasPrefix(key, cache.GiphyResponse.Prefix)
 	})).Return(nil, storeErr).Times(2)
-	failing.EXPECT().Get(mock.Anything, cache.GiphyRateLimitedUntil.Key()).Return(nil, storeErr).Times(2)
-	failing.EXPECT().ExtendDeadline(mock.Anything, cache.GiphyRateLimitedUntil.Key(), mock.Anything).Return(time.Time{}, storeErr).Times(2)
+	failing.EXPECT().Get(mock.Anything, cache.GiphyRateLimitedUntil.Key().String()).Return(nil, storeErr).Times(2)
+	failing.EXPECT().Set(mock.Anything, cache.GiphyRateLimitedUntil.Key().String(), mock.Anything, cache.GiphyRateLimitedUntil.TTL).Return(storeErr).Times(2)
 
 	var calls int
 	s := newTestServiceWithCache(t, cache.NewManager(failing), rateLimitedHandler(&calls))

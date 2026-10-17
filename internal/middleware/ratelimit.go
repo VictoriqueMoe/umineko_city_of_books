@@ -16,13 +16,6 @@ import (
 )
 
 type (
-	RateLimitPolicy struct {
-		Namespace cache.Namespace
-		Limit     int64
-		PerRoute  bool
-		Message   string
-	}
-
 	RateLimitSubject func(ctx fiber.Ctx) (string, error)
 
 	RateLimiter struct {
@@ -31,63 +24,41 @@ type (
 )
 
 const (
-	CredentialAttemptsPerMinute      = 10
-	MailAttemptsPerHour              = 5
-	ChatSendsPerWindow               = 5
-	LinkPreviewsPerMinute            = 120
-	StreamViewerTokensPerMinute      = 30
-	StreamThumbnailsPerMinute        = 6
-	StreamCredentialsResetsPerMinute = 5
-
 	maxSubjectLength    = 192
 	hashedSubjectPrefix = "sha256:"
 
-	tooManyRequestsMessage   = "too many requests, please try again later"
-	sendingTooQuicklyMessage = "You're sending messages too quickly. Wait a moment and try again."
-)
-
-var (
-	CredentialAttempts      = RateLimitPolicy{Namespace: cache.RateLimitCredentials, Limit: CredentialAttemptsPerMinute, PerRoute: true, Message: tooManyRequestsMessage}
-	MailAttempts            = RateLimitPolicy{Namespace: cache.RateLimitMail, Limit: MailAttemptsPerHour, PerRoute: true, Message: tooManyRequestsMessage}
-	ChatSends               = RateLimitPolicy{Namespace: cache.RateLimitChatSend, Limit: ChatSendsPerWindow, Message: sendingTooQuicklyMessage}
-	LinkPreviews            = RateLimitPolicy{Namespace: cache.RateLimitLinkPreview, Limit: LinkPreviewsPerMinute, PerRoute: true, Message: tooManyRequestsMessage}
-	StreamViewerTokens      = RateLimitPolicy{Namespace: cache.RateLimitStreamViewerToken, Limit: StreamViewerTokensPerMinute, PerRoute: true, Message: tooManyRequestsMessage}
-	StreamThumbnails        = RateLimitPolicy{Namespace: cache.RateLimitStreamThumbnail, Limit: StreamThumbnailsPerMinute, PerRoute: true, Message: tooManyRequestsMessage}
-	StreamCredentialsResets = RateLimitPolicy{Namespace: cache.RateLimitStreamCredentialsReset, Limit: StreamCredentialsResetsPerMinute, PerRoute: true, Message: tooManyRequestsMessage}
+	tooManyRequestsMessage = "too many requests, please try again later"
 )
 
 func NewRateLimiter(cacheManager *cache.Manager) *RateLimiter {
 	return &RateLimiter{cache: cacheManager}
 }
 
-func (l *RateLimiter) Limit(policy RateLimitPolicy, subject RateLimitSubject) fiber.Handler {
+func (l *RateLimiter) Limit(budget cache.Namespace, limit int, subject RateLimitSubject) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		who, err := subject(ctx)
 		if err != nil {
 			return err
 		}
 
-		key := policy.key(ctx, boundSubject(who))
-
-		count, remaining, err := l.cache.IncrementWindow(ctx.Context(), key, policy.Namespace.TTL)
+		allowance, err := l.cache.Allow(ctx.Context(), budget.Key(boundSubject(who)), limit, budget.TTL)
 		if err != nil {
 			logger.Ctx(ctx.Context()).Warn().
 				Err(err).
-				Str("policy", policy.Namespace.Prefix).
-				Str("route", ctx.Route().Path).
+				Str("budget", budget.Prefix).
 				Msg("rate limit store failed, letting the request through")
 
 			return ctx.Next()
 		}
 
-		if count <= policy.Limit {
+		if allowance.Allowed {
 			return ctx.Next()
 		}
 
-		ctx.Set(fiber.HeaderRetryAfter, strconv.FormatInt(retryAfterSeconds(remaining), 10))
+		ctx.Set(fiber.HeaderRetryAfter, strconv.FormatInt(retryAfterSeconds(allowance.RetryAfter), 10))
 
 		return ctx.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
-			"error": policy.Message,
+			"error": tooManyRequestsMessage,
 		})
 	}
 }
@@ -114,16 +85,6 @@ func ByUser(ctx fiber.Ctx) (string, error) {
 	}
 
 	return "user:" + userID.String(), nil
-}
-
-func (p RateLimitPolicy) key(ctx fiber.Ctx, subject string) string {
-	if !p.PerRoute {
-		return p.Namespace.Key(subject)
-	}
-
-	route := ctx.Route()
-
-	return p.Namespace.Key(route.Method, route.Path, subject)
 }
 
 func boundSubject(subject string) string {

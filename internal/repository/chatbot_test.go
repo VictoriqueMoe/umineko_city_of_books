@@ -44,22 +44,22 @@ func TestDeleteBot_InvalidatesBotUserKeys(t *testing.T) {
 			listErr: nil,
 			expected: []string{
 				"DEL",
-				cache.VanityAssignments.Key(),
-				cache.UserRole.Key(botUserID.String()),
-				cache.UserVanityRoleIDs.Key(botUserID.String()),
+				cache.VanityAssignments.Key().String(),
+				cache.UserRole.Key(botUserID.String()).String(),
+				cache.UserVanityRoleIDs.Key(botUserID.String()).String(),
 			},
 		},
 		{
 			name:     "lookup fails so only the site wide key is busted",
 			bots:     nil,
 			listErr:  errors.New("db down"),
-			expected: []string{"DEL", cache.VanityAssignments.Key()},
+			expected: []string{"DEL", cache.VanityAssignments.Key().String()},
 		},
 		{
 			name:     "bot missing from listing so only the site wide key is busted",
 			bots:     []model.Chatbot{{ID: otherID, UserID: uuid.New()}},
 			listErr:  nil,
-			expected: []string{"DEL", cache.VanityAssignments.Key()},
+			expected: []string{"DEL", cache.VanityAssignments.Key().String()},
 		},
 	}
 

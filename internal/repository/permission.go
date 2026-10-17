@@ -33,7 +33,7 @@ func (r *permissionRepository) GetRolePermissions(ctx context.Context, tx ...*sq
 		return r.PermissionDAO.GetRolePermissions(ctx, tx...)
 	}
 
-	return r.cache.Load(ctx, cache.RolePermissions, load)
+	return r.cache.Load(ctx, cache.RolePermissions.Key(), load)
 }
 
 func (r *permissionRepository) SetRolePermissions(ctx context.Context, s spec.RolePermissionsUpdate, tx ...*sql.Tx) error {
@@ -53,7 +53,7 @@ func (r *permissionRepository) GetVanityRolePermissions(ctx context.Context, tx 
 		return r.PermissionDAO.GetVanityRolePermissions(ctx, tx...)
 	}
 
-	return r.cache.Load(ctx, cache.VanityRolePermissions, load)
+	return r.cache.Load(ctx, cache.VanityRolePermissions.Key(), load)
 }
 
 func (r *permissionRepository) SetVanityRolePermissions(ctx context.Context, s spec.VanityRolePermissionsUpdate, tx ...*sql.Tx) error {
@@ -73,5 +73,5 @@ func (r *permissionRepository) GetVanityRoleIDsForUser(ctx context.Context, user
 		return r.PermissionDAO.GetVanityRoleIDsForUser(ctx, userID, tx...)
 	}
 
-	return r.cache.Load(ctx, cache.UserVanityRoleIDs, load, userID.String())
+	return r.cache.Load(ctx, cache.UserVanityRoleIDs.Key(userID.String()), load)
 }

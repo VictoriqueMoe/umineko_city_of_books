@@ -19,6 +19,11 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+var (
+	untimed = Namespace{Prefix: "untimed:"}
+	timed   = Namespace{Prefix: "timed:", TTL: time.Minute}
+)
+
 func newMockManager(t *testing.T) (*Manager, *mock.Client) {
 	t.Helper()
 
@@ -64,15 +69,15 @@ func TestSetManySendsEveryKeyInOneBatch(t *testing.T) {
 		}).
 		Times(1)
 
-	err := m.SetMany(context.Background(), map[string]string{"a": "1", "b": "2", "c": "3"}, 0)
+	err := m.SetMany(context.Background(), map[Key]string{untimed.Key("a"): "1", untimed.Key("b"): "2", untimed.Key("c"): "3"})
 	require.NoError(t, err)
 
 	slices.SortFunc(captured, slices.Compare)
 
 	assert.Equal(t, [][]string{
-		{"SET", "a", "1"},
-		{"SET", "b", "2"},
-		{"SET", "c", "3"},
+		{"SET", "untimed:a", "1"},
+		{"SET", "untimed:b", "2"},
+		{"SET", "untimed:c", "3"},
 	}, captured)
 }
 
@@ -90,10 +95,10 @@ func TestSetManyAttachesTTLAsMilliseconds(t *testing.T) {
 		}).
 		Times(1)
 
-	err := m.SetMany(context.Background(), map[string]string{"k": "v"}, time.Minute)
+	err := m.SetMany(context.Background(), map[Key]string{timed.Key("k"): "v"})
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"SET", "k", "v", "PX", "60000"}, captured)
+	assert.Equal(t, []string{"SET", "timed:k", "v", "PX", "60000"}, captured)
 }
 
 func TestSetManyOmitsTTLWhenZero(t *testing.T) {
@@ -110,11 +115,43 @@ func TestSetManyOmitsTTLWhenZero(t *testing.T) {
 		}).
 		Times(1)
 
-	err := m.SetMany(context.Background(), map[string]string{"k": "v"}, 0)
+	err := m.SetMany(context.Background(), map[Key]string{untimed.Key("k"): "v"})
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"SET", "k", "v"}, captured)
+	assert.Equal(t, []string{"SET", "untimed:k", "v"}, captured)
 	assert.NotContains(t, captured, "PX")
+}
+
+func TestSetManyWritesOneBatchPerNamespaceTTL(t *testing.T) {
+	// given
+	m, client := newMockManager(t)
+
+	var captured [][]string
+
+	client.EXPECT().
+		DoMulti(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, cmds ...valkey.Completed) []valkey.ValkeyResult {
+			for _, cmd := range cmds {
+				captured = append(captured, cmd.Commands())
+			}
+
+			return okResults(len(cmds))
+		}).
+		Times(2)
+
+	// when
+	err := m.SetMany(context.Background(), map[Key]string{untimed.Key("a"): "1", untimed.Key("b"): "2", timed.Key("c"): "3"})
+
+	// then each key is written with the ttl of its own namespace
+	require.NoError(t, err)
+
+	slices.SortFunc(captured, slices.Compare)
+
+	assert.Equal(t, [][]string{
+		{"SET", "timed:c", "3", "PX", "60000"},
+		{"SET", "untimed:a", "1"},
+		{"SET", "untimed:b", "2"},
+	}, captured)
 }
 
 func TestSetManyEncodesStructsAsJSON(t *testing.T) {
@@ -131,10 +168,10 @@ func TestSetManyEncodesStructsAsJSON(t *testing.T) {
 		}).
 		Times(1)
 
-	err := m.SetMany(context.Background(), map[string]sample{"s": {Name: "beatrice", N: 1}}, 0)
+	err := m.SetMany(context.Background(), map[Key]sample{untimed.Key("s"): {Name: "beatrice", N: 1}})
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"SET", "s", `{"name":"beatrice","n":1}`}, captured)
+	assert.Equal(t, []string{"SET", "untimed:s", `{"name":"beatrice","n":1}`}, captured)
 }
 
 func TestSetManyReturnsCommandError(t *testing.T) {
@@ -152,7 +189,7 @@ func TestSetManyReturnsCommandError(t *testing.T) {
 		}).
 		Times(1)
 
-	err := m.SetMany(context.Background(), map[string]string{"a": "1", "b": "2"}, 0)
+	err := m.SetMany(context.Background(), map[Key]string{untimed.Key("a"): "1", untimed.Key("b"): "2"})
 
 	require.ErrorIs(t, err, wantErr)
 }
@@ -162,6 +199,47 @@ func TestDelSkipsRoundTripWhenNoKeys(t *testing.T) {
 
 	err := m.Del(context.Background())
 
+	require.NoError(t, err)
+}
+
+func TestManagerSetUsesTheNamespaceTTL(t *testing.T) {
+	tests := []struct {
+		name    string
+		key     Key
+		wantKey string
+		wantTTL time.Duration
+	}{
+		{name: "a namespace without expiry", key: untimed.Key("k"), wantKey: "untimed:k", wantTTL: 0},
+		{name: "a namespace with a ttl", key: timed.Key("k"), wantKey: "timed:k", wantTTL: time.Minute},
+		{name: "a real namespace", key: OGMeta.Key("/theory/abc"), wantKey: "og:meta:/theory/abc", wantTTL: OGMeta.TTL},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			stub := newEngineMock(t, "stub", true)
+			stub.EXPECT().Set(testifymock.Anything, tt.wantKey, []byte("v"), tt.wantTTL).Return(nil).Once()
+
+			// when
+			err := NewManager(stub).Set(context.Background(), tt.key, "v")
+
+			// then the engine saw the key's own ttl, which the mock enforces
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestManagerDelAcrossNamespaces(t *testing.T) {
+	// given
+	stub := newEngineMock(t, "stub", true)
+	stub.EXPECT().Del(testifymock.Anything, []string{"untimed:a", "timed:b", "role:u1"}).Return(nil).Once()
+
+	m := NewManager(stub)
+
+	// when
+	err := m.Del(context.Background(), untimed.Key("a"), timed.Key("b"), UserRole.Key("u1"))
+
+	// then every key reaches the engine in one call, whatever its namespace ttl
 	require.NoError(t, err)
 }
 
@@ -186,12 +264,12 @@ func TestManagerPicksFirstEnabledEngine(t *testing.T) {
 				chosen = first
 			}
 
-			chosen.EXPECT().Set(testifymock.Anything, "k", []byte("v"), time.Duration(0)).Return(nil).Once()
+			chosen.EXPECT().Set(testifymock.Anything, "untimed:k", []byte("v"), time.Duration(0)).Return(nil).Once()
 
 			m := NewManager(first, second)
 
 			// when
-			err := m.Set(context.Background(), "k", "v", 0)
+			err := m.Set(context.Background(), untimed.Key("k"), "v")
 
 			// then the engine that was not chosen saw no write, which the mock enforces
 			require.NoError(t, err)
@@ -204,19 +282,20 @@ func TestManagerFailsOverWhenEngineGoesDown(t *testing.T) {
 	primary := engine.NewMockEngine(t)
 	primary.EXPECT().Enabled().Return(true).Once()
 	primary.EXPECT().Enabled().Return(false)
-	primary.EXPECT().Set(testifymock.Anything, "k", []byte("primary value"), time.Duration(0)).Return(nil).Once()
+	primary.EXPECT().Set(testifymock.Anything, "untimed:k", []byte("primary value"), time.Duration(0)).Return(nil).Once()
 
 	fallback := newEngineMock(t, "fallback", true)
-	fallback.EXPECT().Set(testifymock.Anything, "k", []byte("fallback value"), time.Duration(0)).Return(nil).Once()
-	fallback.EXPECT().Get(testifymock.Anything, "k").Return([]byte("fallback value"), nil).Once()
+	fallback.EXPECT().Set(testifymock.Anything, "untimed:k", []byte("fallback value"), time.Duration(0)).Return(nil).Once()
+	fallback.EXPECT().Get(testifymock.Anything, "untimed:k").Return([]byte("fallback value"), nil).Once()
 
 	m := NewManager(primary, fallback)
 	ctx := context.Background()
+	key := untimed.Key("k")
 
 	// when
-	require.NoError(t, m.Set(ctx, "k", "primary value", 0))
-	require.NoError(t, m.Set(ctx, "k", "fallback value", 0))
-	got, err := m.Get[string](ctx, "k")
+	require.NoError(t, m.Set(ctx, key, "primary value"))
+	require.NoError(t, m.Set(ctx, key, "fallback value"))
+	got, err := m.Get[string](ctx, key)
 
 	// then
 	require.NoError(t, err)
@@ -226,17 +305,18 @@ func TestManagerFailsOverWhenEngineGoesDown(t *testing.T) {
 func TestManagerWithoutAnyEnabledEngine(t *testing.T) {
 	// given
 	off := newEngineMock(t, "only", false)
-	off.EXPECT().Del(testifymock.Anything, []string{"k"}).Return(nil).Once()
+	off.EXPECT().Del(testifymock.Anything, []string{"untimed:k"}).Return(nil).Once()
 
 	m := NewManager(off)
 	ctx := context.Background()
+	key := untimed.Key("k")
 
 	// when
-	_, getErr := m.Get[string](ctx, "k")
-	setErr := m.Set(ctx, "k", "v", 0)
-	setManyErr := m.SetMany(ctx, map[string]string{"k": "v"}, 0)
+	_, getErr := m.Get[string](ctx, key)
+	setErr := m.Set(ctx, key, "v")
+	setManyErr := m.SetMany(ctx, map[Key]string{key: "v"})
 	pingErr := m.Ping(ctx)
-	delErr := m.Del(ctx, "k")
+	delErr := m.Del(ctx, key)
 
 	// then only the delete reaches the disabled engine
 	require.ErrorIs(t, getErr, ErrMiss)
@@ -257,7 +337,7 @@ func TestManagerDelReachesEveryEngineIncludingDisabledOnes(t *testing.T) {
 	m := NewManager(primary, fallback)
 
 	// when
-	err := m.Del(context.Background(), "role:u1")
+	err := m.Del(context.Background(), UserRole.Key("u1"))
 
 	// then
 	require.NoError(t, err)
@@ -274,7 +354,7 @@ func TestManagerDelSurfacesAnEngineFailure(t *testing.T) {
 	fallback.EXPECT().Del(testifymock.Anything, []string{"role:u1"}).Return(nil).Once()
 
 	// when
-	err := NewManager(primary, fallback).Del(context.Background(), "role:u1")
+	err := NewManager(primary, fallback).Del(context.Background(), UserRole.Key("u1"))
 
 	// then
 	require.ErrorIs(t, err, delErr)
@@ -284,17 +364,20 @@ func TestManagerNilReceiverIsSafe(t *testing.T) {
 	var m *Manager
 
 	ctx := context.Background()
+	key := untimed.Key("k")
 
 	assert.Nil(t, m.Engines())
-	require.NoError(t, m.Del(ctx, "k"))
+	require.NoError(t, m.Del(ctx, key))
 	require.NoError(t, m.Ping(ctx))
 	require.NoError(t, m.Close())
 
-	_, err := m.Get[string](ctx, "k")
+	_, err := m.Get[string](ctx, key)
 	require.ErrorIs(t, err, ErrMiss)
 
-	_, err = m.GetDeadline(ctx, "k")
-	require.ErrorIs(t, err, ErrMiss)
+	_, err = m.Allow(ctx, key, 1, time.Minute)
+	require.ErrorIs(t, err, ErrUnavailable)
+
+	require.ErrorIs(t, m.Reset(ctx, key), ErrUnavailable)
 }
 
 func TestManagerExposesEnginesInPriorityOrder(t *testing.T) {
@@ -327,8 +410,8 @@ func TestManagerCloseClosesEveryEngineAndReturnsFirstError(t *testing.T) {
 func TestManagerCountsHitsAndMisses(t *testing.T) {
 	// given
 	stub := newEngineMock(t, "stub", true)
-	stub.EXPECT().Get(testifymock.Anything, "present").Return([]byte("v"), nil).Once()
-	stub.EXPECT().Get(testifymock.Anything, "absent").Return(nil, engine.ErrMiss).Once()
+	stub.EXPECT().Get(testifymock.Anything, "untimed:present").Return([]byte("v"), nil).Once()
+	stub.EXPECT().Get(testifymock.Anything, "untimed:absent").Return(nil, engine.ErrMiss).Once()
 
 	m := NewManager(stub)
 	ctx := context.Background()
@@ -337,8 +420,8 @@ func TestManagerCountsHitsAndMisses(t *testing.T) {
 	missesBefore := testutil.ToFloat64(cacheMisses)
 
 	// when
-	got, hitErr := m.Get[string](ctx, "present")
-	_, missErr := m.Get[string](ctx, "absent")
+	got, hitErr := m.Get[string](ctx, untimed.Key("present"))
+	_, missErr := m.Get[string](ctx, untimed.Key("absent"))
 
 	// then
 	require.NoError(t, hitErr)
@@ -351,7 +434,7 @@ func TestManagerCountsHitsAndMisses(t *testing.T) {
 func TestDelDropsDependentsOfDeletedKeys(t *testing.T) {
 	tests := []struct {
 		name        string
-		key         string
+		key         Key
 		wantDropped bool
 	}{
 		{name: "top detectives", key: MysteryTopDetectives.Key(), wantDropped: true},
@@ -366,8 +449,8 @@ func TestDelDropsDependentsOfDeletedKeys(t *testing.T) {
 			ctx := context.Background()
 			m := NewManager(engines.NewInMemory(0))
 			m.Invalidates(SiteInfo, MysteryTopDetectives, GameTopWinners, Setting)
-			require.NoError(t, m.Set(ctx, SiteInfo.Key(), "cached", time.Minute))
-			require.NoError(t, m.Set(ctx, tc.key, "value", time.Minute))
+			require.NoError(t, m.Set(ctx, SiteInfo.Key(), "cached"))
+			require.NoError(t, m.Set(ctx, tc.key, "value"))
 
 			// when
 			err := m.Del(ctx, tc.key)
@@ -388,50 +471,26 @@ func TestWithDependentsAddsEachDependentOnce(t *testing.T) {
 	// given
 	m := NewManager()
 	m.Invalidates(SiteInfo, Setting, VanityAssignments)
-	keys := []string{Setting.Key("a"), Setting.Key("b"), Setting.Key("c"), VanityAssignments.Key()}
+	keys := []string{Setting.Key("a").String(), Setting.Key("b").String(), Setting.Key("c").String(), VanityAssignments.Key().String()}
 
 	// when
 	got := m.withDependents(keys)
 
 	// then
-	assert.Equal(t, append(slices.Clone(keys), SiteInfo.Key()), got)
+	assert.Equal(t, append(slices.Clone(keys), SiteInfo.Key().String()), got)
 }
 
-func TestManagerRejectsTTLsShorterThanAMillisecond(t *testing.T) {
+func TestManagerRejectsAnInvalidAllowance(t *testing.T) {
 	tests := []struct {
-		name string
-		ttl  time.Duration
+		name   string
+		limit  int
+		window time.Duration
 	}{
-		{name: "zero", ttl: 0},
-		{name: "negative", ttl: -time.Second},
-		{name: "sub millisecond", ttl: 500 * time.Microsecond},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// given an engine that fails the test on any call
-			m := NewManager(engine.NewMockEngine(t))
-			ctx := context.Background()
-
-			// when
-			_, _, incrementErr := m.IncrementWindow(ctx, "k", tt.ttl)
-			_, claimErr := m.SetIfAbsent(ctx, "k", "v", tt.ttl)
-
-			// then a zero ttl would mean forever, so it never reaches an engine
-			require.ErrorIs(t, incrementErr, ErrTTLTooShort)
-			require.ErrorIs(t, claimErr, ErrTTLTooShort)
-		})
-	}
-}
-
-func TestManagerRejectsADeadlineThatIsNotInTheFuture(t *testing.T) {
-	tests := []struct {
-		name     string
-		deadline time.Time
-	}{
-		{name: "zero time", deadline: time.Time{}},
-		{name: "in the past", deadline: time.Now().Add(-time.Minute)},
-		{name: "already now", deadline: time.Now()},
+		{name: "zero limit", limit: 0, window: time.Minute},
+		{name: "negative limit", limit: -1, window: time.Minute},
+		{name: "zero window", limit: 1, window: 0},
+		{name: "negative window", limit: 1, window: -time.Second},
+		{name: "sub millisecond window", limit: 1, window: 500 * time.Microsecond},
 	}
 
 	for _, tt := range tests {
@@ -440,16 +499,16 @@ func TestManagerRejectsADeadlineThatIsNotInTheFuture(t *testing.T) {
 			m := NewManager(engine.NewMockEngine(t))
 
 			// when
-			inForce, err := m.ExtendDeadline(context.Background(), "k", tt.deadline)
+			got, err := m.Allow(context.Background(), untimed.Key("k"), tt.limit, tt.window)
 
-			// then a deadline that has passed would hold nothing, so it never reaches an engine
-			require.ErrorIs(t, err, ErrDeadlinePassed)
-			assert.True(t, inForce.IsZero())
+			// then the valkey limiter would quietly swap in its own defaults, so it never reaches an engine
+			require.ErrorIs(t, err, ErrInvalidAllowance)
+			assert.Zero(t, got)
 		})
 	}
 }
 
-func TestManagerRateStateWithoutAnyEngine(t *testing.T) {
+func TestManagerAllowanceWithoutAnyEngine(t *testing.T) {
 	tests := []struct {
 		name    string
 		manager func(t *testing.T) *Manager
@@ -464,182 +523,109 @@ func TestManagerRateStateWithoutAnyEngine(t *testing.T) {
 			// given
 			ctx := context.Background()
 			m := tt.manager(t)
+			key := untimed.Key("k")
 
 			// when
-			_, _, incrementErr := m.IncrementWindow(ctx, "k", time.Minute)
-			claimed, claimErr := m.SetIfAbsent(ctx, "k", "v", time.Minute)
-			inForce, deadlineErr := m.ExtendDeadline(ctx, "k", time.Now().Add(time.Minute))
+			got, allowErr := m.Allow(ctx, key, 1, time.Minute)
+			resetErr := m.Reset(ctx, key)
 
 			// then
-			require.ErrorIs(t, incrementErr, ErrUnavailable)
-			require.ErrorIs(t, claimErr, ErrUnavailable)
-			require.ErrorIs(t, deadlineErr, ErrUnavailable)
-			assert.False(t, claimed)
-			assert.True(t, inForce.IsZero())
+			require.ErrorIs(t, allowErr, ErrUnavailable)
+			require.ErrorIs(t, resetErr, ErrUnavailable)
+			assert.Zero(t, got)
 		})
 	}
 }
 
-func TestManagerIncrementWindowCountsOnTheActiveEngine(t *testing.T) {
+func TestManagerAllowanceGoesToTheFirstEnabledEngine(t *testing.T) {
+	// given
+	off := newEngineMock(t, "off", false)
+
+	on := newEngineMock(t, "on", true)
+	on.EXPECT().Allow(testifymock.Anything, "untimed:k", 2, time.Minute).Return(engine.Allowance{Allowed: true}, nil).Once()
+	on.EXPECT().Reset(testifymock.Anything, "untimed:k").Return(nil).Once()
+
+	m := NewManager(off, on)
+	ctx := context.Background()
+	key := untimed.Key("k")
+
+	// when
+	got, allowErr := m.Allow(ctx, key, 2, time.Minute)
+	resetErr := m.Reset(ctx, key)
+
+	// then the disabled engine saw nothing, which the mock enforces
+	require.NoError(t, allowErr)
+	require.NoError(t, resetErr)
+	assert.True(t, got.Allowed)
+}
+
+func TestManagerAllowSpendsTheBudgetOnTheActiveEngine(t *testing.T) {
 	// given
 	m := NewManager(engines.NewInMemory(0))
 	ctx := context.Background()
+	key := RateLimitForgotPassword.Key("ip:203.0.113.7")
 
 	// when
-	counts := make([]int64, 0, 3)
+	allowed := make([]bool, 0, 3)
 	for range 3 {
-		count, remaining, err := m.IncrementWindow(ctx, RateLimitMail.Key("ip:203.0.113.7"), RateLimitMail.TTL)
+		got, err := m.Allow(ctx, key, 3, RateLimitForgotPassword.TTL)
 		require.NoError(t, err)
-		assert.Positive(t, remaining)
-		assert.LessOrEqual(t, remaining, RateLimitMail.TTL)
 
-		counts = append(counts, count)
+		allowed = append(allowed, got.Allowed)
 	}
 
+	refused, err := m.Allow(ctx, key, 3, RateLimitForgotPassword.TTL)
+
 	// then
-	assert.Equal(t, []int64{1, 2, 3}, counts)
+	require.NoError(t, err)
+	assert.Equal(t, []bool{true, true, true}, allowed)
+	assert.False(t, refused.Allowed)
+	assert.Positive(t, refused.RetryAfter)
+	assert.LessOrEqual(t, refused.RetryAfter, RateLimitForgotPassword.TTL)
 }
 
-func TestManagerSetIfAbsentClaimsOnce(t *testing.T) {
-	// given
+func TestManagerResetHandsTheAllowanceBack(t *testing.T) {
+	// given a lease that is held
 	m := NewManager(engines.NewInMemory(0))
 	ctx := context.Background()
+	lease := untimed.Key("lease")
+
+	first, err := m.Allow(ctx, lease, 1, time.Minute)
+	require.NoError(t, err)
+	require.True(t, first.Allowed)
+
+	held, err := m.Allow(ctx, lease, 1, time.Minute)
+	require.NoError(t, err)
+	require.False(t, held.Allowed)
 
 	// when
-	first, firstErr := m.SetIfAbsent(ctx, "lease", "battler", time.Minute)
-	second, secondErr := m.SetIfAbsent(ctx, "lease", "beatrice", time.Minute)
+	require.NoError(t, m.Reset(ctx, lease))
+	got, err := m.Allow(ctx, lease, 1, time.Minute)
 
 	// then
-	require.NoError(t, firstErr)
-	require.NoError(t, secondErr)
-	assert.True(t, first)
-	assert.False(t, second)
-
-	got, err := m.Get[string](ctx, "lease")
 	require.NoError(t, err)
-	assert.Equal(t, "battler", got)
+	assert.True(t, got.Allowed)
 }
 
-func TestManagerExtendDeadlineKeepsTheLatest(t *testing.T) {
-	now := time.Now()
-
-	tests := []struct {
-		name        string
-		first       time.Time
-		second      time.Time
-		wantInForce time.Time
-	}{
-		{name: "a later deadline extends", first: now.Add(time.Minute), second: now.Add(time.Hour), wantInForce: now.Add(time.Hour)},
-		{name: "an earlier deadline never overwrites a later one", first: now.Add(time.Hour), second: now.Add(time.Minute), wantInForce: now.Add(time.Hour)},
-		{name: "the same deadline holds", first: now.Add(time.Minute), second: now.Add(time.Minute), wantInForce: now.Add(time.Minute)},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// given
-			m := NewManager(engines.NewInMemory(0))
-			ctx := context.Background()
-			key := GiphyRateLimitedUntil.Key()
-
-			_, err := m.ExtendDeadline(ctx, key, tt.first)
-			require.NoError(t, err)
-
-			// when
-			inForce, err := m.ExtendDeadline(ctx, key, tt.second)
-
-			// then
-			require.NoError(t, err)
-			want := time.UnixMilli(tt.wantInForce.UnixMilli())
-			assert.True(t, want.Equal(inForce))
-
-			stored, getErr := m.GetDeadline(ctx, key)
-			require.NoError(t, getErr)
-			assert.True(t, want.Equal(stored))
-		})
-	}
-}
-
-func TestManagerGetDeadline(t *testing.T) {
-	deadline := time.Now().Add(time.Minute)
-
-	tests := []struct {
-		name    string
-		store   func(t *testing.T, m *Manager)
-		want    time.Time
-		wantErr error
-	}{
-		{
-			name:    "missing key is a miss",
-			store:   func(t *testing.T, m *Manager) {},
-			wantErr: ErrMiss,
-		},
-		{
-			name: "a stored deadline is read back",
-			store: func(t *testing.T, m *Manager) {
-				_, err := m.ExtendDeadline(context.Background(), "k", deadline)
-				require.NoError(t, err)
-			},
-			want: time.UnixMilli(deadline.UnixMilli()),
-		},
-		{
-			name: "a value that is not a deadline is refused",
-			store: func(t *testing.T, m *Manager) {
-				require.NoError(t, m.Set(context.Background(), "k", "golden", time.Minute))
-			},
-			wantErr: ErrNotDeadline,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// given
-			m := NewManager(engines.NewInMemory(0))
-			ctx := context.Background()
-			tt.store(t, m)
-
-			// when
-			got, err := m.GetDeadline(ctx, "k")
-
-			// then
-			if tt.wantErr != nil {
-				require.ErrorIs(t, err, tt.wantErr)
-
-				return
-			}
-
-			require.NoError(t, err)
-			assert.True(t, tt.want.Equal(got))
-		})
-	}
-}
-
-func TestManagerRateStateFallsBackAfterValkeyFails(t *testing.T) {
+func TestManagerAllowanceFallsBackAfterValkeyFails(t *testing.T) {
 	tests := []struct {
 		name string
 		call func(m *Manager) (bool, error)
 	}{
 		{
-			name: "increment window",
+			name: "allow",
 			call: func(m *Manager) (bool, error) {
-				count, _, err := m.IncrementWindow(context.Background(), "k", time.Minute)
+				got, err := m.Allow(context.Background(), untimed.Key("k"), 1, time.Minute)
 
-				return count == 1, err
+				return got.Allowed, err
 			},
 		},
 		{
-			name: "set if absent",
+			name: "reset",
 			call: func(m *Manager) (bool, error) {
-				return m.SetIfAbsent(context.Background(), "k", "v", time.Minute)
-			},
-		},
-		{
-			name: "extend deadline",
-			call: func(m *Manager) (bool, error) {
-				deadline := time.Now().Add(time.Minute)
+				err := m.Reset(context.Background(), untimed.Key("k"))
 
-				inForce, err := m.ExtendDeadline(context.Background(), "k", deadline)
-
-				return inForce.Equal(time.UnixMilli(deadline.UnixMilli())), err
+				return err == nil, err
 			},
 		},
 	}
@@ -673,7 +659,7 @@ func TestWithDependentsLeavesUnrelatedKeysAlone(t *testing.T) {
 	// given
 	m := NewManager()
 	m.Invalidates(SiteInfo, Setting)
-	keys := []string{OGMeta.Key("page")}
+	keys := []string{OGMeta.Key("page").String()}
 
 	// when
 	got := m.withDependents(keys)

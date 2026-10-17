@@ -228,7 +228,7 @@ func TestStreamRoutes_RateLimitByClientIP(t *testing.T) {
 	}{
 		{
 			name:   "an anonymous viewer token mint",
-			budget: middleware.StreamViewerTokensPerMinute,
+			budget: streamViewerTokenLimit,
 			setup: func(_ *testutil.Harness, deps streamDeps, budget int) {
 				deps.stream.EXPECT().MintViewerToken(mock.Anything, streamID, (*dto.StreamViewer)(nil)).
 					Return("token", "wss://livekit.example", nil).
@@ -240,7 +240,7 @@ func TestStreamRoutes_RateLimitByClientIP(t *testing.T) {
 		},
 		{
 			name:   "a thumbnail upload",
-			budget: middleware.StreamThumbnailsPerMinute,
+			budget: streamThumbnailLimit,
 			setup: func(h *testutil.Harness, deps streamDeps, budget int) {
 				h.ExpectValidSession("valid-cookie", userID)
 				deps.stream.EXPECT().SaveThumbnail(mock.Anything, userID, streamID, int64(len("payload")), mock.Anything).
@@ -255,7 +255,7 @@ func TestStreamRoutes_RateLimitByClientIP(t *testing.T) {
 		},
 		{
 			name:   "a stream credentials reset",
-			budget: middleware.StreamCredentialsResetsPerMinute,
+			budget: streamCredentialsResetLimit,
 			setup: func(h *testutil.Harness, deps streamDeps, budget int) {
 				h.ExpectValidSession("valid-cookie", userID)
 				deps.users.EXPECT().GetByID(mock.Anything, userID).

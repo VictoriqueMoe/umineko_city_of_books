@@ -3,9 +3,7 @@ package middleware
 import (
 	"context"
 	"database/sql"
-	"time"
 
-	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model/spec"
 
@@ -14,19 +12,18 @@ import (
 )
 
 type (
-	IPWriter interface {
+	IPStore interface {
+		GetIP(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (string, error)
 		UpdateIP(ctx context.Context, s spec.UserIPUpdate, tx ...*sql.Tx) error
 	}
 
 	LastSeenIP struct {
-		repo     IPWriter
-		cache    *cache.Manager
-		debounce time.Duration
+		repo IPStore
 	}
 )
 
-func NewLastSeenIP(repo IPWriter, cacheManager *cache.Manager, debounce time.Duration) *LastSeenIP {
-	return &LastSeenIP{repo: repo, cache: cacheManager, debounce: debounce}
+func NewLastSeenIP(repo IPStore) *LastSeenIP {
+	return &LastSeenIP{repo: repo}
 }
 
 func (l *LastSeenIP) Record(ctx context.Context, userID uuid.UUID, ip string) {
@@ -34,20 +31,21 @@ func (l *LastSeenIP) Record(ctx context.Context, userID uuid.UUID, ip string) {
 		return
 	}
 
-	claimed, err := l.cache.SetIfAbsent(ctx, cache.LastSeenIP.Key(userID.String(), ip), ip, l.debounce)
-	if err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Str("user_id", userID.String()).Msg("last seen ip debounce store failed, writing the ip anyway")
-	}
-
-	if err == nil && !claimed {
-		return
-	}
-
-	writeCtx := context.WithoutCancel(ctx)
+	recordCtx := context.WithoutCancel(ctx)
 	go func() {
-		err := l.repo.UpdateIP(writeCtx, spec.UserIPUpdate{UserID: userID, IP: ip})
+		current, err := l.repo.GetIP(recordCtx, userID)
 		if err != nil {
-			logger.Ctx(writeCtx).Warn().Err(err).Str("user_id", userID.String()).Msg("update last seen ip failed")
+			logger.Ctx(recordCtx).Warn().Err(err).Str("user_id", userID.String()).Msg("read last seen ip failed")
+			return
+		}
+
+		if current == ip {
+			return
+		}
+
+		err = l.repo.UpdateIP(recordCtx, spec.UserIPUpdate{UserID: userID, IP: ip})
+		if err != nil {
+			logger.Ctx(recordCtx).Warn().Err(err).Str("user_id", userID.String()).Msg("update last seen ip failed")
 		}
 	}()
 }

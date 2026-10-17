@@ -12,11 +12,15 @@ type (
 		Get(ctx context.Context, key string) ([]byte, error)
 		Set(ctx context.Context, key string, data []byte, ttl time.Duration) error
 		SetMany(ctx context.Context, entries map[string][]byte, ttl time.Duration) error
-		SetIfAbsent(ctx context.Context, key string, data []byte, ttl time.Duration) (bool, error)
-		IncrementWindow(ctx context.Context, key string, window time.Duration) (int64, time.Duration, error)
-		ExtendDeadline(ctx context.Context, key string, deadline time.Time) (time.Time, error)
+		Allow(ctx context.Context, key string, limit int, window time.Duration) (Allowance, error)
+		Reset(ctx context.Context, key string) error
 		Del(ctx context.Context, keys ...string) error
 		Ping(ctx context.Context) error
 		Close() error
+	}
+
+	Allowance struct {
+		Allowed    bool
+		RetryAfter time.Duration
 	}
 )

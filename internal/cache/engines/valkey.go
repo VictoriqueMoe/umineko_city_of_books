@@ -3,7 +3,6 @@ package engines
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -16,45 +15,29 @@ import (
 
 	"github.com/valkey-io/valkey-go"
 	"github.com/valkey-io/valkey-go/valkeyhook"
+	"github.com/valkey-io/valkey-go/valkeylimiter"
 )
 
 const (
 	probeTimeout = 5 * time.Second
 
 	recoveryInterval = 30 * time.Second
+
+	defaultAllowanceLimit  = 1
+	defaultAllowanceWindow = time.Second
 )
 
 type (
 	Valkey struct {
-		mu     sync.RWMutex
-		client valkey.Client
-		url    string
+		mu         sync.RWMutex
+		client     valkey.Client
+		limiter    valkeylimiter.RateLimiterClient
+		limiterErr error
+		url        string
 
 		healthy atomic.Bool
 		downAt  atomic.Int64
 	}
-)
-
-var (
-	fixedWindowScript = valkey.NewLuaScript(`
-local count = redis.call('INCR', KEYS[1])
-local remaining = redis.call('PTTL', KEYS[1])
-if remaining < 0 then
-	redis.call('PEXPIRE', KEYS[1], ARGV[1])
-	remaining = tonumber(ARGV[1])
-end
-return {count, remaining}
-`)
-
-	extendDeadlineScript = valkey.NewLuaScript(`
-local requested = tonumber(ARGV[1])
-local current = tonumber(redis.call('GET', KEYS[1]) or '')
-if current and current >= requested then
-	return current
-end
-redis.call('SET', KEYS[1], ARGV[1], 'PXAT', ARGV[1])
-return requested
-`)
 )
 
 func NewValkey() *Valkey {
@@ -65,7 +48,8 @@ func NewValkey() *Valkey {
 }
 
 func NewValkeyWithClient(client valkey.Client) *Valkey {
-	v := &Valkey{client: client}
+	v := new(Valkey)
+	v.bind(client)
 	v.healthy.Store(true)
 
 	return v
@@ -233,69 +217,27 @@ func (v *Valkey) SetMany(ctx context.Context, entries map[string][]byte, ttl tim
 	return v.observe(nil)
 }
 
-func (v *Valkey) SetIfAbsent(ctx context.Context, key string, data []byte, ttl time.Duration) (bool, error) {
-	client := v.current()
-	if client == nil {
-		return false, engine.ErrUnavailable
-	}
-
-	cmd := client.B().Set().Key(key).Value(valkey.BinaryString(data)).Nx().Px(ttl).Build()
-
-	err := v.observe(client.Do(ctx, cmd).Error())
-	if valkey.IsValkeyNil(err) {
-		return false, nil
-	}
-
+func (v *Valkey) Allow(ctx context.Context, key string, limit int, window time.Duration) (engine.Allowance, error) {
+	limiter, err := v.currentLimiter()
 	if err != nil {
-		return false, err
+		return engine.Allowance{}, err
 	}
 
-	return true, nil
-}
-
-func (v *Valkey) IncrementWindow(ctx context.Context, key string, window time.Duration) (int64, time.Duration, error) {
-	client := v.current()
-	if client == nil {
-		return 0, 0, engine.ErrUnavailable
-	}
-
-	windowMS := strconv.FormatInt(max(window.Milliseconds(), 1), 10)
-
-	reply, err := fixedWindowScript.Exec(ctx, client, []string{key}, []string{windowMS}).AsIntSlice()
+	result, err := limiter.Allow(ctx, key, valkeylimiter.WithCustomRateLimit(limit, window))
 	if err := v.observe(err); err != nil {
-		return 0, 0, err
+		return engine.Allowance{}, err
 	}
 
-	if len(reply) != 2 {
-		return 0, 0, fmt.Errorf("%w: fixed window returned %d values", engine.ErrUnexpectedReply, len(reply))
-	}
-
-	return reply[0], time.Duration(reply[1]) * time.Millisecond, nil
+	return engine.Allowance{Allowed: result.Allowed, RetryAfter: max(result.RetryAfter, 0)}, nil
 }
 
-func (v *Valkey) ExtendDeadline(ctx context.Context, key string, deadline time.Time) (time.Time, error) {
-	if !deadline.After(time.Now()) {
-		return time.Time{}, engine.ErrDeadlinePassed
-	}
-
-	client := v.current()
-	if client == nil {
-		return time.Time{}, engine.ErrUnavailable
-	}
-
-	requestedMS := strconv.FormatInt(deadline.UnixMilli(), 10)
-
-	reply := extendDeadlineScript.Exec(ctx, client, []string{key}, []string{requestedMS})
-	if err := v.observe(reply.Error()); err != nil {
-		return time.Time{}, err
-	}
-
-	inForceMS, err := reply.AsInt64()
+func (v *Valkey) Reset(ctx context.Context, key string) error {
+	limiter, err := v.currentLimiter()
 	if err != nil {
-		return time.Time{}, fmt.Errorf("%w: extend deadline: %w", engine.ErrUnexpectedReply, err)
+		return err
 	}
 
-	return time.UnixMilli(inForceMS), nil
+	return v.observe(limiter.Reset(ctx, key))
 }
 
 func (v *Valkey) Del(ctx context.Context, keys ...string) error {
@@ -320,12 +262,7 @@ func (v *Valkey) Close() error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	if v.client == nil {
-		return nil
-	}
-
-	v.client.Close()
-	v.client = nil
+	v.unbind()
 
 	return nil
 }
@@ -344,11 +281,7 @@ func (v *Valkey) swapClient(rawURL string) (valkey.Client, error) {
 		return nil, nil
 	}
 
-	if v.client != nil {
-		v.client.Close()
-		v.client = nil
-	}
-
+	v.unbind()
 	v.url = rawURL
 
 	if rawURL == "" {
@@ -369,9 +302,49 @@ func (v *Valkey) swapClient(rawURL string) (valkey.Client, error) {
 	}
 
 	client = valkeyhook.WithHook(client, observability.NewHook())
-	v.client = client
+
+	v.bind(client)
+	if v.limiterErr != nil {
+		err := v.limiterErr
+		v.unbind()
+		v.url = ""
+
+		return nil, err
+	}
 
 	return client, nil
+}
+
+func (v *Valkey) bind(client valkey.Client) {
+	v.client = client
+	v.limiter, v.limiterErr = newLimiter(client)
+}
+
+func (v *Valkey) unbind() {
+	if v.client == nil {
+		return
+	}
+
+	v.client.Close()
+	v.client = nil
+	v.limiter = nil
+	v.limiterErr = nil
+}
+
+func newLimiter(client valkey.Client) (valkeylimiter.RateLimiterClient, error) {
+	limiter, err := valkeylimiter.NewRateLimiter(valkeylimiter.RateLimiterOption{
+		ClientBuilder: func(valkey.ClientOption) (valkey.Client, error) {
+			return client, nil
+		},
+		KeyPrefix: allowanceKeyPrefix,
+		Limit:     defaultAllowanceLimit,
+		Window:    defaultAllowanceWindow,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cache: build valkey rate limiter: %w", err)
+	}
+
+	return limiter, nil
 }
 
 func (v *Valkey) current() valkey.Client {
@@ -383,4 +356,23 @@ func (v *Valkey) current() valkey.Client {
 	defer v.mu.RUnlock()
 
 	return v.client
+}
+
+func (v *Valkey) currentLimiter() (valkeylimiter.RateLimiterClient, error) {
+	if v == nil {
+		return nil, engine.ErrUnavailable
+	}
+
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+
+	if v.client == nil {
+		return nil, engine.ErrUnavailable
+	}
+
+	if v.limiterErr != nil {
+		return nil, v.limiterErr
+	}
+
+	return v.limiter, nil
 }

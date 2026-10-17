@@ -47,6 +47,84 @@ func (_m *MockEngine) EXPECT() *MockEngine_Expecter {
 	return &MockEngine_Expecter{mock: &_m.Mock}
 }
 
+// Allow provides a mock function for the type MockEngine
+func (_mock *MockEngine) Allow(ctx context.Context, key string, limit int, window time.Duration) (Allowance, error) {
+	ret := _mock.Called(ctx, key, limit, window)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Allow")
+	}
+
+	var r0 Allowance
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, time.Duration) (Allowance, error)); ok {
+		return returnFunc(ctx, key, limit, window)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, time.Duration) Allowance); ok {
+		r0 = returnFunc(ctx, key, limit, window)
+	} else {
+		r0 = ret.Get(0).(Allowance)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int, time.Duration) error); ok {
+		r1 = returnFunc(ctx, key, limit, window)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockEngine_Allow_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Allow'
+type MockEngine_Allow_Call struct {
+	*mock.Call
+}
+
+// Allow is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+//   - limit int
+//   - window time.Duration
+func (_e *MockEngine_Expecter) Allow(ctx any, key any, limit any, window any) *MockEngine_Allow_Call {
+	return &MockEngine_Allow_Call{Call: _e.mock.On("Allow", ctx, key, limit, window)}
+}
+
+func (_c *MockEngine_Allow_Call) Run(run func(ctx context.Context, key string, limit int, window time.Duration)) *MockEngine_Allow_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		var arg3 time.Duration
+		if args[3] != nil {
+			arg3 = args[3].(time.Duration)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockEngine_Allow_Call) Return(allowance Allowance, err error) *MockEngine_Allow_Call {
+	_c.Call.Return(allowance, err)
+	return _c
+}
+
+func (_c *MockEngine_Allow_Call) RunAndReturn(run func(ctx context.Context, key string, limit int, window time.Duration) (Allowance, error)) *MockEngine_Allow_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Close provides a mock function for the type MockEngine
 func (_mock *MockEngine) Close() error {
 	ret := _mock.Called()
@@ -201,78 +279,6 @@ func (_c *MockEngine_Enabled_Call) RunAndReturn(run func() bool) *MockEngine_Ena
 	return _c
 }
 
-// ExtendDeadline provides a mock function for the type MockEngine
-func (_mock *MockEngine) ExtendDeadline(ctx context.Context, key string, deadline time.Time) (time.Time, error) {
-	ret := _mock.Called(ctx, key, deadline)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ExtendDeadline")
-	}
-
-	var r0 time.Time
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) (time.Time, error)); ok {
-		return returnFunc(ctx, key, deadline)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) time.Time); ok {
-		r0 = returnFunc(ctx, key, deadline)
-	} else {
-		r0 = ret.Get(0).(time.Time)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, time.Time) error); ok {
-		r1 = returnFunc(ctx, key, deadline)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockEngine_ExtendDeadline_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ExtendDeadline'
-type MockEngine_ExtendDeadline_Call struct {
-	*mock.Call
-}
-
-// ExtendDeadline is a helper method to define mock.On call
-//   - ctx context.Context
-//   - key string
-//   - deadline time.Time
-func (_e *MockEngine_Expecter) ExtendDeadline(ctx any, key any, deadline any) *MockEngine_ExtendDeadline_Call {
-	return &MockEngine_ExtendDeadline_Call{Call: _e.mock.On("ExtendDeadline", ctx, key, deadline)}
-}
-
-func (_c *MockEngine_ExtendDeadline_Call) Run(run func(ctx context.Context, key string, deadline time.Time)) *MockEngine_ExtendDeadline_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 time.Time
-		if args[2] != nil {
-			arg2 = args[2].(time.Time)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockEngine_ExtendDeadline_Call) Return(time1 time.Time, err error) *MockEngine_ExtendDeadline_Call {
-	_c.Call.Return(time1, err)
-	return _c
-}
-
-func (_c *MockEngine_ExtendDeadline_Call) RunAndReturn(run func(ctx context.Context, key string, deadline time.Time) (time.Time, error)) *MockEngine_ExtendDeadline_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // Get provides a mock function for the type MockEngine
 func (_mock *MockEngine) Get(ctx context.Context, key string) ([]byte, error) {
 	ret := _mock.Called(ctx, key)
@@ -337,84 +343,6 @@ func (_c *MockEngine_Get_Call) Return(bytes []byte, err error) *MockEngine_Get_C
 }
 
 func (_c *MockEngine_Get_Call) RunAndReturn(run func(ctx context.Context, key string) ([]byte, error)) *MockEngine_Get_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// IncrementWindow provides a mock function for the type MockEngine
-func (_mock *MockEngine) IncrementWindow(ctx context.Context, key string, window time.Duration) (int64, time.Duration, error) {
-	ret := _mock.Called(ctx, key, window)
-
-	if len(ret) == 0 {
-		panic("no return value specified for IncrementWindow")
-	}
-
-	var r0 int64
-	var r1 time.Duration
-	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Duration) (int64, time.Duration, error)); ok {
-		return returnFunc(ctx, key, window)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Duration) int64); ok {
-		r0 = returnFunc(ctx, key, window)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, time.Duration) time.Duration); ok {
-		r1 = returnFunc(ctx, key, window)
-	} else {
-		r1 = ret.Get(1).(time.Duration)
-	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, string, time.Duration) error); ok {
-		r2 = returnFunc(ctx, key, window)
-	} else {
-		r2 = ret.Error(2)
-	}
-	return r0, r1, r2
-}
-
-// MockEngine_IncrementWindow_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IncrementWindow'
-type MockEngine_IncrementWindow_Call struct {
-	*mock.Call
-}
-
-// IncrementWindow is a helper method to define mock.On call
-//   - ctx context.Context
-//   - key string
-//   - window time.Duration
-func (_e *MockEngine_Expecter) IncrementWindow(ctx any, key any, window any) *MockEngine_IncrementWindow_Call {
-	return &MockEngine_IncrementWindow_Call{Call: _e.mock.On("IncrementWindow", ctx, key, window)}
-}
-
-func (_c *MockEngine_IncrementWindow_Call) Run(run func(ctx context.Context, key string, window time.Duration)) *MockEngine_IncrementWindow_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 time.Duration
-		if args[2] != nil {
-			arg2 = args[2].(time.Duration)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockEngine_IncrementWindow_Call) Return(n int64, duration time.Duration, err error) *MockEngine_IncrementWindow_Call {
-	_c.Call.Return(n, duration, err)
-	return _c
-}
-
-func (_c *MockEngine_IncrementWindow_Call) RunAndReturn(run func(ctx context.Context, key string, window time.Duration) (int64, time.Duration, error)) *MockEngine_IncrementWindow_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -514,6 +442,63 @@ func (_c *MockEngine_Ping_Call) RunAndReturn(run func(ctx context.Context) error
 	return _c
 }
 
+// Reset provides a mock function for the type MockEngine
+func (_mock *MockEngine) Reset(ctx context.Context, key string) error {
+	ret := _mock.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Reset")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = returnFunc(ctx, key)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockEngine_Reset_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Reset'
+type MockEngine_Reset_Call struct {
+	*mock.Call
+}
+
+// Reset is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+func (_e *MockEngine_Expecter) Reset(ctx any, key any) *MockEngine_Reset_Call {
+	return &MockEngine_Reset_Call{Call: _e.mock.On("Reset", ctx, key)}
+}
+
+func (_c *MockEngine_Reset_Call) Run(run func(ctx context.Context, key string)) *MockEngine_Reset_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockEngine_Reset_Call) Return(err error) *MockEngine_Reset_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockEngine_Reset_Call) RunAndReturn(run func(ctx context.Context, key string) error) *MockEngine_Reset_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Set provides a mock function for the type MockEngine
 func (_mock *MockEngine) Set(ctx context.Context, key string, data []byte, ttl time.Duration) error {
 	ret := _mock.Called(ctx, key, data, ttl)
@@ -579,84 +564,6 @@ func (_c *MockEngine_Set_Call) Return(err error) *MockEngine_Set_Call {
 }
 
 func (_c *MockEngine_Set_Call) RunAndReturn(run func(ctx context.Context, key string, data []byte, ttl time.Duration) error) *MockEngine_Set_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// SetIfAbsent provides a mock function for the type MockEngine
-func (_mock *MockEngine) SetIfAbsent(ctx context.Context, key string, data []byte, ttl time.Duration) (bool, error) {
-	ret := _mock.Called(ctx, key, data, ttl)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SetIfAbsent")
-	}
-
-	var r0 bool
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []byte, time.Duration) (bool, error)); ok {
-		return returnFunc(ctx, key, data, ttl)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []byte, time.Duration) bool); ok {
-		r0 = returnFunc(ctx, key, data, ttl)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, []byte, time.Duration) error); ok {
-		r1 = returnFunc(ctx, key, data, ttl)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockEngine_SetIfAbsent_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetIfAbsent'
-type MockEngine_SetIfAbsent_Call struct {
-	*mock.Call
-}
-
-// SetIfAbsent is a helper method to define mock.On call
-//   - ctx context.Context
-//   - key string
-//   - data []byte
-//   - ttl time.Duration
-func (_e *MockEngine_Expecter) SetIfAbsent(ctx any, key any, data any, ttl any) *MockEngine_SetIfAbsent_Call {
-	return &MockEngine_SetIfAbsent_Call{Call: _e.mock.On("SetIfAbsent", ctx, key, data, ttl)}
-}
-
-func (_c *MockEngine_SetIfAbsent_Call) Run(run func(ctx context.Context, key string, data []byte, ttl time.Duration)) *MockEngine_SetIfAbsent_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 []byte
-		if args[2] != nil {
-			arg2 = args[2].([]byte)
-		}
-		var arg3 time.Duration
-		if args[3] != nil {
-			arg3 = args[3].(time.Duration)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
-	})
-	return _c
-}
-
-func (_c *MockEngine_SetIfAbsent_Call) Return(b bool, err error) *MockEngine_SetIfAbsent_Call {
-	_c.Call.Return(b, err)
-	return _c
-}
-
-func (_c *MockEngine_SetIfAbsent_Call) RunAndReturn(run func(ctx context.Context, key string, data []byte, ttl time.Duration) (bool, error)) *MockEngine_SetIfAbsent_Call {
 	_c.Call.Return(run)
 	return _c
 }

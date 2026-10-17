@@ -28,6 +28,7 @@ type (
 		UpdateAvatarURL(ctx context.Context, s spec.UserAvatarUpdate, tx ...*sql.Tx) error
 		UpdateBannerURL(ctx context.Context, s spec.UserBannerUpdate, tx ...*sql.Tx) error
 		UpdateIP(ctx context.Context, s spec.UserIPUpdate, tx ...*sql.Tx) error
+		GetIP(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (string, error)
 		UpdateGameBoardSort(ctx context.Context, s spec.UserGameBoardSortUpdate, tx ...*sql.Tx) error
 		UpdateAppearance(ctx context.Context, s spec.UserAppearanceUpdate, tx ...*sql.Tx) error
 		UpdateMysteryScoreAdjustment(ctx context.Context, s spec.UserMysteryScoreUpdate, tx ...*sql.Tx) error
@@ -404,6 +405,18 @@ func (r *userDAO) UpdateIP(ctx context.Context, s spec.UserIPUpdate, tx ...*sql.
 	}
 
 	return nil
+}
+
+func (r *userDAO) GetIP(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (string, error) {
+	ip, err := genQueries(r.db, tx).GetUserIP(ctx, userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("get ip: %w", err)
+	}
+
+	return ip, nil
 }
 
 func (r *userDAO) UpdateGameBoardSort(ctx context.Context, s spec.UserGameBoardSortUpdate, tx ...*sql.Tx) error {

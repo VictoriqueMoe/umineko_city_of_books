@@ -663,17 +663,16 @@ func TestRateLimitIsSharedAcrossEndpointsAndInstances(t *testing.T) {
 	}
 }
 
-func TestTripRateLimitNeverShortensABan(t *testing.T) {
+func TestTripRateLimitLatestResetWins(t *testing.T) {
 	now := time.Now()
 
 	cases := []struct {
-		name        string
-		first       time.Time
-		second      time.Time
-		wantInForce time.Time
+		name   string
+		first  time.Time
+		second time.Time
 	}{
-		{name: "a later reset extends the ban", first: now.Add(time.Minute), second: now.Add(5 * time.Minute), wantInForce: now.Add(5 * time.Minute)},
-		{name: "an earlier reset leaves the ban alone", first: now.Add(5 * time.Minute), second: now.Add(time.Minute), wantInForce: now.Add(5 * time.Minute)},
+		{name: "a later reset extends the ban", first: now.Add(time.Minute), second: now.Add(5 * time.Minute)},
+		{name: "an earlier reset replaces the ban, since competing resets differ by seconds", first: now.Add(5 * time.Minute), second: now.Add(time.Minute)},
 	}
 
 	for _, tc := range cases {
@@ -689,14 +688,31 @@ func TestTripRateLimitNeverShortensABan(t *testing.T) {
 			inForce := svc.tripRateLimit(ctx, tc.second)
 
 			// then
-			want := time.UnixMilli(tc.wantInForce.UnixMilli())
-			assert.True(t, want.Equal(inForce))
+			assert.True(t, tc.second.Equal(inForce))
 
 			resetAt, limited := svc.rateLimitResetAt(ctx)
 			assert.True(t, limited)
-			assert.True(t, want.Equal(resetAt))
+			assert.True(t, tc.second.Equal(resetAt))
 		})
 	}
+}
+
+func TestTripRateLimitIgnoresAResetThatHasPassed(t *testing.T) {
+	// given
+	svc := newTestService(t, testAPIKey, "", func(w http.ResponseWriter, r *http.Request) {
+		t.Error("tripping the breaker must not call openai")
+	})
+	ctx := context.Background()
+	passed := time.Now().Add(-time.Minute)
+
+	// when
+	inForce := svc.tripRateLimit(ctx, passed)
+
+	// then nothing is stored, so a passed reset never lifts a ban another call recorded
+	assert.True(t, passed.Equal(inForce))
+
+	_, limited := svc.rateLimitResetAt(ctx)
+	assert.False(t, limited)
 }
 
 func TestRateLimitFailsOpenWhenTheStoreFails(t *testing.T) {
@@ -705,8 +721,8 @@ func TestRateLimitFailsOpenWhenTheStoreFails(t *testing.T) {
 
 	failing := engine.NewMockEngine(t)
 	failing.EXPECT().Enabled().Return(true).Maybe()
-	failing.EXPECT().Get(mock.Anything, cache.OpenAIRateLimitedUntil.Key()).Return(nil, storeErr).Times(2)
-	failing.EXPECT().ExtendDeadline(mock.Anything, cache.OpenAIRateLimitedUntil.Key(), mock.Anything).Return(time.Time{}, storeErr).Times(2)
+	failing.EXPECT().Get(mock.Anything, cache.OpenAIRateLimitedUntil.Key().String()).Return(nil, storeErr).Times(2)
+	failing.EXPECT().Set(mock.Anything, cache.OpenAIRateLimitedUntil.Key().String(), mock.Anything, cache.OpenAIRateLimitedUntil.TTL).Return(storeErr).Times(2)
 
 	var calls int
 	svc := newTestServiceWithCache(t, cache.NewManager(failing), testAPIKey, "", rateLimitedHandler(&calls))

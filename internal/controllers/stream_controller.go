@@ -6,10 +6,17 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/stream"
+)
+
+const (
+	streamViewerTokenLimit      = 30
+	streamThumbnailLimit        = 6
+	streamCredentialsResetLimit = 5
 )
 
 func (s *Service) getAllStreamRoutes() []FSetupRoute {
@@ -49,7 +56,7 @@ func (s *Service) setupUpdateStreamTitleRoute(r fiber.Router) {
 }
 
 func (s *Service) setupStreamViewerTokenRoute(r fiber.Router) {
-	r.Post("/streams/:id/token", s.optionalAuth(), s.RateLimiter.Limit(middleware.StreamViewerTokens, middleware.ByClientIP), s.mintViewerToken)
+	r.Post("/streams/:id/token", s.optionalAuth(), s.RateLimiter.Limit(cache.RateLimitStreamViewerToken, streamViewerTokenLimit, middleware.ByClientIP), s.mintViewerToken)
 }
 
 func (s *Service) setupJoinStreamChatRoute(r fiber.Router) {
@@ -57,7 +64,7 @@ func (s *Service) setupJoinStreamChatRoute(r fiber.Router) {
 }
 
 func (s *Service) setupUploadStreamThumbnailRoute(r fiber.Router) {
-	r.Post("/streams/:id/thumbnail", s.requireAuth(), s.RateLimiter.Limit(middleware.StreamThumbnails, middleware.ByClientIP), s.uploadStreamThumbnail)
+	r.Post("/streams/:id/thumbnail", s.requireAuth(), s.RateLimiter.Limit(cache.RateLimitStreamThumbnail, streamThumbnailLimit, middleware.ByClientIP), s.uploadStreamThumbnail)
 }
 
 func (s *Service) setupStreamCredentialsRoute(r fiber.Router) {
@@ -65,7 +72,7 @@ func (s *Service) setupStreamCredentialsRoute(r fiber.Router) {
 }
 
 func (s *Service) setupResetStreamCredentialsRoute(r fiber.Router) {
-	r.Post("/streams/credentials/reset", s.requireAuth(), s.RateLimiter.Limit(middleware.StreamCredentialsResets, middleware.ByClientIP), s.resetStreamCredentials)
+	r.Post("/streams/credentials/reset", s.requireAuth(), s.RateLimiter.Limit(cache.RateLimitStreamCredentialsReset, streamCredentialsResetLimit, middleware.ByClientIP), s.resetStreamCredentials)
 }
 
 func (s *Service) setupGetStreamByUsernameRoute(r fiber.Router) {

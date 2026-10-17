@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/auth"
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/corner"
@@ -19,7 +20,12 @@ import (
 	"github.com/google/uuid"
 )
 
-const rulesSettingPrefix = "rules_"
+const (
+	rulesSettingPrefix = "rules_"
+
+	credentialAttemptLimit = 10
+	mailAttemptLimit       = 5
+)
 
 var rulesSettings = withCornerRules(map[string]*config.SiteSettingDef{
 	"theories":           config.SettingRulesTheories,
@@ -51,11 +57,17 @@ func (s *Service) getAllAuthRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupRegisterRoute(r fiber.Router) {
-	r.Post("/auth/register", s.RateLimiter.Limit(middleware.CredentialAttempts, middleware.ByClientIP), middleware.RequireTurnstile(s.SettingsService), s.register)
+	r.Post("/auth/register", s.RateLimiter.Limit(cache.RateLimitRegister, credentialAttemptLimit, middleware.ByClientIP), middleware.RequireTurnstile(s.SettingsService), s.register)
 }
 
 func (s *Service) setupLoginRoute(r fiber.Router) {
-	r.Post("/auth/login", s.RateLimiter.Limit(middleware.CredentialAttempts, middleware.ByClientIP), s.RateLimiter.Limit(middleware.CredentialAttempts, middleware.ByAccount("username")), middleware.RequireTurnstile(s.SettingsService), s.login)
+	r.Post(
+		"/auth/login",
+		s.RateLimiter.Limit(cache.RateLimitLogin, credentialAttemptLimit, middleware.ByClientIP),
+		s.RateLimiter.Limit(cache.RateLimitLogin, credentialAttemptLimit, middleware.ByAccount("username")),
+		middleware.RequireTurnstile(s.SettingsService),
+		s.login,
+	)
 }
 
 func (s *Service) setupLogoutRoute(r fiber.Router) {
@@ -63,15 +75,21 @@ func (s *Service) setupLogoutRoute(r fiber.Router) {
 }
 
 func (s *Service) setupForgotPasswordRoute(r fiber.Router) {
-	r.Post("/auth/forgot-password", s.RateLimiter.Limit(middleware.MailAttempts, middleware.ByClientIP), s.RateLimiter.Limit(middleware.MailAttempts, middleware.ByAccount("username")), middleware.RequireTurnstile(s.SettingsService), s.forgotPassword)
+	r.Post(
+		"/auth/forgot-password",
+		s.RateLimiter.Limit(cache.RateLimitForgotPassword, mailAttemptLimit, middleware.ByClientIP),
+		s.RateLimiter.Limit(cache.RateLimitForgotPassword, mailAttemptLimit, middleware.ByAccount("username")),
+		middleware.RequireTurnstile(s.SettingsService),
+		s.forgotPassword,
+	)
 }
 
 func (s *Service) setupResetPasswordRoute(r fiber.Router) {
-	r.Post("/auth/reset-password", s.RateLimiter.Limit(middleware.CredentialAttempts, middleware.ByClientIP), s.resetPassword)
+	r.Post("/auth/reset-password", s.RateLimiter.Limit(cache.RateLimitResetPassword, credentialAttemptLimit, middleware.ByClientIP), s.resetPassword)
 }
 
 func (s *Service) setupSetEmailRoute(r fiber.Router) {
-	r.Post("/auth/set-email", s.RateLimiter.Limit(middleware.MailAttempts, middleware.ByClientIP), s.requireAuth(), s.setEmail)
+	r.Post("/auth/set-email", s.RateLimiter.Limit(cache.RateLimitSetEmail, mailAttemptLimit, middleware.ByClientIP), s.requireAuth(), s.setEmail)
 }
 
 func (s *Service) setupVerifyEmailRoute(r fiber.Router) {
@@ -79,7 +97,7 @@ func (s *Service) setupVerifyEmailRoute(r fiber.Router) {
 }
 
 func (s *Service) setupResendVerificationRoute(r fiber.Router) {
-	r.Post("/auth/resend-verification", s.RateLimiter.Limit(middleware.MailAttempts, middleware.ByClientIP), s.requireAuth(), s.resendVerification)
+	r.Post("/auth/resend-verification", s.RateLimiter.Limit(cache.RateLimitResendVerification, mailAttemptLimit, middleware.ByClientIP), s.requireAuth(), s.resendVerification)
 }
 
 func (s *Service) setupSessionRoute(r fiber.Router) {

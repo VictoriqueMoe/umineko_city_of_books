@@ -73,7 +73,7 @@ func TestPostRepository_GetCornerCountsIsCached(t *testing.T) {
 			// then
 			require.NoError(t, err)
 			assert.Equal(t, map[string]int{"general": 4, "suggestions": 2}, got)
-			assert.Equal(t, []string{"GET", cache.PostCornerCounts.Key()}, (*commands)[0])
+			assert.Equal(t, []string{"GET", cache.PostCornerCounts.Key().String()}, (*commands)[0])
 		})
 	}
 }
@@ -133,7 +133,7 @@ func TestPostRepository_CornerCountWritersInvalidateTheCount(t *testing.T) {
 
 			// then
 			require.NoError(t, err)
-			assert.Equal(t, []string{"DEL", cache.PostCornerCounts.Key()}, commands)
+			assert.Equal(t, []string{"DEL", cache.PostCornerCounts.Key().String()}, commands)
 		})
 	}
 }

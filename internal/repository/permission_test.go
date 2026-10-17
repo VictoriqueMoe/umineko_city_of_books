@@ -28,13 +28,13 @@ func newCachedPermissionRepo(t *testing.T) (PermissionRepository, *MockPermissio
 	return NewPermissionRepo(permissionDAO, cache.NewManager(engines.NewValkeyWithClient(client))), permissionDAO, client
 }
 
-func expectDel(t *testing.T, client *valkeymock.Client, key string) *gomock.Call {
+func expectDel(t *testing.T, client *valkeymock.Client, key cache.Key) *gomock.Call {
 	t.Helper()
 
 	return client.EXPECT().
 		Do(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(ctx context.Context, cmd valkey.Completed) valkey.ValkeyResult {
-			assert.Equal(t, []string{"DEL", key}, cmd.Commands())
+			assert.Equal(t, []string{"DEL", key.String()}, cmd.Commands())
 
 			return valkeymock.Result(valkeymock.ValkeyInt64(1))
 		}).
@@ -103,7 +103,7 @@ func TestAssignToUser_InvalidatesVanityAssignmentAndUserKeys(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, []string{"DEL", cache.VanityAssignments.Key(), cache.UserVanityRoleIDs.Key(userID.String())}, commands)
+	assert.Equal(t, []string{"DEL", cache.VanityAssignments.Key().String(), cache.UserVanityRoleIDs.Key(userID.String()).String()}, commands)
 }
 
 func TestUnassignFromUser_InvalidatesVanityAssignmentAndUserKeys(t *testing.T) {
@@ -129,7 +129,7 @@ func TestUnassignFromUser_InvalidatesVanityAssignmentAndUserKeys(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, []string{"DEL", cache.VanityAssignments.Key(), cache.UserVanityRoleIDs.Key(userID.String())}, commands)
+	assert.Equal(t, []string{"DEL", cache.VanityAssignments.Key().String(), cache.UserVanityRoleIDs.Key(userID.String()).String()}, commands)
 }
 
 func TestPermissionCacheKeys_DoNotCollide(t *testing.T) {
@@ -138,7 +138,7 @@ func TestPermissionCacheKeys_DoNotCollide(t *testing.T) {
 	userB := uuid.New()
 
 	// when
-	keys := []string{
+	keys := []cache.Key{
 		cache.RolePermissions.Key(),
 		cache.VanityRolePermissions.Key(),
 		cache.UserVanityRoleIDs.Key(userA.String()),
@@ -150,9 +150,9 @@ func TestPermissionCacheKeys_DoNotCollide(t *testing.T) {
 	// then
 	seen := make(map[string]struct{}, len(keys))
 	for _, key := range keys {
-		_, dupe := seen[key]
+		_, dupe := seen[key.String()]
 		assert.False(t, dupe, "cache key %q is not unique", key)
-		seen[key] = struct{}{}
+		seen[key.String()] = struct{}{}
 	}
 }
 
@@ -182,7 +182,7 @@ func TestGetRolePermissions_CachesDaoResult(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, map[string][]string{"moderator": {"ban_user"}}, got)
 	require.Len(t, commands, 2)
-	assert.Equal(t, []string{"GET", cache.RolePermissions.Key()}, commands[0])
+	assert.Equal(t, []string{"GET", cache.RolePermissions.Key().String()}, commands[0])
 	assert.Equal(t, "SET", commands[1][0])
-	assert.Equal(t, cache.RolePermissions.Key(), commands[1][1])
+	assert.Equal(t, cache.RolePermissions.Key().String(), commands[1][1])
 }

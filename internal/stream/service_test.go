@@ -802,9 +802,9 @@ func TestHandleWebhook_BroadcasterLeftTearsDown(t *testing.T) {
 	m.repo.EXPECT().MarkOffline(mock.Anything, streamID).Return(true, nil)
 
 	slotKey := cache.StreamThumbnailSlot.Key(streamID.String())
-	claimed, claimErr := m.cache.SetIfAbsent(context.Background(), slotKey, "held", cache.StreamThumbnailSlot.TTL)
+	claimed, claimErr := m.cache.Allow(context.Background(), slotKey, 1, cache.StreamThumbnailSlot.TTL)
 	require.NoError(t, claimErr)
-	require.True(t, claimed)
+	require.True(t, claimed.Allowed)
 
 	// when
 	handled, err := svc.HandleWebhook(context.Background(), "auth", []byte("body"))
@@ -812,8 +812,9 @@ func TestHandleWebhook_BroadcasterLeftTearsDown(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.True(t, handled)
-	_, getErr := m.cache.Get[string](context.Background(), slotKey)
-	assert.ErrorIs(t, getErr, cache.ErrMiss, "teardown must clear the thumbnail slot")
+	reclaimed, reclaimErr := m.cache.Allow(context.Background(), slotKey, 1, cache.StreamThumbnailSlot.TTL)
+	require.NoError(t, reclaimErr)
+	assert.True(t, reclaimed.Allowed, "teardown must clear the thumbnail slot")
 }
 
 func TestHandleWebhook_ViewerJoinedAdjustsCount(t *testing.T) {

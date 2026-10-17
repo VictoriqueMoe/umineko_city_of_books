@@ -192,7 +192,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	middleware.Setup(app, settingsSvc, svc.auth, svc.authz, svc.dronebl)
 	app.Use(middleware.Metrics())
 
-	lastSeenIP := middleware.NewLastSeenIP(repos.User, svc.cache, cache.LastSeenIP.TTL)
+	lastSeenIP := middleware.NewLastSeenIP(repos.User)
 	app.Use(middleware.RecordLastSeenIP(lastSeenIP))
 
 	ctrlService := controllers.Service{

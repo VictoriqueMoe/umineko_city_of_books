@@ -44,11 +44,11 @@ func TestLinkPreview_RateLimitByClientIP(t *testing.T) {
 	path := "/link-preview?url=" + url.QueryEscape(target)
 	previews.EXPECT().Resolve(mock.Anything, target).
 		Return(dto.LinkPreviewResponse{URL: target, Type: "link"}, nil).
-		Times(middleware.LinkPreviewsPerMinute)
+		Times(linkPreviewLimit)
 
 	// when
-	allowedStatuses := make([]int, 0, middleware.LinkPreviewsPerMinute)
-	for range middleware.LinkPreviewsPerMinute {
+	allowedStatuses := make([]int, 0, linkPreviewLimit)
+	for range linkPreviewLimit {
 		status, _ := h.NewRequest(http.MethodGet, path).Do()
 		allowedStatuses = append(allowedStatuses, status)
 	}

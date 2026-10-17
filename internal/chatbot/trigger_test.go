@@ -388,7 +388,6 @@ func TestObserve_PermittedSummonQueuesARealReply(t *testing.T) {
 	require.Len(t, svc.jobs, 1)
 	queued := <-svc.jobs
 	assert.Equal(t, senderID, queued.ev.SenderID)
-	assert.True(t, queued.leased, "a queued reply must hold its scope until it finishes")
 }
 
 func TestObserve_CooldownAppliesEverywhereIncludingDMs(t *testing.T) {
@@ -470,169 +469,44 @@ func TestObserve_CooldownAppliesEverywhereIncludingDMs(t *testing.T) {
 	}
 }
 
-func TestObserve_OneReplyPerScopeAtATime(t *testing.T) {
+func TestObserve_SummonsInTheSameRoomAreAllQueued(t *testing.T) {
+	// given two members summoning in one room before either reply is written
 	botID := uuid.New()
 	scopeID := uuid.New()
-
-	cases := []struct {
-		name       string
-		cache      *cache.Manager
-		queueCap   int
-		heldScope  uuid.UUID
-		wantQueue  int
-		wantLeased bool
-		wantHeld   bool
-	}{
-		{
-			name:      "a summon in a scope that is already being answered is dropped",
-			cache:     cache.NewManager(engines.NewInMemory(0)),
-			queueCap:  4,
-			heldScope: scopeID,
-			wantQueue: 0,
-			wantHeld:  true,
-		},
-		{
-			name:       "a busy scope elsewhere does not hold this one back",
-			cache:      cache.NewManager(engines.NewInMemory(0)),
-			queueCap:   4,
-			heldScope:  uuid.New(),
-			wantQueue:  1,
-			wantLeased: true,
-			wantHeld:   true,
-		},
-		{
-			name:      "a full queue hands the lease straight back",
-			cache:     cache.NewManager(engines.NewInMemory(0)),
-			queueCap:  0,
-			wantQueue: 0,
-			wantHeld:  false,
-		},
-		{
-			name:       "an unreachable coordination store queues the reply without a lease",
-			cache:      cache.NewManager(),
-			queueCap:   4,
-			wantQueue:  1,
-			wantLeased: false,
-			wantHeld:   false,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			ctx := context.Background()
-			event := botEvent{
-				Surface:      SurfaceChat,
-				ScopeID:      scopeID,
-				ItemID:       uuid.New(),
-				SenderID:     uuid.New(),
-				Body:         "@bot hello",
-				MentionedIDs: mentions(botID),
-			}
-			svc := &service{
-				jobs:  make(chan job, tc.queueCap),
-				bots:  botsByID(botID),
-				tune:  tuning{enabled: true},
-				cache: tc.cache,
-			}
-			svc.loaded = true
-			if tc.heldScope != uuid.Nil {
-				held := botEvent{Surface: SurfaceChat, ScopeID: tc.heldScope}
-				require.Equal(t, claimGranted, svc.claim(ctx, purposeScopeLease, held.scopeKey(), "earlier", scopeLeaseTTL))
-			}
-
-			// when
-			svc.observe(event)
-
-			// then
-			require.Len(t, svc.jobs, tc.wantQueue)
-			if tc.wantQueue > 0 {
-				queued := <-svc.jobs
-				assert.Equal(t, tc.wantLeased, queued.leased)
-			}
-
-			_, err := svc.cache.Get[string](ctx, event.scopeKey())
-			if tc.wantHeld {
-				assert.NoError(t, err, "the scope must still be leased")
-			} else {
-				assert.ErrorIs(t, err, cache.ErrMiss, "the scope must be free")
-			}
-		})
-	}
-}
-
-func TestReleaseScope(t *testing.T) {
-	cases := []struct {
-		name     string
-		leased   bool
-		wantHeld bool
-	}{
-		{"a job that holds the lease hands it back", true, false},
-		{"a job that ran without a lease leaves the current holder alone", false, true},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			ctx := context.Background()
-			svc := &service{cache: cache.NewManager(engines.NewInMemory(0))}
-			j := job{ev: botEvent{Surface: SurfacePostComment, ScopeID: uuid.New()}, leased: tc.leased}
-			require.Equal(t, claimGranted, svc.claim(ctx, purposeScopeLease, j.ev.scopeKey(), "holder", scopeLeaseTTL))
-
-			// when
-			svc.releaseScope(ctx, j)
-
-			// then
-			_, err := svc.cache.Get[string](ctx, j.ev.scopeKey())
-			if tc.wantHeld {
-				assert.NoError(t, err)
-			} else {
-				assert.ErrorIs(t, err, cache.ErrMiss)
-			}
-		})
-	}
-}
-
-func TestAbandonQueued_ReleasesEveryQueuedLease(t *testing.T) {
-	// given
-	ctx := context.Background()
 	svc := &service{
 		jobs:  make(chan job, 4),
+		bots:  botsByID(botID),
+		tune:  tuning{enabled: true},
 		cache: cache.NewManager(engines.NewInMemory(0)),
 	}
-
-	queued := []job{
-		{ev: botEvent{Surface: SurfaceChat, ScopeID: uuid.New()}, leased: true},
-		{ev: botEvent{Surface: SurfacePost, ScopeID: uuid.New()}, leased: true},
-	}
-	for _, j := range queued {
-		require.Equal(t, claimGranted, svc.claim(ctx, purposeScopeLease, j.ev.scopeKey(), "queued", scopeLeaseTTL))
-		svc.jobs <- j
-	}
+	svc.loaded = true
 
 	// when
-	abandoned := svc.abandonQueued(ctx)
-
-	// then
-	assert.Equal(t, len(queued), abandoned)
-	assert.Empty(t, svc.jobs)
-	for _, j := range queued {
-		_, err := svc.cache.Get[string](ctx, j.ev.scopeKey())
-		assert.ErrorIs(t, err, cache.ErrMiss, "an abandoned job must not keep its scope busy after a restart")
+	for range 2 {
+		svc.observe(botEvent{
+			Surface:      SurfaceChat,
+			ScopeID:      scopeID,
+			ItemID:       uuid.New(),
+			SenderID:     uuid.New(),
+			Body:         "@bot hello",
+			MentionedIDs: mentions(botID),
+		})
 	}
+
+	// then neither summon is dropped
+	assert.Len(t, svc.jobs, 2)
 }
 
-func TestScopeKey_CommentsShareTheirPostScope(t *testing.T) {
+func TestAbandonQueued_DrainsEveryQueuedJob(t *testing.T) {
 	// given
-	postID := uuid.New()
-	onPost := botEvent{Surface: SurfacePost, ScopeID: postID}
-	onComment := botEvent{Surface: SurfacePostComment, ScopeID: postID}
+	svc := &service{jobs: make(chan job, 4)}
+	svc.jobs <- job{ev: botEvent{Surface: SurfaceChat, ScopeID: uuid.New()}}
+	svc.jobs <- job{ev: botEvent{Surface: SurfacePost, ScopeID: uuid.New()}}
 
 	// when
-	postKey := onPost.scopeKey()
-	commentKey := onComment.scopeKey()
+	abandoned := svc.abandonQueued()
 
 	// then
-	assert.Equal(t, postKey, commentKey)
-	assert.NotEqual(t, postKey, botEvent{Surface: SurfaceChat, ScopeID: postID}.scopeKey())
+	assert.Equal(t, 2, abandoned)
+	assert.Empty(t, svc.jobs)
 }

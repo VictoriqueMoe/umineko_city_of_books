@@ -93,7 +93,6 @@ var (
 	seedDrops = []dropLabel{
 		{reasonNotPermitted, stagePreTrigger},
 		{reasonCooldown, stagePreTrigger},
-		{reasonRoomInflight, stagePreTrigger},
 		{reasonQueueFull, stagePreTrigger},
 		{reasonInternal, stagePreModel},
 		{reasonQuotaUser, stagePreModel},

@@ -17,6 +17,7 @@ var (
 		regexp.MustCompile(`(?is)\b(INSERT\s+INTO|DELETE\s+FROM)\s+(posts|art)\b`),
 		regexp.MustCompile(`(?is)\bUPDATE\s+(posts|art)\s+SET\b[^;]*\bcorner\s*=`),
 		regexp.MustCompile(`(?is)\b(INSERT\s+INTO|DELETE\s+FROM|UPDATE)\s+(blocks|chat_banned_words)\b`),
+		regexp.MustCompile(`(?is)\bUPDATE\s+users\s+SET\b[^;]*\bip\s*=`),
 	}
 
 	invalidatingWriters = []string{
@@ -32,6 +33,7 @@ var (
 		"CreateChatBannedWord",
 		"UpdateChatBannedWord",
 		"DeleteChatBannedWord",
+		"UpdateUserIP",
 	}
 )
 
@@ -62,5 +64,5 @@ func TestCachedTables_EveryWriteQueryIsAKnownInvalidatingPath(t *testing.T) {
 	}
 
 	// then
-	assert.ElementsMatch(t, invalidatingWriters, writers, "a query writes a table behind the corner-count, blocked-id or banned-word caches; route it through a repository method that clears the cache after commit, then list it here")
+	assert.ElementsMatch(t, invalidatingWriters, writers, "a query writes a table behind the corner-count, blocked-id, banned-word or user-ip caches; route it through a repository method that clears the cache after commit, then list it here")
 }

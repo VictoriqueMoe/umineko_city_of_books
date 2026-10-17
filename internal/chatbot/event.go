@@ -1,7 +1,6 @@
 package chatbot
 
 import (
-	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/post"
@@ -43,18 +42,6 @@ const (
 
 func (s Surface) gameBoard() bool {
 	return s == SurfacePost || s == SurfacePostComment
-}
-
-func (s Surface) scope() Surface {
-	if s == SurfacePostComment {
-		return SurfacePost
-	}
-
-	return s
-}
-
-func (ev botEvent) scopeKey() string {
-	return cache.ChatbotScopeLease.Key(string(ev.Surface.scope()), ev.ScopeID.String())
 }
 
 func (ev botEvent) channel() Channel {
