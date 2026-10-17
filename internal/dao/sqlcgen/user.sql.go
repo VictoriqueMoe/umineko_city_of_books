@@ -646,6 +646,17 @@ func (q *Queries) GetUserGMRawScore(ctx context.Context, userID uuid.UUID) (int6
 	return score, err
 }
 
+const getUserIP = `-- name: GetUserIP :one
+SELECT COALESCE(ip, '')::text AS ip FROM users WHERE id = $1
+`
+
+func (q *Queries) GetUserIP(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRowContext(ctx, getUserIP, id)
+	var ip string
+	err := row.Scan(&ip)
+	return ip, err
+}
+
 const getUserLockedAt = `-- name: GetUserLockedAt :one
 SELECT locked_at FROM users WHERE id = $1
 `

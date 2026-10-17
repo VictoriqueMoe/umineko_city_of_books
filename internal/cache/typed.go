@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"time"
+
+	"umineko_city_of_books/internal/logger"
 )
 
-func (m *Manager) Get[T any](ctx context.Context, key string) (T, error) {
+func (m *Manager) Get[T any](ctx context.Context, key Key) (T, error) {
 	var zero T
 
 	if m == nil {
@@ -21,7 +23,7 @@ func (m *Manager) Get[T any](ctx context.Context, key string) (T, error) {
 	return decode[T](data)
 }
 
-func (m *Manager) Set[T any](ctx context.Context, key string, value T, ttl time.Duration) error {
+func (m *Manager) Set[T any](ctx context.Context, key Key, value T) error {
 	if m == nil {
 		return nil
 	}
@@ -31,30 +33,40 @@ func (m *Manager) Set[T any](ctx context.Context, key string, value T, ttl time.
 		return err
 	}
 
-	return m.setBytes(ctx, key, data, ttl)
+	return m.setBytes(ctx, key, data)
 }
 
-func (m *Manager) SetMany[T any](ctx context.Context, values map[string]T, ttl time.Duration) error {
+func (m *Manager) SetMany[T any](ctx context.Context, values map[Key]T) error {
 	if m == nil || len(values) == 0 {
 		return nil
 	}
 
-	entries := make(map[string][]byte, len(values))
+	byTTL := make(map[time.Duration]map[string][]byte)
 	for key, value := range values {
 		data, err := encode(value)
 		if err != nil {
 			return err
 		}
 
-		entries[key] = data
+		entries, ok := byTTL[key.ttl]
+		if !ok {
+			entries = make(map[string][]byte)
+			byTTL[key.ttl] = entries
+		}
+
+		entries[key.name] = data
 	}
 
-	return m.setManyBytes(ctx, entries, ttl)
+	for ttl, entries := range byTTL {
+		if err := m.setManyBytes(ctx, entries, ttl); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func (m *Manager) Load[T any](ctx context.Context, ns Namespace, load func(context.Context) (T, error), parts ...string) (T, error) {
-	key := ns.Key(parts...)
-
+func (m *Manager) Load[T any](ctx context.Context, key Key, load func(context.Context) (T, error)) (T, error) {
 	if cached, err := m.Get[T](ctx, key); err == nil {
 		return cached, nil
 	}
@@ -66,7 +78,9 @@ func (m *Manager) Load[T any](ctx context.Context, ns Namespace, load func(conte
 		return zero, err
 	}
 
-	_ = m.Set(ctx, key, value, ns.TTL)
+	if err := m.Set(ctx, key, value); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Str("key", key.name).Msg("cache could not store a loaded value, the next read loads it again")
+	}
 
 	return value, nil
 }

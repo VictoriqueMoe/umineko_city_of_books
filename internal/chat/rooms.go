@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/og"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/ws"
 
@@ -77,7 +78,16 @@ func (r *roomsService) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID,
 		go r.notifyInvited(creatorID, roomID, name, invitedIDs)
 	}
 
-	return r.buildRoomResponse(ctx, roomID, creatorID)
+	room, err := r.buildRoomResponse(ctx, roomID, creatorID)
+	if err != nil {
+		return nil, err
+	}
+
+	if created.PubliclyVisible() {
+		r.activity.BumpSidebarActivity(sidebar.KeyRooms)
+	}
+
+	return room, nil
 }
 
 func (r *roomsService) UpdateGroupRoom(ctx context.Context, roomID, actorID uuid.UUID, req dto.UpdateGroupRoomRequest) (*dto.ChatRoomResponse, error) {
@@ -249,16 +259,14 @@ func (r *roomsService) ListPublicRooms(ctx context.Context, search string, isRPO
 
 	tag = strings.ToLower(strings.TrimSpace(tag))
 	rows, total, err := r.chatRepo.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{
-		ChatRoomFilter: spec.ChatRoomFilter{
-			Search:          search,
-			IsRPOnly:        isRPOnly,
-			Tag:             tag,
-			IncludeArchived: includeArchived,
-			Limit:           limit,
-			Offset:          offset,
-		},
-		ViewerID:       viewerID,
-		ExcludeUserIDs: blockedIDs,
+		Search:          search,
+		IsRPOnly:        isRPOnly,
+		Tag:             tag,
+		IncludeArchived: includeArchived,
+		Limit:           limit,
+		Offset:          offset,
+		ViewerID:        viewerID,
+		ExcludeUserIDs:  blockedIDs,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list public rooms: %w", err)
@@ -298,16 +306,14 @@ func (r *roomsService) ListUserGroupRooms(ctx context.Context, userID uuid.UUID,
 
 	tag = strings.ToLower(strings.TrimSpace(tag))
 	rows, total, err := r.chatRepo.ListUserGroupRooms(ctx, spec.ChatUserRoomFilter{
-		ChatRoomFilter: spec.ChatRoomFilter{
-			Search:          search,
-			IsRPOnly:        isRPOnly,
-			Tag:             tag,
-			IncludeArchived: includeArchived,
-			Limit:           limit,
-			Offset:          offset,
-		},
-		UserID: userID,
-		Role:   roleFilter,
+		Search:          search,
+		IsRPOnly:        isRPOnly,
+		Tag:             tag,
+		IncludeArchived: includeArchived,
+		Limit:           limit,
+		Offset:          offset,
+		UserID:          userID,
+		Role:            roleFilter,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list user group rooms: %w", err)

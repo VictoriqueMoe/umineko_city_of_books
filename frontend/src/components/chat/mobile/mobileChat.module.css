@@ -113,16 +113,6 @@
     background: var(--bg-card);
 }
 
-.draftEmpty {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    color: var(--text-muted);
-    padding: 1.5rem;
-}
-
 .listScreen {
     flex: 1;
     min-height: 0;
@@ -246,7 +236,7 @@
 }
 
 .dialogError {
-    color: #ff6b6b;
+    color: var(--error);
     font-size: 0.85rem;
 }
 

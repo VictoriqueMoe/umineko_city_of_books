@@ -41,7 +41,7 @@ func (r *chatBannedWordRepository) ListApplicable(ctx context.Context, roomID uu
 		return r.ChatBannedWordDAO.ListGlobal(ctx, tx...)
 	}
 
-	global, err := r.cache.Load(ctx, cache.ChatBannedWordsGlobal, loadGlobal)
+	global, err := r.cache.Load(ctx, cache.ChatBannedWordsGlobal.Key(), loadGlobal)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (r *chatBannedWordRepository) ListApplicable(ctx context.Context, roomID uu
 		return r.ChatBannedWordDAO.ListForRoom(ctx, roomID, tx...)
 	}
 
-	room, err := r.cache.Load(ctx, cache.ChatBannedWordsRoom, loadRoom, roomID.String())
+	room, err := r.cache.Load(ctx, cache.ChatBannedWordsRoom.Key(roomID.String()), loadRoom)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func (r *chatBannedWordRepository) forgetApplicable(ctx context.Context, roomID 
 	}
 
 	if err := r.cache.Del(ctx, key); err != nil {
-		logger.Ctx(ctx).Error().Err(err).Str("key", key).Msg("failed to invalidate banned word cache after write")
+		logger.Ctx(ctx).Error().Err(err).Stringer("key", key).Msg("failed to invalidate banned word cache after write")
 	}
 }
 

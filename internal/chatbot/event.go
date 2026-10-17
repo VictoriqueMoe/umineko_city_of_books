@@ -13,11 +13,6 @@ type (
 
 	Channel string
 
-	scopeKey struct {
-		surface Surface
-		id      uuid.UUID
-	}
-
 	botEvent struct {
 		Surface      Surface
 		IsDM         bool
@@ -47,18 +42,6 @@ const (
 
 func (s Surface) gameBoard() bool {
 	return s == SurfacePost || s == SurfacePostComment
-}
-
-func (s Surface) scope() Surface {
-	if s == SurfacePostComment {
-		return SurfacePost
-	}
-
-	return s
-}
-
-func (ev botEvent) scopeKey() scopeKey {
-	return scopeKey{surface: ev.Surface.scope(), id: ev.ScopeID}
 }
 
 func (ev botEvent) channel() Channel {

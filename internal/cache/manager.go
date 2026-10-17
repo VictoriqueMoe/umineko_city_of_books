@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -59,7 +60,7 @@ func (m *Manager) Invalidates(dependent Namespace, feeds ...Namespace) {
 		m.dependents = make(map[string][]string, len(feeds))
 	}
 
-	key := dependent.Key()
+	key := dependent.Key().String()
 	for _, feed := range feeds {
 		if slices.Contains(m.dependents[feed.Prefix], key) {
 			continue
@@ -69,16 +70,21 @@ func (m *Manager) Invalidates(dependent Namespace, feeds ...Namespace) {
 	}
 }
 
-func (m *Manager) Del(ctx context.Context, keys ...string) error {
+func (m *Manager) Del(ctx context.Context, keys ...Key) error {
 	if m == nil || len(keys) == 0 {
 		return nil
 	}
 
-	keys = m.withDependents(keys)
+	names := make([]string, 0, len(keys))
+	for _, key := range keys {
+		names = append(names, key.name)
+	}
+
+	names = m.withDependents(names)
 
 	var firstErr error
 	for _, candidate := range m.engines {
-		err := candidate.Del(ctx, keys...)
+		err := candidate.Del(ctx, names...)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
@@ -135,13 +141,13 @@ func (m *Manager) Close() error {
 	return firstErr
 }
 
-func (m *Manager) getBytes(ctx context.Context, key string) ([]byte, error) {
+func (m *Manager) getBytes(ctx context.Context, key Key) ([]byte, error) {
 	active := m.current()
 	if active == nil {
 		return nil, engine.ErrMiss
 	}
 
-	data, err := active.Get(ctx, key)
+	data, err := active.Get(ctx, key.name)
 	if err != nil {
 		if errorIsMiss(err) {
 			cacheMisses.Inc()
@@ -155,13 +161,13 @@ func (m *Manager) getBytes(ctx context.Context, key string) ([]byte, error) {
 	return data, nil
 }
 
-func (m *Manager) setBytes(ctx context.Context, key string, data []byte, ttl time.Duration) error {
+func (m *Manager) setBytes(ctx context.Context, key Key, data []byte) error {
 	active := m.current()
 	if active == nil {
 		return nil
 	}
 
-	return active.Set(ctx, key, data, ttl)
+	return active.Set(ctx, key.name, data, key.ttl)
 }
 
 func (m *Manager) setManyBytes(ctx context.Context, entries map[string][]byte, ttl time.Duration) error {
@@ -171,6 +177,28 @@ func (m *Manager) setManyBytes(ctx context.Context, entries map[string][]byte, t
 	}
 
 	return active.SetMany(ctx, entries, ttl)
+}
+
+func (m *Manager) Allow(ctx context.Context, key Key, limit int, window time.Duration) (engine.Allowance, error) {
+	if limit < 1 || window < time.Millisecond {
+		return engine.Allowance{}, fmt.Errorf("%w: limit %d, window %s", ErrInvalidAllowance, limit, window)
+	}
+
+	active := m.current()
+	if active == nil {
+		return engine.Allowance{}, ErrUnavailable
+	}
+
+	return active.Allow(ctx, key.name, limit, window)
+}
+
+func (m *Manager) Reset(ctx context.Context, key Key) error {
+	active := m.current()
+	if active == nil {
+		return ErrUnavailable
+	}
+
+	return active.Reset(ctx, key.name)
 }
 
 func (m *Manager) current() engine.Engine {

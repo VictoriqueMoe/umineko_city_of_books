@@ -172,7 +172,6 @@ func (s *Service) createOC(ctx fiber.Ctx) error {
 		}
 		return utils.InternalError(ctx, "failed to create oc", err)
 	}
-	s.Hub.BumpSidebarActivity("ocs")
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 

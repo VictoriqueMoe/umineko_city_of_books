@@ -18,7 +18,7 @@ import (
 func mediaRoomAttachmentIDs(t *testing.T, repos *repository.Repositories, roomID, viewerID uuid.UUID, kind model.AttachmentKind) []uuid.UUID {
 	t.Helper()
 
-	rows, err := repos.Chat.ListRoomAttachments(context.Background(), spec.ChatRoomAttachmentQuery{ChatMessageCursorPage: spec.ChatMessageCursorPage{RoomID: roomID, ViewerID: viewerID, Before: "", Limit: 50}, Kind: kind})
+	rows, err := repos.Chat.ListRoomAttachments(context.Background(), spec.ChatRoomAttachmentQuery{RoomID: roomID, ViewerID: viewerID, Before: "", Limit: 50, Kind: kind})
 	require.NoError(t, err)
 
 	ids := make([]uuid.UUID, len(rows))
@@ -48,10 +48,10 @@ func TestChatDAO_GetMessageMediaBatch_RoundTripsAddedMediaInSortOrder(t *testing
 	bareID := daotest.SendChatMessage(t, repos, roomID, user.ID, "no media")
 
 	// when
-	spoilerID, err := repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: msgID, MediaURL: "/b", MediaType: "video", ThumbnailURL: "/b_thumb", Filename: "b.mp4", SortOrder: 2, IsSpoiler: true}, Width: 640, Height: 480})
+	spoilerID, err := repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{TargetID: msgID, MediaURL: "/b", MediaType: "video", ThumbnailURL: "/b_thumb", Filename: "b.mp4", SortOrder: 2, IsSpoiler: true, Width: 640, Height: 480})
 	require.NoError(t, err)
 
-	plainID, err := repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: msgID, MediaURL: "/a", MediaType: "image", ThumbnailURL: "/a_thumb", SortOrder: 1}})
+	plainID, err := repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{TargetID: msgID, MediaURL: "/a", MediaType: "image", ThumbnailURL: "/a_thumb", SortOrder: 1})
 	require.NoError(t, err)
 
 	media, err := repos.Chat.GetMessageMediaBatch(ctx, []uuid.UUID{msgID, bareID})
@@ -143,7 +143,7 @@ func TestChatDAO_ListRoomAttachments(t *testing.T) {
 
 	t.Run("an unknown kind is an error rather than a silent default", func(t *testing.T) {
 		// when
-		_, err := repos.Chat.ListRoomAttachments(ctx, spec.ChatRoomAttachmentQuery{ChatMessageCursorPage: spec.ChatMessageCursorPage{RoomID: roomID, ViewerID: user.ID, Before: "", Limit: 50}, Kind: model.AttachmentKind("files")})
+		_, err := repos.Chat.ListRoomAttachments(ctx, spec.ChatRoomAttachmentQuery{RoomID: roomID, ViewerID: user.ID, Before: "", Limit: 50, Kind: model.AttachmentKind("files")})
 
 		// then
 		require.Error(t, err)

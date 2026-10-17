@@ -2,15 +2,21 @@ package controllers
 
 import (
 	"errors"
-	"time"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/limiter"
 	"github.com/google/uuid"
 
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/stream"
+)
+
+const (
+	streamViewerTokenLimit      = 30
+	streamThumbnailLimit        = 6
+	streamCredentialsResetLimit = 5
 )
 
 func (s *Service) getAllStreamRoutes() []FSetupRoute {
@@ -50,10 +56,7 @@ func (s *Service) setupUpdateStreamTitleRoute(r fiber.Router) {
 }
 
 func (s *Service) setupStreamViewerTokenRoute(r fiber.Router) {
-	r.Post("/streams/:id/token", s.optionalAuth(), limiter.New(limiter.Config{
-		Max:        30,
-		Expiration: time.Minute,
-	}), s.mintViewerToken)
+	r.Post("/streams/:id/token", s.optionalAuth(), s.RateLimiter.Limit(cache.RateLimitStreamViewerToken, streamViewerTokenLimit, middleware.ByClientIP), s.mintViewerToken)
 }
 
 func (s *Service) setupJoinStreamChatRoute(r fiber.Router) {
@@ -61,10 +64,7 @@ func (s *Service) setupJoinStreamChatRoute(r fiber.Router) {
 }
 
 func (s *Service) setupUploadStreamThumbnailRoute(r fiber.Router) {
-	r.Post("/streams/:id/thumbnail", s.requireAuth(), limiter.New(limiter.Config{
-		Max:        6,
-		Expiration: time.Minute,
-	}), s.uploadStreamThumbnail)
+	r.Post("/streams/:id/thumbnail", s.requireAuth(), s.RateLimiter.Limit(cache.RateLimitStreamThumbnail, streamThumbnailLimit, middleware.ByClientIP), s.uploadStreamThumbnail)
 }
 
 func (s *Service) setupStreamCredentialsRoute(r fiber.Router) {
@@ -72,10 +72,7 @@ func (s *Service) setupStreamCredentialsRoute(r fiber.Router) {
 }
 
 func (s *Service) setupResetStreamCredentialsRoute(r fiber.Router) {
-	r.Post("/streams/credentials/reset", s.requireAuth(), limiter.New(limiter.Config{
-		Max:        5,
-		Expiration: time.Minute,
-	}), s.resetStreamCredentials)
+	r.Post("/streams/credentials/reset", s.requireAuth(), s.RateLimiter.Limit(cache.RateLimitStreamCredentialsReset, streamCredentialsResetLimit, middleware.ByClientIP), s.resetStreamCredentials)
 }
 
 func (s *Service) setupGetStreamByUsernameRoute(r fiber.Router) {

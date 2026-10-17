@@ -101,6 +101,33 @@
     transition-delay: 0s;
 }
 
+.messageSending .messageContent {
+    opacity: 0.7;
+}
+
+.ownMessage.messageFailed .messageContent {
+    border-color: rgba(var(--error-rgb), 0.4);
+}
+
+.sendFailure {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.35rem;
+    font-size: 0.75rem;
+    color: var(--error);
+}
+
+.sendFailureText {
+    unicode-bidi: plaintext;
+}
+
+.sendFailureActions {
+    display: inline-flex;
+    gap: 0.35rem;
+}
+
 .pickerLayer {
     position: fixed;
     left: 0;

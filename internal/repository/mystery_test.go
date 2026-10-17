@@ -152,7 +152,7 @@ func TestMysteryRepository_LeaderboardWritersInvalidateBothCrowns(t *testing.T) 
 
 			// then
 			require.NoError(t, err)
-			assert.Equal(t, []string{"DEL", cache.MysteryTopDetectives.Key(), cache.MysteryTopGMs.Key()}, commands)
+			assert.Equal(t, []string{"DEL", cache.MysteryTopDetectives.Key().String(), cache.MysteryTopGMs.Key().String()}, commands)
 		})
 	}
 }

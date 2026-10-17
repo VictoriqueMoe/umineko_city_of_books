@@ -9,6 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/cache/engine"
+	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/settings"
 
@@ -75,6 +78,12 @@ const (
 func newTestService(t *testing.T, apiKey, adminKey string, handler http.HandlerFunc) *service {
 	t.Helper()
 
+	return newTestServiceWithCache(t, cache.NewManager(engines.NewInMemory(0)), apiKey, adminKey, handler)
+}
+
+func newTestServiceWithCache(t *testing.T, cacheMgr *cache.Manager, apiKey, adminKey string, handler http.HandlerFunc) *service {
+	t.Helper()
+
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 
@@ -82,7 +91,16 @@ func newTestService(t *testing.T, apiKey, adminKey string, handler http.HandlerF
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotAPIKey).Return(apiKey).Maybe()
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotAdminKey).Return(adminKey).Maybe()
 
-	return newService(settingsSvc, srv.URL)
+	return newService(settingsSvc, cacheMgr, srv.URL)
+}
+
+func rateLimitedHandler(calls *int) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		*calls++
+
+		w.Header().Set("Retry-After", "300")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}
 }
 
 func TestEnabled(t *testing.T) {
@@ -370,7 +388,7 @@ func TestComplete_TransportErrorHidesURL(t *testing.T) {
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotAPIKey).Return(testAPIKey).Once()
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotAdminKey).Return("").Once()
 
-	svc := newService(settingsSvc, "http://127.0.0.1:1/")
+	svc := newService(settingsSvc, cache.NewManager(engines.NewInMemory(0)), "http://127.0.0.1:1/")
 
 	// when
 	_, err := svc.Complete(context.Background(), CompletionRequest{Model: "nope"})
@@ -599,6 +617,126 @@ func TestModels_RateLimitTripsBreaker(t *testing.T) {
 	assert.Equal(t, 1, calls, "calls during the blackout must not reach upstream")
 }
 
+func TestRateLimitIsSharedAcrossEndpointsAndInstances(t *testing.T) {
+	cases := []struct {
+		name string
+		call func(svc *service) error
+	}{
+		{
+			name: "models",
+			call: func(svc *service) error {
+				_, err := svc.Models(context.Background())
+
+				return err
+			},
+		},
+		{
+			name: "costs",
+			call: func(svc *service) error {
+				_, err := svc.Costs(context.Background(), time.Unix(1_700_000_000, 0))
+
+				return err
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given one instance tripped the breaker on a completion
+			shared := cache.NewManager(engines.NewInMemory(0))
+
+			var trippedCalls, otherCalls int
+			tripped := newTestServiceWithCache(t, shared, testAPIKey, testAdminKey, rateLimitedHandler(&trippedCalls))
+			other := newTestServiceWithCache(t, shared, testAPIKey, testAdminKey, rateLimitedHandler(&otherCalls))
+
+			_, err := tripped.Complete(context.Background(), CompletionRequest{Model: "gpt-5.6-luna"})
+			require.ErrorIs(t, err, ErrRateLimited)
+
+			// when
+			err = tc.call(other)
+
+			// then
+			require.ErrorIs(t, err, ErrRateLimited)
+			assert.Equal(t, 1, trippedCalls)
+			assert.Zero(t, otherCalls, "one key holds every endpoint on every instance")
+		})
+	}
+}
+
+func TestTripRateLimitLatestResetWins(t *testing.T) {
+	now := time.Now()
+
+	cases := []struct {
+		name   string
+		first  time.Time
+		second time.Time
+	}{
+		{name: "a later reset extends the ban", first: now.Add(time.Minute), second: now.Add(5 * time.Minute)},
+		{name: "an earlier reset replaces the ban, since competing resets differ by seconds", first: now.Add(5 * time.Minute), second: now.Add(time.Minute)},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc := newTestService(t, testAPIKey, "", func(w http.ResponseWriter, r *http.Request) {
+				t.Error("tripping the breaker must not call openai")
+			})
+			ctx := context.Background()
+			svc.tripRateLimit(ctx, tc.first)
+
+			// when
+			inForce := svc.tripRateLimit(ctx, tc.second)
+
+			// then
+			assert.True(t, tc.second.Equal(inForce))
+
+			resetAt, limited := svc.rateLimitResetAt(ctx)
+			assert.True(t, limited)
+			assert.True(t, tc.second.Equal(resetAt))
+		})
+	}
+}
+
+func TestTripRateLimitIgnoresAResetThatHasPassed(t *testing.T) {
+	// given
+	svc := newTestService(t, testAPIKey, "", func(w http.ResponseWriter, r *http.Request) {
+		t.Error("tripping the breaker must not call openai")
+	})
+	ctx := context.Background()
+	passed := time.Now().Add(-time.Minute)
+
+	// when
+	inForce := svc.tripRateLimit(ctx, passed)
+
+	// then nothing is stored, so a passed reset never lifts a ban another call recorded
+	assert.True(t, passed.Equal(inForce))
+
+	_, limited := svc.rateLimitResetAt(ctx)
+	assert.False(t, limited)
+}
+
+func TestRateLimitFailsOpenWhenTheStoreFails(t *testing.T) {
+	// given a cache whose store errors on every call
+	storeErr := errors.New("connection refused")
+
+	failing := engine.NewMockEngine(t)
+	failing.EXPECT().Enabled().Return(true).Maybe()
+	failing.EXPECT().Get(mock.Anything, cache.OpenAIRateLimitedUntil.Key().String()).Return(nil, storeErr).Times(2)
+	failing.EXPECT().Set(mock.Anything, cache.OpenAIRateLimitedUntil.Key().String(), mock.Anything, cache.OpenAIRateLimitedUntil.TTL).Return(storeErr).Times(2)
+
+	var calls int
+	svc := newTestServiceWithCache(t, cache.NewManager(failing), testAPIKey, "", rateLimitedHandler(&calls))
+
+	// when
+	for range 2 {
+		_, err := svc.Complete(context.Background(), CompletionRequest{Model: "gpt-5.6-luna"})
+		require.ErrorIs(t, err, ErrRateLimited)
+	}
+
+	// then the breaker cannot hold, so every call reaches openai
+	assert.Equal(t, 2, calls)
+}
+
 func TestModels_ErrorHidesRequestDetails(t *testing.T) {
 	// given
 	svc := newTestService(t, testAPIKey, "", func(w http.ResponseWriter, r *http.Request) {
@@ -631,7 +769,7 @@ func TestSettingsAreReadOnceNotPerCall(t *testing.T) {
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotAPIKey).Return(testAPIKey).Once()
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotAdminKey).Return("").Once()
 
-	svc := newService(settingsSvc, srv.URL)
+	svc := newService(settingsSvc, cache.NewManager(engines.NewInMemory(0)), srv.URL)
 
 	// when
 	for range 3 {
@@ -666,7 +804,7 @@ func TestOnSettingsBatchChangedRebuildsClients(t *testing.T) {
 	})
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotAdminKey).Return("")
 
-	svc := newService(settingsSvc, srv.URL)
+	svc := newService(settingsSvc, cache.NewManager(engines.NewInMemory(0)), srv.URL)
 
 	_, err := svc.Complete(context.Background(), CompletionRequest{Model: "gpt-5.6-luna"})
 	require.NoError(t, err)
@@ -707,7 +845,7 @@ func TestOnSettingsBatchChangedIgnoresUnrelatedKeys(t *testing.T) {
 			})
 			settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotAdminKey).Return("")
 
-			svc := newService(settingsSvc, "http://127.0.0.1:1/")
+			svc := newService(settingsSvc, cache.NewManager(engines.NewInMemory(0)), "http://127.0.0.1:1/")
 			require.Equal(t, 1, loads)
 
 			// when

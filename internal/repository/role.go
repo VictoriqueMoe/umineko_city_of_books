@@ -35,7 +35,7 @@ func (r *roleRepository) GetRole(ctx context.Context, userID uuid.UUID, tx ...*s
 		return string(rl), err
 	}
 
-	cached, err := r.cache.Load(ctx, cache.UserRole, load, userID.String())
+	cached, err := r.cache.Load(ctx, cache.UserRole.Key(userID.String()), load)
 	if err != nil {
 		return "", err
 	}

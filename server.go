@@ -192,7 +192,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	middleware.Setup(app, settingsSvc, svc.auth, svc.authz, svc.dronebl)
 	app.Use(middleware.Metrics())
 
-	lastSeenIP := middleware.NewLastSeenIP(repos.User, time.Hour)
+	lastSeenIP := middleware.NewLastSeenIP(repos.User)
 	app.Use(middleware.RecordLastSeenIP(lastSeenIP))
 
 	ctrlService := controllers.Service{
@@ -225,6 +225,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		VanityRoleService:     svc.vanityRole,
 		UserSecretService:     svc.userSecret,
 		AuthSession:           svc.session,
+		RateLimiter:           middleware.NewRateLimiter(svc.cache),
 		Hub:                   svc.hub,
 		GiphyService:          svc.giphy,
 		GiphyFavouriteService: svc.giphyFavourites,

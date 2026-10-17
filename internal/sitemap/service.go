@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
@@ -13,36 +14,29 @@ import (
 
 const dateFormat = "2006-01-02"
 
-var staticPaths = []string{
-	"",
-	"/welcome",
-	"/about",
-	"/theories",
-	"/game-board",
-	"/game-board/umineko",
-	"/game-board/higurashi",
-	"/game-board/ciconia",
-	"/game-board/higanbana",
-	"/game-board/roseguns",
-	"/gallery",
-	"/gallery/umineko",
-	"/gallery/higurashi",
-	"/gallery/ciconia",
-	"/quotes",
-	"/mysteries",
-	"/ships",
-	"/fanfiction",
-	"/suggestions",
-	"/games",
-	"/games/live",
-	"/games/past",
-	"/games/chess",
-	"/games/othello",
-	"/games/pong",
-	"/search",
-	"/live",
-	"/login",
-}
+var staticPaths = withCornerPaths(
+	[]string{
+		"",
+		"/welcome",
+		"/about",
+		"/theories",
+	},
+	[]string{
+		"/quotes",
+		"/mysteries",
+		"/ships",
+		"/fanfiction",
+		"/games",
+		"/games/live",
+		"/games/past",
+		"/games/chess",
+		"/games/othello",
+		"/games/pong",
+		"/search",
+		"/live",
+		"/login",
+	},
+)
 
 type (
 	Entry struct {
@@ -77,6 +71,21 @@ type (
 
 func NewService(repo repository.SitemapRepository, settingsSvc settings.Service, baseURL string) Service {
 	return &service{repo: repo, settingsSvc: settingsSvc, baseURL: baseURL}
+}
+
+func withCornerPaths(before []string, after []string) []string {
+	paths := make([]string, 0, len(before)+len(corner.GameBoards)+len(corner.Galleries)+len(after))
+	paths = append(paths, before...)
+
+	for _, board := range corner.GameBoards {
+		paths = append(paths, board.Path())
+	}
+
+	for _, gallery := range corner.Galleries {
+		paths = append(paths, gallery.Path())
+	}
+
+	return append(paths, after...)
 }
 
 func (s *service) BaseURL() string {

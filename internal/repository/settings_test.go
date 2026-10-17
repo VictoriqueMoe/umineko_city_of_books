@@ -38,7 +38,7 @@ func newCachedSettingsRepo(t *testing.T) (SettingsRepository, *dao.MockSettingsD
 }
 
 func settingCacheKey(key config.SiteSettingKey) string {
-	return cache.Setting.Key(string(key))
+	return cache.Setting.Key(string(key)).String()
 }
 
 func captureSettingsCommands(client *valkeymock.Client, times int, reply func(cmd valkey.Completed) valkey.ValkeyResult) *[][]string {

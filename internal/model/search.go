@@ -294,7 +294,7 @@ var (
 			TitleExpr:       "COALESCE(e.title, j.title)",
 			BodyExpr:        "e.body",
 			SearchVector:    "e.search_vector",
-			CreatedAt:       "e.created_at",
+			CreatedAt:       "e.published_at",
 			ParentIDExpr:    "e.journal_id::text",
 			ParentTitleExpr: "j.title",
 			ExtraWhere:      "j.archived_at IS NULL AND NOT e.is_draft",

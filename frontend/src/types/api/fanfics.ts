@@ -31,7 +31,7 @@ export interface Fanfic {
     view_count: number;
     comment_count: number;
     user_favourited: boolean;
-    published_at: string;
+    published_at?: string;
     created_at: string;
     updated_at?: string;
 }

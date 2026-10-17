@@ -1224,6 +1224,87 @@ func (_c *MockUserRepository_GetGMRawScore_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
+// GetIP provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) GetIP(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetIP")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (string, error)); ok {
+		return returnFunc(ctx, userID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) string); ok {
+		r0 = returnFunc(ctx, userID, tx...)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_GetIP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetIP'
+type MockUserRepository_GetIP_Call struct {
+	*mock.Call
+}
+
+// GetIP is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockUserRepository_Expecter) GetIP(ctx any, userID any, tx ...any) *MockUserRepository_GetIP_Call {
+	return &MockUserRepository_GetIP_Call{Call: _e.mock.On("GetIP",
+		append([]any{ctx, userID}, tx...)...)}
+}
+
+func (_c *MockUserRepository_GetIP_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockUserRepository_GetIP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_GetIP_Call) Return(s string, err error) *MockUserRepository_GetIP_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *MockUserRepository_GetIP_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (string, error)) *MockUserRepository_GetIP_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetPasswordHash provides a mock function for the type MockUserRepository
 func (_mock *MockUserRepository) GetPasswordHash(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (string, error) {
 	var tmpRet mock.Arguments

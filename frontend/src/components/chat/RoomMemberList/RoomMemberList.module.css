@@ -267,5 +267,5 @@
 }
 
 .memberList[data-variant="mobile"] .modActionsMenu button.danger {
-    color: #ff6b6b;
+    color: var(--error);
 }

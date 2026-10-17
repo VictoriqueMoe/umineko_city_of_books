@@ -273,8 +273,9 @@ export function RoomPage() {
 
                     <MessageList
                         viewer={user}
+                        viewerIdentity={members.current}
                         room={currentRoom}
-                        messages={session.messages}
+                        entries={session.entries}
                         hasMore={session.hasMore}
                         loadingMore={session.loadingMore}
                         highlightedMessageId={anchor.highlightedMsgId}
@@ -293,13 +294,14 @@ export function RoomPage() {
                         onTogglePin={session.togglePin}
                         onDelete={session.deleteMessage}
                         onEdit={session.editMessage}
+                        onRetrySend={session.retrySend}
+                        onDiscardSend={session.discardSend}
+                        onNotify={toast.show}
                         classes={MESSAGE_LIST_CLASSES}
                     />
                     <TypingIndicator names={session.typingNames} />
                     <ChatComposer
-                        roomId={currentRoom.id}
-                        draftRecipientId={null}
-                        onSent={session.onSent}
+                        target={session.sender ? { kind: "room", sender: session.sender } : null}
                         mentionPool={mentionPool}
                         replyingTo={session.replyingTo}
                         onCancelReply={() => session.setReplyingTo(null)}
@@ -427,7 +429,11 @@ export function RoomPage() {
             {watchParty.invitedPartyMissing && (
                 <div className={styles.endedPartyNotice}>That watch party has ended.</div>
             )}
-            {toast.message && <div className={styles.toast}>{toast.message}</div>}
+            {toast.message && (
+                <div className={styles.toast} role="status">
+                    {toast.message}
+                </div>
+            )}
             {panels.lightboxSrc && <Lightbox src={panels.lightboxSrc} onClose={() => panels.setLightboxSrc(null)} />}
         </div>
     );

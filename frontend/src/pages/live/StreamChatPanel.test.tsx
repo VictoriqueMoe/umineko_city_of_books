@@ -1,6 +1,7 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ComposerTarget } from "../../components/chat/ChatComposer/ChatComposer";
 import { makeChatMessage, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import { emitRealtimeEvent, type RealtimeTestEvent } from "../../test-utils/ws";
@@ -56,7 +57,9 @@ vi.mock("../../components/chat/MessageBubble/MessageBubble", () => ({
 }));
 
 vi.mock("../../components/chat/ChatComposer/ChatComposer", () => ({
-    ChatComposer: (props: { roomId: string | null }) => <div data-testid="composer">{props.roomId}</div>,
+    ChatComposer: (props: { target: ComposerTarget | null }) => (
+        <div data-testid="composer">{props.target?.kind === "room" ? props.target.sender.roomId : null}</div>
+    ),
 }));
 
 vi.mock("../../components/Lightbox/Lightbox", () => ({

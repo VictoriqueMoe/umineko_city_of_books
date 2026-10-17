@@ -9,6 +9,7 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -136,7 +137,7 @@ func (r *Resolver) resolveMeta(ctx context.Context, path, partyID string) *Meta 
 		return r.metaForPath(ctx, path, partyID), nil
 	}
 
-	meta, _ := r.cache.Load(ctx, cache.OGMeta, load, metaKeyParts(path, partyID)...)
+	meta, _ := r.cache.Load(ctx, cache.OGMeta.Key(metaKeyParts(path, partyID)...), load)
 
 	return meta
 }
@@ -441,12 +442,15 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 	}
 
 	if len(parts) == 2 && parts[0] == "gallery" {
-		corner := parts[1]
-		name := strings.ToUpper(corner[:1]) + corner[1:]
+		gallery, ok := corner.GalleryAtPath("/gallery/" + parts[1])
+		if !ok {
+			return nil
+		}
+
 		return &Meta{
-			Title:       formatSiteName(name + " Gallery"),
-			Description: fmt.Sprintf("Browse %s fan art from the Umineko community.", corner),
-			URL:         fmt.Sprintf("%s/gallery/%s", r.baseURL, corner),
+			Title:       formatSiteName(gallery.Name() + " Gallery"),
+			Description: fmt.Sprintf("Browse %s fan art from the Umineko community.", gallery),
+			URL:         r.baseURL + gallery.Path(),
 		}
 	}
 
@@ -579,24 +583,17 @@ func (r *Resolver) profileMeta(ctx context.Context, username string) *Meta {
 	}
 }
 
-func (r *Resolver) gameBoardCornerMeta(ctx context.Context, corner string) *Meta {
-	titles := map[string]string{
-		"umineko":   "Umineko",
-		"higurashi": "Higurashi",
-		"ciconia":   "Ciconia",
-		"higanbana": "Higanbana",
-		"roseguns":  "Rose Guns Days",
-	}
-	name, ok := titles[corner]
+func (r *Resolver) gameBoardCornerMeta(ctx context.Context, slug string) *Meta {
+	board, ok := corner.GameBoardAtPath("/game-board/" + slug)
 	if !ok {
 		return nil
 	}
 
 	siteName, _ := r.getSiteMeta(ctx)
 	return &Meta{
-		Title:       fmt.Sprintf("%s Game Board - %s", name, siteName),
-		Description: fmt.Sprintf("Discuss %s with fellow players on the game board.", name),
-		URL:         fmt.Sprintf("%s/game-board/%s", r.baseURL, corner),
+		Title:       fmt.Sprintf("%s Game Board - %s", board.Name(), siteName),
+		Description: fmt.Sprintf("Discuss %s with fellow players on the game board.", board.Name()),
+		URL:         r.baseURL + board.Path(),
 	}
 }
 

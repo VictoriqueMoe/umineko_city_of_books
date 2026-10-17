@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/coalesce"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dao"
@@ -64,9 +65,8 @@ type (
 		uploadSvc   upload.Service
 		hub         *ws.Hub
 		chat        ChatBinder
+		cache       *cache.Manager
 		credsMu     sync.Mutex
-		thumbMu     sync.Mutex
-		thumbAt     map[uuid.UUID]time.Time
 		bitrateMu   sync.Mutex
 		bitrates    map[uuid.UUID]int
 		ogCache     *og.Resolver
@@ -101,7 +101,6 @@ const (
 
 	thumbnailSubDir   = "stream-thumbnails"
 	maxThumbnailBytes = 3 * 1024 * 1024
-	thumbnailThrottle = 20 * time.Second
 
 	liveNotifyCooldown = 2 * time.Hour
 )
@@ -126,6 +125,7 @@ func NewService(
 	notifSvc notification.Service,
 	hub *ws.Hub,
 	ogCache *og.Resolver,
+	cacheMgr *cache.Manager,
 ) Service {
 	s := &service{
 		repo:        repo,
@@ -136,7 +136,7 @@ func NewService(
 		settingsSvc: settingsSvc,
 		uploadSvc:   uploadSvc,
 		hub:         hub,
-		thumbAt:     make(map[uuid.UUID]time.Time),
+		cache:       cacheMgr,
 		bitrates:    make(map[uuid.UUID]int),
 		ogCache:     ogCache,
 	}
@@ -201,7 +201,7 @@ func (s *service) SaveThumbnail(ctx context.Context, userID, streamID uuid.UUID,
 		return ErrNotOwner
 	}
 
-	if !s.claimThumbnailSlot(streamID) {
+	if !s.claimThumbnailSlot(ctx, streamID) {
 		return nil
 	}
 
@@ -222,24 +222,23 @@ func (s *service) SaveThumbnail(ctx context.Context, userID, streamID uuid.UUID,
 	return nil
 }
 
-func (s *service) claimThumbnailSlot(streamID uuid.UUID) bool {
-	s.thumbMu.Lock()
-	defer s.thumbMu.Unlock()
+func (s *service) claimThumbnailSlot(ctx context.Context, streamID uuid.UUID) bool {
+	key := cache.StreamThumbnailSlot.Key(streamID.String())
 
-	now := time.Now()
-	if last, ok := s.thumbAt[streamID]; ok && now.Sub(last) < thumbnailThrottle {
-		return false
+	allowance, err := s.cache.Allow(ctx, key, 1, cache.StreamThumbnailSlot.TTL)
+	if err != nil {
+		logger.Ctx(ctx).Error().Err(err).Str("stream_id", streamID.String()).Msg("could not reach the coordination store, saving this stream thumbnail unthrottled")
+
+		return true
 	}
 
-	s.thumbAt[streamID] = now
-
-	return true
+	return allowance.Allowed
 }
 
-func (s *service) clearThumbnailSlot(streamID uuid.UUID) {
-	s.thumbMu.Lock()
-	delete(s.thumbAt, streamID)
-	s.thumbMu.Unlock()
+func (s *service) clearThumbnailSlot(ctx context.Context, streamID uuid.UUID) {
+	if err := s.cache.Reset(ctx, cache.StreamThumbnailSlot.Key(streamID.String())); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Str("stream_id", streamID.String()).Msg("could not clear the stream thumbnail slot, it lapses on its own when the throttle window ends")
+	}
 }
 
 func (s *service) maxConcurrent() int {
@@ -838,7 +837,7 @@ func (s *service) teardown(ctx context.Context, stream *model.LiveStreamRow) boo
 	if stream.ThumbnailURL != "" {
 		s.uploadSvc.Delete(stream.ThumbnailURL)
 	}
-	s.clearThumbnailSlot(stream.ID)
+	s.clearThumbnailSlot(ctx, stream.ID)
 
 	s.hub.BroadcastPublic(ws.Message{
 		Type: wsStreamOffline,

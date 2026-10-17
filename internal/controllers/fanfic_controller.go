@@ -197,7 +197,6 @@ func (s *Service) createFanfic(ctx fiber.Ctx) error {
 		}
 		return utils.InternalError(ctx, "failed to create fanfic", err)
 	}
-	s.Hub.BumpSidebarActivity("fanfiction")
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 
@@ -217,7 +216,7 @@ func (s *Service) updateFanfic(ctx fiber.Ctx) error {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
-		if errors.Is(err, fanficsvc.ErrEmptyTitle) || errors.Is(err, fanficsvc.ErrTooManyGenres) || errors.Is(err, fanficsvc.ErrTooManyTags) || errors.Is(err, fanficsvc.ErrTagTooLong) || errors.Is(err, fanficsvc.ErrInvalidRating) {
+		if errors.Is(err, fanficsvc.ErrEmptyTitle) || errors.Is(err, fanficsvc.ErrTooManyGenres) || errors.Is(err, fanficsvc.ErrTooManyTags) || errors.Is(err, fanficsvc.ErrTagTooLong) || errors.Is(err, fanficsvc.ErrInvalidRating) || errors.Is(err, fanficsvc.ErrInvalidStatus) {
 			return utils.BadRequest(ctx, err.Error())
 		}
 		if errors.Is(err, fanficsvc.ErrNotAuthor) {

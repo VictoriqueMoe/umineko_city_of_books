@@ -71,6 +71,56 @@ func TestService_StaticEntries_NoRulesPage(t *testing.T) {
 	assert.False(t, urls[testBaseURL+"/rules"])
 }
 
+func TestService_StaticEntries_ListEveryStaticPageAndCornerOnce(t *testing.T) {
+	// given
+	svc, _, settingsSvc := newTestService(t)
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingRulesPage).Return("")
+	paths := []string{
+		"",
+		"/welcome",
+		"/about",
+		"/theories",
+		"/game-board",
+		"/game-board/umineko",
+		"/game-board/higurashi",
+		"/game-board/ciconia",
+		"/game-board/higanbana",
+		"/game-board/roseguns",
+		"/gallery",
+		"/gallery/umineko",
+		"/gallery/higurashi",
+		"/gallery/ciconia",
+		"/quotes",
+		"/mysteries",
+		"/ships",
+		"/fanfiction",
+		"/suggestions",
+		"/games",
+		"/games/live",
+		"/games/past",
+		"/games/chess",
+		"/games/othello",
+		"/games/pong",
+		"/search",
+		"/live",
+		"/login",
+	}
+	want := make([]string, 0, len(paths))
+	for _, p := range paths {
+		want = append(want, testBaseURL+p)
+	}
+
+	// when
+	entries := svc.StaticEntries(context.Background())
+
+	// then
+	got := make([]string, 0, len(entries))
+	for _, e := range entries {
+		got = append(got, e.URL)
+	}
+	assert.ElementsMatch(t, want, got)
+}
+
 func TestService_StaticEntries_WithRulesPage(t *testing.T) {
 	// given
 	svc, _, settingsSvc := newTestService(t)

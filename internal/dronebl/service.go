@@ -93,7 +93,7 @@ func (c *Checker) Check(ctx context.Context, ip string) Verdict {
 		return cached
 	}
 
-	result, _, _ := c.group.Do(key, func() (any, error) {
+	result, _, _ := c.group.Do(key.String(), func() (any, error) {
 		return c.lookup(context.WithoutCancel(ctx), key, name, ip), nil
 	})
 
@@ -105,21 +105,21 @@ func (c *Checker) Check(ctx context.Context, ip string) Verdict {
 	return verdict
 }
 
-func (c *Checker) lookup(ctx context.Context, key, name, ip string) Verdict {
+func (c *Checker) lookup(ctx context.Context, key cache.Key, name, ip string) Verdict {
 	lookupCtx, cancel := context.WithTimeout(ctx, lookupTimeout)
 	defer cancel()
 
 	answers, err := c.resolver.LookupNetIP(lookupCtx, "ip4", name)
 	if err != nil && !isNotFound(err) {
 		logger.Ctx(ctx).Warn().Err(err).Str("ip", ip).Msg("dronebl lookup failed, treating the address as clean")
-		_ = c.cache.Set(ctx, key, Verdict{}, failureTTL)
+		_ = c.cache.Set(ctx, key.WithTTL(failureTTL), Verdict{})
 
 		return Verdict{}
 	}
 
 	classes := classesFrom(answers)
 	verdict := Verdict{Listed: len(classes) > 0, Classes: classes}
-	_ = c.cache.Set(ctx, key, verdict, cache.DroneBL.TTL)
+	_ = c.cache.Set(ctx, key, verdict)
 
 	return verdict
 }

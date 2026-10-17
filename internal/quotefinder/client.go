@@ -59,9 +59,9 @@ func (c *Client) ListCharacters(ctx context.Context, series Series) ([]Character
 		return nil, fmt.Errorf("unsupported series: %s", series)
 	}
 
-	return c.cache.Load(ctx, cache.QuoteCharacters, func(ctx context.Context) ([]Character, error) {
+	return c.cache.Load(ctx, cache.QuoteCharacters.Key(string(series)), func(ctx context.Context) ([]Character, error) {
 		return c.fetchCharacters(ctx, series)
-	}, string(series))
+	})
 }
 
 func (c *Client) fetchCharacters(ctx context.Context, series Series) ([]Character, error) {
@@ -93,9 +93,9 @@ func (c *Client) GetByAudioID(ctx context.Context, series Series, audioID string
 		return nil, nil
 	}
 
-	return c.cache.Load(ctx, cache.QuoteByAudioID, func(ctx context.Context) (*Quote, error) {
+	return c.cache.Load(ctx, cache.QuoteByAudioID.Key(string(series), firstID), func(ctx context.Context) (*Quote, error) {
 		return c.fetchQuote(ctx, fmt.Sprintf("%s/%s/quote/%s", c.baseURL, series, firstID))
-	}, string(series), firstID)
+	})
 }
 
 func (c *Client) GetByIndex(ctx context.Context, series Series, index int) (*Quote, error) {
@@ -103,9 +103,9 @@ func (c *Client) GetByIndex(ctx context.Context, series Series, index int) (*Quo
 		series = SeriesUmineko
 	}
 
-	return c.cache.Load(ctx, cache.QuoteByIndex, func(ctx context.Context) (*Quote, error) {
+	return c.cache.Load(ctx, cache.QuoteByIndex.Key(string(series), strconv.Itoa(index)), func(ctx context.Context) (*Quote, error) {
 		return c.fetchQuote(ctx, fmt.Sprintf("%s/%s/quote/index/%d", c.baseURL, series, index))
-	}, string(series), strconv.Itoa(index))
+	})
 }
 
 func (c *Client) fetchQuote(ctx context.Context, quoteURL string) (*Quote, error) {

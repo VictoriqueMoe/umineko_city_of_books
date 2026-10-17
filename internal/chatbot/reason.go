@@ -30,7 +30,6 @@ const (
 	reasonNone            Reason = ""
 	reasonNotPermitted    Reason = "not_permitted"
 	reasonCooldown        Reason = "cooldown"
-	reasonRoomInflight    Reason = "room_inflight"
 	reasonQueueFull       Reason = "queue_full"
 	reasonQuotaUser       Reason = "quota_user"
 	reasonQuotaSite       Reason = "quota_site"

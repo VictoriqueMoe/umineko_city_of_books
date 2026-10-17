@@ -41,7 +41,7 @@ func (s *ImageService) JPEG(ctx context.Context, info engine.ObjectInfo, maxPixe
 		return media.WebPToJPEG(ctx, localPath, maxPixels)
 	}
 
-	return s.cache.Load(ctx, cache.OGImage, load, info.Key, fingerprint(info))
+	return s.cache.Load(ctx, cache.OGImage.Key(info.Key, fingerprint(info)), load)
 }
 
 func fingerprint(info engine.ObjectInfo) string {

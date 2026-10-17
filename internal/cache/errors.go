@@ -7,7 +7,9 @@ import (
 )
 
 var (
-	ErrMiss = engine.ErrMiss
+	ErrMiss             = engine.ErrMiss
+	ErrUnavailable      = engine.ErrUnavailable
+	ErrInvalidAllowance = errors.New("cache: an allowance needs a limit of at least one and a window of at least one millisecond")
 )
 
 func errorIsMiss(err error) bool {

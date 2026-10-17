@@ -15,5 +15,6 @@ var (
 	ErrTooManyTags   = errors.New("maximum 10 tags allowed")
 	ErrTagTooLong    = errors.New("tags must be 30 characters or fewer")
 	ErrInvalidRating = errors.New("invalid rating")
+	ErrInvalidStatus = errors.New("status must be draft, in_progress or complete")
 	ErrNotAuthor     = errors.New("only the author can perform this action")
 )

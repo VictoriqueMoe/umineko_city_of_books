@@ -185,6 +185,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		notifSvc,
 		hub,
 		ogResolver,
+		cacheManager,
 	)
 
 	chatSvc := chat.NewService(
@@ -207,6 +208,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		livekitSvc,
 		contentFilter,
 		ogResolver,
+		hub,
 	)
 
 	streamSvc.SetChatBinder(chatSvc)
@@ -227,9 +229,10 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		contentFilter,
 		ogResolver,
 		homeFeedSvc,
+		hub,
 	)
 
-	openaiSvc := openai.NewService(settingsSvc)
+	openaiSvc := openai.NewService(settingsSvc, cacheManager)
 
 	chatbotSvc := chatbot.NewService(
 		openaiSvc,
@@ -242,6 +245,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		authzSvc,
 		settingsSvc,
 		hub,
+		cacheManager,
 	)
 
 	chatSvc.SetMessageObserver(chatbotSvc)
@@ -273,6 +277,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		contentFilter,
 		ogResolver,
 		homeFeedSvc,
+		hub,
 	)
 
 	shipSvc := ship.NewService(
@@ -289,6 +294,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		quoteClient,
 		contentFilter,
 		ogResolver,
+		hub,
 	)
 
 	ocSvc := ocsvc.NewService(
@@ -305,6 +311,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		hub,
 		contentFilter,
 		ogResolver,
+		hub,
 	)
 
 	mysterySvc := mysterysvc.NewService(
@@ -322,11 +329,13 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		hub,
 		contentFilter,
 		ogResolver,
+		hub,
 	)
 
 	fanficSvc := fanficsvc.NewService(
 		repos.Fanfic,
 		repos.User,
+		repos.Follow,
 		repos.AuditLog,
 		authzSvc,
 		blockSvc,
@@ -337,6 +346,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		settingsSvc,
 		contentFilter,
 		ogResolver,
+		hub,
 	)
 
 	journalSvc := journal.NewService(
@@ -353,6 +363,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		contentFilter,
 		ogResolver,
 		homeFeedSvc,
+		hub,
 	)
 
 	secretSvc := secretsvc.NewService(
@@ -368,6 +379,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		mediaProc,
 		hub,
 		contentFilter,
+		hub,
 	)
 
 	gameRoomSvc := gameroom.NewService(
@@ -460,6 +472,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		contentFilter,
 		ogResolver,
 		homeFeedSvc,
+		hub,
 	)
 
 	return &services{

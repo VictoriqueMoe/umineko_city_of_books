@@ -1,5 +1,6 @@
 import type { ChatMessage, ChatRoom, User } from "../../types/api";
 import { formatTimeOfDay } from "../../utils/time";
+import { isPendingSend, type ThreadEntry } from "./optimisticSend";
 
 export function getRoomDisplayName(room: ChatRoom, currentUser: User): string {
     if (room.type === "group") {
@@ -25,7 +26,7 @@ export function getRoomAvatarUser(room: ChatRoom, currentUser: User): User | nul
 export function seenLabel(
     msg: ChatMessage,
     idx: number,
-    messages: ChatMessage[],
+    entries: readonly ThreadEntry[],
     room: ChatRoom | undefined,
     selfId: string,
     receipts: Record<string, Record<string, string>>,
@@ -34,8 +35,9 @@ export function seenLabel(
         return null;
     }
 
-    for (let j = idx + 1; j < messages.length; j++) {
-        if (messages[j].sender.id === selfId) {
+    for (let j = idx + 1; j < entries.length; j++) {
+        const later = entries[j];
+        if (!isPendingSend(later) && later.sender.id === selfId) {
             return null;
         }
     }

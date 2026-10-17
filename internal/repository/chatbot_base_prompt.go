@@ -37,7 +37,7 @@ func (r *chatbotBasePromptRepository) List(ctx context.Context, tx ...*sql.Tx) (
 		return r.ChatbotBasePromptDAO.List(ctx, tx...)
 	}
 
-	return r.cache.Load(ctx, cache.ChatbotBasePrompts, load)
+	return r.cache.Load(ctx, cache.ChatbotBasePrompts.Key(), load)
 }
 
 func (r *chatbotBasePromptRepository) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.ChatbotBasePrompt, error) {
@@ -50,7 +50,7 @@ func (r *chatbotBasePromptRepository) GetByID(ctx context.Context, id uuid.UUID,
 		return *prompt, nil
 	}
 
-	cached, err := r.cache.Load(ctx, cache.ChatbotBasePromptByID, load, id.String())
+	cached, err := r.cache.Load(ctx, cache.ChatbotBasePromptByID.Key(id.String()), load)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (r *chatbotBasePromptRepository) InvalidateList(ctx context.Context) {
 }
 
 func (r *chatbotBasePromptRepository) invalidate(ctx context.Context, id uuid.UUID) {
-	keys := []string{cache.ChatbotBasePrompts.Key(), cache.ChatbotBasePromptByID.Key(id.String())}
+	keys := []cache.Key{cache.ChatbotBasePrompts.Key(), cache.ChatbotBasePromptByID.Key(id.String())}
 
 	if err := r.cache.Del(ctx, keys...); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate chatbot base prompt caches")

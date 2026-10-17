@@ -1,6 +1,6 @@
 import { useState } from "react";
+import { useParams } from "react-router";
 import { typingNames as resolveTypingNames } from "../domain/chat/memberRoster";
-import type { ChatMessage, ChatRoom } from "../types/api";
 import { useDeleteChatRoom } from "./mutations/chat";
 import { useChatThread } from "./useChatThread";
 import { useDmRoster } from "./useDmRoster";
@@ -10,8 +10,14 @@ const DELETE_CONFIRMATION = "Remove this conversation from your chat list?";
 const DELETE_FAILED = "Failed to delete conversation";
 
 export function useDmController() {
-    const { thread, session, capabilities, toast } = useChatThread({ maxMessages: MAX_DM_MESSAGES });
-    const roster = useDmRoster(thread.id);
+    const { roomId } = useParams<{ roomId: string }>();
+    const roster = useDmRoster(roomId);
+    const { thread, session, capabilities, toast } = useChatThread({
+        maxMessages: MAX_DM_MESSAGES,
+        onDelivered: roster.noteSent,
+        draftRecipientId: roster.draftRecipient?.id,
+        onAdopted: roster.adoptRoom,
+    });
 
     const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
@@ -20,18 +26,6 @@ export function useDmController() {
     const mobileView: "list" | "room" = thread.id || roster.draftRecipient ? "room" : "list";
 
     const deleteChatRoomMutation = useDeleteChatRoom();
-
-    function handleSentMessage(message: ChatMessage, room?: ChatRoom) {
-        if (room) {
-            session.history.seedMessages(room.id, [message]);
-            roster.adoptRoom(room);
-            session.toBottom({ force: true });
-            return;
-        }
-
-        session.onSent(message);
-        roster.noteSent(message);
-    }
 
     async function handleDeleteChat() {
         if (!activeRoomId) {
@@ -64,6 +58,11 @@ export function useDmController() {
         draftRecipient: roster.draftRecipient,
         setDraftRecipient: roster.setDraftRecipient,
         messages: session.messages,
+        entries: session.entries,
+        sender: session.sender,
+        draftSender: session.draftSender,
+        retrySend: session.retrySend,
+        discardSend: session.discardSend,
         hasMore: session.hasMore,
         loadingMore: session.loadingMore,
         loadUntilMessage: session.history.loadUntilMessage,
@@ -96,7 +95,6 @@ export function useDmController() {
         showToast: toast.show,
         handleRoomSelect: roster.selectRoom,
         handleMobileBack: roster.backToList,
-        handleSentMessage,
         handleSelectUser: roster.selectUser,
         handleDeleteMessage: session.deleteMessage,
         handleEditMessage: session.editMessage,

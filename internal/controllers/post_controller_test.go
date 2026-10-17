@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
+	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/follow"
@@ -209,7 +210,8 @@ func TestPostController_RejectsMalformedRequests(t *testing.T) {
 }
 
 func TestListPostFeed(t *testing.T) {
-	defaults := postCtlFeedQuery{tab: "everyone", corner: "general", page: bounds.NewPage(20, 0)}
+	defaults := postCtlFeedQuery{tab: "everyone", page: bounds.NewPage(20, 0)}
+	phantom := postCtlFeedQuery{tab: "everyone", corner: "phantom", page: bounds.NewPage(20, 0)}
 	custom := postCtlFeedQuery{tab: "following", corner: "suggestions", search: "search term", sort: "top", page: bounds.NewPage(10, 5), resolved: "open"}
 	cases := []struct {
 		name     string
@@ -224,6 +226,7 @@ func TestListPostFeed(t *testing.T) {
 		{name: "custom query", url: "/posts?tab=following&corner=suggestions&search=search+term&sort=top&limit=10&offset=5&resolved=open", want: custom, wantCode: http.StatusOK, wantBody: `"total":3,`},
 		{name: "authenticated passes viewer id", url: "/posts", authed: true, want: defaults, wantCode: http.StatusOK, wantBody: `"total":3,`},
 		{name: "internal error", url: "/posts", want: defaults, err: errors.New("boom"), wantCode: http.StatusInternalServerError, wantBody: "failed to list posts"},
+		{name: "an unknown corner is a bad request", url: "/posts?corner=phantom", want: phantom, err: fmt.Errorf("%w %q", corner.ErrInvalidCorner, "phantom"), wantCode: http.StatusBadRequest, wantBody: "invalid corner"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -271,6 +274,7 @@ func TestCreatePost(t *testing.T) {
 		{"ok", nil, http.StatusCreated, `{"id":"` + postID.String() + `"}`},
 		{"empty body", postsvc.ErrEmptyBody, http.StatusBadRequest, "empty"},
 		{"invalid share type", postsvc.ErrInvalidShareType, http.StatusBadRequest, "invalid shared content type"},
+		{"unknown corner", fmt.Errorf("%w %q", corner.ErrInvalidCorner, "phantom"), http.StatusBadRequest, "invalid corner"},
 		{"rate limited", postsvc.ErrRateLimited, http.StatusTooManyRequests, "daily post limit"},
 		{"internal error", errors.New("boom"), http.StatusInternalServerError, "failed to create post"},
 	}

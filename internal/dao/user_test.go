@@ -9,6 +9,7 @@ import (
 
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
@@ -336,6 +337,40 @@ func TestUserDAO_UpdateProfile(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+}
+
+func TestUserDAO_GetIP(t *testing.T) {
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	withIP := daotest.CreateUser(t, repos)
+	require.NoError(t, repos.User.UpdateIP(ctx, spec.UserIPUpdate{UserID: withIP.ID, IP: "10.0.0.1"}))
+	withoutIP := daotest.CreateUser(t, repos)
+
+	cases := []struct {
+		name    string
+		userID  uuid.UUID
+		want    string
+		wantErr error
+	}{
+		{name: "a stored ip", userID: withIP.ID, want: "10.0.0.1"},
+		{name: "a user who never had an ip recorded", userID: withoutIP.ID, want: ""},
+		{name: "a missing user", userID: uuid.New(), wantErr: dao.ErrNotFound},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			got, err := repos.User.GetIP(ctx, tc.userID)
+
+			// then
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
 }
 
 func TestUserDAO_SingleFieldUpdates(t *testing.T) {

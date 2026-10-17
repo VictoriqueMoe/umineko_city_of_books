@@ -24,6 +24,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
@@ -81,6 +82,7 @@ type (
 		hub           *ws.Hub
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
+		activity      sidebar.ActivityBumper
 	}
 )
 
@@ -99,6 +101,7 @@ func NewService(
 	hub *ws.Hub,
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
+	activity sidebar.ActivityBumper,
 ) Service {
 	return &service{
 		mysteryRepo:   mysteryRepo,
@@ -115,6 +118,7 @@ func NewService(
 		hub:           hub,
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
+		activity:      activity,
 	}
 }
 
@@ -414,16 +418,14 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 	}
 
 	created, err := s.mysteryRepo.CreateWithClues(ctx, spec.NewMysteryWithClues{
-		NewMystery: spec.NewMystery{
-			UserID:             userID,
-			Title:              req.Title,
-			Body:               req.Body,
-			Difficulty:         req.Difficulty,
-			FreeForAll:         req.FreeForAll,
-			KeepOpenAfterSolve: req.KeepOpenAfterSolve,
-			Knox:               contract,
-		},
-		Clues: newClues(req.Clues),
+		UserID:             userID,
+		Title:              req.Title,
+		Body:               req.Body,
+		Difficulty:         req.Difficulty,
+		FreeForAll:         req.FreeForAll,
+		KeepOpenAfterSolve: req.KeepOpenAfterSolve,
+		Knox:               contract,
+		Clues:              newClues(req.Clues),
 	})
 	if err != nil {
 		return uuid.Nil, err
@@ -439,6 +441,8 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 		Action:        "posted a new mystery",
 		Title:         req.Title,
 	})
+
+	s.activity.BumpSidebarActivity(sidebar.KeyMysteries)
 
 	return created.ID, nil
 }
@@ -473,16 +477,14 @@ func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 
 	if err := s.mysteryRepo.UpdateWithClues(ctx, spec.MysteryUpdateWithClues{
-		MysteryUpdate: spec.MysteryUpdate{
-			ID:                 id,
-			Title:              req.Title,
-			Body:               req.Body,
-			Difficulty:         req.Difficulty,
-			FreeForAll:         req.FreeForAll,
-			KeepOpenAfterSolve: req.KeepOpenAfterSolve,
-			Knox:               contract,
-		},
-		Clues: newClues(req.Clues),
+		ID:                 id,
+		Title:              req.Title,
+		Body:               req.Body,
+		Difficulty:         req.Difficulty,
+		FreeForAll:         req.FreeForAll,
+		KeepOpenAfterSolve: req.KeepOpenAfterSolve,
+		Knox:               contract,
+		Clues:              newClues(req.Clues),
 	}); err != nil {
 		return err
 	}

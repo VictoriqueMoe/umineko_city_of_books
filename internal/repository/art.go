@@ -44,7 +44,7 @@ func (r *artRepository) GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (map
 		return r.ArtDAO.GetCornerCounts(ctx, tx...)
 	}
 
-	return r.cache.Load(ctx, cache.ArtCornerCounts, load)
+	return r.cache.Load(ctx, cache.ArtCornerCounts.Key(), load)
 }
 
 func (r *artRepository) invalidateCornerCounts(ctx context.Context) {

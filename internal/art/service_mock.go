@@ -722,8 +722,8 @@ func (_c *MockService_GetGallery_Call) RunAndReturn(run func(ctx context.Context
 }
 
 // GetPopularTags provides a mock function for the type MockService
-func (_mock *MockService) GetPopularTags(ctx context.Context, corner string) ([]dto.TagCountResponse, error) {
-	ret := _mock.Called(ctx, corner)
+func (_mock *MockService) GetPopularTags(ctx context.Context, cornerFilter string) ([]dto.TagCountResponse, error) {
+	ret := _mock.Called(ctx, cornerFilter)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetPopularTags")
@@ -732,17 +732,17 @@ func (_mock *MockService) GetPopularTags(ctx context.Context, corner string) ([]
 	var r0 []dto.TagCountResponse
 	var r1 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]dto.TagCountResponse, error)); ok {
-		return returnFunc(ctx, corner)
+		return returnFunc(ctx, cornerFilter)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []dto.TagCountResponse); ok {
-		r0 = returnFunc(ctx, corner)
+		r0 = returnFunc(ctx, cornerFilter)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]dto.TagCountResponse)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, corner)
+		r1 = returnFunc(ctx, cornerFilter)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -756,12 +756,12 @@ type MockService_GetPopularTags_Call struct {
 
 // GetPopularTags is a helper method to define mock.On call
 //   - ctx context.Context
-//   - corner string
-func (_e *MockService_Expecter) GetPopularTags(ctx any, corner any) *MockService_GetPopularTags_Call {
-	return &MockService_GetPopularTags_Call{Call: _e.mock.On("GetPopularTags", ctx, corner)}
+//   - cornerFilter string
+func (_e *MockService_Expecter) GetPopularTags(ctx any, cornerFilter any) *MockService_GetPopularTags_Call {
+	return &MockService_GetPopularTags_Call{Call: _e.mock.On("GetPopularTags", ctx, cornerFilter)}
 }
 
-func (_c *MockService_GetPopularTags_Call) Run(run func(ctx context.Context, corner string)) *MockService_GetPopularTags_Call {
+func (_c *MockService_GetPopularTags_Call) Run(run func(ctx context.Context, cornerFilter string)) *MockService_GetPopularTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -784,7 +784,7 @@ func (_c *MockService_GetPopularTags_Call) Return(tagCountResponses []dto.TagCou
 	return _c
 }
 
-func (_c *MockService_GetPopularTags_Call) RunAndReturn(run func(ctx context.Context, corner string) ([]dto.TagCountResponse, error)) *MockService_GetPopularTags_Call {
+func (_c *MockService_GetPopularTags_Call) RunAndReturn(run func(ctx context.Context, cornerFilter string) ([]dto.TagCountResponse, error)) *MockService_GetPopularTags_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -916,8 +916,8 @@ func (_c *MockService_LikeComment_Call) RunAndReturn(run func(ctx context.Contex
 }
 
 // ListAllGalleries provides a mock function for the type MockService
-func (_mock *MockService) ListAllGalleries(ctx context.Context, corner string) ([]dto.GalleryResponse, error) {
-	ret := _mock.Called(ctx, corner)
+func (_mock *MockService) ListAllGalleries(ctx context.Context, cornerFilter string) ([]dto.GalleryResponse, error) {
+	ret := _mock.Called(ctx, cornerFilter)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListAllGalleries")
@@ -926,17 +926,17 @@ func (_mock *MockService) ListAllGalleries(ctx context.Context, corner string) (
 	var r0 []dto.GalleryResponse
 	var r1 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]dto.GalleryResponse, error)); ok {
-		return returnFunc(ctx, corner)
+		return returnFunc(ctx, cornerFilter)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []dto.GalleryResponse); ok {
-		r0 = returnFunc(ctx, corner)
+		r0 = returnFunc(ctx, cornerFilter)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]dto.GalleryResponse)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, corner)
+		r1 = returnFunc(ctx, cornerFilter)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -950,12 +950,12 @@ type MockService_ListAllGalleries_Call struct {
 
 // ListAllGalleries is a helper method to define mock.On call
 //   - ctx context.Context
-//   - corner string
-func (_e *MockService_Expecter) ListAllGalleries(ctx any, corner any) *MockService_ListAllGalleries_Call {
-	return &MockService_ListAllGalleries_Call{Call: _e.mock.On("ListAllGalleries", ctx, corner)}
+//   - cornerFilter string
+func (_e *MockService_Expecter) ListAllGalleries(ctx any, cornerFilter any) *MockService_ListAllGalleries_Call {
+	return &MockService_ListAllGalleries_Call{Call: _e.mock.On("ListAllGalleries", ctx, cornerFilter)}
 }
 
-func (_c *MockService_ListAllGalleries_Call) Run(run func(ctx context.Context, corner string)) *MockService_ListAllGalleries_Call {
+func (_c *MockService_ListAllGalleries_Call) Run(run func(ctx context.Context, cornerFilter string)) *MockService_ListAllGalleries_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -978,14 +978,14 @@ func (_c *MockService_ListAllGalleries_Call) Return(galleryResponses []dto.Galle
 	return _c
 }
 
-func (_c *MockService_ListAllGalleries_Call) RunAndReturn(run func(ctx context.Context, corner string) ([]dto.GalleryResponse, error)) *MockService_ListAllGalleries_Call {
+func (_c *MockService_ListAllGalleries_Call) RunAndReturn(run func(ctx context.Context, cornerFilter string) ([]dto.GalleryResponse, error)) *MockService_ListAllGalleries_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListArt provides a mock function for the type MockService
-func (_mock *MockService) ListArt(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, page bounds.Page) (*dto.ArtListResponse, error) {
-	ret := _mock.Called(ctx, viewerID, corner, artType, search, tag, sort, page)
+func (_mock *MockService) ListArt(ctx context.Context, viewerID uuid.UUID, cornerSlug string, artType string, search string, tag string, sort string, page bounds.Page) (*dto.ArtListResponse, error) {
+	ret := _mock.Called(ctx, viewerID, cornerSlug, artType, search, tag, sort, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListArt")
@@ -994,17 +994,17 @@ func (_mock *MockService) ListArt(ctx context.Context, viewerID uuid.UUID, corne
 	var r0 *dto.ArtListResponse
 	var r1 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, string, bounds.Page) (*dto.ArtListResponse, error)); ok {
-		return returnFunc(ctx, viewerID, corner, artType, search, tag, sort, page)
+		return returnFunc(ctx, viewerID, cornerSlug, artType, search, tag, sort, page)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, string, bounds.Page) *dto.ArtListResponse); ok {
-		r0 = returnFunc(ctx, viewerID, corner, artType, search, tag, sort, page)
+		r0 = returnFunc(ctx, viewerID, cornerSlug, artType, search, tag, sort, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.ArtListResponse)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, string, string, bounds.Page) error); ok {
-		r1 = returnFunc(ctx, viewerID, corner, artType, search, tag, sort, page)
+		r1 = returnFunc(ctx, viewerID, cornerSlug, artType, search, tag, sort, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1019,17 +1019,17 @@ type MockService_ListArt_Call struct {
 // ListArt is a helper method to define mock.On call
 //   - ctx context.Context
 //   - viewerID uuid.UUID
-//   - corner string
+//   - cornerSlug string
 //   - artType string
 //   - search string
 //   - tag string
 //   - sort string
 //   - page bounds.Page
-func (_e *MockService_Expecter) ListArt(ctx any, viewerID any, corner any, artType any, search any, tag any, sort any, page any) *MockService_ListArt_Call {
-	return &MockService_ListArt_Call{Call: _e.mock.On("ListArt", ctx, viewerID, corner, artType, search, tag, sort, page)}
+func (_e *MockService_Expecter) ListArt(ctx any, viewerID any, cornerSlug any, artType any, search any, tag any, sort any, page any) *MockService_ListArt_Call {
+	return &MockService_ListArt_Call{Call: _e.mock.On("ListArt", ctx, viewerID, cornerSlug, artType, search, tag, sort, page)}
 }
 
-func (_c *MockService_ListArt_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, page bounds.Page)) *MockService_ListArt_Call {
+func (_c *MockService_ListArt_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, cornerSlug string, artType string, search string, tag string, sort string, page bounds.Page)) *MockService_ListArt_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1082,7 +1082,7 @@ func (_c *MockService_ListArt_Call) Return(artListResponse *dto.ArtListResponse,
 	return _c
 }
 
-func (_c *MockService_ListArt_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, page bounds.Page) (*dto.ArtListResponse, error)) *MockService_ListArt_Call {
+func (_c *MockService_ListArt_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, cornerSlug string, artType string, search string, tag string, sort string, page bounds.Page) (*dto.ArtListResponse, error)) *MockService_ListArt_Call {
 	_c.Call.Return(run)
 	return _c
 }

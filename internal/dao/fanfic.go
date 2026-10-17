@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 )
@@ -18,7 +19,7 @@ import (
 type (
 	FanficDAO interface {
 		Create(ctx context.Context, s spec.NewFanfic, tx ...*sql.Tx) (*model.FanficRow, error)
-		Update(ctx context.Context, s spec.FanficUpdate, tx ...*sql.Tx) error
+		Update(ctx context.Context, s spec.FanficUpdate, tx ...*sql.Tx) (firstPublished bool, err error)
 		UpdateCoverImage(ctx context.Context, s spec.FanficCoverUpdate, tx ...*sql.Tx) error
 		UpdateWordCount(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) error
 		Delete(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) error
@@ -115,7 +116,7 @@ func toFanficRow(row fanficJoinRow) model.FanficRow {
 		CommentCount:      int(row.CommentCount),
 		UserFavourited:    row.UserFavourited,
 		IsPairing:         row.IsPairing,
-		PublishedAt:       row.PublishedAt.UTC().Format(time.RFC3339),
+		PublishedAt:       nullTimeToStringPtr(row.PublishedAt),
 		CreatedAt:         row.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:         new(row.UpdatedAt.UTC().Format(time.RFC3339)),
 		AuthorUsername:    row.AuthorUsername,
@@ -170,48 +171,65 @@ func (r *fanficDAO) Create(ctx context.Context, s spec.NewFanfic, tx ...*sql.Tx)
 	return new(toFanficRow(fanficJoinRow(created))), nil
 }
 
-func (r *fanficDAO) Update(ctx context.Context, s spec.FanficUpdate, tx ...*sql.Tx) error {
-	var (
-		affected int64
-		err      error
-	)
+func (r *fanficDAO) Update(ctx context.Context, s spec.FanficUpdate, tx ...*sql.Tx) (bool, error) {
+	var firstPublished bool
 
-	queries := genQueries(r.db, tx)
-	if s.AsAdmin {
-		affected, err = queries.UpdateFanficAsAdmin(ctx, sqlcgen.UpdateFanficAsAdminParams{
-			Title:          s.Title,
-			Summary:        s.Summary,
-			Series:         s.Series,
-			Rating:         s.Rating,
-			Language:       s.Language,
-			Status:         s.Status,
-			IsOneshot:      s.IsOneshot,
-			ContainsLemons: s.ContainsLemons,
-			ID:             s.ID,
-		})
-	} else {
-		affected, err = queries.UpdateFanficAsOwner(ctx, sqlcgen.UpdateFanficAsOwnerParams{
-			Title:          s.Title,
-			Summary:        s.Summary,
-			Series:         s.Series,
-			Rating:         s.Rating,
-			Language:       s.Language,
-			Status:         s.Status,
-			IsOneshot:      s.IsOneshot,
-			ContainsLemons: s.ContainsLemons,
-			ID:             s.ID,
-			UserID:         s.UserID,
-		})
-	}
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
+		queries := genQueries(r.db, []*sql.Tx{tx})
+
+		var (
+			affected int64
+			err      error
+		)
+
+		if s.AsAdmin {
+			affected, err = queries.UpdateFanficAsAdmin(ctx, sqlcgen.UpdateFanficAsAdminParams{
+				Title:          s.Title,
+				Summary:        s.Summary,
+				Series:         s.Series,
+				Rating:         s.Rating,
+				Language:       s.Language,
+				Status:         s.Status,
+				IsOneshot:      s.IsOneshot,
+				ContainsLemons: s.ContainsLemons,
+				ID:             s.ID,
+			})
+		} else {
+			affected, err = queries.UpdateFanficAsOwner(ctx, sqlcgen.UpdateFanficAsOwnerParams{
+				Title:          s.Title,
+				Summary:        s.Summary,
+				Series:         s.Series,
+				Rating:         s.Rating,
+				Language:       s.Language,
+				Status:         s.Status,
+				IsOneshot:      s.IsOneshot,
+				ContainsLemons: s.ContainsLemons,
+				ID:             s.ID,
+				UserID:         s.UserID,
+			})
+		}
+		if err != nil {
+			return fmt.Errorf("update fanfic: %w", err)
+		}
+
+		if affected == 0 {
+			return fmt.Errorf("fanfic not found or not owned: %w", ErrNotFound)
+		}
+
+		published, err := queries.MarkFanficFirstPublished(ctx, s.ID)
+		if err != nil {
+			return fmt.Errorf("mark fanfic first published: %w", err)
+		}
+
+		firstPublished = published == 1
+
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("update fanfic: %w", err)
+		return false, err
 	}
 
-	if affected == 0 {
-		return fmt.Errorf("fanfic not found or not owned: %w", ErrNotFound)
-	}
-
-	return nil
+	return firstPublished, nil
 }
 
 func (r *fanficDAO) AddGenres(ctx context.Context, s spec.FanficGenres, tx ...*sql.Tx) error {

@@ -76,7 +76,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	hub := ws.NewHub()
 	hyperbeamSvc := hyperbeam.NewMockService(t)
 	livekitSvc := livekit.NewService(settingsSvc)
-	svc := NewService(chatRepo, userRepo, roleRepo, vanityRoleRepo, banRepo, bannedWordRepo, watchPartyRepo, auditRepo, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, hyperbeamSvc, livekitSvc, contentfilter.New(), nil).(*service)
+	svc := NewService(chatRepo, userRepo, roleRepo, vanityRoleRepo, banRepo, bannedWordRepo, watchPartyRepo, auditRepo, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, hyperbeamSvc, livekitSvc, contentfilter.New(), nil, hub).(*service)
 
 	chatRepo.EXPECT().HasGhostMembers(mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	chatRepo.EXPECT().IsGhostMember(mock.Anything, mock.Anything).Return(false, nil).Maybe()

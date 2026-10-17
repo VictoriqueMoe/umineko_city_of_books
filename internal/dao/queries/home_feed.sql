@@ -86,9 +86,20 @@ SELECT 'secrets'::text AS key, MAX(created_at)::timestamptz AS latest_at FROM se
 UNION ALL
 SELECT 'ships'::text AS key, MAX(created_at)::timestamptz AS latest_at FROM ships HAVING COUNT(*) > 0
 UNION ALL
-SELECT 'fanfiction'::text AS key, MAX(created_at)::timestamptz AS latest_at FROM fanfics HAVING COUNT(*) > 0
+SELECT 'fanfiction'::text AS key, MAX(published_at)::timestamptz AS latest_at FROM fanfics WHERE status <> 'draft' HAVING COUNT(*) > 0
 UNION ALL
-SELECT 'journals'::text AS key, MAX(created_at)::timestamptz AS latest_at FROM journals WHERE archived_at IS NULL HAVING COUNT(*) > 0
+SELECT 'ocs'::text AS key, MAX(created_at)::timestamptz AS latest_at FROM ocs HAVING COUNT(*) > 0
+UNION ALL
+SELECT 'journals'::text AS key, MAX(journal_activity.happened_at)::timestamptz AS latest_at
+FROM (
+    SELECT j.created_at AS happened_at FROM journals j WHERE j.archived_at IS NULL
+    UNION ALL
+    SELECT e.published_at AS happened_at
+    FROM journal_entries e
+    JOIN journals j ON j.id = e.journal_id
+    WHERE j.archived_at IS NULL AND NOT e.is_draft
+) journal_activity
+HAVING COUNT(*) > 0
 UNION ALL
 SELECT 'rooms'::text AS key, MAX(created_at)::timestamptz AS latest_at FROM chat_rooms WHERE type = 'group' AND is_public = TRUE AND is_system = FALSE HAVING COUNT(*) > 0;
 

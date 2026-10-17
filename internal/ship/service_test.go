@@ -24,6 +24,7 @@ import (
 	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
@@ -43,6 +44,7 @@ type (
 		notifSvc     *notification.MockService
 		uploadSvc    *upload.MockService
 		settingsSvc  *settings.MockService
+		activity     *sidebar.MockActivityBumper
 	}
 )
 
@@ -69,12 +71,13 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		notifSvc:     notification.NewMockService(t),
 		uploadSvc:    upload.NewMockService(t),
 		settingsSvc:  settings.NewMockService(t),
+		activity:     sidebar.NewMockActivityBumper(t),
 	}
 
 	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifSvc, dao.CommentDAOs{
 		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindShipComment): m.shipComments},
 	})
-	svc := NewService(m.shipRepo, m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.uploadSvc, media.NewProcessor(1), m.settingsSvc, quotefinder.NewClient(nil), contentfilter.New(), nil).(*service)
+	svc := NewService(m.shipRepo, m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.uploadSvc, media.NewProcessor(1), m.settingsSvc, quotefinder.NewClient(nil), contentfilter.New(), nil, m.activity).(*service)
 
 	return svc, m
 }
@@ -172,7 +175,7 @@ func TestCreateShipAndUpdateShip_RejectInvalidInput(t *testing.T) {
 	}
 }
 
-func TestCreateShip_RepoErrorBubbles(t *testing.T) {
+func TestCreateShip_RepoErrorBubblesWithoutBumpingTheSidebar(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
@@ -206,6 +209,7 @@ func TestCreateShip_MentionOnTheDescriptionNotifiesTheNamedUser(t *testing.T) {
 			Characters:  req.Characters,
 		}).
 		Return(&model.ShipRow{ID: shipID}, nil)
+	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyShips).Return().Once()
 	mentionedID, awaitMention := expectMentionOfAlice(m, userID, 1)
 
 	// when

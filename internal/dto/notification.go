@@ -91,6 +91,7 @@ const (
 	NotifFanficCommentReply       NotificationType = "fanfic_comment_reply"
 	NotifFanficCommentLiked       NotificationType = "fanfic_comment_liked"
 	NotifFanficFavourited         NotificationType = "fanfic_favourited"
+	NotifFanficPublished          NotificationType = "fanfic_published"
 	NotifSuggestionPosted         NotificationType = "suggestion_posted"
 	NotifSuggestionResolved       NotificationType = "suggestion_resolved"
 	NotifContentShared            NotificationType = "content_shared"

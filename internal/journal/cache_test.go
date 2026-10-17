@@ -17,6 +17,7 @@ import (
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
@@ -35,6 +36,7 @@ func newCacheTestService(t *testing.T, mgr *cache.Manager, echoes homefeed.Servi
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	comments := repository.NewMockJournalCommentWriter(t)
+	activity := sidebar.NewMockActivityBumper(t)
 	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, dao.CommentDAOs{Journal: comments})
 
 	resolver := og.NewResolver(
@@ -47,7 +49,7 @@ func newCacheTestService(t *testing.T, mgr *cache.Manager, echoes homefeed.Servi
 
 	svc := NewService(
 		repo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc,
-		uploadSvc, &media.Processor{}, settingsSvc, contentfilter.New(), resolver, echoes,
+		uploadSvc, &media.Processor{}, settingsSvc, contentfilter.New(), resolver, echoes, activity,
 	).(*service)
 
 	return svc, &testMocks{
@@ -60,6 +62,7 @@ func newCacheTestService(t *testing.T, mgr *cache.Manager, echoes homefeed.Servi
 		notifService: notifSvc,
 		uploadSvc:    uploadSvc,
 		settingsSvc:  settingsSvc,
+		activity:     activity,
 	}
 }
 
@@ -73,7 +76,7 @@ func TestDeleteJournal_ClearsCachedPages(t *testing.T) {
 	id := uuid.New()
 	authorID := uuid.New()
 	key := cache.OGMeta.Key("/journals/" + id.String())
-	require.NoError(t, mgr.Set(ctx, key, "cached meta", cache.OGMeta.TTL))
+	require.NoError(t, mgr.Set(ctx, key, "cached meta"))
 
 	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.repo.EXPECT().GetTitle(mock.Anything, id).Return("doomed", nil)

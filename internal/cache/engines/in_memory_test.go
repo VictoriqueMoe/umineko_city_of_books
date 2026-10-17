@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -402,6 +403,158 @@ func TestInMemoryIsAlwaysAvailable(t *testing.T) {
 	assert.Equal(t, "in-memory", c.Name())
 	assert.True(t, c.Enabled())
 	require.NoError(t, c.Ping(context.Background()))
+}
+
+func TestInMemoryAllowCountsAFixedWindow(t *testing.T) {
+	const limit = 3
+
+	tests := []struct {
+		name           string
+		priorHits      int
+		advance        time.Duration
+		wantAllowed    bool
+		wantRetryAfter time.Duration
+	}{
+		{name: "the first hit starts the window", priorHits: 0, wantAllowed: true},
+		{name: "a hit within the budget is allowed", priorHits: limit - 1, advance: 10 * time.Second, wantAllowed: true},
+		{name: "a hit over the budget waits out the rest of the window", priorHits: limit, advance: 20 * time.Second, wantAllowed: false, wantRetryAfter: 40 * time.Second},
+		{name: "exactly at the window end is still the same window, matching valkey", priorHits: limit, advance: time.Minute, wantAllowed: false, wantRetryAfter: 0},
+		{name: "past the window end a fresh window starts", priorHits: limit, advance: time.Minute + time.Millisecond, wantAllowed: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			c, clock := newClockedInMemory(t, 0)
+			ctx := context.Background()
+
+			for range tt.priorHits {
+				_, err := c.Allow(ctx, "k", limit, time.Minute)
+				require.NoError(t, err)
+			}
+
+			// when
+			clock.advance(tt.advance)
+			got, err := c.Allow(ctx, "k", limit, time.Minute)
+
+			// then the window is fixed from the first hit and never slides
+			require.NoError(t, err)
+			assert.Equal(t, engine.Allowance{Allowed: tt.wantAllowed, RetryAfter: tt.wantRetryAfter}, got)
+		})
+	}
+}
+
+func TestInMemoryAllowRollsOverToAWindowStartedByTheNextHit(t *testing.T) {
+	// given a spent budget
+	c, clock := newClockedInMemory(t, 0)
+	ctx := context.Background()
+
+	for range 2 {
+		_, err := c.Allow(ctx, "k", 2, time.Minute)
+		require.NoError(t, err)
+	}
+
+	// when the window lapses and the budget is spent again
+	clock.advance(90 * time.Second)
+
+	allowed := make([]bool, 0, 2)
+	for range 2 {
+		got, err := c.Allow(ctx, "k", 2, time.Minute)
+		require.NoError(t, err)
+
+		allowed = append(allowed, got.Allowed)
+	}
+
+	clock.advance(15 * time.Second)
+	refused, err := c.Allow(ctx, "k", 2, time.Minute)
+
+	// then the new window runs from the first hit after the lapse
+	require.NoError(t, err)
+	assert.Equal(t, []bool{true, true}, allowed)
+	assert.Equal(t, engine.Allowance{RetryAfter: 45 * time.Second}, refused)
+}
+
+func TestInMemoryResetClearsTheAllowance(t *testing.T) {
+	tests := []struct {
+		name     string
+		priorHit bool
+	}{
+		{name: "a spent allowance is handed back", priorHit: true},
+		{name: "an allowance never taken is a no-op", priorHit: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			c, _ := newClockedInMemory(t, 0)
+			ctx := context.Background()
+
+			if tt.priorHit {
+				_, err := c.Allow(ctx, "lease", 1, time.Minute)
+				require.NoError(t, err)
+			}
+
+			// when
+			err := c.Reset(ctx, "lease")
+
+			// then
+			require.NoError(t, err)
+			assert.Zero(t, c.Len())
+
+			got, allowErr := c.Allow(ctx, "lease", 1, time.Minute)
+			require.NoError(t, allowErr)
+			assert.True(t, got.Allowed)
+		})
+	}
+}
+
+func TestInMemoryAllowanceIsKeptApartFromCachedValues(t *testing.T) {
+	// given a cached value and an allowance under the same key
+	c, _ := newClockedInMemory(t, 0)
+	ctx := context.Background()
+
+	require.NoError(t, c.Set(ctx, "k", []byte("golden"), time.Minute))
+
+	_, err := c.Allow(ctx, "k", 1, time.Minute)
+	require.NoError(t, err)
+
+	// when
+	got, getErr := c.Get(ctx, "k")
+	refused, allowErr := c.Allow(ctx, "k", 1, time.Minute)
+
+	// then neither sees the other, as the valkey limiter keeps its own keys
+	require.NoError(t, getErr)
+	assert.Equal(t, []byte("golden"), got)
+	require.NoError(t, allowErr)
+	assert.False(t, refused.Allowed)
+}
+
+func TestInMemoryAllowNeverExceedsTheBudgetUnderConcurrency(t *testing.T) {
+	// given
+	const limit = 10
+
+	c := NewInMemory(0)
+	ctx := context.Background()
+
+	// when
+	var (
+		wg      sync.WaitGroup
+		allowed atomic.Int64
+	)
+	for range 64 {
+		wg.Go(func() {
+			got, err := c.Allow(ctx, "k", limit, time.Minute)
+			assert.NoError(t, err)
+
+			if got.Allowed {
+				allowed.Add(1)
+			}
+		})
+	}
+	wg.Wait()
+
+	// then
+	assert.Equal(t, int64(limit), allowed.Load())
 }
 
 func TestInMemoryHandlesConcurrentAccess(t *testing.T) {

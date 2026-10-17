@@ -44,7 +44,7 @@ func (r *userSecretRepository) GetUserIDsWithSecret(ctx context.Context, secretI
 		return r.UserSecretDAO.GetUserIDsWithSecret(ctx, secretID, tx...)
 	}
 
-	return r.cache.Load(ctx, cache.SecretHolders, load, secretID)
+	return r.cache.Load(ctx, cache.SecretHolders.Key(secretID), load)
 }
 
 func (r *userSecretRepository) IsSolvedByAnyone(ctx context.Context, secretID string, tx ...*sql.Tx) (bool, error) {
@@ -52,7 +52,7 @@ func (r *userSecretRepository) IsSolvedByAnyone(ctx context.Context, secretID st
 		return r.UserSecretDAO.IsSolvedByAnyone(ctx, secretID, tx...)
 	}
 
-	return r.cache.Load(ctx, cache.SecretSolved, load, secretID)
+	return r.cache.Load(ctx, cache.SecretSolved.Key(secretID), load)
 }
 
 func (r *userSecretRepository) DeleteSecrets(ctx context.Context, secretIDs []string, tx ...*sql.Tx) error {
@@ -64,7 +64,7 @@ func (r *userSecretRepository) DeleteSecrets(ctx context.Context, secretIDs []st
 		return nil
 	}
 
-	keys := make([]string, 0, len(secretIDs)*2)
+	keys := make([]cache.Key, 0, len(secretIDs)*2)
 	for _, id := range secretIDs {
 		keys = append(keys, cache.SecretHolders.Key(id), cache.SecretSolved.Key(id))
 	}

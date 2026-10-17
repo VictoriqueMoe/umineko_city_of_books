@@ -70,6 +70,7 @@ const typeCases: { type: NotificationType; text: string; category: NotificationC
     { type: "fanfic_comment_reply", text: "replied to your comment on a fanfic", category: "social" },
     { type: "fanfic_comment_liked", text: "liked your comment on a fanfic", category: "social" },
     { type: "fanfic_favourited", text: "favourited your fanfic", category: "social" },
+    { type: "fanfic_published", text: "published a new fanfic", category: "social" },
     { type: "ship_commented", text: "commented on your ship", category: "social" },
     { type: "ship_comment_reply", text: "replied to your comment", category: "social" },
     { type: "ship_comment_liked", text: "liked your comment", category: "social" },
@@ -239,6 +240,32 @@ describe("getNotificationRoute", () => {
 
         // then
         expect(route).toBe("/mystery/ref-1");
+    });
+
+    it("links a newly published fanfic notification to the fanfic", () => {
+        // given
+        const notif = makeNotification({ type: "fanfic_published", reference_type: "fanfic" });
+
+        // when
+        const route = getNotificationRoute(notif);
+
+        // then
+        expect(route).toBe("/fanfiction/ref-1");
+    });
+
+    it("shows a newly published fanfic notification with the title the server sent", () => {
+        // given
+        const notif = makeNotification({
+            type: "fanfic_published",
+            reference_type: "fanfic",
+            message: "published a new fanfic: The Witch's Epitaph",
+        });
+
+        // when
+        const text = getNotificationText(notif);
+
+        // then
+        expect(text).toBe("published a new fanfic: The Witch's Epitaph");
     });
 
     it("links a new theory notification to the theory", () => {

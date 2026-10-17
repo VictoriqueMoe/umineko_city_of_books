@@ -64,7 +64,7 @@ func TestChatBannedWordRepo_WritesDropOnlyTheListTheyChanged(t *testing.T) {
 	globalRule := &model.ChatBannedWordRow{ID: ruleID, Scope: "global", Pattern: "witch"}
 	roomRule := &model.ChatBannedWordRow{ID: ruleID, Scope: "room", RoomID: &roomID, Pattern: "cat"}
 	deletion := spec.ChatBannedWordDeletion{ID: ruleID, Audit: audit.NewEntry{Action: audit.ActionChatRoomBannedWordDelete}}
-	creation := spec.ChatBannedWordCreation{ChatBannedWordSpec: spec.ChatBannedWordSpec{Scope: "global", Pattern: "witch"}, Audit: audit.NewEntry{Action: audit.ActionChatGlobalBannedWordCreate}}
+	creation := spec.ChatBannedWordCreation{Scope: "global", Pattern: "witch", Audit: audit.NewEntry{Action: audit.ActionChatGlobalBannedWordCreate}}
 
 	cases := []bannedWordWriteCase{
 		{

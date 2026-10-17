@@ -3,9 +3,11 @@ package dao_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -235,6 +237,7 @@ func TestHomeFeedDAO_ListSidebarActivity_AggregatesByKey(t *testing.T) {
 	createMystery(t, repos, user.ID, "m", "easy", false)
 	createShip(t, repos, user.ID, "ship", makeChars())
 	createFanfic(t, repos, user.ID, "ff")
+	createOC(t, repos, user.ID, "oc", "umineko", "")
 	createJournal(t, repos, user.ID, "j", "body", "umineko")
 	unlockSecretFor(t, repos, user.ID, testSecretID)
 	createSecretComment(t, repos, testSecretID, nil, user.ID, "s")
@@ -255,9 +258,105 @@ func TestHomeFeedDAO_ListSidebarActivity_AggregatesByKey(t *testing.T) {
 	assert.Contains(t, keys, "mysteries")
 	assert.Contains(t, keys, "ships")
 	assert.Contains(t, keys, "fanfiction")
+	assert.Contains(t, keys, "ocs")
 	assert.Contains(t, keys, "journals")
 	assert.Contains(t, keys, "secrets")
 	assert.Contains(t, keys, "rooms")
+}
+
+func TestHomeFeedDAO_ListSidebarActivity_IgnoresDraftFanfics(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	user := daotest.CreateUser(t, repos)
+	fanficInsert(t, repos, spec.NewFanficWithDetails{UserID: user.ID, Title: "draft", Status: "draft"})
+
+	// when
+	rows, err := repos.HomeFeed.ListSidebarActivity(ctx)
+
+	// then
+	require.NoError(t, err)
+	assert.Empty(t, rows, "a draft is not public, so it must not light the fanfiction section")
+}
+
+func sidebarLatestAt(t *testing.T, repos *repository.Repositories) map[string]string {
+	t.Helper()
+
+	rows, err := repos.HomeFeed.ListSidebarActivity(context.Background())
+	require.NoError(t, err)
+
+	latest := make(map[string]string, len(rows))
+	for _, row := range rows {
+		latest[row.Key] = row.LatestAt
+	}
+
+	return latest
+}
+
+func TestHomeFeedDAO_ListSidebarActivity_FanfictionIsTheLatestPublishMoment(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	author := daotest.CreateUser(t, repos)
+	draftedInJanuary := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	createdInFebruary := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
+	publishedInMarch := time.Date(2026, 3, 16, 0, 0, 0, 0, time.UTC)
+
+	straightAway := fanficInsert(t, repos, spec.NewFanficWithDetails{UserID: author.ID, Title: "Published straight away"})
+	_, err := repos.DB().ExecContext(ctx, `UPDATE fanfics SET created_at = $1, published_at = $1 WHERE id = $2`, createdInFebruary, straightAway)
+	require.NoError(t, err)
+
+	drafted := fanficInsert(t, repos, spec.NewFanficWithDetails{UserID: author.ID, Title: "Drafted, then published", Status: "draft"})
+	require.True(t, fanficSetStatus(t, repos, drafted, author.ID, "complete"))
+	_, err = repos.DB().ExecContext(ctx, `UPDATE fanfics SET created_at = $1, published_at = $2 WHERE id = $3`, draftedInJanuary, publishedInMarch, drafted)
+	require.NoError(t, err)
+
+	// when
+	latest := sidebarLatestAt(t, repos)
+
+	// then
+	assert.Equal(t, publishedInMarch.Format(time.RFC3339), latest["fanfiction"], "a draft started in January and published in March lights the section in March")
+}
+
+func TestHomeFeedDAO_ListSidebarActivity_JournalsTakeTheLatestJournalOrPublishedEntry(t *testing.T) {
+	journalCreated := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	entryPublished := time.Date(2026, 3, 16, 0, 0, 0, 0, time.UTC)
+
+	cases := []struct {
+		name        string
+		withEntry   bool
+		entryDraft  bool
+		publishedAt *time.Time
+		want        time.Time
+	}{
+		{name: "a journal with no entries counts from its creation", want: journalCreated},
+		{name: "an entry published after the journal was created counts from its publication", withEntry: true, publishedAt: &entryPublished, want: entryPublished},
+		{name: "a draft entry does not count", withEntry: true, entryDraft: true, want: journalCreated},
+		{name: "an entry taken back to draft no longer counts", withEntry: true, entryDraft: true, publishedAt: &entryPublished, want: journalCreated},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			ctx := context.Background()
+			author := daotest.CreateUser(t, repos)
+			journalID := createJournal(t, repos, author.ID, "j", "", "umineko")
+			journalBackdate(t, repos, journalID, journalCreated)
+
+			if tc.withEntry {
+				entryID := journalCreateEntry(t, repos, spec.NewJournalEntry{JournalID: journalID, EntryNumber: 1, Body: "b", WordCount: 1, IsDraft: tc.entryDraft})
+				_, err := repos.DB().ExecContext(ctx, `UPDATE journal_entries SET published_at = $1 WHERE id = $2`, tc.publishedAt, entryID)
+				require.NoError(t, err)
+			}
+
+			// when
+			latest := sidebarLatestAt(t, repos)
+
+			// then
+			assert.Equal(t, tc.want.Format(time.RFC3339), latest["journals"])
+		})
+	}
 }
 
 func TestHomeFeedDAO_ListSidebarActivity_EmptyDB(t *testing.T) {

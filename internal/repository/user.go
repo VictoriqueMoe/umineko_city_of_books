@@ -208,6 +208,26 @@ func (r *userRepository) ConfirmEmailVerification(ctx context.Context, s spec.Us
 	})
 }
 
+func (r *userRepository) GetIP(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (string, error) {
+	load := func(ctx context.Context) (string, error) {
+		return r.UserDAO.GetIP(ctx, userID, tx...)
+	}
+
+	return r.cache.Load(ctx, cache.UserIP.Key(userID.String()), load)
+}
+
+func (r *userRepository) UpdateIP(ctx context.Context, s spec.UserIPUpdate, tx ...*sql.Tx) error {
+	if err := r.UserDAO.UpdateIP(ctx, s, tx...); err != nil {
+		return err
+	}
+
+	if err := r.cache.Set(ctx, cache.UserIP.Key(s.UserID.String()), s.IP); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", s.UserID.String()).Msg("failed to cache the user's ip after updating it")
+	}
+
+	return nil
+}
+
 func (r *userRepository) UpdateMysteryScoreAdjustment(ctx context.Context, s spec.UserMysteryScoreUpdate, tx ...*sql.Tx) error {
 	if err := r.UserDAO.UpdateMysteryScoreAdjustment(ctx, s, tx...); err != nil {
 		return err
@@ -253,12 +273,13 @@ func (r *userRepository) AdminDeleteAccount(ctx context.Context, userID uuid.UUI
 }
 
 func (r *userRepository) invalidateAfterUserDelete(ctx context.Context, userID uuid.UUID) {
-	keys := []string{
+	keys := []cache.Key{
 		cache.MysteryTopDetectives.Key(),
 		cache.MysteryTopGMs.Key(),
 		cache.VanityAssignments.Key(),
 		cache.UserVanityRoleIDs.Key(userID.String()),
 		cache.UserRole.Key(userID.String()),
+		cache.UserIP.Key(userID.String()),
 		cache.UserBlockedIDs.Key(userID.String()),
 		cache.PostCornerCounts.Key(),
 		cache.ArtCornerCounts.Key(),

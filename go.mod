@@ -36,6 +36,7 @@ require (
 	github.com/valkey-io/valkey-go v1.0.79
 	github.com/valkey-io/valkey-go/mock v1.0.79
 	github.com/valkey-io/valkey-go/valkeyhook v1.0.79
+	github.com/valkey-io/valkey-go/valkeylimiter v1.0.79
 	github.com/wneessen/go-mail v0.8.1
 	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.47.0

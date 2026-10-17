@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { JournalComment, JournalDetail, JournalEntry, PostComment, UserProfile } from "../../types/api";
+import { formatExactDateTime } from "../../utils/time";
 import { JournalEntryPage } from "./JournalEntryPage";
 
 const {
@@ -281,6 +282,32 @@ describe("JournalEntryPage", () => {
 
         // then
         expect(screen.queryByText("(edited)")).not.toBeInTheDocument();
+    });
+
+    it("dates a published entry by when it was published, not when its draft was started", () => {
+        // given
+        const drafted = "2026-01-01T10:00:00Z";
+        const published = "2026-03-16T10:00:00Z";
+        stubEntry({ entry: makeEntry({ created_at: drafted, published_at: published }) });
+
+        // when
+        renderPage(null);
+
+        // then
+        expect(screen.getByTitle(formatExactDateTime(published))).toBeInTheDocument();
+        expect(screen.queryByTitle(formatExactDateTime(drafted))).not.toBeInTheDocument();
+    });
+
+    it("dates a draft that was never published by when it was started", () => {
+        // given
+        const drafted = "2026-01-01T10:00:00Z";
+        stubEntry({ entry: makeEntry({ is_draft: true, created_at: drafted }) });
+
+        // when
+        renderPage(author);
+
+        // then
+        expect(screen.getByTitle(formatExactDateTime(drafted))).toBeInTheDocument();
     });
 
     it("warns that a draft entry has not notified anyone yet", () => {

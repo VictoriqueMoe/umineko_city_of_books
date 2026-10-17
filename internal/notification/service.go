@@ -96,6 +96,7 @@ var notifText = map[dto.NotificationType]string{
 	dto.NotifFanficCommentReply:       "replied to your comment on a fanfic",
 	dto.NotifFanficCommentLiked:       "liked your comment on a fanfic",
 	dto.NotifFanficFavourited:         "favourited your fanfic",
+	dto.NotifFanficPublished:          "published a new fanfic",
 	dto.NotifShipCommented:            "commented on your ship",
 	dto.NotifShipCommentReply:         "replied to your comment",
 	dto.NotifShipCommentLiked:         "liked your comment",

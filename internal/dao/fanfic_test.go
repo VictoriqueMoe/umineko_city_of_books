@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"slices"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
@@ -48,7 +49,7 @@ func createFanfic(t *testing.T, repos *repository.Repositories, userID uuid.UUID
 	t.Helper()
 
 	return fanficInsert(t, repos, spec.NewFanficWithDetails{
-		NewFanfic:  spec.NewFanfic{UserID: userID, Title: title, Summary: "summary"},
+		UserID: userID, Title: title, Summary: "summary",
 		Genres:     []string{"Drama", "Mystery"},
 		Tags:       []string{"angst", "fluff"},
 		Characters: makeFanficChars(),
@@ -163,19 +164,17 @@ func TestFanficDAO_CreateWithDetails(t *testing.T) {
 
 	// when
 	created, err := repos.Fanfic.CreateWithDetails(ctx, spec.NewFanficWithDetails{
-		NewFanfic: spec.NewFanfic{
-			UserID:    user.ID,
-			Title:     "Title",
-			Summary:   "Summary",
-			Series:    "Umineko",
-			Rating:    "T",
-			Language:  "English",
-			Status:    "in_progress",
-			IsOneshot: true,
-			IsPairing: true,
-		},
-		Genres: []string{"Drama"},
-		Tags:   []string{"  ", "", "keep"},
+		UserID:    user.ID,
+		Title:     "Title",
+		Summary:   "Summary",
+		Series:    "Umineko",
+		Rating:    "T",
+		Language:  "English",
+		Status:    "in_progress",
+		IsOneshot: true,
+		IsPairing: true,
+		Genres:    []string{"Drama"},
+		Tags:      []string{"  ", "", "keep"},
 		Characters: []dto.FanficCharacter{
 			{Series: "Umineko", CharacterID: "battler", CharacterName: "Battler"},
 			{Series: "Umineko", CharacterID: "x", CharacterName: "  Padded  "},
@@ -211,26 +210,25 @@ func TestFanficDAO_UpdateWithDetails_AsOwner(t *testing.T) {
 	id := createFanfic(t, repos, user.ID, "Old")
 
 	// when
-	err := repos.Fanfic.UpdateWithDetails(ctx, spec.FanficUpdateWithDetails{
-		FanficUpdate: spec.FanficUpdate{
-			ID:             id,
-			UserID:         user.ID,
-			Title:          "New",
-			Summary:        "newsum",
-			Series:         "Higurashi",
-			Rating:         "M",
-			Language:       "Spanish",
-			Status:         "completed",
-			IsOneshot:      true,
-			ContainsLemons: true,
-		},
-		Genres:     []string{"Angst"},
-		Tags:       []string{"newtag"},
-		Characters: []dto.FanficCharacter{{Series: "Higurashi", CharacterID: "rena", CharacterName: "Rena"}},
+	firstPublished, err := repos.Fanfic.UpdateWithDetails(ctx, spec.FanficUpdateWithDetails{
+		ID:             id,
+		UserID:         user.ID,
+		Title:          "New",
+		Summary:        "newsum",
+		Series:         "Higurashi",
+		Rating:         "M",
+		Language:       "Spanish",
+		Status:         "completed",
+		IsOneshot:      true,
+		ContainsLemons: true,
+		Genres:         []string{"Angst"},
+		Tags:           []string{"newtag"},
+		Characters:     []dto.FanficCharacter{{Series: "Higurashi", CharacterID: "rena", CharacterName: "Rena"}},
 	})
 
 	// then
 	require.NoError(t, err)
+	assert.False(t, firstPublished, "a fanfic created published is not published a second time by an edit")
 
 	row := fanficRow(t, repos, id, user.ID)
 	assert.Equal(t, "New", row.Title)
@@ -272,17 +270,15 @@ func TestFanficDAO_UpdateWithDetails_NonOwner(t *testing.T) {
 			id := createFanfic(t, repos, owner.ID, "Title")
 
 			// when
-			err := repos.Fanfic.UpdateWithDetails(context.Background(), spec.FanficUpdateWithDetails{
-				FanficUpdate: spec.FanficUpdate{
-					ID:       id,
-					UserID:   editor.ID,
-					Title:    "Edited",
-					Series:   "Umineko",
-					Rating:   "K",
-					Language: "English",
-					Status:   "in_progress",
-					AsAdmin:  tc.asAdmin,
-				},
+			_, err := repos.Fanfic.UpdateWithDetails(context.Background(), spec.FanficUpdateWithDetails{
+				ID:       id,
+				UserID:   editor.ID,
+				Title:    "Edited",
+				Series:   "Umineko",
+				Rating:   "K",
+				Language: "English",
+				Status:   "in_progress",
+				AsAdmin:  tc.asAdmin,
 			})
 
 			// then
@@ -295,6 +291,146 @@ func TestFanficDAO_UpdateWithDetails_NonOwner(t *testing.T) {
 			assert.Equal(t, tc.wantTitle, fanficRow(t, repos, id, owner.ID).Title)
 		})
 	}
+}
+
+func fanficSetStatus(t *testing.T, repos *repository.Repositories, id, userID uuid.UUID, status string) bool {
+	t.Helper()
+
+	firstPublished, err := repos.Fanfic.UpdateWithDetails(context.Background(), spec.FanficUpdateWithDetails{
+		ID: id, UserID: userID, Title: "Title", Series: "Umineko", Rating: "K", Language: "English", Status: status,
+	})
+	require.NoError(t, err)
+
+	return firstPublished
+}
+
+func fanficSetPublishedAt(t *testing.T, repos *repository.Repositories, id uuid.UUID, at time.Time) {
+	t.Helper()
+
+	_, err := repos.DB().ExecContext(context.Background(), `UPDATE fanfics SET published_at = $1 WHERE id = $2`, at, id)
+	require.NoError(t, err)
+}
+
+func TestFanficDAO_PublishedAt_IsTheFirstPublishMoment(t *testing.T) {
+	earlier := time.Date(2026, 3, 16, 9, 0, 0, 0, time.UTC)
+
+	cases := []struct {
+		name               string
+		createStatus       string
+		publishedEarlier   bool
+		statuses           []string
+		wantFirstPublished []bool
+		wantPublishedAt    func(t *testing.T, row *model.FanficRow)
+	}{
+		{
+			name:         "a fanfic created as a draft has never been published",
+			createStatus: "draft",
+			wantPublishedAt: func(t *testing.T, row *model.FanficRow) {
+				assert.Nil(t, row.PublishedAt)
+			},
+		},
+		{
+			name:         "a fanfic created published is published at once",
+			createStatus: "in_progress",
+			wantPublishedAt: func(t *testing.T, row *model.FanficRow) {
+				assert.NotNil(t, row.PublishedAt)
+			},
+		},
+		{
+			name:               "saving a draft as a draft does not publish it",
+			createStatus:       "draft",
+			statuses:           []string{"draft"},
+			wantFirstPublished: []bool{false},
+			wantPublishedAt: func(t *testing.T, row *model.FanficRow) {
+				assert.Nil(t, row.PublishedAt)
+			},
+		},
+		{
+			name:               "publishing a draft is its first publication",
+			createStatus:       "draft",
+			statuses:           []string{"complete"},
+			wantFirstPublished: []bool{true},
+			wantPublishedAt: func(t *testing.T, row *model.FanficRow) {
+				assert.NotNil(t, row.PublishedAt)
+			},
+		},
+		{
+			name:               "unpublishing and republishing keeps the first publish moment",
+			createStatus:       "in_progress",
+			publishedEarlier:   true,
+			statuses:           []string{"draft", "complete"},
+			wantFirstPublished: []bool{false, false},
+			wantPublishedAt: func(t *testing.T, row *model.FanficRow) {
+				require.NotNil(t, row.PublishedAt)
+				assert.Equal(t, earlier.Format(time.RFC3339), *row.PublishedAt)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			author := daotest.CreateUser(t, repos)
+			id := fanficInsert(t, repos, spec.NewFanficWithDetails{UserID: author.ID, Title: "Title", Status: tc.createStatus})
+			if tc.publishedEarlier {
+				fanficSetPublishedAt(t, repos, id, earlier)
+			}
+
+			// when
+			var firstPublished []bool
+			for _, status := range tc.statuses {
+				firstPublished = append(firstPublished, fanficSetStatus(t, repos, id, author.ID, status))
+			}
+
+			// then
+			assert.Equal(t, tc.wantFirstPublished, firstPublished)
+			tc.wantPublishedAt(t, fanficRow(t, repos, id, author.ID))
+		})
+	}
+}
+
+func TestFanficDAO_UpdateWithDetails_AFailedUpdatePublishesNothing(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	owner := daotest.CreateUser(t, repos)
+	stranger := daotest.CreateUser(t, repos)
+	id := fanficInsert(t, repos, spec.NewFanficWithDetails{UserID: owner.ID, Title: "Title", Status: "draft"})
+
+	// when
+	firstPublished, err := repos.Fanfic.UpdateWithDetails(context.Background(), spec.FanficUpdateWithDetails{
+		ID: id, UserID: stranger.ID, Title: "Title", Series: "Umineko", Rating: "K", Language: "English", Status: "complete",
+	})
+
+	// then
+	require.ErrorIs(t, err, dao.ErrNotFound)
+	assert.False(t, firstPublished)
+	assert.Nil(t, fanficRow(t, repos, id, owner.ID).PublishedAt)
+}
+
+func TestFanficDAO_List_SortPublished_OrdersByThePublishMoment(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	author := daotest.CreateUser(t, repos)
+	publishedLater := fanficInsert(t, repos, spec.NewFanficWithDetails{UserID: author.ID, Title: "Drafted first, published last", Status: "draft"})
+	publishedEarlier := fanficInsert(t, repos, spec.NewFanficWithDetails{UserID: author.ID, Title: "Published straight away"})
+	stillDraft := fanficInsert(t, repos, spec.NewFanficWithDetails{UserID: author.ID, Title: "Still a draft", Status: "draft"})
+
+	_, err := repos.DB().ExecContext(ctx, `UPDATE fanfics SET created_at = $1 WHERE id = $2`, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), publishedLater)
+	require.NoError(t, err)
+	fanficSetPublishedAt(t, repos, publishedEarlier, time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC))
+	require.True(t, fanficSetStatus(t, repos, publishedLater, author.ID, "complete"))
+
+	// when
+	rows, _, err := repos.Fanfic.List(ctx, spec.FanficListFilter{ViewerID: author.ID, Params: fanficparams.ListParams{Sort: "published", Limit: 10}})
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+	assert.Equal(t, publishedLater, rows[0].ID, "a draft published today is today's fanfic, whenever the draft was started")
+	assert.Equal(t, publishedEarlier, rows[1].ID)
+	assert.Equal(t, stillDraft, rows[2].ID, "the author's unpublished draft has no publish moment and sorts last")
 }
 
 func TestFanficDAO_GetByID(t *testing.T) {
@@ -401,24 +537,24 @@ func TestFanficDAO_List(t *testing.T) {
 	reader := daotest.CreateUser(t, repos)
 	blocked := daotest.CreateUser(t, repos)
 	fanficInsert(t, repos, spec.NewFanficWithDetails{
-		NewFanfic:  spec.NewFanfic{UserID: author.ID, Title: "Golden Witch", Summary: "summary", Status: "completed"},
+		UserID: author.ID, Title: "Golden Witch", Summary: "summary", Status: "completed",
 		Genres:     []string{"Drama", "Mystery"},
 		Tags:       []string{"fluff"},
 		Characters: []dto.FanficCharacter{{Series: "Umineko", CharacterID: "battler", CharacterName: "Battler"}},
 	})
 	fanficInsert(t, repos, spec.NewFanficWithDetails{
-		NewFanfic:  spec.NewFanfic{UserID: author.ID, Title: "Other", Summary: "golden text here", Rating: "T", IsPairing: true},
+		UserID: author.ID, Title: "Other", Summary: "golden text here", Rating: "T", IsPairing: true,
 		Genres:     []string{"Drama"},
 		Tags:       []string{"angst"},
 		Characters: makeFanficChars(),
 	})
 	fanficInsert(t, repos, spec.NewFanficWithDetails{
-		NewFanfic:  spec.NewFanfic{UserID: author.ID, Title: "Higu", Series: "Higurashi"},
+		UserID: author.ID, Title: "Higu", Series: "Higurashi",
 		Characters: []dto.FanficCharacter{{Series: "Higurashi", CharacterID: "rena", CharacterName: "Rena"}},
 	})
-	fanficInsert(t, repos, spec.NewFanficWithDetails{NewFanfic: spec.NewFanfic{UserID: author.ID, Title: "Spicy", Rating: "M", ContainsLemons: true}})
-	fanficInsert(t, repos, spec.NewFanficWithDetails{NewFanfic: spec.NewFanfic{UserID: author.ID, Title: "Draft", Status: "draft"}})
-	fanficInsert(t, repos, spec.NewFanficWithDetails{NewFanfic: spec.NewFanfic{UserID: blocked.ID, Title: "Blocked", Language: "Japanese"}})
+	fanficInsert(t, repos, spec.NewFanficWithDetails{UserID: author.ID, Title: "Spicy", Rating: "M", ContainsLemons: true})
+	fanficInsert(t, repos, spec.NewFanficWithDetails{UserID: author.ID, Title: "Draft", Status: "draft"})
+	fanficInsert(t, repos, spec.NewFanficWithDetails{UserID: blocked.ID, Title: "Blocked", Language: "Japanese"})
 
 	cases := []struct {
 		name    string
@@ -509,7 +645,7 @@ func TestFanficDAO_ListByUser(t *testing.T) {
 	reader := daotest.CreateUser(t, repos)
 	createFanfic(t, repos, author.ID, "A")
 	createFanfic(t, repos, author.ID, "B")
-	fanficInsert(t, repos, spec.NewFanficWithDetails{NewFanfic: spec.NewFanfic{UserID: author.ID, Title: "Draft", Status: "draft"}})
+	fanficInsert(t, repos, spec.NewFanficWithDetails{UserID: author.ID, Title: "Draft", Status: "draft"})
 	createFanfic(t, repos, reader.ID, "Reader's own")
 
 	cases := []struct {
@@ -687,7 +823,7 @@ func TestFanficDAO_GenresTagsAndCharacters(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	first := createFanfic(t, repos, user.ID, "A")
 	second := fanficInsert(t, repos, spec.NewFanficWithDetails{
-		NewFanfic:  spec.NewFanfic{UserID: user.ID, Title: "B"},
+		UserID: user.ID, Title: "B",
 		Genres:     []string{"Horror"},
 		Tags:       []string{"gore"},
 		Characters: []dto.FanficCharacter{{Series: "Higurashi", CharacterID: "rena", CharacterName: "Rena"}},
@@ -876,7 +1012,7 @@ func TestFanficDAO_ListFavourites(t *testing.T) {
 	assert.ElementsMatch(t, []string{"A", "B"}, fanficTitles(rows))
 
 	// when the user also favourites someone else's draft
-	draft := fanficInsert(t, repos, spec.NewFanficWithDetails{NewFanfic: spec.NewFanfic{UserID: author.ID, Title: "Draft", Status: "draft"}})
+	draft := fanficInsert(t, repos, spec.NewFanficWithDetails{UserID: author.ID, Title: "Draft", Status: "draft"})
 	require.NoError(t, repos.Fanfic.Favourite(ctx, spec.FanficUserRef{UserID: voter.ID, FanficID: draft}))
 	rows, total, err = repos.Fanfic.ListFavourites(ctx, listing)
 
@@ -1088,8 +1224,8 @@ func TestFanficDAO_DeleteCommentWithAudit(t *testing.T) {
 
 			// when
 			paths, err := repos.Fanfic.DeleteCommentWithAudit(ctx, spec.FanficCommentDelete{
-				CommentDeletion: spec.CommentDeletion{CommentID: target, UserID: deleter, AsAdmin: tc.asAdmin},
-				Audit:           audit.NewEntry{ActorID: deleter, Action: tc.action, TargetType: audit.TargetFanficComment, TargetID: target.String()},
+				CommentID: target, UserID: deleter, AsAdmin: tc.asAdmin,
+				Audit: audit.NewEntry{ActorID: deleter, Action: tc.action, TargetType: audit.TargetFanficComment, TargetID: target.String()},
 			})
 
 			// then

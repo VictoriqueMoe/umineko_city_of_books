@@ -122,7 +122,7 @@ export function JournalEntryPage() {
             <div className={styles.entry}>
                 <div className={styles.meta}>
                     <ProfileLink user={journal.author} size="small" />
-                    <RelativeTimestamp value={entry.created_at} />
+                    <RelativeTimestamp value={entry.published_at ?? entry.created_at} />
                     {entry.updated_at && entry.updated_at !== entry.created_at && <span>(edited)</span>}
                 </div>
                 <h1 dir="auto" className={styles.title}>

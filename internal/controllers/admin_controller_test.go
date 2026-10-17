@@ -142,7 +142,7 @@ func TestAdminUserLookupRoutes(t *testing.T) {
 
 	statsRes := &dto.AdminStatsResponse{TotalUsers: 42}
 	usersRes := &dto.AdminUserListResponse{Total: 5, Limit: 20, Offset: 0}
-	userRes := &dto.AdminUserDetailResponse{AdminUserItem: dto.AdminUserItem{ID: targetID, Username: "beato"}}
+	userRes := &dto.AdminUserDetailResponse{ID: targetID, Username: "beato"}
 	ipRes := &dto.AdminIPMatchesResponse{IP: "10.0.0.1", Users: []dto.AdminUserItem{{ID: uuid.New(), Username: "alt"}}}
 	auditRes := &dto.AuditLogListResponse{Entries: []dto.AuditLogEntryResponse{{ID: 1, Action: "ban_user"}}, Total: 1}
 	expectStats := func(res *dto.AdminStatsResponse) adminCtlExpect {

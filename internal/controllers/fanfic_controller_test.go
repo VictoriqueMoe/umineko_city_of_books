@@ -523,7 +523,7 @@ func TestGetFanfic(t *testing.T) {
 			// given
 			h, fs := newFanficHarness(t)
 			req, viewerID := fanficCtlGet(h, "/fanfics/"+fanficID.String(), tc.authed)
-			detail := &dto.FanficDetailResponse{FanficResponse: dto.FanficResponse{ID: fanficID, Title: "The Golden Witch"}}
+			detail := &dto.FanficDetailResponse{ID: fanficID, Title: "The Golden Witch"}
 			fs.EXPECT().GetFanfic(mock.Anything, fanficID, viewerID, mock.AnythingOfType("string")).
 				Return(fanficCtlResult(detail, tc.svcErr), tc.svcErr)
 

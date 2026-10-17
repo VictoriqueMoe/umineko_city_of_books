@@ -24,6 +24,7 @@ import (
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
@@ -43,6 +44,7 @@ type (
 		notifService *notification.MockService
 		uploadSvc    *upload.MockService
 		settingsSvc  *settings.MockService
+		activity     *sidebar.MockActivityBumper
 	}
 
 	fixture struct {
@@ -70,10 +72,11 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		notifService: notification.NewMockService(t),
 		uploadSvc:    upload.NewMockService(t),
 		settingsSvc:  settings.NewMockService(t),
+		activity:     sidebar.NewMockActivityBumper(t),
 	}
 
 	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifService, dao.CommentDAOs{Journal: m.comments})
-	svc := NewService(m.repo, m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifService, mentionSvc, m.uploadSvc, &media.Processor{}, m.settingsSvc, contentfilter.New(), nil, nil).(*service)
+	svc := NewService(m.repo, m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifService, mentionSvc, m.uploadSvc, &media.Processor{}, m.settingsSvc, contentfilter.New(), nil, nil, m.activity).(*service)
 
 	return svc, m
 }
@@ -93,11 +96,11 @@ func expectOpenJournal(m *testMocks, f fixture) {
 	m.repo.EXPECT().IsArchived(mock.Anything, f.journalID).Return(false, nil)
 }
 
-func allowBackgroundFanOut(m *testMocks, f fixture) {
-	m.userRepo.EXPECT().GetByID(mock.Anything, f.userID).Return(nil, nil).Maybe()
-	m.repo.EXPECT().GetTitle(mock.Anything, f.journalID).Return("j", nil).Maybe()
-	m.repo.EXPECT().GetFollowerIDs(mock.Anything, f.journalID).Return(nil, nil).Maybe()
-	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, f.userID).Return(nil, nil).Maybe()
+func allowBackgroundFanOut(m *testMocks, journalID, actorID uuid.UUID) {
+	m.userRepo.EXPECT().GetByID(mock.Anything, actorID).Return(nil, nil).Maybe()
+	m.repo.EXPECT().GetTitle(mock.Anything, journalID).Return("j", nil).Maybe()
+	m.repo.EXPECT().GetFollowerIDs(mock.Anything, journalID).Return(nil, nil).Maybe()
+	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, actorID).Return(nil, nil).Maybe()
 	m.notifService.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
 }
 
@@ -150,20 +153,22 @@ func TestCreateJournal(t *testing.T) {
 			wantErr: ErrEmptyTitle,
 		},
 		{
-			name:  "with no daily limit the journal is created without counting",
+			name:  "with no daily limit the journal is created without counting and bumps the journals section",
 			title: "Title",
 			given: func(m *testMocks, f fixture) {
 				m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxJournalsPerDay).Return(0)
 				m.repo.EXPECT().Create(mock.Anything, spec.NewJournal{UserID: f.userID, Title: "Title", Work: "umineko"}).Return(&dto.JournalResponse{ID: f.journalID}, nil)
+				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
 			},
 		},
 		{
-			name:  "under the daily limit the journal is created",
+			name:  "under the daily limit the journal is created and bumps the journals section",
 			title: "Title",
 			given: func(m *testMocks, f fixture) {
 				m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxJournalsPerDay).Return(5)
 				m.repo.EXPECT().CountUserJournalsToday(mock.Anything, f.userID).Return(2, nil)
 				m.repo.EXPECT().Create(mock.Anything, spec.NewJournal{UserID: f.userID, Title: "Title", Work: "umineko"}).Return(&dto.JournalResponse{ID: f.journalID}, nil)
+				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
 			},
 		},
 		{
@@ -224,6 +229,7 @@ func TestCreateJournal_MentionInTheTitleNotifiesTheNamedUser(t *testing.T) {
 
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxJournalsPerDay).Return(0)
 	m.repo.EXPECT().Create(mock.Anything, spec.NewJournal{UserID: f.userID, Title: req.Title, Work: req.Work}).Return(&dto.JournalResponse{ID: f.journalID}, nil)
+	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
 	expectMentionOfAlice(m, f.userID, mentionedID)
 	sent := captureNotifications(m, 1)
 
@@ -751,7 +757,7 @@ func TestCreateComment_AuthorReplyWithParent(t *testing.T) {
 		Body:                 "hi",
 		RecordAuthorActivity: true,
 	}).Return(&model.CommentRow{ID: f.commentID}, nil)
-	allowBackgroundFanOut(m, f)
+	allowBackgroundFanOut(m, f.journalID, f.userID)
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, parentID).Return(uuid.Nil, errBoom).Maybe()
 
 	// when
@@ -1320,7 +1326,7 @@ func TestCreateEntry(t *testing.T) {
 			wantErr: ErrNotAuthor,
 		},
 		{
-			name: "an untitled entry takes the next number and counts its words",
+			name: "an untitled entry takes the next number, counts its words and bumps the journals section",
 			req:  dto.CreateJournalEntryRequest{Body: "an entry"},
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
@@ -1331,7 +1337,8 @@ func TestCreateEntry(t *testing.T) {
 					Body:        "an entry",
 					WordCount:   2,
 				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
-				allowBackgroundFanOut(m, f)
+				allowBackgroundFanOut(m, f.journalID, f.userID)
+				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
 			},
 			wantNumber: 7,
 		},
@@ -1348,9 +1355,26 @@ func TestCreateEntry(t *testing.T) {
 					Body:        "the body",
 					WordCount:   2,
 				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
-				allowBackgroundFanOut(m, f)
+				allowBackgroundFanOut(m, f.journalID, f.userID)
+				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
 			},
 			wantNumber: 1,
+		},
+		{
+			name: "a draft entry is stored without bumping the sidebar",
+			req:  dto.CreateJournalEntryRequest{Body: "a draft", IsDraft: true},
+			given: func(m *testMocks, f fixture) {
+				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
+				m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(2, nil)
+				m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
+					JournalID:   f.journalID,
+					EntryNumber: 2,
+					Body:        "a draft",
+					WordCount:   2,
+					IsDraft:     true,
+				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
+			},
+			wantNumber: 2,
 		},
 		{
 			name: "an admin's entry is audited against the author",
@@ -1373,7 +1397,8 @@ func TestCreateEntry(t *testing.T) {
 					Details:    "journal_id=" + f.journalID.String() + ",entry_number=4,is_draft=false",
 					SubjectID:  f.authorID,
 				}).Return(nil)
-				allowBackgroundFanOut(m, f)
+				allowBackgroundFanOut(m, f.journalID, f.authorID)
+				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
 			},
 			wantNumber: 4,
 		},
@@ -1402,25 +1427,44 @@ func TestCreateEntry(t *testing.T) {
 	}
 }
 
-func TestJournalEntry_MentionFanOut(t *testing.T) {
+func TestJournalEntryPublish_NotifiesMentionsAndFollowersOnlyOnTheFirstPublish(t *testing.T) {
 	tests := []struct {
-		name       string
-		draft      bool
-		publishing bool
-		wantFanOut bool
+		name           string
+		create         bool
+		draft          bool
+		asAdmin        bool
+		firstPublished bool
+		wantNotified   bool
 	}{
 		{
-			name:       "a published new entry notifies the named user",
-			wantFanOut: true,
+			name:         "an entry created published notifies the named user and the followers",
+			create:       true,
+			wantNotified: true,
 		},
 		{
-			name:  "a draft entry notifies nobody",
-			draft: true,
+			name:   "an entry created as a draft notifies nobody",
+			create: true,
+			draft:  true,
 		},
 		{
-			name:       "publishing a draft entry notifies the named user",
-			publishing: true,
-			wantFanOut: true,
+			name:         "an admin creating a published entry notifies in the author's name",
+			create:       true,
+			asAdmin:      true,
+			wantNotified: true,
+		},
+		{
+			name:           "publishing a draft for the first time notifies the named user and the followers",
+			firstPublished: true,
+			wantNotified:   true,
+		},
+		{
+			name: "republishing an entry that was unpublished notifies nobody again",
+		},
+		{
+			name:           "an admin publishing a draft for the first time notifies in the author's name",
+			asAdmin:        true,
+			firstPublished: true,
+			wantNotified:   true,
 		},
 	}
 
@@ -1430,38 +1474,56 @@ func TestJournalEntry_MentionFanOut(t *testing.T) {
 			svc, m := newTestService(t)
 			f := newFixture()
 			mentionedID := uuid.New()
+			followerID := uuid.New()
 			body := "thoughts for @alice"
 
-			m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
+			authorID := f.userID
+			if tc.asAdmin {
+				authorID = f.authorID
+				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyJournal).Return(true)
+				m.auditRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+			}
 
-			if tc.publishing {
-				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).
-					Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, EntryNumber: 3, IsDraft: true}, nil)
-				m.repo.EXPECT().UpdateEntry(mock.Anything, mock.Anything).Return(nil)
-			} else {
+			m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(authorID, nil)
+
+			if tc.create {
 				m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(3, nil)
 				m.repo.EXPECT().CreateEntry(mock.Anything, mock.Anything).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
+			} else {
+				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).
+					Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, EntryNumber: 3, IsDraft: true}, nil)
+				m.repo.EXPECT().UpdateEntry(mock.Anything, mock.Anything).Return(tc.firstPublished, nil)
 			}
 
 			var sent <-chan dto.NotifyParams
-			if tc.wantFanOut {
-				expectMentionOfAlice(m, f.userID, mentionedID)
+			followerNotices := make(chan []dto.NotifyParams, 1)
+			if tc.wantNotified {
+				expectMentionOfAlice(m, authorID, mentionedID)
 				sent = captureNotifications(m, 1)
-				allowBackgroundFanOut(m, f)
+				m.repo.EXPECT().GetTitle(mock.Anything, f.journalID).Return("Diary", nil)
+				m.repo.EXPECT().GetFollowerIDs(mock.Anything, f.journalID).Return([]uuid.UUID{followerID, authorID}, nil)
+				m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, authorID).Return(nil, nil)
+				m.notifService.EXPECT().NotifyMany(mock.Anything, mock.Anything).
+					Run(func(_ context.Context, params []dto.NotifyParams) {
+						followerNotices <- params
+					}).
+					Return().
+					Once()
+				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
 			}
 
 			// when
 			var err error
-			if tc.publishing {
-				err = svc.UpdateEntry(context.Background(), f.entryID, f.userID, dto.UpdateJournalEntryRequest{Body: body})
-			} else {
+			if tc.create {
 				_, _, err = svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: body, IsDraft: tc.draft})
+			} else {
+				err = svc.UpdateEntry(context.Background(), f.entryID, f.userID, dto.UpdateJournalEntryRequest{Body: body})
 			}
 
 			// then
 			require.NoError(t, err)
 
-			if !tc.wantFanOut {
+			if !tc.wantNotified {
 				m.userRepo.AssertNotCalled(t, "GetByUsernames", mock.Anything, mock.Anything)
 				return
 			}
@@ -1469,9 +1531,22 @@ func TestJournalEntry_MentionFanOut(t *testing.T) {
 			mentioned := awaitNotifications(t, sent, 1)[dto.NotifMention]
 			assert.Equal(t, dto.NotifMention, mentioned.Type)
 			assert.Equal(t, mentionedID, mentioned.RecipientID)
+			assert.Equal(t, authorID, mentioned.ActorID)
 			assert.Equal(t, f.journalID, mentioned.ReferenceID)
 			assert.Equal(t, "journal_entry:3", mentioned.ReferenceType)
 			assert.Equal(t, "/journals/"+f.journalID.String()+"/entry/3", mentioned.EmailLink)
+
+			var notices []dto.NotifyParams
+			select {
+			case notices = <-followerNotices:
+			case <-time.After(5 * time.Second):
+				require.FailNow(t, "timed out waiting for the follower fan-out")
+			}
+			require.Len(t, notices, 1)
+			assert.Equal(t, followerID, notices[0].RecipientID)
+			assert.Equal(t, dto.NotifJournalUpdate, notices[0].Type)
+			assert.Equal(t, authorID, notices[0].ActorID)
+			assert.Equal(t, "journal_entry:3", notices[0].ReferenceType)
 		})
 	}
 }
@@ -1536,7 +1611,7 @@ func TestUpdateEntry(t *testing.T) {
 			wantErr: ErrNotAuthor,
 		},
 		{
-			name: "a draft saved as a draft does not record activity",
+			name: "a draft saved as a draft records no activity and does not bump the sidebar",
 			req:  dto.UpdateJournalEntryRequest{Body: "still drafting", IsDraft: true},
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, IsDraft: true}, nil)
@@ -1547,11 +1622,11 @@ func TestUpdateEntry(t *testing.T) {
 					Body:      "still drafting",
 					WordCount: 2,
 					IsDraft:   true,
-				}).Return(nil)
+				}).Return(false, nil)
 			},
 		},
 		{
-			name: "publishing a draft records activity",
+			name: "publishing a draft records activity and bumps the journals section",
 			req:  dto.UpdateJournalEntryRequest{Title: "Day 2", Body: "published now"},
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, EntryNumber: 2, IsDraft: true}, nil)
@@ -1563,9 +1638,55 @@ func TestUpdateEntry(t *testing.T) {
 					Body:                 "published now",
 					WordCount:            2,
 					RecordAuthorActivity: true,
-				}).Return(nil)
-				allowBackgroundFanOut(m, f)
+				}).Return(true, nil)
+				allowBackgroundFanOut(m, f.journalID, f.userID)
+				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
 			},
+		},
+		{
+			name: "republishing an entry that was published before records activity but neither notifies nor bumps the sidebar",
+			req:  dto.UpdateJournalEntryRequest{Body: "back again"},
+			given: func(m *testMocks, f fixture) {
+				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, EntryNumber: 2, IsDraft: true}, nil)
+				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
+				m.repo.EXPECT().UpdateEntry(mock.Anything, spec.JournalEntryUpdate{
+					ID:                   f.entryID,
+					JournalID:            f.journalID,
+					Body:                 "back again",
+					WordCount:            2,
+					RecordAuthorActivity: true,
+				}).Return(false, nil)
+			},
+		},
+		{
+			name: "editing an already published entry does not bump the sidebar",
+			req:  dto.UpdateJournalEntryRequest{Body: "fixed a typo"},
+			given: func(m *testMocks, f fixture) {
+				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, EntryNumber: 2}, nil)
+				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
+				m.repo.EXPECT().UpdateEntry(mock.Anything, spec.JournalEntryUpdate{
+					ID:        f.entryID,
+					JournalID: f.journalID,
+					Body:      "fixed a typo",
+					WordCount: 3,
+				}).Return(false, nil)
+			},
+		},
+		{
+			name: "a failed publish neither notifies nor bumps the sidebar",
+			req:  dto.UpdateJournalEntryRequest{Body: "published now"},
+			given: func(m *testMocks, f fixture) {
+				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, EntryNumber: 2, IsDraft: true}, nil)
+				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
+				m.repo.EXPECT().UpdateEntry(mock.Anything, spec.JournalEntryUpdate{
+					ID:                   f.entryID,
+					JournalID:            f.journalID,
+					Body:                 "published now",
+					WordCount:            2,
+					RecordAuthorActivity: true,
+				}).Return(false, errBoom)
+			},
+			wantErr: errBoom,
 		},
 		{
 			name: "an admin edit is audited with the changed fields",
@@ -1580,7 +1701,7 @@ func TestUpdateEntry(t *testing.T) {
 					Body:                 "new body",
 					WordCount:            2,
 					RecordAuthorActivity: true,
-				}).Return(nil)
+				}).Return(true, nil)
 				m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 					ActorID:    f.userID,
 					Action:     audit.ActionJournalEntryUpdateAdmin,
@@ -1589,7 +1710,8 @@ func TestUpdateEntry(t *testing.T) {
 					Details:    "changed=body,is_draft",
 					SubjectID:  f.authorID,
 				}).Return(nil)
-				allowBackgroundFanOut(m, f)
+				allowBackgroundFanOut(m, f.journalID, f.authorID)
+				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
 			},
 		},
 	}

@@ -923,6 +923,134 @@ func TestJournalDAO_Entries(t *testing.T) {
 	assert.Equal(t, 4, next)
 }
 
+func journalSetEntryDraft(t *testing.T, repos *repository.Repositories, journalID, entryID uuid.UUID, isDraft bool) bool {
+	t.Helper()
+
+	firstPublished, err := repos.Journal.UpdateEntry(context.Background(), spec.JournalEntryUpdate{ID: entryID, JournalID: journalID, Body: "b", WordCount: 1, IsDraft: isDraft})
+	require.NoError(t, err)
+
+	return firstPublished
+}
+
+func journalEntryRow(t *testing.T, repos *repository.Repositories, entryID uuid.UUID) *model.JournalEntryRow {
+	t.Helper()
+
+	entry, err := repos.Journal.GetEntryByID(context.Background(), entryID)
+	require.NoError(t, err)
+	require.NotNil(t, entry)
+
+	return entry
+}
+
+func TestJournalDAO_EntryPublishedAt_IsTheFirstPublishMoment(t *testing.T) {
+	earlier := time.Date(2026, 3, 16, 9, 0, 0, 0, time.UTC)
+
+	cases := []struct {
+		name               string
+		createDraft        bool
+		publishedEarlier   bool
+		drafts             []bool
+		wantFirstPublished []bool
+		wantPublishedAt    func(t *testing.T, entry *model.JournalEntryRow)
+	}{
+		{
+			name:        "an entry created as a draft has never been published",
+			createDraft: true,
+			wantPublishedAt: func(t *testing.T, entry *model.JournalEntryRow) {
+				assert.Nil(t, entry.PublishedAt)
+			},
+		},
+		{
+			name: "an entry created published is published at once",
+			wantPublishedAt: func(t *testing.T, entry *model.JournalEntryRow) {
+				assert.NotNil(t, entry.PublishedAt)
+			},
+		},
+		{
+			name:               "saving a draft as a draft does not publish it",
+			createDraft:        true,
+			drafts:             []bool{true},
+			wantFirstPublished: []bool{false},
+			wantPublishedAt: func(t *testing.T, entry *model.JournalEntryRow) {
+				assert.Nil(t, entry.PublishedAt)
+			},
+		},
+		{
+			name:               "publishing a draft is its first publication",
+			createDraft:        true,
+			drafts:             []bool{false},
+			wantFirstPublished: []bool{true},
+			wantPublishedAt: func(t *testing.T, entry *model.JournalEntryRow) {
+				assert.NotNil(t, entry.PublishedAt)
+			},
+		},
+		{
+			name:               "taking an entry back to draft and republishing keeps the first publish moment",
+			publishedEarlier:   true,
+			drafts:             []bool{true, false},
+			wantFirstPublished: []bool{false, false},
+			wantPublishedAt: func(t *testing.T, entry *model.JournalEntryRow) {
+				require.NotNil(t, entry.PublishedAt)
+				assert.Equal(t, earlier.Format(time.RFC3339), *entry.PublishedAt)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			author := daotest.CreateUser(t, repos)
+			journalID := createJournal(t, repos, author.ID, "Title", "", "general")
+			entryID := journalCreateEntry(t, repos, spec.NewJournalEntry{JournalID: journalID, EntryNumber: 1, Body: "b", WordCount: 1, IsDraft: tc.createDraft})
+			if tc.publishedEarlier {
+				_, err := repos.DB().ExecContext(context.Background(), `UPDATE journal_entries SET published_at = $1 WHERE id = $2`, earlier, entryID)
+				require.NoError(t, err)
+			}
+
+			// when
+			var firstPublished []bool
+			for _, isDraft := range tc.drafts {
+				firstPublished = append(firstPublished, journalSetEntryDraft(t, repos, journalID, entryID, isDraft))
+			}
+
+			// then
+			assert.Equal(t, tc.wantFirstPublished, firstPublished)
+			tc.wantPublishedAt(t, journalEntryRow(t, repos, entryID))
+		})
+	}
+}
+
+func TestJournalDAO_LatestEntryAt_IsWhenTheLatestEntryWasPublished(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	author := daotest.CreateUser(t, repos)
+	journalID := createJournal(t, repos, author.ID, "Title", "", "general")
+	draftedInJanuary := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	publishedInMarch := time.Date(2026, 3, 16, 0, 0, 0, 0, time.UTC)
+	entryID := journalCreateEntry(t, repos, spec.NewJournalEntry{JournalID: journalID, EntryNumber: 1, Body: "b", WordCount: 1, IsDraft: true})
+	require.True(t, journalSetEntryDraft(t, repos, journalID, entryID, false))
+
+	_, err := repos.DB().ExecContext(ctx, `UPDATE journal_entries SET created_at = $1, published_at = $2 WHERE id = $3`, draftedInJanuary, publishedInMarch, entryID)
+	require.NoError(t, err)
+
+	// when
+	got, err := repos.Journal.GetByID(ctx, spec.JournalLookup{ID: journalID})
+	entries, listErr := repos.Journal.ListEntries(ctx, journalID)
+
+	// then
+	require.NoError(t, err)
+	require.NotNil(t, got.LatestEntryAt)
+	assert.Equal(t, publishedInMarch.Format(time.RFC3339), *got.LatestEntryAt)
+
+	require.NoError(t, listErr)
+	require.Len(t, entries, 1)
+	require.NotNil(t, entries[0].PublishedAt)
+	assert.Equal(t, publishedInMarch.Format(time.RFC3339), *entries[0].PublishedAt)
+	assert.Equal(t, draftedInJanuary.Format(time.RFC3339), entries[0].CreatedAt)
+}
+
 func TestJournalDAO_EntryComments_ScopedSeparately(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)

@@ -3,9 +3,11 @@ package dao_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"slices"
 	"testing"
 
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -72,6 +74,69 @@ func TestChatDAO_InsertMessage(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, room)
 			assert.True(t, room.LastMessageAt.Valid)
+		})
+	}
+}
+
+func TestChatDAO_InsertMessage_ClientNonce(t *testing.T) {
+	const nonce = "0f1e2d3c4b5a69788796a5b4c3d2e1f0"
+
+	tests := []struct {
+		name            string
+		firstNonce      string
+		secondNonce     string
+		secondIsOther   bool
+		wantReplay      bool
+		wantStoredCount int
+	}{
+		{name: "a resend with the same nonce answers with the stored message instead of storing it twice", firstNonce: nonce, secondNonce: nonce, wantReplay: true, wantStoredCount: 1},
+		{name: "the same nonce from another sender is a different message", firstNonce: nonce, secondNonce: nonce, secondIsOther: true, wantStoredCount: 2},
+		{name: "a different nonce from the same sender is a different message", firstNonce: nonce, secondNonce: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", wantStoredCount: 2},
+		{name: "messages without a nonce never collide", wantStoredCount: 2},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			ctx := context.Background()
+			sender := daotest.CreateUser(t, repos)
+			other := daotest.CreateUser(t, repos)
+			roomID := daotest.CreateChatRoom(t, repos, sender.ID, daotest.WithRoomMembers(sender.ID, other.ID))
+			first, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: sender.ID, Body: "hello", ClientNonce: tc.firstNonce})
+			require.NoError(t, err)
+
+			secondSender := sender.ID
+			if tc.secondIsOther {
+				secondSender = other.ID
+			}
+
+			// when
+			second, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: secondSender, Body: "hello", ClientNonce: tc.secondNonce})
+
+			// then
+			replay, isReplay := errors.AsType[*dao.ChatMessageReplayError](err)
+			assert.Equal(t, tc.wantReplay, isReplay)
+			if tc.wantReplay {
+				assert.Nil(t, second)
+				assert.Equal(t, first.ID, replay.Existing.ID)
+				assert.Equal(t, roomID, replay.Existing.RoomID)
+				assert.Equal(t, "hello", replay.Existing.Body)
+				assert.Equal(t, nonce, replay.Existing.ClientNonce)
+			} else {
+				require.NoError(t, err)
+				assert.NotEqual(t, first.ID, second.ID)
+				assert.Equal(t, tc.secondNonce, second.ClientNonce)
+			}
+
+			_, total, err := repos.Chat.GetMessagesForViewer(ctx, spec.ChatMessagePage{RoomID: roomID, ViewerID: sender.ID, Limit: 50})
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantStoredCount, total)
+
+			stored, err := repos.Chat.GetMessageByID(ctx, first.ID)
+			require.NoError(t, err)
+			require.NotNil(t, stored)
+			assert.Equal(t, tc.firstNonce, stored.ClientNonce)
 		})
 	}
 }

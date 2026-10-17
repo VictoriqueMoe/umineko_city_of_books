@@ -1,4 +1,5 @@
 import type { Notification, NotificationType } from "../types/api";
+import { chatThreadPath, type ChatThreadKind } from "./chat/permalink";
 
 export type NotificationCategory =
     | "game_board"
@@ -68,12 +69,12 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
     chat_message: {
         text: "sent you a message",
         category: "social",
-        route: dmMessageRoute,
+        route: chatThreadRoute("dm"),
     },
     chat_room_message: {
         text: "sent a message in a chat room",
         category: "social",
-        route: chatMessageRoute,
+        route: chatThreadRoute("room"),
     },
     report: {
         text: "reported content",
@@ -210,6 +211,11 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         category: "social",
         route: routeByReferenceType,
     },
+    fanfic_published: {
+        text: "published a new fanfic",
+        category: "social",
+        route: routeByReferenceType,
+    },
     ship_commented: {
         text: "commented on your ship",
         category: "social",
@@ -308,7 +314,7 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
     chat_mention: {
         text: "mentioned you in a chat room",
         category: "social",
-        route: chatMessageRoute,
+        route: chatThreadRoute("room"),
     },
     chat_room_invite: {
         text: "added you to a chat room",
@@ -318,7 +324,7 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
     chat_reply: {
         text: "replied to your message",
         category: "social",
-        route: chatMessageRoute,
+        route: chatThreadRoute("room"),
     },
     chat_room_banned: {
         text: "banned you from a chat room",
@@ -498,22 +504,15 @@ function gameRoomRoute(notif: Notification): string {
     return `/games/${gameType}/${notif.reference_id}`;
 }
 
-function chatMessageRoute(notif: Notification): string {
-    const refType = notif.reference_type;
-    if (refType.startsWith("chat_message:")) {
-        const msgId = refType.split(":")[1];
-        return `/rooms/${notif.reference_id}#msg-${msgId}`;
-    }
-    return `/rooms/${notif.reference_id}`;
-}
+function chatThreadRoute(kind: ChatThreadKind): (notif: Notification) => string {
+    return notif => {
+        const refType = notif.reference_type;
+        if (!refType.startsWith("chat_message:")) {
+            return chatThreadPath(kind, notif.reference_id);
+        }
 
-function dmMessageRoute(notif: Notification): string {
-    const refType = notif.reference_type;
-    if (refType.startsWith("chat_message:")) {
-        const msgId = refType.split(":")[1];
-        return `/chat/${notif.reference_id}#msg-${msgId}`;
-    }
-    return `/chat/${notif.reference_id}`;
+        return chatThreadPath(kind, notif.reference_id, { id: refType.split(":")[1] });
+    };
 }
 
 export function getNotificationText(notif: Notification): string {

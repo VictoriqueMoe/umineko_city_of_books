@@ -212,6 +212,9 @@ UPDATE users SET banner_url = $1 WHERE id = $2;
 -- name: UpdateUserIP :exec
 UPDATE users SET ip = $1::text WHERE id = $2;
 
+-- name: GetUserIP :one
+SELECT COALESCE(ip, '')::text AS ip FROM users WHERE id = $1;
+
 -- name: UpdateUserGameBoardSort :exec
 UPDATE users SET game_board_sort = $1 WHERE id = $2;
 

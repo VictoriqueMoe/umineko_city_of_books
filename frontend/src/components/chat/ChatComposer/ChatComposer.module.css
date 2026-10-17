@@ -34,14 +34,14 @@
 
 .error {
     unicode-bidi: plaintext;
-    color: #ff6b6b;
+    color: var(--error);
     font-size: 0.85rem;
 }
 
 .timeoutBanner {
     padding: 0.75rem 1rem;
-    background: rgba(255, 107, 107, 0.12);
-    border: 1px solid rgba(255, 107, 107, 0.4);
+    background: rgba(var(--error-rgb), 0.12);
+    border: 1px solid rgba(var(--error-rgb), 0.4);
     border-radius: 6px;
     color: #ff9b9b;
     font-size: 0.9rem;

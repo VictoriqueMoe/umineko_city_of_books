@@ -13,4 +13,5 @@ var (
 	ErrRefutationMustOppose     = errors.New("only a response that argues against the theory can refute it")
 	ErrRefutationMustBeTopLevel = errors.New("only a top level response can refute a theory")
 	ErrCannotRefuteWithOwn      = errors.New("you cannot refute your own theory with your own response")
+	ErrInvalidSeries            = errors.New("theory series must be one of umineko, higurashi, ciconia")
 )

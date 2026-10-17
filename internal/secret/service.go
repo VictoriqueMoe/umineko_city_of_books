@@ -22,6 +22,7 @@ import (
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/secrets"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
 	"umineko_city_of_books/internal/ws"
@@ -65,6 +66,7 @@ type (
 		uploadSvc     upload.Service
 		hub           *ws.Hub
 		contentFilter *contentfilter.Manager
+		activity      sidebar.ActivityBumper
 	}
 )
 
@@ -81,6 +83,7 @@ func NewService(
 	mediaProc *media.Processor,
 	hub *ws.Hub,
 	contentFilter *contentfilter.Manager,
+	activity sidebar.ActivityBumper,
 ) Service {
 	return &service{
 		secretRepo:    secretRepo,
@@ -95,6 +98,7 @@ func NewService(
 		uploadSvc:     uploadSvc,
 		hub:           hub,
 		contentFilter: contentFilter,
+		activity:      activity,
 	}
 }
 
@@ -375,6 +379,8 @@ func (s *service) CreateComment(ctx context.Context, secretID string, userID uui
 			})
 		}
 	}()
+
+	s.activity.BumpSidebarActivity(sidebar.KeySecrets)
 
 	return id, nil
 }

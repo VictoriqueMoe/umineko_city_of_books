@@ -3,12 +3,15 @@ package dao_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/store"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -164,6 +167,63 @@ func TestChatDAO_CreateDMRoomAtomic_CreatesOneRoomPerPair(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, room.ID, again.ID)
+}
+
+func TestChatDAO_CreateDMRoom_YieldsToARoomThePairAlreadyHas(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	a := daotest.CreateUser(t, repos)
+	b := daotest.CreateUser(t, repos)
+	daotest.CreateDMRoom(t, repos, a.ID, b.ID)
+
+	// when
+	created, err := repos.Chat.CreateDMRoom(ctx, spec.ChatDMPair{UserA: b.ID, UserB: a.ID})
+
+	// then
+	require.NoError(t, err)
+	assert.Nil(t, created)
+}
+
+func TestChatDAO_CreateDMRoomAtomic_ConcurrentOpenersShareTheWinnersRoom(t *testing.T) {
+	// given the pair's room is inserted by a transaction that has not committed yet
+	database := daotest.NewDB(t)
+	repos := store.New(database, nil)
+	ctx := context.Background()
+	a := daotest.CreateUser(t, repos)
+	b := daotest.CreateUser(t, repos)
+
+	first, err := database.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	winner, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: a.ID, UserB: b.ID}, first)
+	require.NoError(t, err)
+
+	type outcome struct {
+		room *model.ChatRoomRow
+		err  error
+	}
+	second := make(chan outcome, 1)
+
+	// when the other side opens the pair and blocks on the pending insert
+	go func() {
+		room, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: b.ID, UserB: a.ID})
+		second <- outcome{room: room, err: err}
+	}()
+	require.Eventually(t, func() bool {
+		var waiting bool
+		err := database.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM pg_locks WHERE NOT granted)").Scan(&waiting)
+		return err == nil && waiting
+	}, 5*time.Second, 10*time.Millisecond, "the second opener never queued behind the first insert")
+	require.NoError(t, first.Commit())
+	got := <-second
+
+	// then
+	require.NoError(t, got.err)
+	assert.Equal(t, winner.ID, got.room.ID)
+
+	members, err := repos.Chat.GetRoomMembers(ctx, winner.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []uuid.UUID{a.ID, b.ID}, members)
 }
 
 func TestChatDAO_CreateDMRoomAtomic_RestoresALeaverToTheRoomTheStayerStillResolves(t *testing.T) {
@@ -377,11 +437,11 @@ func TestChatDAO_DeleteRoomWithMessages_ReturnsEveryOrphanedFile(t *testing.T) {
 	require.NoError(t, repos.Chat.SetMemberAvatar(ctx, spec.ChatMemberAvatarUpdate{RoomID: roomID, UserID: guest.ID, AvatarURL: "/uploads/chat-avatars/guest.webp"}))
 
 	first := daotest.SendChatMessage(t, repos, roomID, host.ID, "look")
-	_, err := repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: first, MediaURL: "/uploads/chat/one.webp", MediaType: "image", ThumbnailURL: "/uploads/chat/one_thumb.webp", SortOrder: 0}})
+	_, err := repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{TargetID: first, MediaURL: "/uploads/chat/one.webp", MediaType: "image", ThumbnailURL: "/uploads/chat/one_thumb.webp", SortOrder: 0})
 	require.NoError(t, err)
 
 	second := daotest.SendChatMessage(t, repos, roomID, guest.ID, "clip")
-	_, err = repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: second, MediaURL: "/uploads/chat/two.mp4", MediaType: "video", ThumbnailURL: "", SortOrder: 0}})
+	_, err = repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{TargetID: second, MediaURL: "/uploads/chat/two.mp4", MediaType: "video", ThumbnailURL: "", SortOrder: 0})
 	require.NoError(t, err)
 
 	daotest.SendChatMessage(t, repos, roomID, bare.ID, "bye")

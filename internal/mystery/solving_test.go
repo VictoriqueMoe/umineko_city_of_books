@@ -324,7 +324,7 @@ func TestAddClue_RepoError(t *testing.T) {
 	userID := uuid.New()
 	stubAuthor(m, mid, userID)
 	m.repo.EXPECT().CountClues(mock.Anything, mid).Return(0, nil)
-	m.repo.EXPECT().AddClue(mock.Anything, spec.NewMysteryClue{MysteryID: mid, NewClue: spec.NewClue{Body: "c", TruthType: "red", SortOrder: 0}}).Return(nil, errors.New("boom"))
+	m.repo.EXPECT().AddClue(mock.Anything, spec.NewMysteryClue{MysteryID: mid, Body: "c", TruthType: "red", SortOrder: 0}).Return(nil, errors.New("boom"))
 
 	// when
 	err := svc.AddClue(context.Background(), mid, userID, dto.CreateClueRequest{Body: "c"})
@@ -340,7 +340,7 @@ func TestAddClue_OK_DefaultTruthType(t *testing.T) {
 	userID := uuid.New()
 	stubAuthor(m, mid, userID)
 	m.repo.EXPECT().CountClues(mock.Anything, mid).Return(3, nil)
-	m.repo.EXPECT().AddClue(mock.Anything, spec.NewMysteryClue{MysteryID: mid, NewClue: spec.NewClue{Body: "c", TruthType: "red", SortOrder: 3}}).Return(&dto.MysteryClue{ID: 1}, nil)
+	m.repo.EXPECT().AddClue(mock.Anything, spec.NewMysteryClue{MysteryID: mid, Body: "c", TruthType: "red", SortOrder: 3}).Return(&dto.MysteryClue{ID: 1}, nil)
 
 	// when
 	err := svc.AddClue(context.Background(), mid, userID, dto.CreateClueRequest{Body: "c"})
@@ -357,7 +357,7 @@ func TestAddClue_Private_NotifiesPlayer(t *testing.T) {
 	playerID := uuid.New()
 	stubAuthor(m, mid, userID)
 	m.repo.EXPECT().CountClues(mock.Anything, mid).Return(0, nil)
-	m.repo.EXPECT().AddClue(mock.Anything, spec.NewMysteryClue{MysteryID: mid, NewClue: spec.NewClue{Body: "c", TruthType: "blue", SortOrder: 0, PlayerID: &playerID}}).Return(&dto.MysteryClue{ID: 1}, nil)
+	m.repo.EXPECT().AddClue(mock.Anything, spec.NewMysteryClue{MysteryID: mid, Body: "c", TruthType: "blue", SortOrder: 0, PlayerID: &playerID}).Return(&dto.MysteryClue{ID: 1}, nil)
 
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://e.test").Maybe()
 	m.notifService.EXPECT().Notify(mock.Anything, mock.MatchedBy(func(p dto.NotifyParams) bool {

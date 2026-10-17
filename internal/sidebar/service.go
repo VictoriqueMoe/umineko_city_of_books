@@ -2,7 +2,6 @@ package sidebar
 
 import (
 	"context"
-	"errors"
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model/spec"
@@ -12,11 +11,6 @@ import (
 )
 
 const visitedKeyMaxLen = 100
-
-var (
-	ErrEmptyKey   = errors.New("key is required")
-	ErrKeyTooLong = errors.New("key too long")
-)
 
 type (
 	Service interface {

@@ -10,13 +10,22 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/cache/engine"
+	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/httpclient"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func newTestService(t *testing.T, handler http.HandlerFunc) *service {
+	t.Helper()
+
+	return newTestServiceWithCache(t, cache.NewManager(engines.NewInMemory(0)), handler)
+}
+
+func newTestServiceWithCache(t *testing.T, cacheMgr *cache.Manager, handler http.HandlerFunc) *service {
 	t.Helper()
 	srv := httptest.NewTestServer(t, handler)
 	transport := srv.Client().Transport
@@ -25,6 +34,15 @@ func newTestService(t *testing.T, handler http.HandlerFunc) *service {
 		apiKey:     "test-key",
 		baseURL:    srv.URL,
 		httpClient: httpclient.New(requestTimeout, httpclient.WithTransport(transport)),
+		cache:      cacheMgr,
+	}
+}
+
+func rateLimitedHandler(calls *int) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		*calls++
+		w.Header().Set("Retry-After", "300")
+		w.WriteHeader(http.StatusTooManyRequests)
 	}
 }
 
@@ -157,7 +175,6 @@ func TestService_Search_CachesResultsPerQuery(t *testing.T) {
 		calls++
 		_, _ = w.Write([]byte(`{"data":[{"id":"a"}]}`))
 	})
-	s.cache = cache.New()
 
 	for range 3 {
 		_, err := s.Search(context.Background(), "cats", 0, 24)
@@ -180,7 +197,6 @@ func TestService_Trending_CachesAcrossCalls(t *testing.T) {
 		calls++
 		_, _ = w.Write([]byte(`{"data":[{"id":"t"}]}`))
 	})
-	s.cache = cache.New()
 
 	for range 5 {
 		_, err := s.Trending(context.Background(), 0, 24)
@@ -194,7 +210,6 @@ func TestService_Search_Returns429AsRateLimitError(t *testing.T) {
 		w.Header().Set("Retry-After", "60")
 		w.WriteHeader(http.StatusTooManyRequests)
 	})
-	s.cache = cache.New()
 
 	_, err := s.Search(context.Background(), "cats", 0, 24)
 	var rl *RateLimitError
@@ -210,7 +225,6 @@ func TestService_ShortCircuitsDuringRateLimit(t *testing.T) {
 		w.Header().Set("Retry-After", "300")
 		w.WriteHeader(http.StatusTooManyRequests)
 	})
-	s.cache = cache.New()
 
 	_, err := s.Search(context.Background(), "cats", 0, 24)
 	var rl *RateLimitError
@@ -235,7 +249,6 @@ func TestService_CachedResultsStillServedDuringRateLimit(t *testing.T) {
 		w.Header().Set("Retry-After", "300")
 		w.WriteHeader(http.StatusTooManyRequests)
 	})
-	s.cache = cache.New()
 
 	_, err := s.Search(context.Background(), "cats", 0, 24)
 	require.NoError(t, err)
@@ -247,6 +260,107 @@ func TestService_CachedResultsStillServedDuringRateLimit(t *testing.T) {
 	resp, err := s.Search(context.Background(), "cats", 0, 24)
 	require.NoError(t, err, "cached 'cats' result should still be served during blackout")
 	assert.Equal(t, "a", resp.Data[0].ID)
+}
+
+func TestService_RateLimitIsSharedThroughTheCache(t *testing.T) {
+	// given two instances sharing one cache, as two processes share valkey
+	shared := cache.NewManager(engines.NewInMemory(0))
+
+	var firstCalls, secondCalls int
+	first := newTestServiceWithCache(t, shared, rateLimitedHandler(&firstCalls))
+	second := newTestServiceWithCache(t, shared, rateLimitedHandler(&secondCalls))
+
+	_, err := first.Search(context.Background(), "cats", 0, 24)
+	var tripped *RateLimitError
+	require.ErrorAs(t, err, &tripped)
+
+	// when
+	_, err = second.Trending(context.Background(), 0, 24)
+
+	// then
+	var blocked *RateLimitError
+	require.ErrorAs(t, err, &blocked)
+	assert.Equal(t, 1, firstCalls)
+	assert.Zero(t, secondCalls, "a ban tripped by one instance must hold back the other")
+	assert.True(t, tripped.ResetAt.Equal(blocked.ResetAt))
+}
+
+func TestService_TripRateLimitLatestResetWins(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		name   string
+		first  time.Time
+		second time.Time
+	}{
+		{name: "a later reset extends the ban", first: now.Add(time.Minute), second: now.Add(5 * time.Minute)},
+		{name: "an earlier reset replaces the ban, since competing resets differ by seconds", first: now.Add(5 * time.Minute), second: now.Add(time.Minute)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			s := newTestService(t, func(w http.ResponseWriter, r *http.Request) {
+				t.Error("tripping the breaker must not call giphy")
+			})
+			ctx := context.Background()
+			s.tripRateLimit(ctx, tt.first)
+
+			// when
+			inForce := s.tripRateLimit(ctx, tt.second)
+
+			// then
+			assert.True(t, tt.second.Equal(inForce))
+
+			resetAt, blocked := s.rateLimitResetAt(ctx)
+			assert.True(t, blocked)
+			assert.True(t, tt.second.Equal(resetAt))
+		})
+	}
+}
+
+func TestService_TripRateLimitIgnoresAResetThatHasPassed(t *testing.T) {
+	// given
+	s := newTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("tripping the breaker must not call giphy")
+	})
+	ctx := context.Background()
+	passed := time.Now().Add(-time.Minute)
+
+	// when
+	inForce := s.tripRateLimit(ctx, passed)
+
+	// then nothing is stored, so a passed reset never lifts a ban another call recorded
+	assert.True(t, passed.Equal(inForce))
+
+	_, blocked := s.rateLimitResetAt(ctx)
+	assert.False(t, blocked)
+}
+
+func TestService_RateLimitFailsOpenWhenTheStoreFails(t *testing.T) {
+	// given a cache whose store errors on every call
+	storeErr := errors.New("connection refused")
+
+	failing := engine.NewMockEngine(t)
+	failing.EXPECT().Enabled().Return(true).Maybe()
+	failing.EXPECT().Get(mock.Anything, mock.MatchedBy(func(key string) bool {
+		return strings.HasPrefix(key, cache.GiphyResponse.Prefix)
+	})).Return(nil, storeErr).Times(2)
+	failing.EXPECT().Get(mock.Anything, cache.GiphyRateLimitedUntil.Key().String()).Return(nil, storeErr).Times(2)
+	failing.EXPECT().Set(mock.Anything, cache.GiphyRateLimitedUntil.Key().String(), mock.Anything, cache.GiphyRateLimitedUntil.TTL).Return(storeErr).Times(2)
+
+	var calls int
+	s := newTestServiceWithCache(t, cache.NewManager(failing), rateLimitedHandler(&calls))
+
+	// when
+	for range 2 {
+		_, err := s.Search(context.Background(), "cats", 0, 24)
+		var rl *RateLimitError
+		require.ErrorAs(t, err, &rl)
+	}
+
+	// then the breaker cannot hold, so every call reaches giphy
+	assert.Equal(t, 2, calls)
 }
 
 func TestParseRateLimitReset(t *testing.T) {
@@ -271,7 +385,6 @@ func TestService_Search_DoesNotCacheErrors(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(`oops`))
 	})
-	s.cache = cache.New()
 
 	for range 3 {
 		_, err := s.Search(context.Background(), "cats", 0, 24)

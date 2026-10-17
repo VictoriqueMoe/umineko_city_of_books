@@ -73,10 +73,8 @@ func hashFor(t *testing.T, password string) string {
 
 func validRegisterRequest() dto.RegisterRequest {
 	return dto.RegisterRequest{
-		LoginRequest: dto.LoginRequest{
-			Username: "alice",
-			Password: "password123",
-		},
+		Username:    "alice",
+		Password:    "password123",
 		Email:       "alice@example.com",
 		DisplayName: "Alice",
 	}

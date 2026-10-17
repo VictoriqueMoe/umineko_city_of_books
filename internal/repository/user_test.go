@@ -73,6 +73,67 @@ func TestUserRepository_ScoreAdjustmentsSurviveAFailedLeaderboardInvalidation(t 
 	}
 }
 
+func newInMemoryUserRepo(t *testing.T) (UserRepository, *dao.MockUserDAO) {
+	t.Helper()
+
+	userDAO := dao.NewMockUserDAO(t)
+
+	return NewUserRepo(nil, userDAO, cache.NewManager(engines.NewInMemory(0)), nil, nil, nil, nil, nil, nil), userDAO
+}
+
+func TestUserRepository_GetIPLoadsOnceThenServesTheCache(t *testing.T) {
+	// given
+	repo, userDAO := newInMemoryUserRepo(t)
+	userID := uuid.New()
+	userDAO.EXPECT().GetIP(mock.Anything, userID).Return("10.0.0.1", nil).Once()
+
+	// when
+	first, firstErr := repo.GetIP(context.Background(), userID)
+	second, secondErr := repo.GetIP(context.Background(), userID)
+
+	// then
+	require.NoError(t, firstErr)
+	require.NoError(t, secondErr)
+	assert.Equal(t, "10.0.0.1", first)
+	assert.Equal(t, "10.0.0.1", second)
+}
+
+func TestUserRepository_UpdateIPCachesTheWrittenIP(t *testing.T) {
+	// given
+	repo, userDAO := newInMemoryUserRepo(t)
+	userID := uuid.New()
+	update := spec.UserIPUpdate{UserID: userID, IP: "10.0.0.2"}
+	userDAO.EXPECT().UpdateIP(mock.Anything, update).Return(nil).Once()
+
+	// when
+	err := repo.UpdateIP(context.Background(), update)
+	got, getErr := repo.GetIP(context.Background(), userID)
+
+	// then the read is answered by the cache, never the dao
+	require.NoError(t, err)
+	require.NoError(t, getErr)
+	assert.Equal(t, "10.0.0.2", got)
+}
+
+func TestUserRepository_FailedUpdateIPLeavesTheCacheAlone(t *testing.T) {
+	// given
+	repo, userDAO := newInMemoryUserRepo(t)
+	userID := uuid.New()
+	update := spec.UserIPUpdate{UserID: userID, IP: "10.0.0.2"}
+	writeErr := errors.New("db down")
+	userDAO.EXPECT().UpdateIP(mock.Anything, update).Return(writeErr).Once()
+	userDAO.EXPECT().GetIP(mock.Anything, userID).Return("10.0.0.1", nil).Once()
+
+	// when
+	err := repo.UpdateIP(context.Background(), update)
+	got, getErr := repo.GetIP(context.Background(), userID)
+
+	// then
+	require.ErrorIs(t, err, writeErr)
+	require.NoError(t, getErr)
+	assert.Equal(t, "10.0.0.1", got)
+}
+
 func captureDel(client *valkeymock.Client, commands *[]string) {
 	client.EXPECT().
 		Do(gomock.Any(), gomock.Any()).
@@ -131,27 +192,28 @@ func TestUserRepository_DeletePathsInvalidateCascadedCaches(t *testing.T) {
 
 			busted := commands[1:]
 			required := []string{
-				cache.MysteryTopDetectives.Key(),
-				cache.MysteryTopGMs.Key(),
-				cache.VanityAssignments.Key(),
-				cache.UserVanityRoleIDs.Key(userID.String()),
-				cache.UserRole.Key(userID.String()),
-				cache.UserBlockedIDs.Key(userID.String()),
-				cache.PostCornerCounts.Key(),
-				cache.ArtCornerCounts.Key(),
-				cache.GameTopWinners.Key(string(dto.GameTypeChess)),
-				cache.GameTopWinners.Key(string(dto.GameTypeCheckers)),
-				cache.GameTopWinners.Key(string(dto.GameTypeOthello)),
-				cache.GameTopWinners.Key(string(dto.GameTypeMinesweeper)),
-				cache.GameTopWinners.Key(string(dto.GameTypeSnakesLadders)),
-				cache.SecretHolders.Key(string(secrets.WitchHunter)),
-				cache.SecretSolved.Key(string(secrets.WitchHunter)),
-				cache.SecretHolders.Key(string(secrets.Piece01)),
-				cache.SecretSolved.Key(string(secrets.Piece01)),
+				cache.MysteryTopDetectives.Key().String(),
+				cache.MysteryTopGMs.Key().String(),
+				cache.VanityAssignments.Key().String(),
+				cache.UserVanityRoleIDs.Key(userID.String()).String(),
+				cache.UserRole.Key(userID.String()).String(),
+				cache.UserIP.Key(userID.String()).String(),
+				cache.UserBlockedIDs.Key(userID.String()).String(),
+				cache.PostCornerCounts.Key().String(),
+				cache.ArtCornerCounts.Key().String(),
+				cache.GameTopWinners.Key(string(dto.GameTypeChess)).String(),
+				cache.GameTopWinners.Key(string(dto.GameTypeCheckers)).String(),
+				cache.GameTopWinners.Key(string(dto.GameTypeOthello)).String(),
+				cache.GameTopWinners.Key(string(dto.GameTypeMinesweeper)).String(),
+				cache.GameTopWinners.Key(string(dto.GameTypeSnakesLadders)).String(),
+				cache.SecretHolders.Key(string(secrets.WitchHunter)).String(),
+				cache.SecretSolved.Key(string(secrets.WitchHunter)).String(),
+				cache.SecretHolders.Key(string(secrets.Piece01)).String(),
+				cache.SecretSolved.Key(string(secrets.Piece01)).String(),
 			}
 
 			assert.Subset(t, busted, required)
-			assert.Len(t, busted, 8+len(leaderboardGameTypes)+2*len(secrets.All()))
+			assert.Len(t, busted, 9+len(leaderboardGameTypes)+2*len(secrets.All()))
 		})
 	}
 }

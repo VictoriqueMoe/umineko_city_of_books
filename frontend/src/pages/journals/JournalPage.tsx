@@ -189,7 +189,10 @@ export function JournalPage() {
                 <div className={styles.latestSpotlight}>
                     <div className={styles.spotlightHeader}>
                         <span className={styles.spotlightTag}>Latest update</span>
-                        <RelativeTimestamp value={latestEntry.created_at} className={styles.spotlightWhen} />
+                        <RelativeTimestamp
+                            value={latestEntry.published_at ?? latestEntry.created_at}
+                            className={styles.spotlightWhen}
+                        />
                     </div>
                     <h2 dir="auto" className={styles.spotlightTitle}>
                         <Link to={`/journals/${journal.id}/entry/${latestEntry.entry_number}`}>
@@ -251,7 +254,8 @@ export function JournalPage() {
                                     </span>
                                     {e.is_draft && <span className={styles.draftBadge}>Draft</span>}
                                     <span className={styles.tocItemMeta}>
-                                        {e.word_count} words {"·"} <RelativeTimestamp value={e.created_at} />
+                                        {e.word_count} words {"·"}{" "}
+                                        <RelativeTimestamp value={e.published_at ?? e.created_at} />
                                     </span>
                                 </Link>
                             </li>

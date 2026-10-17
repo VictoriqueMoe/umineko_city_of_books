@@ -8,9 +8,11 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/sidebar"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -280,11 +282,11 @@ func TestCreateComment_EmitsBotTrigger(t *testing.T) {
 func TestCreatePost_EmitsBotTriggerOutsideSuggestions(t *testing.T) {
 	cases := []struct {
 		name      string
-		corner    string
+		corner    corner.GameBoard
 		wantEvent bool
 	}{
-		{"general corner triggers a bot", "general", true},
-		{"suggestions corner never triggers a bot", "suggestions", false},
+		{"general corner triggers a bot", corner.GameBoardGeneral, true},
+		{"suggestions corner never triggers a bot", corner.GameBoardSuggestions, false},
 	}
 
 	for _, tc := range cases {
@@ -298,13 +300,14 @@ func TestCreatePost_EmitsBotTriggerOutsideSuggestions(t *testing.T) {
 			botID := uuid.New()
 
 			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-			m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: tc.corner, Body: "@beatrice hello"}).Return(&model.PostRow{ID: uuid.New()}, nil)
+			m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: string(tc.corner), Body: "@beatrice hello"}).Return(&model.PostRow{ID: uuid.New()}, nil)
+			m.activity.EXPECT().BumpSidebarActivity(sidebar.GameBoardKey(tc.corner)).Return().Once()
 			m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil).Maybe()
 			m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"beatrice"}).Return([]model.User{{ID: botID}}, nil).Maybe()
 			expectBackgroundSocial(m)
 
 			// when
-			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: tc.corner, Body: "@beatrice hello"})
+			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: string(tc.corner), Body: "@beatrice hello"})
 
 			// then
 			require.NoError(t, err)

@@ -11,13 +11,28 @@ const HEART = "❤";
 const STAR = "⭐";
 const BODY = "the golden truth";
 
-const EVERY_ACTION = ["React", "Reply", "Pin message", "Edit message", "Delete message"];
+const EVERY_ACTION = ["React", "Reply", "Pin message", "Edit message", "Copy message link", "Delete message"];
 
-const ALL_LABELS = ["React", "Reply", "Pin message", "Unpin message", "Edit message", "Delete message"];
+const ALL_LABELS = [
+    "React",
+    "Reply",
+    "Pin message",
+    "Unpin message",
+    "Edit message",
+    "Copy message link",
+    "Delete message",
+];
 
-type HandlerName = "onReply" | "onReactionToggle" | "onPinToggle" | "onDelete" | "onEditStart";
+type HandlerName = "onReply" | "onReactionToggle" | "onPinToggle" | "onDelete" | "onEditStart" | "onCopyLink";
 
-const HANDLER_NAMES: HandlerName[] = ["onReply", "onReactionToggle", "onPinToggle", "onDelete", "onEditStart"];
+const HANDLER_NAMES: HandlerName[] = [
+    "onReply",
+    "onReactionToggle",
+    "onPinToggle",
+    "onDelete",
+    "onEditStart",
+    "onCopyLink",
+];
 
 vi.mock("../EmojiPicker/EmojiPicker", () => ({
     EmojiPicker: ({ onPick, onClose }: { onPick: (emoji: string) => void; onClose: () => void }) => (
@@ -88,6 +103,7 @@ interface FullyWiredBubble {
     onPinToggle: ReturnType<typeof vi.fn>;
     onDelete: ReturnType<typeof vi.fn>;
     onEditStart: ReturnType<typeof vi.fn>;
+    onCopyLink: ReturnType<typeof vi.fn>;
 }
 
 function renderFullyWired(): FullyWiredBubble {
@@ -98,6 +114,7 @@ function renderFullyWired(): FullyWiredBubble {
         onPinToggle: vi.fn(),
         onDelete: vi.fn(),
         onEditStart: vi.fn(),
+        onCopyLink: vi.fn(),
     };
 
     renderWithProviders(
@@ -666,8 +683,18 @@ interface ParityCase {
 const parityCases: ParityCase[] = [
     {
         name: "their own message in a room they host",
-        props: { ...everythingWired, isOwn: true, canPin: true, canModerate: true },
+        props: { ...everythingWired, onCopyLink: vi.fn(), isOwn: true, canPin: true, canModerate: true },
         want: EVERY_ACTION,
+    },
+    {
+        name: "somebody else's message on a surface whose messages keep a lasting address",
+        props: { ...everythingWired, onCopyLink: vi.fn(), isOwn: false },
+        want: ["React", "Reply", "Copy message link"],
+    },
+    {
+        name: "a reader the caller gave only a link to copy",
+        props: { isOwn: false, onCopyLink: vi.fn() },
+        want: ["Copy message link"],
     },
     {
         name: "somebody else's message read by an ordinary member",
@@ -765,6 +792,13 @@ interface DispatchCase {
 const dispatchCases: DispatchCase[] = [
     { name: "replies once and does nothing else", label: "Reply", answer: true, prompts: [], runs: "onReply" },
     { name: "pins once and does nothing else", label: "Pin message", answer: true, prompts: [], runs: "onPinToggle" },
+    {
+        name: "hands the message over for its link once and does nothing else",
+        label: "Copy message link",
+        answer: true,
+        prompts: [],
+        runs: "onCopyLink",
+    },
     {
         name: "starts an edit once and does nothing else",
         label: "Edit message",
@@ -984,6 +1018,7 @@ interface FocusHandoverCase {
 const focusHandoverCases: FocusHandoverCase[] = [
     { name: "replying", label: "Reply" },
     { name: "pinning", label: "Pin message" },
+    { name: "copying a link", label: "Copy message link" },
     { name: "declining a delete", label: "Delete message" },
 ];
 
@@ -1006,4 +1041,122 @@ describe("MessageBubble context menu focus handover", () => {
             expect(bubbleOf().contains(document.activeElement)).toBe(true);
         });
     }
+});
+
+describe("MessageBubble for a message the server has not confirmed yet", () => {
+    const NONCE = "0f1e2d3c4b5a69788796a5b4c3d2e1f0";
+
+    function renderUndelivered(delivery: ComponentProps<typeof MessageBubble>["delivery"]) {
+        const handlers = {
+            onRetrySend: vi.fn(),
+            onDiscardSend: vi.fn(),
+            onReply: vi.fn(),
+            onReactionToggle: vi.fn(),
+            onPinToggle: vi.fn(),
+            onDelete: vi.fn(),
+            onEditStart: vi.fn(),
+            onCopyLink: vi.fn(),
+        };
+
+        renderWithProviders(
+            <MessageBubble
+                message={makeChatMessage()}
+                isOwn
+                canPin
+                canModerate
+                delivery={delivery}
+                onEdit={() => Promise.resolve()}
+                {...handlers}
+            />,
+        );
+
+        return handlers;
+    }
+
+    it("says a message is on its way and marks it busy for assistive technology", () => {
+        // when
+        renderUndelivered({ nonce: NONCE, delivery: "sending", error: null });
+
+        // then
+        expect(screen.getByText("Sending...")).toBeInTheDocument();
+        expect(bubbleOf()).toHaveAttribute("aria-busy", "true");
+    });
+
+    it("offers nothing to do with a message on its way, not even through the right click", () => {
+        // given
+        renderUndelivered({ nonce: NONCE, delivery: "sending", error: null });
+
+        // when
+        const notPrevented = fireEvent.contextMenu(bubbleOf());
+
+        // then
+        expect(screen.queryAllByRole("button")).toEqual([]);
+        expect(notPrevented).toBe(true);
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    });
+
+    it("leaves a long press on a message on its way to the device", () => {
+        // given
+        vi.useFakeTimers();
+        renderUndelivered({ nonce: NONCE, delivery: "sending", error: null });
+
+        // when
+        fireEvent.pointerDown(bubbleOf(), { pointerType: "touch", clientX: 10, clientY: 10 });
+        act(() => {
+            vi.advanceTimersByTime(1000);
+        });
+
+        // then
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    });
+
+    it("announces a failed send once, with the reason, and offers only retrying or discarding it", () => {
+        // when
+        renderUndelivered({ nonce: NONCE, delivery: "failed", error: "network is down" });
+
+        // then
+        const alert = screen.getByRole("alert");
+        expect(alert).toHaveTextContent("Not sent.");
+        expect(alert).toHaveTextContent("network is down");
+        expect(screen.getAllByText("network is down")).toHaveLength(1);
+        expect(screen.getAllByRole("button").map(button => button.textContent)).toEqual(["Retry", "Discard"]);
+        expect(bubbleOf()).not.toHaveAttribute("aria-busy");
+        expect(screen.queryByText("Sending...")).not.toBeInTheDocument();
+    });
+
+    interface FailureActionCase {
+        name: string;
+        button: string;
+        handler: "onRetrySend" | "onDiscardSend";
+    }
+
+    const failureActionCases: FailureActionCase[] = [
+        { name: "retries", button: "Retry", handler: "onRetrySend" },
+        { name: "discards", button: "Discard", handler: "onDiscardSend" },
+    ];
+
+    for (const actionCase of failureActionCases) {
+        it(`${actionCase.name} a failed send by its nonce`, async () => {
+            // given
+            const user = userEvent.setup();
+            const handlers = renderUndelivered({ nonce: NONCE, delivery: "failed", error: "network is down" });
+
+            // when
+            await user.click(screen.getByRole("button", { name: actionCase.button }));
+
+            // then
+            expect(handlers[actionCase.handler]).toHaveBeenCalledExactlyOnceWith(NONCE);
+            expect(handlers.onReply).not.toHaveBeenCalled();
+        });
+    }
+
+    it("shows a confirmed message as neither busy nor failed", () => {
+        // when
+        renderUndelivered(undefined);
+
+        // then
+        expect(bubbleOf()).not.toHaveAttribute("aria-busy");
+        expect(screen.queryByText("Sending...")).not.toBeInTheDocument();
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
 });

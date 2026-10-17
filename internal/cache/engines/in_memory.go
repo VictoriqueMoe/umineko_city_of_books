@@ -25,6 +25,7 @@ type (
 	inMemoryEntry struct {
 		key       string
 		data      []byte
+		hits      int64
 		expiresAt time.Time
 	}
 
@@ -63,19 +64,10 @@ func (c *InMemory) Get(_ context.Context, key string) ([]byte, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	el, ok := c.items[key]
+	entry, ok := c.lookup(key, c.now())
 	if !ok {
 		return nil, engine.ErrMiss
 	}
-
-	entry := el.Value.(*inMemoryEntry)
-	if !entry.expiresAt.IsZero() && c.now().After(entry.expiresAt) {
-		c.drop(el)
-
-		return nil, engine.ErrMiss
-	}
-
-	c.order.MoveToFront(el)
 
 	return entry.data, nil
 }
@@ -104,12 +96,56 @@ func (c *InMemory) SetMany(_ context.Context, entries map[string][]byte, ttl tim
 	return nil
 }
 
+func (c *InMemory) Allow(_ context.Context, key string, limit int, window time.Duration) (engine.Allowance, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	now := c.now()
+	slot := allowanceSlot(key)
+
+	entry, ok := c.lookup(slot, now)
+	if !ok {
+		c.storeUntil(slot, nil, now.Add(window))
+		if el, stored := c.items[slot]; stored {
+			el.Value.(*inMemoryEntry).hits = 1
+		}
+
+		return allowance(1, limit, window), nil
+	}
+
+	entry.hits++
+
+	return allowance(entry.hits, limit, entry.expiresAt.Sub(now)), nil
+}
+
+func (c *InMemory) Reset(_ context.Context, key string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	el, ok := c.items[allowanceSlot(key)]
+	if !ok {
+		return nil
+	}
+
+	c.drop(el)
+
+	return nil
+}
+
+func allowance(hits int64, limit int, remaining time.Duration) engine.Allowance {
+	if hits <= int64(limit) {
+		return engine.Allowance{Allowed: true}
+	}
+
+	return engine.Allowance{RetryAfter: max(remaining, 0)}
+}
+
 func (c *InMemory) Del(_ context.Context, keys ...string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	for i := range keys {
-		el, ok := c.items[keys[i]]
+	for _, key := range keys {
+		el, ok := c.items[key]
 		if !ok {
 			continue
 		}
@@ -149,6 +185,24 @@ func (c *InMemory) Bytes() int {
 	return c.bytes
 }
 
+func (c *InMemory) lookup(key string, now time.Time) (*inMemoryEntry, bool) {
+	el, ok := c.items[key]
+	if !ok {
+		return nil, false
+	}
+
+	entry := el.Value.(*inMemoryEntry)
+	if !entry.expiresAt.IsZero() && now.After(entry.expiresAt) {
+		c.drop(el)
+
+		return nil, false
+	}
+
+	c.order.MoveToFront(el)
+
+	return entry, true
+}
+
 func (c *InMemory) drop(el *list.Element) {
 	entry := el.Value.(*inMemoryEntry)
 	c.order.Remove(el)
@@ -162,6 +216,10 @@ func (c *InMemory) store(key string, data []byte, ttl time.Duration) {
 		expiresAt = c.now().Add(ttl)
 	}
 
+	c.storeUntil(key, data, expiresAt)
+}
+
+func (c *InMemory) storeUntil(key string, data []byte, expiresAt time.Time) {
 	if el, ok := c.items[key]; ok {
 		entry := el.Value.(*inMemoryEntry)
 		c.bytes += len(data) - len(entry.data)

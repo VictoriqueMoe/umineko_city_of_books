@@ -102,6 +102,9 @@ packages:
   umineko_city_of_books/internal/storage/engine:
     interfaces:
       Engine:
+  umineko_city_of_books/internal/cache/engine:
+    interfaces:
+      Engine:
   umineko_city_of_books/internal/user:
     interfaces:
       Service:
@@ -126,6 +129,9 @@ packages:
   umineko_city_of_books/internal/stream:
     interfaces:
       Service:
+  umineko_city_of_books/internal/linkpreview:
+    interfaces:
+      Service:
   umineko_city_of_books/internal/overlay:
     interfaces:
       Service:
@@ -138,6 +144,7 @@ packages:
   umineko_city_of_books/internal/sidebar:
     interfaces:
       Service:
+      ActivityBumper:
   umineko_city_of_books/internal/sitemap:
     interfaces:
       Service:
@@ -166,7 +173,7 @@ packages:
       Disconnector:
   umineko_city_of_books/internal/middleware:
     interfaces:
-      IPWriter:
+      IPStore:
       Authenticator:
   umineko_city_of_books/internal/repository:
     config:

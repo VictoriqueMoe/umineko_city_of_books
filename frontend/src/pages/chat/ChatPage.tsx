@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Modal } from "../../components/Modal/Modal";
-import { ChatComposer } from "../../components/chat/ChatComposer/ChatComposer";
+import { ChatComposer, type ComposerTarget } from "../../components/chat/ChatComposer/ChatComposer";
 import { VoiceBar } from "../../components/chat/Voice/VoiceBar";
 import { VoiceButton } from "../../components/chat/Voice/VoiceButton";
 import { TypingIndicator } from "../../components/chat/TypingIndicator/TypingIndicator";
@@ -45,6 +45,11 @@ export function ChatPage() {
         draftRecipient,
         setDraftRecipient,
         messages,
+        entries,
+        sender,
+        draftSender,
+        retrySend,
+        discardSend,
         hasMore,
         loadingMore,
         loadUntilMessage,
@@ -79,7 +84,6 @@ export function ChatPage() {
         showToast,
         handleRoomSelect,
         handleMobileBack,
-        handleSentMessage,
         handleSelectUser,
         handleEditLast,
         handleDeleteChat,
@@ -122,6 +126,7 @@ export function ChatPage() {
     const thread: DmThreadView = {
         anchor,
         mentionPool,
+        viewerMember: currentMember,
         viewerTimeoutUntil,
         viewerTimedOut,
         searchOpen,
@@ -139,6 +144,11 @@ export function ChatPage() {
     if (isMobile) {
         return <MobileDmView controller={controller} thread={thread} />;
     }
+
+    const headerUser = activeRoom ? getRoomAvatarUser(activeRoom, user) : draftRecipient;
+    const headerName = activeRoom ? getRoomDisplayName(activeRoom, user) : (draftRecipient?.display_name ?? "");
+    const composerTarget: ComposerTarget | null =
+        activeRoom && sender ? { kind: "room", sender } : draftSender ? { kind: "draft", sender: draftSender } : null;
 
     return (
         <div className={styles.chatWrapper}>
@@ -175,39 +185,7 @@ export function ChatPage() {
                 </div>
 
                 <div className={styles.messageArea}>
-                    {!activeRoom && draftRecipient ? (
-                        <>
-                            <div className={styles.messageHeader}>
-                                <div className={styles.messageHeaderLeft}>
-                                    <button
-                                        type="button"
-                                        className={styles.backButton}
-                                        onClick={handleMobileBack}
-                                        aria-label="Back to conversations"
-                                    >
-                                        {"←"}
-                                    </button>
-                                    <ProfileLink user={draftRecipient} size="small" />
-                                </div>
-                                <Button variant="ghost" size="small" onClick={() => setDraftRecipient(null)}>
-                                    Cancel
-                                </Button>
-                            </div>
-                            <div className={styles.messages}>
-                                <div className={styles.messageAreaEmpty}>
-                                    <span>
-                                        Send your first message to <bdi>{draftRecipient.display_name}</bdi>.
-                                    </span>
-                                </div>
-                                <div ref={messagesEndRef} />
-                            </div>
-                            <ChatComposer
-                                roomId={null}
-                                draftRecipientId={draftRecipient.id}
-                                onSent={handleSentMessage}
-                            />
-                        </>
-                    ) : !activeRoom ? (
+                    {!activeRoom && !draftRecipient ? (
                         <div className={styles.messageAreaEmpty}>Select a conversation</div>
                     ) : (
                         <>
@@ -221,37 +199,45 @@ export function ChatPage() {
                                     >
                                         {"←"}
                                     </button>
-                                    {getRoomAvatarUser(activeRoom, user) ? (
-                                        <ProfileLink user={getRoomAvatarUser(activeRoom, user)!} size="small" />
+                                    {headerUser ? (
+                                        <ProfileLink user={headerUser} size="small" />
                                     ) : (
-                                        <span dir="auto">{getRoomDisplayName(activeRoom, user)}</span>
+                                        <span dir="auto">{headerName}</span>
                                     )}
                                 </div>
-                                <div className={styles.headerActions}>
-                                    <Button
-                                        variant="ghost"
-                                        size="small"
-                                        onClick={() => setSearchOpen(true)}
-                                        aria-label="Search messages"
-                                        title="Search messages"
-                                    >
-                                        {"🔍"}
+                                {activeRoom ? (
+                                    <div className={styles.headerActions}>
+                                        <Button
+                                            variant="ghost"
+                                            size="small"
+                                            onClick={() => setSearchOpen(true)}
+                                            aria-label="Search messages"
+                                            title="Search messages"
+                                        >
+                                            {"🔍"}
+                                        </Button>
+                                        <Button
+                                            variant="secondary"
+                                            size="small"
+                                            onClick={handleToggleMute}
+                                            disabled={mutePending}
+                                            title={
+                                                activeRoom.viewer_muted ? "Unmute notifications" : "Mute notifications"
+                                            }
+                                        >
+                                            {mutePending ? "..." : activeRoom.viewer_muted ? "Unmute" : "Mute"}
+                                        </Button>
+                                        <Button variant="danger" size="small" onClick={handleDeleteChat}>
+                                            Delete Chat
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <Button variant="ghost" size="small" onClick={() => setDraftRecipient(null)}>
+                                        Cancel
                                     </Button>
-                                    <Button
-                                        variant="secondary"
-                                        size="small"
-                                        onClick={handleToggleMute}
-                                        disabled={mutePending}
-                                        title={activeRoom.viewer_muted ? "Unmute notifications" : "Mute notifications"}
-                                    >
-                                        {mutePending ? "..." : activeRoom.viewer_muted ? "Unmute" : "Mute"}
-                                    </Button>
-                                    <Button variant="danger" size="small" onClick={handleDeleteChat}>
-                                        Delete Chat
-                                    </Button>
-                                </div>
+                                )}
                             </div>
-                            {voice.status === "connected" && voice.room && (
+                            {activeRoom && voice.status === "connected" && voice.room && (
                                 <VoiceBar
                                     room={voice.room}
                                     onLeave={voice.leave}
@@ -266,8 +252,16 @@ export function ChatPage() {
                             )}
                             <MessageList
                                 viewer={user}
-                                room={activeRoom}
-                                messages={messages}
+                                viewerIdentity={currentMember}
+                                room={activeRoom ?? null}
+                                emptyLabel={
+                                    activeRoom ? undefined : (
+                                        <span>
+                                            Send your first message to <bdi>{headerName}</bdi>.
+                                        </span>
+                                    )
+                                }
+                                entries={entries}
                                 hasMore={hasMore}
                                 loadingMore={loadingMore}
                                 highlightedMessageId={anchor.highlightedMsgId}
@@ -286,28 +280,31 @@ export function ChatPage() {
                                 onToggleReaction={handleReactionToggle}
                                 onDelete={handleDeleteMessage}
                                 onEdit={handleEditMessage}
+                                onRetrySend={retrySend}
+                                onDiscardSend={discardSend}
+                                onNotify={showToast}
                                 classes={MESSAGE_LIST_CLASSES}
                             />
-                            <TypingIndicator names={typingNames} />
+                            {activeRoom && <TypingIndicator names={typingNames} />}
                             <ChatComposer
-                                roomId={activeRoomId}
-                                draftRecipientId={null}
-                                onSent={handleSentMessage}
-                                mentionPool={mentionPool}
-                                replyingTo={replyingTo}
+                                target={composerTarget}
+                                mentionPool={activeRoom ? mentionPool : undefined}
+                                replyingTo={activeRoom ? replyingTo : null}
                                 onCancelReply={() => setReplyingTo(null)}
-                                onTyping={notifyTyping}
-                                onEditLast={handleEditLast}
-                                timeoutUntil={viewerTimeoutUntil}
+                                onTyping={activeRoom ? notifyTyping : undefined}
+                                onEditLast={activeRoom ? handleEditLast : undefined}
+                                timeoutUntil={activeRoom ? viewerTimeoutUntil : undefined}
                                 extraActions={
-                                    <VoiceButton
-                                        enabled={voiceEnabled}
-                                        status={voice.status}
-                                        presenceCount={voice.presenceCount}
-                                        error={voice.error}
-                                        onJoin={voice.join}
-                                        onLeave={voice.leave}
-                                    />
+                                    activeRoom ? (
+                                        <VoiceButton
+                                            enabled={voiceEnabled}
+                                            status={voice.status}
+                                            presenceCount={voice.presenceCount}
+                                            error={voice.error}
+                                            onJoin={voice.join}
+                                            onLeave={voice.leave}
+                                        />
+                                    ) : undefined
                                 }
                             />
                         </>
@@ -375,7 +372,11 @@ export function ChatPage() {
                     onJump={anchor.handleJumpToMessage}
                 />
             )}
-            {toast && <div className={styles.toast}>{toast}</div>}
+            {toast && (
+                <div className={styles.toast} role="status">
+                    {toast}
+                </div>
+            )}
             {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
         </div>
     );

@@ -7,6 +7,7 @@ package sqlcgen
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -177,8 +178,8 @@ func (q *Queries) CountFanficsByUser(ctx context.Context, arg CountFanficsByUser
 
 const createFanfic = `-- name: CreateFanfic :one
 WITH f AS (
-    INSERT INTO fanfics (user_id, title, summary, series, rating, language, status, is_oneshot, contains_lemons)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    INSERT INTO fanfics (user_id, title, summary, series, rating, language, status, is_oneshot, contains_lemons, published_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CASE WHEN $7::text = 'draft' THEN NULL ELSE NOW() END)
     RETURNING id, user_id, title, summary, series, rating, language, status,
               is_oneshot, contains_lemons, cover_image_url, cover_thumbnail_url,
               word_count, favourite_count, view_count, comment_count,
@@ -230,7 +231,7 @@ type CreateFanficRow struct {
 	FavouriteCount    int32
 	ViewCount         int32
 	CommentCount      int32
-	PublishedAt       time.Time
+	PublishedAt       sql.NullTime
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	AuthorUsername    string
@@ -413,7 +414,7 @@ type GetFanficByIDRow struct {
 	FavouriteCount    int32
 	ViewCount         int32
 	CommentCount      int32
-	PublishedAt       time.Time
+	PublishedAt       sql.NullTime
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	AuthorUsername    string
@@ -887,7 +888,7 @@ type ListFanficFavouritesRow struct {
 	FavouriteCount    int32
 	ViewCount         int32
 	CommentCount      int32
-	PublishedAt       time.Time
+	PublishedAt       sql.NullTime
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	AuthorUsername    string
@@ -1026,7 +1027,7 @@ type ListFanficsByFavouritesRow struct {
 	FavouriteCount    int32
 	ViewCount         int32
 	CommentCount      int32
-	PublishedAt       time.Time
+	PublishedAt       sql.NullTime
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	AuthorUsername    string
@@ -1137,7 +1138,7 @@ WHERE (f.status != 'draft' OR f.user_id = $1)
   AND ($14::text = '' OR EXISTS(SELECT 1 FROM fanfic_characters cd WHERE cd.fanfic_id = f.id AND cd.character_name = $14::text AND (NOT $11::boolean OR cd.is_pairing = TRUE)))
   AND ($15::text = '' OR f.title ILIKE $15::text OR f.summary ILIKE $15::text)
   AND ($16::text = '' OR f.user_id <> ALL(string_to_array($16::text, ',')::uuid[]))
-ORDER BY f.published_at DESC
+ORDER BY f.published_at DESC NULLS LAST
 LIMIT $18::int OFFSET $17::int
 `
 
@@ -1179,7 +1180,7 @@ type ListFanficsByPublishedRow struct {
 	FavouriteCount    int32
 	ViewCount         int32
 	CommentCount      int32
-	PublishedAt       time.Time
+	PublishedAt       sql.NullTime
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	AuthorUsername    string
@@ -1332,7 +1333,7 @@ type ListFanficsByUpdatedRow struct {
 	FavouriteCount    int32
 	ViewCount         int32
 	CommentCount      int32
-	PublishedAt       time.Time
+	PublishedAt       sql.NullTime
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	AuthorUsername    string
@@ -1457,7 +1458,7 @@ type ListFanficsByUserRow struct {
 	FavouriteCount    int32
 	ViewCount         int32
 	CommentCount      int32
-	PublishedAt       time.Time
+	PublishedAt       sql.NullTime
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	AuthorUsername    string
@@ -1522,6 +1523,18 @@ func (q *Queries) ListFanficsByUser(ctx context.Context, arg ListFanficsByUserPa
 		return nil, err
 	}
 	return items, nil
+}
+
+const markFanficFirstPublished = `-- name: MarkFanficFirstPublished :execrows
+UPDATE fanfics SET published_at = NOW() WHERE id = $1 AND published_at IS NULL AND status <> 'draft'
+`
+
+func (q *Queries) MarkFanficFirstPublished(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.ExecContext(ctx, markFanficFirstPublished, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const registerFanficLanguage = `-- name: RegisterFanficLanguage :exec

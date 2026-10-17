@@ -1,7 +1,15 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeChatMessage, makeChatRoom, makeDmRoom, makePublicUser, makeUser } from "../../../test-utils/fixtures";
+import type { PendingSend, ThreadEntry } from "../../../domain/chat/optimisticSend";
+import {
+    makeChatMessage,
+    makeChatRoom,
+    makeDmRoom,
+    makePendingSend,
+    makePublicUser,
+    makeUser,
+} from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { ChatMessage, ChatRoom, User, UserProfile } from "../../../types/api";
 import { MessageList, type MessageListProps } from "./MessageList";
@@ -14,6 +22,9 @@ vi.mock("../MessageBubble/MessageBubble", () => ({
     MessageBubble: ({
         message,
         isOwn,
+        delivery,
+        onRetrySend,
+        onDiscardSend,
         senderBlocked,
         highlighted,
         notifiesViewer,
@@ -32,6 +43,9 @@ vi.mock("../MessageBubble/MessageBubble", () => ({
     }: {
         message: ChatMessage;
         isOwn: boolean;
+        delivery?: Pick<PendingSend, "nonce" | "delivery" | "error">;
+        onRetrySend?: (nonce: string) => void;
+        onDiscardSend?: (nonce: string) => void;
         senderBlocked?: boolean;
         highlighted?: boolean;
         notifiesViewer?: boolean;
@@ -66,8 +80,20 @@ vi.mock("../MessageBubble/MessageBubble", () => ({
                 data-staff={String(senderIsStaff)}
                 data-has-pin-handler={String(Boolean(onPinToggle))}
                 data-has-reaction-handler={String(Boolean(onReactionToggle))}
+                data-delivery={delivery?.delivery ?? "delivered"}
+                data-nickname={message.sender_nickname ?? ""}
             >
                 <span>{message.body}</span>
+                {delivery && (
+                    <>
+                        <button type="button" onClick={() => onRetrySend?.(delivery.nonce)}>
+                            retry {message.id}
+                        </button>
+                        <button type="button" onClick={() => onDiscardSend?.(delivery.nonce)}>
+                            discard {message.id}
+                        </button>
+                    </>
+                )}
                 <button type="button" onClick={() => onReply?.(message)}>
                     reply to {message.id}
                 </button>
@@ -124,8 +150,12 @@ function makePairRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
 
 interface ListOptions {
     user?: UserProfile;
-    room?: ChatRoom;
-    messages?: ChatMessage[];
+    room?: ChatRoom | null;
+    emptyLabel?: MessageListProps["emptyLabel"];
+    messages?: ThreadEntry[];
+    viewerIdentity?: MessageListProps["viewerIdentity"];
+    onRetrySend?: MessageListProps["onRetrySend"];
+    onDiscardSend?: MessageListProps["onDiscardSend"];
     hasMore?: boolean;
     loadingMore?: boolean;
     highlightedMessageId?: string | null;
@@ -143,8 +173,10 @@ interface ListOptions {
 function makeProps(options: ListOptions = {}): MessageListProps {
     return {
         viewer: options.user ?? viewer,
-        room: options.room ?? makeGroupRoom(),
-        messages: options.messages ?? [],
+        viewerIdentity: options.viewerIdentity ?? null,
+        room: options.room === undefined ? makeGroupRoom() : options.room,
+        emptyLabel: options.emptyLabel,
+        entries: options.messages ?? [],
         hasMore: options.hasMore ?? false,
         loadingMore: options.loadingMore ?? false,
         highlightedMessageId: options.highlightedMessageId ?? null,
@@ -164,6 +196,9 @@ function makeProps(options: ListOptions = {}): MessageListProps {
         onTogglePin: options.onTogglePin,
         onDelete: vi.fn(),
         onEdit: vi.fn(),
+        onRetrySend: options.onRetrySend ?? vi.fn(),
+        onDiscardSend: options.onDiscardSend ?? vi.fn(),
+        onNotify: vi.fn(),
         classes,
     };
 }
@@ -188,6 +223,32 @@ const roomKinds: RoomKind[] = [
 beforeEach(() => {
     mocks.useBlockedUserIds.mockReturnValue(new Set<string>());
     mocks.replyHandlers.length = 0;
+});
+
+describe("MessageList for a conversation that does not exist yet", () => {
+    it("shows the prompt it is given in place of the greeting", () => {
+        // given
+        const emptyLabel = "Send your first message to Battler.";
+
+        // when
+        renderList({ room: null, emptyLabel, messages: [] });
+
+        // then
+        expect(screen.getByText("Send your first message to Battler.")).toBeInTheDocument();
+        expect(screen.queryByText("No messages yet. Say hello!")).not.toBeInTheDocument();
+    });
+
+    it("shows a first message still on its way as the viewer's own", () => {
+        // given
+        const pending = makePendingSend({ thread: { kind: "draft", recipientId: "u-battler" }, body: "are you there" });
+
+        // when
+        renderList({ room: null, messages: [pending] });
+
+        // then
+        expect(screen.getByText("are you there")).toBeInTheDocument();
+        expect(screen.queryByText("No messages yet. Say hello!")).not.toBeInTheDocument();
+    });
 });
 
 describe("MessageList, the surface both room kinds share", () => {
@@ -718,5 +779,90 @@ describe("MessageList, moderation and pinning follow the room's capabilities", (
         const bubble = screen.getByTestId("bubble-m1");
         expect(bubble).toHaveAttribute("data-can-pin", "false");
         expect(bubble).toHaveAttribute("data-has-pin-handler", "false");
+    });
+});
+
+describe("MessageList, messages the server has not confirmed yet", () => {
+    const nonce = "0f1e2d3c4b5a69788796a5b4c3d2e1f0";
+
+    it("shows a pending send after the transcript as the viewer's own message, under their room identity", () => {
+        // given
+        const messages = [makeMessage({ id: "m1", body: "earlier" }), makePendingSend({ nonce, body: "on its way" })];
+
+        // when
+        renderList({ messages, viewerIdentity: { nickname: "Golden Witch", member_avatar_url: "" } });
+
+        // then
+        const bodies = screen.getAllByText(/^(earlier|on its way)$/).map(node => node.textContent);
+        expect(bodies).toEqual(["earlier", "on its way"]);
+        const pending = screen.getByTestId(`bubble-${nonce}`);
+        expect(pending).toHaveAttribute("data-own", "true");
+        expect(pending).toHaveAttribute("data-delivery", "sending");
+        expect(pending).toHaveAttribute("data-nickname", "Golden Witch");
+        expect(pending).toHaveAttribute("data-has-reaction-handler", "false");
+    });
+
+    interface DeliveryActionCase {
+        name: string;
+        button: string;
+        handler: "onRetrySend" | "onDiscardSend";
+    }
+
+    const deliveryActionCases: DeliveryActionCase[] = [
+        { name: "retries", button: `retry ${nonce}`, handler: "onRetrySend" },
+        { name: "discards", button: `discard ${nonce}`, handler: "onDiscardSend" },
+    ];
+
+    for (const actionCase of deliveryActionCases) {
+        it(`${actionCase.name} a failed send by its nonce`, async () => {
+            // given
+            const handler = vi.fn();
+            const user = userEvent.setup();
+            const options: ListOptions = {
+                messages: [makePendingSend({ nonce, delivery: "failed", error: "network is down" })],
+            };
+            options[actionCase.handler] = handler;
+            renderList(options);
+
+            // when
+            await user.click(screen.getByRole("button", { name: actionCase.button }));
+
+            // then
+            expect(handler).toHaveBeenCalledExactlyOnceWith(nonce);
+        });
+    }
+
+    it("keeps the seen label on the viewer's newest delivered message while a later send is pending", () => {
+        // given
+        const messages = [
+            makeMessage({ id: "mine", sender: makeSender({ id: "u1" }), created_at: "2026-08-01T10:00:00Z" }),
+            makePendingSend({ nonce }),
+        ];
+        const readReceipts = { "room-1": { u2: "2026-08-01T11:00:00Z" } };
+
+        // when
+        renderList({ room: makePairRoom(), messages, readReceipts });
+
+        // then
+        expect(screen.getByTestId("bubble-mine").getAttribute("data-seen")).toMatch(/^seen /);
+    });
+
+    it("hands the confirmed message the bubble its pending send had, so nothing is remounted", () => {
+        // given
+        const props = makeProps({ messages: [makePendingSend({ nonce, body: "hello" })] });
+        const { rerender } = renderWithProviders(<MessageList {...props} />);
+        const pendingBubble = screen.getByTestId(`bubble-${nonce}`);
+        const confirmed = makeMessage({
+            id: "m-real",
+            body: "hello",
+            sender: makeSender({ id: "u1" }),
+            client_nonce: nonce,
+        });
+
+        // when
+        rerender(<MessageList {...props} entries={[confirmed]} />);
+
+        // then
+        expect(screen.getByTestId("bubble-m-real")).toBe(pendingBubble);
     });
 });

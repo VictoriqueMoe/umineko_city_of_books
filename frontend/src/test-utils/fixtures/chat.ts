@@ -1,5 +1,20 @@
+import type { PendingSend } from "../../domain/chat/optimisticSend";
 import type { ChatMessage, ChatRoom, ChatRoomMember } from "../../types/api";
 import { makePublicUser } from "./user";
+
+export function makePendingSend(overrides: Partial<PendingSend> = {}): PendingSend {
+    return {
+        nonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        thread: { kind: "room", roomId: "room-1" },
+        body: "the golden truth",
+        replyTo: null,
+        attachments: [],
+        createdAt: "2026-01-01T00:00:00Z",
+        delivery: "sending",
+        error: null,
+        ...overrides,
+    };
+}
 
 export function makeChatRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     return {

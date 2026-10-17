@@ -112,28 +112,24 @@ func TestSearchDAO_FanficDraft_Hidden(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	draft, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
-		NewFanfic: spec.NewFanfic{
-			UserID:   user.ID,
-			Title:    "Hidden Draft About Beatrice",
-			Summary:  "Secret summary about beatrice",
-			Series:   "Umineko",
-			Rating:   "K",
-			Language: "English",
-			Status:   "draft",
-		},
+		UserID:   user.ID,
+		Title:    "Hidden Draft About Beatrice",
+		Summary:  "Secret summary about beatrice",
+		Series:   "Umineko",
+		Rating:   "K",
+		Language: "English",
+		Status:   "draft",
 	})
 	require.NoError(t, err)
 	draftID := draft.ID
 	published, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
-		NewFanfic: spec.NewFanfic{
-			UserID:   user.ID,
-			Title:    "Public Beatrice Story",
-			Summary:  "Public summary",
-			Series:   "Umineko",
-			Rating:   "K",
-			Language: "English",
-			Status:   "in_progress",
-		},
+		UserID:   user.ID,
+		Title:    "Public Beatrice Story",
+		Summary:  "Public summary",
+		Series:   "Umineko",
+		Rating:   "K",
+		Language: "English",
+		Status:   "in_progress",
 	})
 	require.NoError(t, err)
 	publishedID := published.ID

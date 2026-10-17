@@ -68,8 +68,10 @@ func NewService(
 }
 
 func (s *service) Get(ctx context.Context) (dto.SiteInfoResponse, error) {
+	key := cache.SiteInfo.Key()
+
 	load := func(ctx context.Context) (dto.SiteInfoResponse, error) {
-		result, err, _ := s.group.Do(cache.SiteInfo.Key(), func() (any, error) {
+		result, err, _ := s.group.Do(key.String(), func() (any, error) {
 			return s.build(context.WithoutCancel(ctx))
 		})
 		if err != nil {
@@ -79,7 +81,7 @@ func (s *service) Get(ctx context.Context) (dto.SiteInfoResponse, error) {
 		return result.(dto.SiteInfoResponse), nil
 	}
 
-	info, err := s.cache.Load(ctx, cache.SiteInfo, load)
+	info, err := s.cache.Load(ctx, key, load)
 	if err != nil {
 		return dto.SiteInfoResponse{}, err
 	}

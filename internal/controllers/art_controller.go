@@ -7,6 +7,7 @@ import (
 	artsvc "umineko_city_of_books/internal/art"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
+	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 
@@ -109,15 +110,18 @@ func (s *Service) setupListUserArt(r fiber.Router) {
 
 func (s *Service) listArt(ctx fiber.Ctx) error {
 	viewerID := utils.UserID(ctx)
-	corner := ctx.Query("corner", "general")
+	cornerSlug := ctx.Query("corner")
 	artType := ctx.Query("type")
 	search := ctx.Query("search")
 	tag := ctx.Query("tag")
 	sort := ctx.Query("sort", "new")
 	page := utils.Page(ctx, 24)
 
-	result, err := s.ArtService.ListArt(ctx.Context(), viewerID, corner, artType, search, tag, sort, page)
+	result, err := s.ArtService.ListArt(ctx.Context(), viewerID, cornerSlug, artType, search, tag, sort, page)
 	if err != nil {
+		if errors.Is(err, corner.ErrInvalidCorner) {
+			return utils.BadRequest(ctx, err.Error())
+		}
 		return utils.InternalError(ctx, "failed to list art", err)
 	}
 	return ctx.JSON(result)
@@ -132,9 +136,11 @@ func (s *Service) getArtCornerCounts(ctx fiber.Ctx) error {
 }
 
 func (s *Service) getPopularTags(ctx fiber.Ctx) error {
-	corner := ctx.Query("corner")
-	tags, err := s.ArtService.GetPopularTags(ctx.Context(), corner)
+	tags, err := s.ArtService.GetPopularTags(ctx.Context(), ctx.Query("corner"))
 	if err != nil {
+		if errors.Is(err, corner.ErrInvalidCorner) {
+			return utils.BadRequest(ctx, err.Error())
+		}
 		return utils.InternalError(ctx, "failed to get tags", err)
 	}
 	return ctx.JSON(tags)
@@ -186,7 +192,7 @@ func (s *Service) createArt(ctx fiber.Ctx) error {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
-		if errors.Is(err, artsvc.ErrEmptyTitle) || utils.IsUploadRejection(err) {
+		if errors.Is(err, artsvc.ErrEmptyTitle) || errors.Is(err, corner.ErrInvalidCorner) || utils.IsUploadRejection(err) {
 			return utils.BadRequest(ctx, err.Error())
 		}
 		if errors.Is(err, artsvc.ErrRateLimited) {
@@ -194,11 +200,6 @@ func (s *Service) createArt(ctx fiber.Ctx) error {
 		}
 		return utils.InternalError(ctx, "failed to create art", err)
 	}
-	corner := req.Corner
-	if corner == "" {
-		corner = "general"
-	}
-	s.Hub.BumpSidebarActivity("gallery_" + corner)
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 
@@ -426,9 +427,11 @@ func (s *Service) createGallery(ctx fiber.Ctx) error {
 }
 
 func (s *Service) listAllGalleries(ctx fiber.Ctx) error {
-	corner := ctx.Query("corner")
-	galleries, err := s.ArtService.ListAllGalleries(ctx.Context(), corner)
+	galleries, err := s.ArtService.ListAllGalleries(ctx.Context(), ctx.Query("corner"))
 	if err != nil {
+		if errors.Is(err, corner.ErrInvalidCorner) {
+			return utils.BadRequest(ctx, err.Error())
+		}
 		return utils.InternalError(ctx, "failed to list galleries", err)
 	}
 	return ctx.JSON(galleries)

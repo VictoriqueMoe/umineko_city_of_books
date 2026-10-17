@@ -111,7 +111,7 @@ func (f *Service) Refresh(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("every crawler range feed failed")
 	}
 
-	if err := f.cache.Set(ctx, cache.CrawlerRanges.Key(), current, cache.CrawlerRanges.TTL); err != nil {
+	if err := f.cache.Set(ctx, cache.CrawlerRanges.Key(), current); err != nil {
 		return 0, fmt.Errorf("store crawler ranges: %w", err)
 	}
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -47,7 +48,7 @@ type (
 		ListFollowedByUser(ctx context.Context, q spec.JournalFollowedQuery, tx ...*sql.Tx) ([]dto.JournalResponse, int, error)
 
 		CreateEntry(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx) (*model.JournalEntryRow, error)
-		UpdateEntry(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx) error
+		UpdateEntry(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx) (firstPublished bool, err error)
 		DeleteEntry(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error
 		GetEntry(ctx context.Context, s spec.JournalEntryLookup, tx ...*sql.Tx) (*model.JournalEntryRow, error)
 		GetEntryByID(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) (*model.JournalEntryRow, error)
@@ -169,6 +170,7 @@ func toJournalEntryRow(row journalEntryJoinRow) model.JournalEntryRow {
 		Body:        row.Body,
 		WordCount:   int(row.WordCount),
 		IsDraft:     row.IsDraft,
+		PublishedAt: nullTimeToStringPtr(row.PublishedAt),
 		CreatedAt:   row.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:   new(row.UpdatedAt.UTC().Format(time.RFC3339)),
 	}
@@ -542,23 +544,41 @@ func (r *journalDAO) CreateEntry(ctx context.Context, s spec.NewJournalEntry, tx
 	return new(toJournalEntryRow(journalEntryJoinRow(created))), nil
 }
 
-func (r *journalDAO) UpdateEntry(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx) error {
-	n, err := genQueries(r.db, tx).UpdateJournalEntry(ctx, sqlcgen.UpdateJournalEntryParams{
-		Title:     journalNullString(s.Title),
-		Body:      s.Body,
-		WordCount: int32(s.WordCount),
-		IsDraft:   s.IsDraft,
-		ID:        s.ID,
+func (r *journalDAO) UpdateEntry(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx) (bool, error) {
+	var firstPublished bool
+
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
+		queries := genQueries(r.db, []*sql.Tx{tx})
+
+		n, err := queries.UpdateJournalEntry(ctx, sqlcgen.UpdateJournalEntryParams{
+			Title:     journalNullString(s.Title),
+			Body:      s.Body,
+			WordCount: int32(s.WordCount),
+			IsDraft:   s.IsDraft,
+			ID:        s.ID,
+		})
+		if err != nil {
+			return fmt.Errorf("update journal entry: %w", err)
+		}
+
+		if n == 0 {
+			return fmt.Errorf("entry not found")
+		}
+
+		published, err := queries.MarkJournalEntryFirstPublished(ctx, s.ID)
+		if err != nil {
+			return fmt.Errorf("mark journal entry first published: %w", err)
+		}
+
+		firstPublished = published == 1
+
+		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("update journal entry: %w", err)
+		return false, err
 	}
 
-	if n == 0 {
-		return fmt.Errorf("entry not found")
-	}
-
-	return nil
+	return firstPublished, nil
 }
 
 func (r *journalDAO) DeleteEntry(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
@@ -594,6 +614,7 @@ func (r *journalDAO) GetEntry(ctx context.Context, s spec.JournalEntryLookup, tx
 		Body:        row.Body,
 		WordCount:   row.WordCount,
 		IsDraft:     row.IsDraft,
+		PublishedAt: row.PublishedAt,
 		CreatedAt:   row.CreatedAt,
 		UpdatedAt:   row.UpdatedAt,
 	})
@@ -629,6 +650,7 @@ func (r *journalDAO) ListEntries(ctx context.Context, journalID uuid.UUID, tx ..
 			Title:       journalStringPtr(row.Title),
 			WordCount:   int(row.WordCount),
 			IsDraft:     row.IsDraft,
+			PublishedAt: nullTimeToStringPtr(row.PublishedAt),
 			CreatedAt:   row.CreatedAt.UTC().Format(time.RFC3339),
 		})
 	}

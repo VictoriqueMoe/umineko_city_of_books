@@ -43,7 +43,7 @@ func (r *postRepository) GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (ma
 		return r.PostDAO.GetCornerCounts(ctx, tx...)
 	}
 
-	return r.cache.Load(ctx, cache.PostCornerCounts, load)
+	return r.cache.Load(ctx, cache.PostCornerCounts.Key(), load)
 }
 
 func (r *postRepository) invalidateCornerCounts(ctx context.Context) {

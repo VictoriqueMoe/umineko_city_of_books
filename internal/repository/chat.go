@@ -280,24 +280,39 @@ func (r *chatRepository) CreateDMRoomAtomic(ctx context.Context, s spec.ChatDMPa
 	var result *model.ChatRoomRow
 
 	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
+		rejoin := func(room *model.ChatRoomRow) error {
+			if err := r.ChatDAO.RejoinDMMembers(ctx, spec.ChatDMMembers{RoomID: room.ID, UserA: s.UserA, UserB: s.UserB}, tx); err != nil {
+				return err
+			}
+
+			result = room
+
+			return nil
+		}
+
 		existing, err := r.ChatDAO.FindDMRoomByPair(ctx, s, tx)
 		if err != nil {
 			return err
 		}
-
 		if existing != nil {
-			if err := r.ChatDAO.RejoinDMMembers(ctx, spec.ChatDMMembers{RoomID: existing.ID, UserA: s.UserA, UserB: s.UserB}, tx); err != nil {
-				return err
-			}
-
-			result = existing
-
-			return nil
+			return rejoin(existing)
 		}
 
 		created, err := r.ChatDAO.CreateDMRoom(ctx, s, tx)
 		if err != nil {
 			return err
+		}
+
+		if created == nil {
+			winner, err := r.ChatDAO.FindDMRoomByPair(ctx, s, tx)
+			if err != nil {
+				return err
+			}
+			if winner == nil {
+				return fmt.Errorf("create dm room: a concurrent create won the pair %s/%s but its room is gone", s.UserA, s.UserB)
+			}
+
+			return rejoin(winner)
 		}
 
 		if err := r.ChatDAO.AddDMMembers(ctx, spec.ChatDMMembers{RoomID: created.ID, UserA: s.UserA, UserB: s.UserB}, tx); err != nil {

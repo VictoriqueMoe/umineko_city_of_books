@@ -2,10 +2,11 @@ package chatbot
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
 
 	"github.com/google/uuid"
@@ -28,15 +29,10 @@ func (s *service) observe(ev botEvent) {
 		return
 	}
 
-	if !s.takeCooldown(ev.SenderID, tune.cooldown) {
+	ctx := context.Background()
+
+	if !s.takeCooldown(ctx, ev.SenderID, tune.cooldown) {
 		droppedTotal.WithLabelValues(string(reasonCooldown), string(stagePreTrigger), string(ev.channel())).Inc()
-
-		return
-	}
-
-	key := ev.scopeKey()
-	if _, busy := s.inScope.LoadOrStore(key, struct{}{}); busy {
-		droppedTotal.WithLabelValues(string(reasonRoomInflight), string(stagePreTrigger), string(ev.channel())).Inc()
 
 		return
 	}
@@ -45,7 +41,6 @@ func (s *service) observe(ev botEvent) {
 	case s.jobs <- job{ev: ev, bot: bot, useChain: useChain(ev, threaded)}:
 		queueDepth.Set(float64(len(s.jobs)))
 	default:
-		s.inScope.Delete(key)
 		droppedTotal.WithLabelValues(string(reasonQueueFull), string(stagePreTrigger), string(ev.channel())).Inc()
 		silentTotal.WithLabelValues(string(reasonQueueFull), string(stagePreTrigger)).Inc()
 	}
@@ -97,28 +92,31 @@ func (s *service) allowedToSummon(userID uuid.UUID, tune tuning) bool {
 	return s.authzSvc.Can(context.Background(), userID, authz.PermUseChatbot)
 }
 
-func (s *service) takeCooldown(userID uuid.UUID, window time.Duration) bool {
-	return takeSlot(&s.lastUse, userID, window)
-}
-
-func takeSlot(seen *sync.Map, key any, window time.Duration) bool {
+func (s *service) takeCooldown(ctx context.Context, userID uuid.UUID, window time.Duration) bool {
 	if window <= 0 {
 		return true
 	}
 
-	now := time.Now()
+	key := cache.ChatbotSummonCooldown.Key(userID.String())
 
-	prev, ok := seen.Load(key)
-	if ok {
-		last, valid := prev.(time.Time)
-		if valid && now.Sub(last) < window {
-			return false
-		}
+	return s.claim(ctx, purposeSummonCooldown, key, window)
+}
+
+func (s *service) takeNoticeSlot(ctx context.Context, userID uuid.UUID, reason Reason) bool {
+	key := cache.ChatbotRefusalNotice.Key(userID.String(), string(reason))
+
+	return s.claim(ctx, purposeRefusalNotice, key, cache.ChatbotRefusalNotice.TTL)
+}
+
+func (s *service) claim(ctx context.Context, purpose string, key cache.Key, window time.Duration) bool {
+	allowance, err := s.cache.Allow(ctx, key, 1, window)
+	if err != nil {
+		logger.Ctx(ctx).Error().Err(err).Str("purpose", purpose).Msg("chatbot could not reach the coordination store, letting this one through")
+
+		return true
 	}
 
-	seen.Store(key, now)
-
-	return true
+	return allowance.Allowed
 }
 
 func (s *service) notify(ev botEvent, bot model.Chatbot, out outcome) {

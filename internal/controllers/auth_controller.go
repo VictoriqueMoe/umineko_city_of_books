@@ -7,8 +7,10 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/auth"
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers/utils"
+	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/session"
@@ -18,28 +20,24 @@ import (
 	"github.com/google/uuid"
 )
 
-var rulesSettings = map[string]*config.SiteSettingDef{
-	"theories":             config.SettingRulesTheories,
-	"theories_higurashi":   config.SettingRulesTheoriesHigurashi,
-	"theories_ciconia":     config.SettingRulesTheoriesCiconia,
-	"mysteries":            config.SettingRulesMysteries,
-	"ships":                config.SettingRulesShips,
-	"game_board":           config.SettingRulesGameBoard,
-	"game_board_umineko":   config.SettingRulesGameBoardUmineko,
-	"game_board_higurashi": config.SettingRulesGameBoardHigurashi,
-	"game_board_ciconia":   config.SettingRulesGameBoardCiconia,
-	"game_board_higanbana": config.SettingRulesGameBoardHiganbana,
-	"game_board_roseguns":  config.SettingRulesGameBoardRoseguns,
-	"gallery":              config.SettingRulesGallery,
-	"gallery_umineko":      config.SettingRulesGalleryUmineko,
-	"gallery_higurashi":    config.SettingRulesGalleryHigurashi,
-	"gallery_ciconia":      config.SettingRulesGalleryCiconia,
-	"fanfiction":           config.SettingRulesFanfiction,
-	"journals":             config.SettingRulesJournals,
-	"suggestions":          config.SettingRulesSuggestions,
-	"chat_rooms":           config.SettingRulesChatRooms,
-	"landing":              config.SettingRulesLanding,
-}
+const (
+	rulesSettingPrefix = "rules_"
+
+	credentialAttemptLimit = 10
+	mailAttemptLimit       = 5
+)
+
+var rulesSettings = withCornerRules(map[string]*config.SiteSettingDef{
+	"theories":           config.SettingRulesTheories,
+	"theories_higurashi": config.SettingRulesTheoriesHigurashi,
+	"theories_ciconia":   config.SettingRulesTheoriesCiconia,
+	"mysteries":          config.SettingRulesMysteries,
+	"ships":              config.SettingRulesShips,
+	"fanfiction":         config.SettingRulesFanfiction,
+	"journals":           config.SettingRulesJournals,
+	"chat_rooms":         config.SettingRulesChatRooms,
+	"landing":            config.SettingRulesLanding,
+})
 
 func (s *Service) getAllAuthRoutes() []FSetupRoute {
 	return []FSetupRoute{
@@ -59,11 +57,17 @@ func (s *Service) getAllAuthRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupRegisterRoute(r fiber.Router) {
-	r.Post("/auth/register", middleware.RateLimitCredentials(), middleware.RequireTurnstile(s.SettingsService), s.register)
+	r.Post("/auth/register", s.RateLimiter.Limit(cache.RateLimitRegister, credentialAttemptLimit, middleware.ByClientIP), middleware.RequireTurnstile(s.SettingsService), s.register)
 }
 
 func (s *Service) setupLoginRoute(r fiber.Router) {
-	r.Post("/auth/login", middleware.RateLimitCredentials(), middleware.RateLimitCredentialsByAccount("username"), middleware.RequireTurnstile(s.SettingsService), s.login)
+	r.Post(
+		"/auth/login",
+		s.RateLimiter.Limit(cache.RateLimitLogin, credentialAttemptLimit, middleware.ByClientIP),
+		s.RateLimiter.Limit(cache.RateLimitLogin, credentialAttemptLimit, middleware.ByAccount("username")),
+		middleware.RequireTurnstile(s.SettingsService),
+		s.login,
+	)
 }
 
 func (s *Service) setupLogoutRoute(r fiber.Router) {
@@ -71,15 +75,21 @@ func (s *Service) setupLogoutRoute(r fiber.Router) {
 }
 
 func (s *Service) setupForgotPasswordRoute(r fiber.Router) {
-	r.Post("/auth/forgot-password", middleware.RateLimitMail(), middleware.RateLimitMailByAccount("username"), middleware.RequireTurnstile(s.SettingsService), s.forgotPassword)
+	r.Post(
+		"/auth/forgot-password",
+		s.RateLimiter.Limit(cache.RateLimitForgotPassword, mailAttemptLimit, middleware.ByClientIP),
+		s.RateLimiter.Limit(cache.RateLimitForgotPassword, mailAttemptLimit, middleware.ByAccount("username")),
+		middleware.RequireTurnstile(s.SettingsService),
+		s.forgotPassword,
+	)
 }
 
 func (s *Service) setupResetPasswordRoute(r fiber.Router) {
-	r.Post("/auth/reset-password", middleware.RateLimitCredentials(), s.resetPassword)
+	r.Post("/auth/reset-password", s.RateLimiter.Limit(cache.RateLimitResetPassword, credentialAttemptLimit, middleware.ByClientIP), s.resetPassword)
 }
 
 func (s *Service) setupSetEmailRoute(r fiber.Router) {
-	r.Post("/auth/set-email", middleware.RateLimitMail(), s.requireAuth(), s.setEmail)
+	r.Post("/auth/set-email", s.RateLimiter.Limit(cache.RateLimitSetEmail, mailAttemptLimit, middleware.ByClientIP), s.requireAuth(), s.setEmail)
 }
 
 func (s *Service) setupVerifyEmailRoute(r fiber.Router) {
@@ -87,7 +97,7 @@ func (s *Service) setupVerifyEmailRoute(r fiber.Router) {
 }
 
 func (s *Service) setupResendVerificationRoute(r fiber.Router) {
-	r.Post("/auth/resend-verification", middleware.RateLimitMail(), s.requireAuth(), s.resendVerification)
+	r.Post("/auth/resend-verification", s.RateLimiter.Limit(cache.RateLimitResendVerification, mailAttemptLimit, middleware.ByClientIP), s.requireAuth(), s.resendVerification)
 }
 
 func (s *Service) setupSessionRoute(r fiber.Router) {
@@ -418,4 +428,44 @@ func (s *Service) getRules(ctx fiber.Ctx) error {
 		"page":  page,
 		"rules": s.SettingsService.Get(ctx.Context(), def),
 	})
+}
+
+func withCornerRules(pages map[string]*config.SiteSettingDef) map[string]*config.SiteSettingDef {
+	for _, board := range corner.GameBoards {
+		addCornerRules(pages, gameBoardRulesPage(board))
+	}
+
+	for _, gallery := range corner.Galleries {
+		addCornerRules(pages, galleryRulesPage(gallery))
+	}
+
+	return pages
+}
+
+func addCornerRules(pages map[string]*config.SiteSettingDef, page string) {
+	def, ok := config.SettingByKey(config.SiteSettingKey(rulesSettingPrefix + page))
+	if !ok {
+		panic(fmt.Sprintf("corner rules page %q has no %s%s site setting", page, rulesSettingPrefix, page))
+	}
+
+	pages[page] = def
+}
+
+func gameBoardRulesPage(board corner.GameBoard) string {
+	switch board {
+	case corner.GameBoardGeneral:
+		return "game_board"
+	case corner.GameBoardSuggestions:
+		return "suggestions"
+	}
+
+	return "game_board_" + string(board)
+}
+
+func galleryRulesPage(gallery corner.Gallery) string {
+	if gallery == corner.GalleryGeneral {
+		return "gallery"
+	}
+
+	return "gallery_" + string(gallery)
 }

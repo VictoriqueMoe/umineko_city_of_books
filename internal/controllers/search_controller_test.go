@@ -61,17 +61,15 @@ func TestSearchController_FullSearch_PassesParamsAndShapesResponse(t *testing.T)
 		Search(mock.Anything, "beatrice", []model.SearchEntityType{model.SearchEntityTheory}, bounds.NewPage(10, 5), uuid.Nil, uuid.Nil).
 		Return([]search.Result{
 			{
-				SearchResult: model.SearchResult{
-					EntityType:        model.SearchEntityPostComment,
-					ID:                "comment-id",
-					ParentID:          new("parent-uuid"),
-					Title:             "On a post",
-					Snippet:           "matched <mark>beatrice</mark>",
-					AuthorUsername:    "loliduck",
-					AuthorDisplayName: "Loli",
-					CreatedAt:         "2026-04-28T00:00:00Z",
-				},
-				URL: "/game-board/parent-uuid#comment-comment-id",
+				EntityType:        model.SearchEntityPostComment,
+				ID:                "comment-id",
+				ParentID:          new("parent-uuid"),
+				Title:             "On a post",
+				Snippet:           "matched <mark>beatrice</mark>",
+				AuthorUsername:    "loliduck",
+				AuthorDisplayName: "Loli",
+				CreatedAt:         "2026-04-28T00:00:00Z",
+				URL:               "/game-board/parent-uuid#comment-comment-id",
 			},
 		}, 1, nil)
 
@@ -97,8 +95,8 @@ func TestSearchController_QuickSearch_DelegatesToService(t *testing.T) {
 	deps.svc.EXPECT().QuickSearch(mock.Anything, "kinzo", 5, uuid.Nil).
 		Return([]search.Result{
 			{
-				SearchResult: model.SearchResult{EntityType: model.SearchEntityTheory, ID: "theory-id", Title: "Kinzo"},
-				URL:          "/theory/theory-id",
+				EntityType: model.SearchEntityTheory, ID: "theory-id", Title: "Kinzo",
+				URL: "/theory/theory-id",
 			},
 		}, nil)
 

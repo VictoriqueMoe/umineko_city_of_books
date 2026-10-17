@@ -2,14 +2,15 @@ import React, { useCallback, useEffect, useImperativeHandle, useMemo, useRef, us
 import { Button } from "../../Button/Button";
 import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
 import { MentionTextArea, type MentionTextAreaHandle } from "../../MentionTextArea/MentionTextArea";
-import { readChatSendRejection, useSendChatMessage, useSendFirstDMMessage } from "../../../hooks/mutations/chat";
+import type { ChatSender, DraftSender } from "../../../hooks/chat/useOptimisticSends";
 import { useIsMobile } from "../../../hooks/useIsMobile";
 import { useResetOnChange } from "../../../hooks/useResetOnChange";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { formatFullDateTime, parseServerDate } from "../../../utils/time";
+import type { OutgoingAttachment } from "../../../domain/chat/optimisticSend";
 import { isTimeoutActive } from "../../../domain/chat/roomPolicy";
-import type { ChatMessage, ChatRoom, User } from "../../../types/api";
+import type { User } from "../../../types/api";
 import { GifPicker } from "../GifPicker/GifPicker";
 import styles from "./ChatComposer.module.css";
 
@@ -23,10 +24,20 @@ export interface ChatComposerHandle {
     focus: () => void;
 }
 
+export interface RoomComposerTarget {
+    kind: "room";
+    sender: ChatSender;
+}
+
+export interface DraftComposerTarget {
+    kind: "draft";
+    sender: DraftSender;
+}
+
+export type ComposerTarget = RoomComposerTarget | DraftComposerTarget;
+
 interface ChatComposerProps {
-    roomId: string | null;
-    draftRecipientId: string | null;
-    onSent: (message: ChatMessage, room?: ChatRoom) => void;
+    target: ComposerTarget | null;
     mentionPool?: User[];
     replyingTo?: ReplyTarget | null;
     onCancelReply?: () => void;
@@ -39,36 +50,28 @@ interface ChatComposerProps {
     ref?: React.Ref<ChatComposerHandle>;
 }
 
-function formatSendError(err: unknown): string {
-    const rejection = readChatSendRejection(err);
-    if (rejection?.bannedWord) {
-        const suffix = rejection.bannedWord.kicked ? " You have been kicked from this room." : "";
-        return `Message blocked by banned-word rule "${rejection.bannedWord.pattern}".${suffix}`;
-    }
-    if (rejection?.serverMessage) {
-        return rejection.serverMessage;
-    }
-    if (err instanceof Error) {
-        return err.message;
-    }
-    return "Failed to send message";
-}
-
 const TYPING_THROTTLE_MS = 2500;
 
-interface PendingAttachment {
-    file: File;
-    spoiler: boolean;
-}
-
-function toPendingAttachments(files: File[]): PendingAttachment[] {
+function toOutgoingAttachments(files: File[]): OutgoingAttachment[] {
     return files.map(file => ({ file, spoiler: false }));
 }
 
+function targetKey(target: ComposerTarget | null): string | null {
+    if (!target) {
+        return null;
+    }
+    if (target.kind === "draft") {
+        return `draft:${target.sender.recipientId}`;
+    }
+    if (target.sender.adoptedFrom) {
+        return `draft:${target.sender.adoptedFrom}`;
+    }
+
+    return `room:${target.sender.roomId}`;
+}
+
 export function ChatComposer({
-    roomId,
-    draftRecipientId,
-    onSent,
+    target,
     mentionPool,
     replyingTo,
     onCancelReply,
@@ -98,11 +101,8 @@ export function ChatComposer({
     const isMobile = useIsMobile();
     const siteInfo = useSiteInfo();
     const [body, setBody] = useState("");
-    const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
-    const [submitting, setSubmitting] = useState(false);
+    const [attachments, setAttachments] = useState<OutgoingAttachment[]>([]);
     const [error, setError] = useState("");
-    const sendChatMessageMutation = useSendChatMessage(roomId ?? "");
-    const sendFirstDMMessageMutation = useSendFirstDMMessage();
 
     useEffect(() => {
         const reseed = setTimeout(() => setNowTick(Date.now()), 0);
@@ -121,10 +121,9 @@ export function ChatComposer({
     const [gifPickerOpen, setGifPickerOpen] = useState(false);
     const lastTypingSentRef = useRef(0);
 
-    useResetOnChange(roomId ?? draftRecipientId, () => {
+    useResetOnChange(targetKey(target), () => {
         setBody("");
         setAttachments([]);
-        setSubmitting(false);
         setError("");
         setGifPickerOpen(false);
     });
@@ -183,93 +182,40 @@ export function ChatComposer({
                 setError(errors.join(" "));
             }
             if (valid.length > 0) {
-                setAttachments(prev => [...prev, ...toPendingAttachments(valid)]);
+                setAttachments(prev => [...prev, ...toOutgoingAttachments(valid)]);
             }
         },
         [siteInfo.max_image_size, siteInfo.max_video_size, siteInfo.max_audio_size],
     );
 
-    async function sendBody(content: string): Promise<ChatMessage | null> {
-        if (draftRecipientId && !roomId) {
-            const created = await sendFirstDMMessageMutation.mutateAsync({
-                recipientId: draftRecipientId,
-                body: content,
-            });
-            onSent(created.message, created.room);
-            return created.message;
+    function clearDraft() {
+        setBody("");
+        setAttachments([]);
+        if (onCancelReply) {
+            onCancelReply();
         }
-        if (!roomId) {
-            return null;
-        }
-        const message = await sendChatMessageMutation.mutateAsync({
-            body: content,
-            reply_to_id: replyingTo?.id,
-        });
-        onSent(message);
-        return message;
     }
 
-    async function handleGifPick(gif: { id: string; url: string }) {
+    function handleGifPick(gif: { id: string; url: string }) {
         setGifPickerOpen(false);
-        if (submitting) {
+        if (!target) {
             return;
         }
-        if (!roomId && !draftRecipientId) {
-            return;
-        }
-        setSubmitting(true);
-        setError("");
-        try {
-            await sendBody(gif.url);
-            if (onCancelReply) {
-                onCancelReply();
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to send GIF");
-        } finally {
-            setSubmitting(false);
+
+        target.sender.send({ body: gif.url, replyTo: replyingTo ?? null, attachments: [] });
+        if (onCancelReply) {
+            onCancelReply();
         }
     }
 
-    async function handleSubmit() {
+    function handleSubmit() {
         const trimmed = body.trim();
-        if ((!trimmed && files.length === 0) || submitting) {
-            return;
-        }
-        if (!roomId && !draftRecipientId) {
+        if (!target || (!trimmed && attachments.length === 0)) {
             return;
         }
 
-        setSubmitting(true);
-        setError("");
-        try {
-            if (draftRecipientId && !roomId) {
-                const created = await sendFirstDMMessageMutation.mutateAsync({
-                    recipientId: draftRecipientId,
-                    body: trimmed,
-                    files,
-                    spoilers,
-                });
-                onSent(created.message, created.room);
-            } else {
-                const message = await sendChatMessageMutation.mutateAsync({
-                    body: trimmed,
-                    reply_to_id: replyingTo?.id,
-                    files,
-                    spoilers,
-                });
-                onSent(message);
-            }
-            setBody("");
-            setAttachments([]);
-            if (onCancelReply) {
-                onCancelReply();
-            }
-        } catch (err) {
-            setError(formatSendError(err));
-        } finally {
-            setSubmitting(false);
-        }
+        target.sender.send({ body: trimmed, replyTo: replyingTo ?? null, attachments });
+        clearDraft();
     }
 
     function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
@@ -299,7 +245,7 @@ export function ChatComposer({
         handleSubmit();
     }
 
-    const canSend = !submitting && (body.trim().length > 0 || files.length > 0);
+    const canSend = body.trim().length > 0 || files.length > 0;
     const showToolbarItems = !compact || toolbarOpen;
     const placeholder =
         sendOnEnter && !isMobile ? "Type a message... (Enter to send, Shift+Enter for newline)" : "Type a message...";
@@ -373,16 +319,11 @@ export function ChatComposer({
                 {showToolbarItems && (
                     <>
                         <MediaPickerButton
-                            onFiles={valid => setAttachments(prev => [...prev, ...toPendingAttachments(valid)])}
+                            onFiles={valid => setAttachments(prev => [...prev, ...toOutgoingAttachments(valid)])}
                             onError={setError}
                         />
                         <div className={styles.gifAnchor}>
-                            <Button
-                                variant="ghost"
-                                size="small"
-                                onClick={() => setGifPickerOpen(prev => !prev)}
-                                disabled={submitting}
-                            >
+                            <Button variant="ghost" size="small" onClick={() => setGifPickerOpen(prev => !prev)}>
                                 + GIF
                             </Button>
                             {gifPickerOpen && (
@@ -399,7 +340,7 @@ export function ChatComposer({
                     onClick={handleSubmit}
                     disabled={!canSend}
                 >
-                    {submitting ? "..." : "Send"}
+                    Send
                 </Button>
             </div>
         </div>

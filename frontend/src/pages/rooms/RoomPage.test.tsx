@@ -2,6 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Room } from "livekit-client";
+import type { ComposerTarget } from "../../components/chat/ChatComposer/ChatComposer";
 import { roomCapabilities } from "../../domain/chat/roomPolicy";
 import type { RoomController } from "../../hooks/useRoomController";
 import { makeRoomController } from "../../hooks/useRoomController.fixture";
@@ -46,8 +47,8 @@ vi.mock("../../components/chat/MessageList/MessageList", () => ({
 }));
 
 vi.mock("../../components/chat/ChatComposer/ChatComposer", () => ({
-    ChatComposer: (props: { roomId: string | null; extraActions?: React.ReactNode }) => (
-        <div data-testid="composer" data-room={String(props.roomId)}>
+    ChatComposer: (props: { target: ComposerTarget | null; extraActions?: React.ReactNode }) => (
+        <div data-testid="composer" data-room={props.target?.kind === "room" ? props.target.sender.roomId : "null"}>
             {props.extraActions}
         </div>
     ),
@@ -767,12 +768,13 @@ describe("RoomPage notices", () => {
         expect(screen.getByText(/are typing/)).toHaveTextContent("Beatrice and Ange are typing...");
     });
 
-    it("wires the composer to the open room", () => {
+    it("wires the composer to the open room's optimistic sender", () => {
         // given
         const room = makeChatRoom({ id: "room-42" });
+        const sender = { roomId: "room-42", send: vi.fn() };
 
         // when
-        renderRoom({ room });
+        renderRoom({ room, session: { sender } });
 
         // then
         expect(screen.getByTestId("composer")).toHaveAttribute("data-room", "room-42");

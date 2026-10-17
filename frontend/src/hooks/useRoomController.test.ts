@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
     unpin: vi.fn(),
     addReaction: vi.fn(),
     removeReaction: vi.fn(),
+    sendChatMessage: vi.fn(),
     watchPartyRefresh: vi.fn(),
     playMessageSound: vi.fn(),
 }));
@@ -76,6 +77,7 @@ vi.mock("./mutations/chat", async importOriginal => {
         useUnpinChatMessage: () => ({ mutateAsync: mocks.unpin }),
         useAddChatMessageReaction: () => ({ mutateAsync: mocks.addReaction }),
         useRemoveChatMessageReaction: () => ({ mutateAsync: mocks.removeReaction }),
+        useSendChatMessage: () => ({ mutateAsync: mocks.sendChatMessage }),
     };
 });
 
@@ -350,19 +352,32 @@ describe("useRoomController timeouts", () => {
 });
 
 describe("useRoomController incoming messages", () => {
-    it("never shows the viewer's own message twice when the echo arrives", async () => {
+    it("never shows the viewer's own message twice when both the echo and the response arrive", async () => {
         // given
         const { result, emit } = await renderLoadedRoom();
-        const own = makeMessage({ id: "m1", sender: beatrice });
+        const held: { confirm: (message: ChatMessage) => void } = { confirm: () => {} };
+        const response = new Promise<ChatMessage>(resolve => {
+            held.confirm = resolve;
+        });
+        mocks.sendChatMessage.mockReturnValueOnce(response);
         act(() => {
-            result.current.session.onSent(own);
+            result.current.session.sender?.send({ body: "hello", replyTo: null, attachments: [] });
+        });
+        const own = makeMessage({
+            id: "m1",
+            sender: beatrice,
+            client_nonce: mocks.sendChatMessage.mock.calls[0][0].client_nonce,
         });
 
         // when
         emit({ type: "chat_message", data: own });
+        await act(async () => {
+            held.confirm(own);
+        });
 
         // then
         expect(result.current.session.messages).toHaveLength(1);
+        expect(result.current.session.entries).toEqual([own]);
     });
 
     it.each([

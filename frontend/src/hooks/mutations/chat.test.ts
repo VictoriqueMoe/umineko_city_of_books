@@ -4,6 +4,7 @@ import { ApiError } from "../../api/client";
 import { createTestQueryClient, providerWrapper } from "../../test-utils/render";
 import type { CreateBannedWordRequest } from "../../types/api";
 import {
+    describeChatSendFailure,
     readBotsWillBeKicked,
     readChatSendRejection,
     useAddChatMessageReaction,
@@ -439,30 +440,36 @@ describe("useInviteChatRoomMembers", () => {
 });
 
 describe("useSendChatMessage", () => {
-    it("sends the message payload to the room the hook was built for", async () => {
+    it("sends the message payload to the room named in the send itself", async () => {
         // given
         const { wrapper } = harness();
         mocks.sendChatMessage.mockResolvedValue({ id: messageId });
-        const { result } = renderHook(() => useSendChatMessage(roomId), { wrapper });
+        const { result } = renderHook(() => useSendChatMessage(), { wrapper });
 
         // when
         await act(async () => {
-            await result.current.mutateAsync({ body: "hello rokkenjima" });
+            await result.current.mutateAsync({ roomId, body: "hello rokkenjima" });
         });
 
         // then
         expect(mocks.sendChatMessage).toHaveBeenCalledWith(roomId, { body: "hello rokkenjima" });
     });
 
-    it("carries the reply target and the attachments through untouched", async () => {
+    it("carries the reply target, the attachments and the client nonce through untouched", async () => {
         // given
         const { wrapper } = harness();
         const file = makeFile("catbox.png");
-        const { result } = renderHook(() => useSendChatMessage(roomId), { wrapper });
+        const { result } = renderHook(() => useSendChatMessage(), { wrapper });
 
         // when
         await act(async () => {
-            await result.current.mutateAsync({ body: "a reply", reply_to_id: messageId, files: [file] });
+            await result.current.mutateAsync({
+                roomId,
+                body: "a reply",
+                reply_to_id: messageId,
+                files: [file],
+                client_nonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0",
+            });
         });
 
         // then
@@ -470,17 +477,18 @@ describe("useSendChatMessage", () => {
             body: "a reply",
             reply_to_id: messageId,
             files: [file],
+            client_nonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0",
         });
     });
 
     it("invalidates nothing because new messages arrive over the socket", async () => {
         // given
         const { wrapper, invalidateQueries } = harness();
-        const { result } = renderHook(() => useSendChatMessage(roomId), { wrapper });
+        const { result } = renderHook(() => useSendChatMessage(), { wrapper });
 
         // when
         await act(async () => {
-            await result.current.mutateAsync({ body: "hello" });
+            await result.current.mutateAsync({ roomId, body: "hello" });
         });
 
         // then
@@ -501,7 +509,23 @@ describe("useSendFirstDMMessage", () => {
         });
 
         // then
-        expect(mocks.sendFirstDMMessage).toHaveBeenCalledWith(userId, "are you there", undefined, undefined);
+        expect(mocks.sendFirstDMMessage).toHaveBeenCalledWith(userId, { body: "are you there" });
+    });
+
+    it("passes the client nonce through so a retried first message is stored once", async () => {
+        // given
+        const { wrapper } = harness();
+        const nonce = "0f1e2d3c4b5a69788796a5b4c3d2e1f0";
+        mocks.sendFirstDMMessage.mockResolvedValue({ room: { id: roomId }, message: { id: messageId } });
+        const { result } = renderHook(() => useSendFirstDMMessage(), { wrapper });
+
+        // when
+        await act(async () => {
+            await result.current.mutateAsync({ recipientId: userId, body: "are you there", client_nonce: nonce });
+        });
+
+        // then
+        expect(mocks.sendFirstDMMessage).toHaveBeenCalledWith(userId, { body: "are you there", client_nonce: nonce });
     });
 
     it("returns the freshly created room together with the message", async () => {
@@ -518,7 +542,7 @@ describe("useSendFirstDMMessage", () => {
         });
 
         // then
-        expect(mocks.sendFirstDMMessage).toHaveBeenCalledWith(userId, "a gift", [file], undefined);
+        expect(mocks.sendFirstDMMessage).toHaveBeenCalledWith(userId, { body: "a gift", files: [file] });
         expect(sent).toEqual({ room: { id: roomId }, message: { id: messageId } });
     });
 });
@@ -912,6 +936,52 @@ describe("readChatSendRejection", () => {
         // then
         expect(rejection).toBeNull();
     });
+});
+
+describe("describeChatSendFailure", () => {
+    interface FailureCase {
+        name: string;
+        error: unknown;
+        want: string;
+    }
+
+    const failureCases: FailureCase[] = [
+        {
+            name: "explains a banned word rejection including the kick",
+            error: new ApiError(422, "blocked", { code: "banned_word", pattern: "goats", action: "kick" }),
+            want: 'Message blocked by banned-word rule "goats". You have been kicked from this room.',
+        },
+        {
+            name: "omits the kick notice when the rule only blocks the message",
+            error: new ApiError(422, "blocked", { code: "banned_word", pattern: "goats" }),
+            want: 'Message blocked by banned-word rule "goats".',
+        },
+        {
+            name: "surfaces the error field the server returned",
+            error: new ApiError(403, "nope", { error: "You are muted in this room" }),
+            want: "You are muted in this room",
+        },
+        {
+            name: "falls back to the thrown error message for a plain failure",
+            error: new Error("network is down"),
+            want: "network is down",
+        },
+        {
+            name: "falls back to a generic sentence for something that is not an error at all",
+            error: "nonsense",
+            want: "Failed to send message",
+        },
+    ];
+
+    for (const failureCase of failureCases) {
+        it(failureCase.name, () => {
+            // when
+            const description = describeChatSendFailure(failureCase.error);
+
+            // then
+            expect(description).toBe(failureCase.want);
+        });
+    }
 });
 
 describe("readBotsWillBeKicked", () => {

@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	missTTL      = time.Hour
 	maxURLLength = 2048
+	missTTL      = time.Hour
 )
 
 var (
@@ -47,7 +47,8 @@ func (s *service) Resolve(ctx context.Context, rawURL string) (dto.LinkPreviewRe
 		return dto.LinkPreviewResponse{}, err
 	}
 
-	key := cache.LinkPreview.Key(hashURL(rawURL))
+	hash := hashURL(rawURL)
+	key := cache.LinkPreview.Key(hash)
 
 	if cached, err := s.cache.Get[dto.LinkPreviewResponse](ctx, key); err == nil {
 		return cached, nil
@@ -55,15 +56,15 @@ func (s *service) Resolve(ctx context.Context, rawURL string) (dto.LinkPreviewRe
 
 	storeCtx := context.WithoutCancel(ctx)
 
-	resolved, _, _ := s.group.Do(key, func() (any, error) {
+	resolved, _, _ := s.group.Do(hash, func() (any, error) {
 		preview := toResponse(rawURL, s.parse(storeCtx, rawURL))
 
-		ttl := cache.LinkPreview.TTL
+		storeKey := key
 		if preview.Type == "" {
-			ttl = missTTL
+			storeKey = key.WithTTL(missTTL)
 		}
 
-		_ = s.cache.Set(storeCtx, key, preview, ttl)
+		_ = s.cache.Set(storeCtx, storeKey, preview)
 
 		return preview, nil
 	})

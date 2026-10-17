@@ -66,7 +66,7 @@ func TestArtRepository_GetCornerCountsIsCached(t *testing.T) {
 			// then
 			require.NoError(t, err)
 			assert.Equal(t, map[string]int{"general": 3}, got)
-			assert.Equal(t, []string{"GET", cache.ArtCornerCounts.Key()}, (*commands)[0])
+			assert.Equal(t, []string{"GET", cache.ArtCornerCounts.Key().String()}, (*commands)[0])
 		})
 	}
 }
@@ -87,7 +87,7 @@ func artCornerCountWriters(artID, userID, galleryID uuid.UUID) []artWriterCase {
 				}
 			},
 			call: func(repo ArtRepository) error {
-				_, err := repo.CreateWithTags(context.Background(), spec.NewArtWithTags{NewArt: spec.NewArt{UserID: userID, Corner: "general", Title: "t"}}, new(sql.Tx))
+				_, err := repo.CreateWithTags(context.Background(), spec.NewArtWithTags{UserID: userID, Corner: "general", Title: "t"}, new(sql.Tx))
 
 				return err
 			},
@@ -144,7 +144,7 @@ func TestArtRepository_CornerCountWritersInvalidateTheCount(t *testing.T) {
 
 			// then
 			require.NoError(t, err)
-			assert.Equal(t, []string{"DEL", cache.ArtCornerCounts.Key()}, commands)
+			assert.Equal(t, []string{"DEL", cache.ArtCornerCounts.Key().String()}, commands)
 		})
 	}
 }

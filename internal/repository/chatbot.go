@@ -129,7 +129,7 @@ func (r *chatbotRepository) DeleteBot(ctx context.Context, id uuid.UUID, tx ...*
 
 	r.basePrompts.InvalidateList(ctx)
 
-	keys := []string{cache.VanityAssignments.Key()}
+	keys := []cache.Key{cache.VanityAssignments.Key()}
 	if botUserID != uuid.Nil {
 		keys = append(keys, cache.UserRole.Key(botUserID.String()), cache.UserVanityRoleIDs.Key(botUserID.String()))
 	}

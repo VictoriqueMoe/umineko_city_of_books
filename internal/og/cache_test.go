@@ -104,7 +104,7 @@ func TestResolverClearMetaCache(t *testing.T) {
 		r := &Resolver{cache: mgr}
 		id := uuid.New().String()
 		key := cache.OGMeta.Key(entityPath(KindJournal, id))
-		require.NoError(t, mgr.Set(ctx, key, &Meta{Title: "doomed"}, cache.OGMeta.TTL))
+		require.NoError(t, mgr.Set(ctx, key, &Meta{Title: "doomed"}))
 
 		// when the journal is cleared
 		require.NoError(t, r.ClearMetaCache(ctx, KindJournal, id))
@@ -121,7 +121,7 @@ func TestResolverClearMetaCache(t *testing.T) {
 		r := &Resolver{cache: mgr}
 		id := uuid.New().String()
 		key := cache.OGMeta.Key(metaKeyParts(entityPath(KindTheory, id)+"/", "")...)
-		require.NoError(t, mgr.Set(ctx, key, &Meta{Title: "doomed"}, cache.OGMeta.TTL))
+		require.NoError(t, mgr.Set(ctx, key, &Meta{Title: "doomed"}))
 
 		// when the theory is cleared
 		require.NoError(t, r.ClearMetaCache(ctx, KindTheory, id))

@@ -6,6 +6,7 @@ import { useRealtimeEvent, useRealtimeStatus } from "../api/realtime/useRealtime
 import { type ReplyTarget } from "../components/chat/ChatComposer/ChatComposer";
 import { getRoomDisplayName } from "../domain/chat/dm";
 import { patchRoom } from "../domain/chat/dmRoster";
+import type { ThreadEntry } from "../domain/chat/optimisticSend";
 import { roomCapabilities, type RoomCapabilities } from "../domain/chat/roomPolicy";
 import { buildMentionMatcher } from "../domain/mentions";
 import type { ChatMessage, ChatRoom, UserProfile } from "../types/api";
@@ -14,6 +15,7 @@ import {
     type ChatSessionEditing,
     type ChatSessionHistory,
     type ChatSessionScroll,
+    type ChatSessionSends,
     type ChatSessionStatus,
 } from "./chat/useChatSession";
 import { useRoomScopedOverride } from "./chat/useRoomScopedOverride";
@@ -47,6 +49,9 @@ const PIN_FAILED = "Failed to update pin";
 export interface ChatThreadOptions {
     maxMessages?: number;
     requireMembership?: boolean;
+    onDelivered?: (message: ChatMessage) => void;
+    draftRecipientId?: string;
+    onAdopted?: (room: ChatRoom) => void;
 }
 
 export interface ChatThreadRoom {
@@ -63,6 +68,11 @@ export interface ChatThreadSession {
     viewer: UserProfile | null;
     status: ChatSessionStatus;
     messages: ChatMessage[];
+    entries: ThreadEntry[];
+    sender: ChatSessionSends["sender"];
+    draftSender: ChatSessionSends["draftSender"];
+    retrySend: ChatSessionSends["retry"];
+    discardSend: ChatSessionSends["discard"];
     hasMore: boolean;
     loadingMore: boolean;
     containerRef: ChatSessionScroll["containerRef"];
@@ -82,7 +92,6 @@ export interface ChatThreadSession {
     notifyTyping: () => void;
     matchesViewerMention: ((body: string) => boolean) | null;
     readReceipts: Record<string, Record<string, string>>;
-    onSent: (message: ChatMessage) => void;
     toggleReaction: (message: ChatMessage, emoji: string) => Promise<void>;
     togglePin: (message: ChatMessage) => Promise<void>;
     history: ChatSessionHistory;
@@ -113,7 +122,13 @@ function threadTitle(room: ChatRoom | null, viewer: UserProfile | null): string 
 }
 
 export function useChatThread(options: ChatThreadOptions = {}): ChatThread {
-    const { maxMessages = DEFAULT_MAX_MESSAGES, requireMembership = false } = options;
+    const {
+        maxMessages = DEFAULT_MAX_MESSAGES,
+        requireMembership = false,
+        onDelivered,
+        draftRecipientId,
+        onAdopted,
+    } = options;
 
     const { roomId } = useParams<{ roomId: string }>();
     const { user } = useAuth();
@@ -154,9 +169,11 @@ export function useChatThread(options: ChatThreadOptions = {}): ChatThread {
             muted: room?.viewer_muted ?? false,
         },
         onEditError: setToast,
+        onDelivered,
+        draftRecipientId,
+        onAdopted,
     });
-    const { addMessage, resync } = session.history;
-    const { toBottom } = session.scroll;
+    const { resync } = session.history;
 
     const didResyncMountRef = useRef(false);
     useEffect(() => {
@@ -302,11 +319,6 @@ export function useChatThread(options: ChatThreadOptions = {}): ChatThread {
         [pin, unpin],
     );
 
-    function onSent(message: ChatMessage) {
-        addMessage(message);
-        toBottom({ force: true });
-    }
-
     function notifyTyping() {
         if (!roomId) {
             return;
@@ -329,6 +341,11 @@ export function useChatThread(options: ChatThreadOptions = {}): ChatThread {
             viewer: user,
             status: session.status,
             messages: session.messages,
+            entries: session.entries,
+            sender: session.sends.sender,
+            draftSender: session.sends.draftSender,
+            retrySend: session.sends.retry,
+            discardSend: session.sends.discard,
             hasMore: session.history.hasMore,
             loadingMore: session.history.loadingMore,
             containerRef: session.scroll.containerRef,
@@ -348,7 +365,6 @@ export function useChatThread(options: ChatThreadOptions = {}): ChatThread {
             notifyTyping,
             matchesViewerMention,
             readReceipts,
-            onSent,
             toggleReaction,
             togglePin,
             history: session.history,

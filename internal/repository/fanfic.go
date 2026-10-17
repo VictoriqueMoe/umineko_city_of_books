@@ -20,7 +20,7 @@ type (
 		dao.FanficDAO
 
 		CreateWithDetails(ctx context.Context, s spec.NewFanficWithDetails, tx ...*sql.Tx) (*model.FanficRow, error)
-		UpdateWithDetails(ctx context.Context, s spec.FanficUpdateWithDetails, tx ...*sql.Tx) error
+		UpdateWithDetails(ctx context.Context, s spec.FanficUpdateWithDetails, tx ...*sql.Tx) (firstPublished bool, err error)
 		DeleteFanfic(ctx context.Context, s spec.FanficDelete, tx ...*sql.Tx) ([]string, error)
 
 		CreateChapterWithCount(ctx context.Context, s spec.NewChapter, tx ...*sql.Tx) (*model.FanficChapterRow, error)
@@ -114,8 +114,10 @@ func (r *fanficRepository) registerOCCharacters(ctx context.Context, userID uuid
 	return nil
 }
 
-func (r *fanficRepository) UpdateWithDetails(ctx context.Context, s spec.FanficUpdateWithDetails, tx ...*sql.Tx) error {
-	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
+func (r *fanficRepository) UpdateWithDetails(ctx context.Context, s spec.FanficUpdateWithDetails, tx ...*sql.Tx) (bool, error) {
+	var firstPublished bool
+
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.FanficDAO.RegisterSeries(ctx, s.Series, tx); err != nil {
 			return err
 		}
@@ -124,9 +126,12 @@ func (r *fanficRepository) UpdateWithDetails(ctx context.Context, s spec.FanficU
 			return err
 		}
 
-		if err := r.FanficDAO.Update(ctx, s.FanficUpdate, tx); err != nil {
+		published, err := r.FanficDAO.Update(ctx, s.FanficUpdate, tx)
+		if err != nil {
 			return err
 		}
+
+		firstPublished = published
 
 		if err := r.FanficDAO.DeleteGenres(ctx, s.ID, tx); err != nil {
 			return err
@@ -154,6 +159,11 @@ func (r *fanficRepository) UpdateWithDetails(ctx context.Context, s spec.FanficU
 
 		return r.registerOCCharacters(ctx, s.UserID, s.Characters, tx)
 	})
+	if err != nil {
+		return false, err
+	}
+
+	return firstPublished, nil
 }
 
 func (r *fanficRepository) DeleteFanfic(ctx context.Context, s spec.FanficDelete, tx ...*sql.Tx) ([]string, error) {

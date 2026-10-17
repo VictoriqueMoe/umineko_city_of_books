@@ -11,6 +11,7 @@ RETURNING id, name, description, type, is_public, is_rp, is_system, system_kind,
 -- name: CreateChatDMRoom :one
 INSERT INTO chat_rooms (name, type, created_by, dm_pair_key)
 VALUES ('', 'dm', $1, $2)
+ON CONFLICT (dm_pair_key) WHERE type = 'dm' DO NOTHING
 RETURNING id, name, description, type, is_public, is_rp, is_system, system_kind, created_by, created_at, last_message_at, archived_at;
 
 -- name: FindChatDMRoomByPair :one
@@ -218,9 +219,10 @@ DELETE FROM chat_voice_force_mutes WHERE room_id = $1;
 
 -- name: InsertChatMessage :one
 WITH ins AS (
-    INSERT INTO chat_messages (room_id, sender_id, body, reply_to_id, is_system)
-    VALUES ($1, $2, $3, $4, $5)
-    RETURNING id, room_id, sender_id, body, reply_to_id, pinned_at, pinned_by, is_system, edited_at, created_at
+     INSERT INTO chat_messages (room_id, sender_id, body, reply_to_id, is_system, client_nonce)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    ON CONFLICT (sender_id, client_nonce) WHERE client_nonce IS NOT NULL DO NOTHING
+    RETURNING id, room_id, sender_id, body, reply_to_id, pinned_at, pinned_by, is_system, edited_at, created_at, client_nonce
 )
 SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
        COALESCE(ur.role, '')::text AS sender_role,
@@ -232,7 +234,8 @@ SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url
        parent.body AS reply_to_body,
        cm.pinned_at, cm.pinned_by, cm.edited_at,
        COALESCE(mem.nickname, '')::text AS sender_nickname,
-       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar
+       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar,
+       cm.client_nonce
 FROM ins cm
 JOIN users u ON cm.sender_id = u.id
 LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -255,7 +258,7 @@ WHERE cm.room_id = $1
 SELECT sub.id, sub.room_id, sub.sender_id, sub.username, sub.display_name, sub.avatar_url,
        sub.sender_role, sub.body, sub.is_system, sub.created_at, sub.reply_to_id,
        sub.reply_to_sender_id, sub.reply_member_nickname, sub.reply_display_name, sub.reply_username, sub.reply_to_body,
-       sub.pinned_at, sub.pinned_by, sub.edited_at, sub.sender_nickname, sub.sender_member_avatar
+       sub.pinned_at, sub.pinned_by, sub.edited_at, sub.sender_nickname, sub.sender_member_avatar, sub.client_nonce
 FROM (
     SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
            COALESCE(ur.role, '')::text AS sender_role,
@@ -267,7 +270,8 @@ FROM (
            parent.body AS reply_to_body,
            cm.pinned_at, cm.pinned_by, cm.edited_at,
            COALESCE(mem.nickname, '')::text AS sender_nickname,
-           COALESCE(mem.avatar_url, '')::text AS sender_member_avatar
+           COALESCE(mem.avatar_url, '')::text AS sender_member_avatar,
+           cm.client_nonce
     FROM chat_messages cm
     JOIN users u ON cm.sender_id = u.id
     LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -291,7 +295,7 @@ ORDER BY sub.created_at ASC, sub.id ASC;
 SELECT sub.id, sub.room_id, sub.sender_id, sub.username, sub.display_name, sub.avatar_url,
        sub.sender_role, sub.body, sub.is_system, sub.created_at, sub.reply_to_id,
        sub.reply_to_sender_id, sub.reply_member_nickname, sub.reply_display_name, sub.reply_username, sub.reply_to_body,
-       sub.pinned_at, sub.pinned_by, sub.edited_at, sub.sender_nickname, sub.sender_member_avatar
+       sub.pinned_at, sub.pinned_by, sub.edited_at, sub.sender_nickname, sub.sender_member_avatar, sub.client_nonce
 FROM (
     SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
            COALESCE(ur.role, '')::text AS sender_role,
@@ -303,7 +307,8 @@ FROM (
            parent.body AS reply_to_body,
            cm.pinned_at, cm.pinned_by, cm.edited_at,
            COALESCE(mem.nickname, '')::text AS sender_nickname,
-           COALESCE(mem.avatar_url, '')::text AS sender_member_avatar
+           COALESCE(mem.avatar_url, '')::text AS sender_member_avatar,
+           cm.client_nonce
     FROM chat_messages cm
     JOIN users u ON cm.sender_id = u.id
     LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -337,7 +342,8 @@ SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url
        parent.body AS reply_to_body,
        cm.pinned_at, cm.pinned_by, cm.edited_at,
        COALESCE(mem.nickname, '')::text AS sender_nickname,
-       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar
+       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar,
+       cm.client_nonce
 FROM chat_messages cm
 JOIN users u ON cm.sender_id = u.id
 LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -371,7 +377,8 @@ SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url
        parent.body AS reply_to_body,
        cm.pinned_at, cm.pinned_by, cm.edited_at,
        COALESCE(mem.nickname, '')::text AS sender_nickname,
-       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar
+       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar,
+       cm.client_nonce
 FROM chat_messages cm
 JOIN users u ON cm.sender_id = u.id
 LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -405,7 +412,8 @@ SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url
        parent.body AS reply_to_body,
        cm.pinned_at, cm.pinned_by, cm.edited_at,
        COALESCE(mem.nickname, '')::text AS sender_nickname,
-       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar
+       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar,
+       cm.client_nonce
 FROM chat_messages cm
 JOIN users u ON cm.sender_id = u.id
 LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -433,7 +441,8 @@ SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url
        parent.body AS reply_to_body,
        cm.pinned_at, cm.pinned_by, cm.edited_at,
        COALESCE(mem.nickname, '')::text AS sender_nickname,
-       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar
+       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar,
+       cm.client_nonce
 FROM chat_messages cm
 JOIN users u ON cm.sender_id = u.id
 LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -442,6 +451,28 @@ LEFT JOIN users pu ON parent.sender_id = pu.id
 LEFT JOIN chat_room_members pmem ON pmem.room_id = cm.room_id AND pmem.user_id = parent.sender_id
 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
 WHERE cm.id = $1;
+
+-- name: GetChatMessageBySenderNonce :one
+SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
+       COALESCE(ur.role, '')::text AS sender_role,
+       cm.body, cm.is_system, cm.created_at, cm.reply_to_id,
+       parent.sender_id AS reply_to_sender_id,
+       pmem.nickname AS reply_member_nickname,
+       pu.display_name AS reply_display_name,
+       pu.username AS reply_username,
+       parent.body AS reply_to_body,
+       cm.pinned_at, cm.pinned_by, cm.edited_at,
+       COALESCE(mem.nickname, '')::text AS sender_nickname,
+       COALESCE(mem.avatar_url, '')::text AS sender_member_avatar,
+       cm.client_nonce
+FROM chat_messages cm
+JOIN users u ON cm.sender_id = u.id
+LEFT JOIN user_roles ur ON ur.user_id = u.id
+LEFT JOIN chat_messages parent ON cm.reply_to_id = parent.id
+LEFT JOIN users pu ON parent.sender_id = pu.id
+LEFT JOIN chat_room_members pmem ON pmem.room_id = cm.room_id AND pmem.user_id = parent.sender_id
+LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
+WHERE cm.sender_id = sqlc.arg(sender_id) AND cm.client_nonce = sqlc.arg(client_nonce)::text;
 
 -- name: SearchChatMessagesForViewer :many
 WITH q AS (SELECT websearch_to_tsquery('english', $2::text) AS tsq, $2::text AS qstr)

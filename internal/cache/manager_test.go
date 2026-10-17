@@ -3,7 +3,6 @@ package cache
 import (
 	"context"
 	"errors"
-	"maps"
 	"slices"
 	"testing"
 	"time"
@@ -13,10 +12,16 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
+	testifymock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/valkey-io/valkey-go"
 	"github.com/valkey-io/valkey-go/mock"
 	"go.uber.org/mock/gomock"
+)
+
+var (
+	untimed = Namespace{Prefix: "untimed:"}
+	timed   = Namespace{Prefix: "timed:", TTL: time.Minute}
 )
 
 func newMockManager(t *testing.T) (*Manager, *mock.Client) {
@@ -27,6 +32,16 @@ func newMockManager(t *testing.T) (*Manager, *mock.Client) {
 	m := NewManager(engines.NewValkeyWithClient(client))
 
 	return m, client
+}
+
+func newEngineMock(t *testing.T, name string, enabled bool) *engine.MockEngine {
+	t.Helper()
+
+	e := engine.NewMockEngine(t)
+	e.EXPECT().Name().Return(name).Maybe()
+	e.EXPECT().Enabled().Return(enabled).Maybe()
+
+	return e
 }
 
 func okResults(n int) []valkey.ValkeyResult {
@@ -54,15 +69,15 @@ func TestSetManySendsEveryKeyInOneBatch(t *testing.T) {
 		}).
 		Times(1)
 
-	err := m.SetMany(context.Background(), map[string]string{"a": "1", "b": "2", "c": "3"}, 0)
+	err := m.SetMany(context.Background(), map[Key]string{untimed.Key("a"): "1", untimed.Key("b"): "2", untimed.Key("c"): "3"})
 	require.NoError(t, err)
 
 	slices.SortFunc(captured, slices.Compare)
 
 	assert.Equal(t, [][]string{
-		{"SET", "a", "1"},
-		{"SET", "b", "2"},
-		{"SET", "c", "3"},
+		{"SET", "untimed:a", "1"},
+		{"SET", "untimed:b", "2"},
+		{"SET", "untimed:c", "3"},
 	}, captured)
 }
 
@@ -80,10 +95,10 @@ func TestSetManyAttachesTTLAsMilliseconds(t *testing.T) {
 		}).
 		Times(1)
 
-	err := m.SetMany(context.Background(), map[string]string{"k": "v"}, time.Minute)
+	err := m.SetMany(context.Background(), map[Key]string{timed.Key("k"): "v"})
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"SET", "k", "v", "PX", "60000"}, captured)
+	assert.Equal(t, []string{"SET", "timed:k", "v", "PX", "60000"}, captured)
 }
 
 func TestSetManyOmitsTTLWhenZero(t *testing.T) {
@@ -100,11 +115,43 @@ func TestSetManyOmitsTTLWhenZero(t *testing.T) {
 		}).
 		Times(1)
 
-	err := m.SetMany(context.Background(), map[string]string{"k": "v"}, 0)
+	err := m.SetMany(context.Background(), map[Key]string{untimed.Key("k"): "v"})
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"SET", "k", "v"}, captured)
+	assert.Equal(t, []string{"SET", "untimed:k", "v"}, captured)
 	assert.NotContains(t, captured, "PX")
+}
+
+func TestSetManyWritesOneBatchPerNamespaceTTL(t *testing.T) {
+	// given
+	m, client := newMockManager(t)
+
+	var captured [][]string
+
+	client.EXPECT().
+		DoMulti(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, cmds ...valkey.Completed) []valkey.ValkeyResult {
+			for _, cmd := range cmds {
+				captured = append(captured, cmd.Commands())
+			}
+
+			return okResults(len(cmds))
+		}).
+		Times(2)
+
+	// when
+	err := m.SetMany(context.Background(), map[Key]string{untimed.Key("a"): "1", untimed.Key("b"): "2", timed.Key("c"): "3"})
+
+	// then each key is written with the ttl of its own namespace
+	require.NoError(t, err)
+
+	slices.SortFunc(captured, slices.Compare)
+
+	assert.Equal(t, [][]string{
+		{"SET", "timed:c", "3", "PX", "60000"},
+		{"SET", "untimed:a", "1"},
+		{"SET", "untimed:b", "2"},
+	}, captured)
 }
 
 func TestSetManyEncodesStructsAsJSON(t *testing.T) {
@@ -121,10 +168,10 @@ func TestSetManyEncodesStructsAsJSON(t *testing.T) {
 		}).
 		Times(1)
 
-	err := m.SetMany(context.Background(), map[string]sample{"s": {Name: "beatrice", N: 1}}, 0)
+	err := m.SetMany(context.Background(), map[Key]sample{untimed.Key("s"): {Name: "beatrice", N: 1}})
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"SET", "s", `{"name":"beatrice","n":1}`}, captured)
+	assert.Equal(t, []string{"SET", "untimed:s", `{"name":"beatrice","n":1}`}, captured)
 }
 
 func TestSetManyReturnsCommandError(t *testing.T) {
@@ -142,7 +189,7 @@ func TestSetManyReturnsCommandError(t *testing.T) {
 		}).
 		Times(1)
 
-	err := m.SetMany(context.Background(), map[string]string{"a": "1", "b": "2"}, 0)
+	err := m.SetMany(context.Background(), map[Key]string{untimed.Key("a"): "1", untimed.Key("b"): "2"})
 
 	require.ErrorIs(t, err, wantErr)
 }
@@ -155,212 +202,216 @@ func TestDelSkipsRoundTripWhenNoKeys(t *testing.T) {
 	require.NoError(t, err)
 }
 
-type stubEngine struct {
-	name     string
-	enabled  bool
-	values   map[string][]byte
-	closeErr error
-	delErr   error
-
-	sets   int
-	dels   int
-	pings  int
-	closes int
-}
-
-func newStubEngine(name string, enabled bool) *stubEngine {
-	return &stubEngine{name: name, enabled: enabled, values: make(map[string][]byte)}
-}
-
-func (s *stubEngine) Name() string { return s.name }
-
-func (s *stubEngine) Enabled() bool { return s.enabled }
-
-func (s *stubEngine) Get(_ context.Context, key string) ([]byte, error) {
-	data, ok := s.values[key]
-	if !ok {
-		return nil, engine.ErrMiss
-	}
-
-	return data, nil
-}
-
-func (s *stubEngine) Set(_ context.Context, key string, data []byte, _ time.Duration) error {
-	s.sets++
-	s.values[key] = data
-
-	return nil
-}
-
-func (s *stubEngine) SetMany(_ context.Context, entries map[string][]byte, _ time.Duration) error {
-	s.sets++
-
-	maps.Copy(s.values, entries)
-
-	return nil
-}
-
-func (s *stubEngine) Del(_ context.Context, keys ...string) error {
-	s.dels++
-
-	for i := range keys {
-		delete(s.values, keys[i])
-	}
-
-	return s.delErr
-}
-
-func (s *stubEngine) Ping(_ context.Context) error {
-	s.pings++
-
-	return nil
-}
-
-func (s *stubEngine) Close() error {
-	s.closes++
-
-	return s.closeErr
-}
-
-func TestManagerPicksFirstEnabledEngine(t *testing.T) {
+func TestManagerSetUsesTheNamespaceTTL(t *testing.T) {
 	tests := []struct {
-		name       string
-		firstOn    bool
-		secondOn   bool
-		wantFirst  int
-		wantSecond int
+		name    string
+		key     Key
+		wantKey string
+		wantTTL time.Duration
 	}{
-		{name: "first enabled wins", firstOn: true, secondOn: true, wantFirst: 1, wantSecond: 0},
-		{name: "falls through to second", firstOn: false, secondOn: true, wantFirst: 0, wantSecond: 1},
+		{name: "a namespace without expiry", key: untimed.Key("k"), wantKey: "untimed:k", wantTTL: 0},
+		{name: "a namespace with a ttl", key: timed.Key("k"), wantKey: "timed:k", wantTTL: time.Minute},
+		{name: "a real namespace", key: OGMeta.Key("/theory/abc"), wantKey: "og:meta:/theory/abc", wantTTL: OGMeta.TTL},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			first := newStubEngine("first", tt.firstOn)
-			second := newStubEngine("second", tt.secondOn)
+			// given
+			stub := newEngineMock(t, "stub", true)
+			stub.EXPECT().Set(testifymock.Anything, tt.wantKey, []byte("v"), tt.wantTTL).Return(nil).Once()
+
+			// when
+			err := NewManager(stub).Set(context.Background(), tt.key, "v")
+
+			// then the engine saw the key's own ttl, which the mock enforces
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestManagerDelAcrossNamespaces(t *testing.T) {
+	// given
+	stub := newEngineMock(t, "stub", true)
+	stub.EXPECT().Del(testifymock.Anything, []string{"untimed:a", "timed:b", "role:u1"}).Return(nil).Once()
+
+	m := NewManager(stub)
+
+	// when
+	err := m.Del(context.Background(), untimed.Key("a"), timed.Key("b"), UserRole.Key("u1"))
+
+	// then every key reaches the engine in one call, whatever its namespace ttl
+	require.NoError(t, err)
+}
+
+func TestManagerPicksFirstEnabledEngine(t *testing.T) {
+	tests := []struct {
+		name      string
+		firstOn   bool
+		wantFirst bool
+	}{
+		{name: "first enabled wins", firstOn: true, wantFirst: true},
+		{name: "falls through to second", firstOn: false, wantFirst: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			first := newEngineMock(t, "first", tt.firstOn)
+			second := newEngineMock(t, "second", true)
+
+			chosen := second
+			if tt.wantFirst {
+				chosen = first
+			}
+
+			chosen.EXPECT().Set(testifymock.Anything, "untimed:k", []byte("v"), time.Duration(0)).Return(nil).Once()
 
 			m := NewManager(first, second)
 
-			require.NoError(t, m.Set(context.Background(), "k", "v", 0))
+			// when
+			err := m.Set(context.Background(), untimed.Key("k"), "v")
 
-			assert.Equal(t, tt.wantFirst, first.sets)
-			assert.Equal(t, tt.wantSecond, second.sets)
+			// then the engine that was not chosen saw no write, which the mock enforces
+			require.NoError(t, err)
 		})
 	}
 }
 
 func TestManagerFailsOverWhenEngineGoesDown(t *testing.T) {
-	primary := newStubEngine("primary", true)
-	fallback := newStubEngine("fallback", true)
+	// given a primary that is healthy for one call and then goes down
+	primary := engine.NewMockEngine(t)
+	primary.EXPECT().Enabled().Return(true).Once()
+	primary.EXPECT().Enabled().Return(false)
+	primary.EXPECT().Set(testifymock.Anything, "untimed:k", []byte("primary value"), time.Duration(0)).Return(nil).Once()
+
+	fallback := newEngineMock(t, "fallback", true)
+	fallback.EXPECT().Set(testifymock.Anything, "untimed:k", []byte("fallback value"), time.Duration(0)).Return(nil).Once()
+	fallback.EXPECT().Get(testifymock.Anything, "untimed:k").Return([]byte("fallback value"), nil).Once()
 
 	m := NewManager(primary, fallback)
 	ctx := context.Background()
+	key := untimed.Key("k")
 
-	require.NoError(t, m.Set(ctx, "k", "primary value", 0))
-	require.Equal(t, 1, primary.sets)
-	require.Zero(t, fallback.sets)
+	// when
+	require.NoError(t, m.Set(ctx, key, "primary value"))
+	require.NoError(t, m.Set(ctx, key, "fallback value"))
+	got, err := m.Get[string](ctx, key)
 
-	primary.enabled = false
-
-	require.NoError(t, m.Set(ctx, "k", "fallback value", 0))
-	assert.Equal(t, 1, primary.sets)
-	assert.Equal(t, 1, fallback.sets)
-
-	got, err := m.Get[string](ctx, "k")
+	// then
 	require.NoError(t, err)
 	assert.Equal(t, "fallback value", got)
 }
 
 func TestManagerWithoutAnyEnabledEngine(t *testing.T) {
-	stub := newStubEngine("only", false)
+	// given
+	off := newEngineMock(t, "only", false)
+	off.EXPECT().Del(testifymock.Anything, []string{"untimed:k"}).Return(nil).Once()
 
-	m := NewManager(stub)
+	m := NewManager(off)
 	ctx := context.Background()
+	key := untimed.Key("k")
 
-	_, err := m.Get[string](ctx, "k")
-	require.ErrorIs(t, err, ErrMiss)
+	// when
+	_, getErr := m.Get[string](ctx, key)
+	setErr := m.Set(ctx, key, "v")
+	setManyErr := m.SetMany(ctx, map[Key]string{key: "v"})
+	pingErr := m.Ping(ctx)
+	delErr := m.Del(ctx, key)
 
-	require.NoError(t, m.Set(ctx, "k", "v", 0))
-	require.NoError(t, m.SetMany(ctx, map[string]string{"k": "v"}, 0))
-	require.NoError(t, m.Ping(ctx))
-
-	assert.Zero(t, stub.sets)
-	assert.Zero(t, stub.pings)
-
-	require.NoError(t, m.Del(ctx, "k"))
-	assert.Equal(t, 1, stub.dels)
+	// then only the delete reaches the disabled engine
+	require.ErrorIs(t, getErr, ErrMiss)
+	require.NoError(t, setErr)
+	require.NoError(t, setManyErr)
+	require.NoError(t, pingErr)
+	require.NoError(t, delErr)
 }
 
 func TestManagerDelReachesEveryEngineIncludingDisabledOnes(t *testing.T) {
-	primary := newStubEngine("primary", false)
-	primary.values["role:u1"] = []byte("admin")
+	// given
+	primary := newEngineMock(t, "primary", false)
+	primary.EXPECT().Del(testifymock.Anything, []string{"role:u1"}).Return(nil).Once()
 
-	fallback := newStubEngine("fallback", true)
-	fallback.values["role:u1"] = []byte("admin")
+	fallback := newEngineMock(t, "fallback", true)
+	fallback.EXPECT().Del(testifymock.Anything, []string{"role:u1"}).Return(nil).Once()
 
 	m := NewManager(primary, fallback)
 
-	require.NoError(t, m.Del(context.Background(), "role:u1"))
+	// when
+	err := m.Del(context.Background(), UserRole.Key("u1"))
 
-	assert.Equal(t, 1, primary.dels)
-	assert.Equal(t, 1, fallback.dels)
-	assert.NotContains(t, primary.values, "role:u1")
-	assert.NotContains(t, fallback.values, "role:u1")
+	// then
+	require.NoError(t, err)
 }
 
 func TestManagerDelSurfacesAnEngineFailure(t *testing.T) {
-	primary := newStubEngine("primary", false)
-	primary.delErr = errors.New("valkey unreachable")
+	// given
+	delErr := errors.New("valkey unreachable")
 
-	fallback := newStubEngine("fallback", true)
+	primary := newEngineMock(t, "primary", false)
+	primary.EXPECT().Del(testifymock.Anything, []string{"role:u1"}).Return(delErr).Once()
 
-	err := NewManager(primary, fallback).Del(context.Background(), "role:u1")
+	fallback := newEngineMock(t, "fallback", true)
+	fallback.EXPECT().Del(testifymock.Anything, []string{"role:u1"}).Return(nil).Once()
 
-	require.ErrorIs(t, err, primary.delErr)
-	assert.Equal(t, 1, fallback.dels)
+	// when
+	err := NewManager(primary, fallback).Del(context.Background(), UserRole.Key("u1"))
+
+	// then
+	require.ErrorIs(t, err, delErr)
 }
 
 func TestManagerNilReceiverIsSafe(t *testing.T) {
 	var m *Manager
 
 	ctx := context.Background()
+	key := untimed.Key("k")
 
 	assert.Nil(t, m.Engines())
-	require.NoError(t, m.Del(ctx, "k"))
+	require.NoError(t, m.Del(ctx, key))
 	require.NoError(t, m.Ping(ctx))
 	require.NoError(t, m.Close())
 
-	_, err := m.Get[string](ctx, "k")
+	_, err := m.Get[string](ctx, key)
 	require.ErrorIs(t, err, ErrMiss)
+
+	_, err = m.Allow(ctx, key, 1, time.Minute)
+	require.ErrorIs(t, err, ErrUnavailable)
+
+	require.ErrorIs(t, m.Reset(ctx, key), ErrUnavailable)
 }
 
 func TestManagerExposesEnginesInPriorityOrder(t *testing.T) {
-	first := newStubEngine("first", false)
-	second := newStubEngine("second", true)
+	first := newEngineMock(t, "first", false)
+	second := newEngineMock(t, "second", true)
 
 	assert.Equal(t, []string{"first", "second"}, engineNames(NewManager(first, second)))
 }
 
 func TestManagerCloseClosesEveryEngineAndReturnsFirstError(t *testing.T) {
-	first := newStubEngine("first", true)
-	first.closeErr = errors.New("first close failed")
+	// given
+	firstErr := errors.New("first close failed")
 
-	second := newStubEngine("second", true)
-	second.closeErr = errors.New("second close failed")
+	first := newEngineMock(t, "first", true)
+	first.EXPECT().Close().Return(firstErr).Once()
 
-	disabled := newStubEngine("disabled", false)
+	second := newEngineMock(t, "second", true)
+	second.EXPECT().Close().Return(errors.New("second close failed")).Once()
 
+	disabled := newEngineMock(t, "disabled", false)
+	disabled.EXPECT().Close().Return(nil).Once()
+
+	// when
 	err := NewManager(first, second, disabled).Close()
 
-	require.ErrorIs(t, err, first.closeErr)
-	assert.Equal(t, 1, first.closes)
-	assert.Equal(t, 1, second.closes)
-	assert.Equal(t, 1, disabled.closes)
+	// then
+	require.ErrorIs(t, err, firstErr)
 }
 
 func TestManagerCountsHitsAndMisses(t *testing.T) {
-	stub := newStubEngine("stub", true)
-	stub.values["present"] = []byte("v")
+	// given
+	stub := newEngineMock(t, "stub", true)
+	stub.EXPECT().Get(testifymock.Anything, "untimed:present").Return([]byte("v"), nil).Once()
+	stub.EXPECT().Get(testifymock.Anything, "untimed:absent").Return(nil, engine.ErrMiss).Once()
 
 	m := NewManager(stub)
 	ctx := context.Background()
@@ -368,13 +419,14 @@ func TestManagerCountsHitsAndMisses(t *testing.T) {
 	hitsBefore := testutil.ToFloat64(cacheHits)
 	missesBefore := testutil.ToFloat64(cacheMisses)
 
-	got, err := m.Get[string](ctx, "present")
-	require.NoError(t, err)
+	// when
+	got, hitErr := m.Get[string](ctx, untimed.Key("present"))
+	_, missErr := m.Get[string](ctx, untimed.Key("absent"))
+
+	// then
+	require.NoError(t, hitErr)
 	assert.Equal(t, "v", got)
-
-	_, err = m.Get[string](ctx, "absent")
-	require.ErrorIs(t, err, ErrMiss)
-
+	require.ErrorIs(t, missErr, ErrMiss)
 	assert.Equal(t, hitsBefore+1, testutil.ToFloat64(cacheHits))
 	assert.Equal(t, missesBefore+1, testutil.ToFloat64(cacheMisses))
 }
@@ -382,7 +434,7 @@ func TestManagerCountsHitsAndMisses(t *testing.T) {
 func TestDelDropsDependentsOfDeletedKeys(t *testing.T) {
 	tests := []struct {
 		name        string
-		key         string
+		key         Key
 		wantDropped bool
 	}{
 		{name: "top detectives", key: MysteryTopDetectives.Key(), wantDropped: true},
@@ -397,8 +449,8 @@ func TestDelDropsDependentsOfDeletedKeys(t *testing.T) {
 			ctx := context.Background()
 			m := NewManager(engines.NewInMemory(0))
 			m.Invalidates(SiteInfo, MysteryTopDetectives, GameTopWinners, Setting)
-			require.NoError(t, m.Set(ctx, SiteInfo.Key(), "cached", time.Minute))
-			require.NoError(t, m.Set(ctx, tc.key, "value", time.Minute))
+			require.NoError(t, m.Set(ctx, SiteInfo.Key(), "cached"))
+			require.NoError(t, m.Set(ctx, tc.key, "value"))
 
 			// when
 			err := m.Del(ctx, tc.key)
@@ -419,20 +471,195 @@ func TestWithDependentsAddsEachDependentOnce(t *testing.T) {
 	// given
 	m := NewManager()
 	m.Invalidates(SiteInfo, Setting, VanityAssignments)
-	keys := []string{Setting.Key("a"), Setting.Key("b"), Setting.Key("c"), VanityAssignments.Key()}
+	keys := []string{Setting.Key("a").String(), Setting.Key("b").String(), Setting.Key("c").String(), VanityAssignments.Key().String()}
 
 	// when
 	got := m.withDependents(keys)
 
 	// then
-	assert.Equal(t, append(slices.Clone(keys), SiteInfo.Key()), got)
+	assert.Equal(t, append(slices.Clone(keys), SiteInfo.Key().String()), got)
+}
+
+func TestManagerRejectsAnInvalidAllowance(t *testing.T) {
+	tests := []struct {
+		name   string
+		limit  int
+		window time.Duration
+	}{
+		{name: "zero limit", limit: 0, window: time.Minute},
+		{name: "negative limit", limit: -1, window: time.Minute},
+		{name: "zero window", limit: 1, window: 0},
+		{name: "negative window", limit: 1, window: -time.Second},
+		{name: "sub millisecond window", limit: 1, window: 500 * time.Microsecond},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given an engine that fails the test on any call
+			m := NewManager(engine.NewMockEngine(t))
+
+			// when
+			got, err := m.Allow(context.Background(), untimed.Key("k"), tt.limit, tt.window)
+
+			// then the valkey limiter would quietly swap in its own defaults, so it never reaches an engine
+			require.ErrorIs(t, err, ErrInvalidAllowance)
+			assert.Zero(t, got)
+		})
+	}
+}
+
+func TestManagerAllowanceWithoutAnyEngine(t *testing.T) {
+	tests := []struct {
+		name    string
+		manager func(t *testing.T) *Manager
+	}{
+		{name: "nil manager", manager: func(t *testing.T) *Manager { return nil }},
+		{name: "no engines", manager: func(t *testing.T) *Manager { return NewManager() }},
+		{name: "every engine disabled", manager: func(t *testing.T) *Manager { return NewManager(newEngineMock(t, "off", false)) }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			ctx := context.Background()
+			m := tt.manager(t)
+			key := untimed.Key("k")
+
+			// when
+			got, allowErr := m.Allow(ctx, key, 1, time.Minute)
+			resetErr := m.Reset(ctx, key)
+
+			// then
+			require.ErrorIs(t, allowErr, ErrUnavailable)
+			require.ErrorIs(t, resetErr, ErrUnavailable)
+			assert.Zero(t, got)
+		})
+	}
+}
+
+func TestManagerAllowanceGoesToTheFirstEnabledEngine(t *testing.T) {
+	// given
+	off := newEngineMock(t, "off", false)
+
+	on := newEngineMock(t, "on", true)
+	on.EXPECT().Allow(testifymock.Anything, "untimed:k", 2, time.Minute).Return(engine.Allowance{Allowed: true}, nil).Once()
+	on.EXPECT().Reset(testifymock.Anything, "untimed:k").Return(nil).Once()
+
+	m := NewManager(off, on)
+	ctx := context.Background()
+	key := untimed.Key("k")
+
+	// when
+	got, allowErr := m.Allow(ctx, key, 2, time.Minute)
+	resetErr := m.Reset(ctx, key)
+
+	// then the disabled engine saw nothing, which the mock enforces
+	require.NoError(t, allowErr)
+	require.NoError(t, resetErr)
+	assert.True(t, got.Allowed)
+}
+
+func TestManagerAllowSpendsTheBudgetOnTheActiveEngine(t *testing.T) {
+	// given
+	m := NewManager(engines.NewInMemory(0))
+	ctx := context.Background()
+	key := RateLimitForgotPassword.Key("ip:203.0.113.7")
+
+	// when
+	allowed := make([]bool, 0, 3)
+	for range 3 {
+		got, err := m.Allow(ctx, key, 3, RateLimitForgotPassword.TTL)
+		require.NoError(t, err)
+
+		allowed = append(allowed, got.Allowed)
+	}
+
+	refused, err := m.Allow(ctx, key, 3, RateLimitForgotPassword.TTL)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, []bool{true, true, true}, allowed)
+	assert.False(t, refused.Allowed)
+	assert.Positive(t, refused.RetryAfter)
+	assert.LessOrEqual(t, refused.RetryAfter, RateLimitForgotPassword.TTL)
+}
+
+func TestManagerResetHandsTheAllowanceBack(t *testing.T) {
+	// given a lease that is held
+	m := NewManager(engines.NewInMemory(0))
+	ctx := context.Background()
+	lease := untimed.Key("lease")
+
+	first, err := m.Allow(ctx, lease, 1, time.Minute)
+	require.NoError(t, err)
+	require.True(t, first.Allowed)
+
+	held, err := m.Allow(ctx, lease, 1, time.Minute)
+	require.NoError(t, err)
+	require.False(t, held.Allowed)
+
+	// when
+	require.NoError(t, m.Reset(ctx, lease))
+	got, err := m.Allow(ctx, lease, 1, time.Minute)
+
+	// then
+	require.NoError(t, err)
+	assert.True(t, got.Allowed)
+}
+
+func TestManagerAllowanceFallsBackAfterValkeyFails(t *testing.T) {
+	tests := []struct {
+		name string
+		call func(m *Manager) (bool, error)
+	}{
+		{
+			name: "allow",
+			call: func(m *Manager) (bool, error) {
+				got, err := m.Allow(context.Background(), untimed.Key("k"), 1, time.Minute)
+
+				return got.Allowed, err
+			},
+		},
+		{
+			name: "reset",
+			call: func(m *Manager) (bool, error) {
+				err := m.Reset(context.Background(), untimed.Key("k"))
+
+				return err == nil, err
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given valkey answering with a failure once
+			client := mock.NewClient(gomock.NewController(t))
+			wantErr := errors.New("connection refused")
+
+			client.EXPECT().
+				Do(gomock.Any(), gomock.Any()).
+				Return(mock.ErrorResult(wantErr)).
+				Times(1)
+
+			m := NewManager(engines.NewValkeyWithClient(client), engines.NewInMemory(0))
+
+			// when
+			_, failedErr := tt.call(m)
+			fresh, fallbackErr := tt.call(m)
+
+			// then the failing request sees the error, and the next one is served by the fallback
+			require.ErrorIs(t, failedErr, wantErr)
+			require.NoError(t, fallbackErr)
+			assert.True(t, fresh)
+		})
+	}
 }
 
 func TestWithDependentsLeavesUnrelatedKeysAlone(t *testing.T) {
 	// given
 	m := NewManager()
 	m.Invalidates(SiteInfo, Setting)
-	keys := []string{OGMeta.Key("page")}
+	keys := []string{OGMeta.Key("page").String()}
 
 	// when
 	got := m.withDependents(keys)

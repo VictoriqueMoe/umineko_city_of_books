@@ -3,8 +3,6 @@ package middleware
 import (
 	"context"
 	"database/sql"
-	"sync"
-	"time"
 
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model/spec"
@@ -13,40 +11,41 @@ import (
 	"github.com/google/uuid"
 )
 
-type IPWriter interface {
-	UpdateIP(ctx context.Context, s spec.UserIPUpdate, tx ...*sql.Tx) error
+type (
+	IPStore interface {
+		GetIP(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (string, error)
+		UpdateIP(ctx context.Context, s spec.UserIPUpdate, tx ...*sql.Tx) error
+	}
+
+	LastSeenIP struct {
+		repo IPStore
+	}
+)
+
+func NewLastSeenIP(repo IPStore) *LastSeenIP {
+	return &LastSeenIP{repo: repo}
 }
 
-type lastSeenEntry struct {
-	ip        string
-	lastWrote time.Time
-}
-
-type LastSeenIP struct {
-	repo     IPWriter
-	debounce time.Duration
-	cache    sync.Map
-}
-
-func NewLastSeenIP(repo IPWriter, debounce time.Duration) *LastSeenIP {
-	return &LastSeenIP{repo: repo, debounce: debounce}
-}
-
-func (l *LastSeenIP) Record(userID uuid.UUID, ip string) {
+func (l *LastSeenIP) Record(ctx context.Context, userID uuid.UUID, ip string) {
 	if ip == "" || userID == uuid.Nil {
 		return
 	}
-	now := time.Now()
-	if v, ok := l.cache.Load(userID); ok {
-		entry := v.(lastSeenEntry)
-		if entry.ip == ip && now.Sub(entry.lastWrote) < l.debounce {
+
+	recordCtx := context.WithoutCancel(ctx)
+	go func() {
+		current, err := l.repo.GetIP(recordCtx, userID)
+		if err != nil {
+			logger.Ctx(recordCtx).Warn().Err(err).Str("user_id", userID.String()).Msg("read last seen ip failed")
 			return
 		}
-	}
-	l.cache.Store(userID, lastSeenEntry{ip: ip, lastWrote: now})
-	go func() {
-		if err := l.repo.UpdateIP(context.Background(), spec.UserIPUpdate{UserID: userID, IP: ip}); err != nil {
-			logger.Log.Warn().Err(err).Str("user_id", userID.String()).Msg("update last seen ip failed")
+
+		if current == ip {
+			return
+		}
+
+		err = l.repo.UpdateIP(recordCtx, spec.UserIPUpdate{UserID: userID, IP: ip})
+		if err != nil {
+			logger.Ctx(recordCtx).Warn().Err(err).Str("user_id", userID.String()).Msg("update last seen ip failed")
 		}
 	}()
 }
@@ -57,12 +56,15 @@ func RecordLastSeenIP(recorder *LastSeenIP) fiber.Handler {
 		if recorder == nil {
 			return err
 		}
+
 		userID, ok := ctx.Locals("userID").(uuid.UUID)
 		if !ok || userID == uuid.Nil {
 			return err
 		}
+
 		ip, _ := ctx.Locals("client_ip").(string)
-		recorder.Record(userID, ip)
+		recorder.Record(ctx.Context(), userID, ip)
+
 		return err
 	}
 }

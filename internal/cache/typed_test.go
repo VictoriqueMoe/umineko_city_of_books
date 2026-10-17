@@ -1,14 +1,18 @@
 package cache
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"testing"
 	"time"
 
 	"umineko_city_of_books/internal/cache/engines"
+	"umineko_city_of_books/internal/logger"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
+	testifymock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -70,17 +74,17 @@ func TestSetManyWithoutClient(t *testing.T) {
 	tests := []struct {
 		name    string
 		manager *Manager
-		values  map[string]string
+		values  map[Key]string
 	}{
-		{name: "nil manager", manager: nil, values: map[string]string{"k": "v"}},
+		{name: "nil manager", manager: nil, values: map[Key]string{untimed.Key("k"): "v"}},
 		{name: "nil values", manager: NewManager(), values: nil},
-		{name: "empty values", manager: NewManager(), values: map[string]string{}},
-		{name: "cache disabled", manager: NewManager(), values: map[string]string{"k": "v"}},
+		{name: "empty values", manager: NewManager(), values: map[Key]string{}},
+		{name: "cache disabled", manager: NewManager(), values: map[Key]string{untimed.Key("k"): "v"}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.manager.SetMany(context.Background(), tt.values, 0)
+			err := tt.manager.SetMany(context.Background(), tt.values)
 
 			require.NoError(t, err)
 		})
@@ -88,9 +92,9 @@ func TestSetManyWithoutClient(t *testing.T) {
 }
 
 func TestSetManyPropagatesEncodeError(t *testing.T) {
-	values := map[string]chan int{"unserialisable": make(chan int)}
+	values := map[Key]chan int{untimed.Key("unserialisable"): make(chan int)}
 
-	err := NewManager().SetMany(context.Background(), values, 0)
+	err := NewManager().SetMany(context.Background(), values)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "chan int")
@@ -126,15 +130,33 @@ func TestEncodeDecodeNilPointer(t *testing.T) {
 	assert.Nil(t, got)
 }
 
-func newLoadManager() (*Manager, Namespace) {
-	return NewManager(engines.NewInMemory(0)), Namespace{Prefix: "witch:", TTL: time.Minute}
+func newLoadManager() (*Manager, Key) {
+	return NewManager(engines.NewInMemory(0)), timed.Key("gold")
+}
+
+func captureLogs(t *testing.T) *bytes.Buffer {
+	t.Helper()
+
+	buf := new(bytes.Buffer)
+	previousLogger := logger.Log
+	previousLevel := zerolog.GlobalLevel()
+
+	logger.Log = zerolog.New(buf)
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+
+	t.Cleanup(func() {
+		logger.Log = previousLogger
+		zerolog.SetGlobalLevel(previousLevel)
+	})
+
+	return buf
 }
 
 func TestLoadReturnsCachedValueWithoutCallingLoader(t *testing.T) {
-	m, ns := newLoadManager()
+	m, key := newLoadManager()
 	ctx := t.Context()
 
-	require.NoError(t, m.Set(ctx, ns.Key("gold"), sample{Name: "beatrice", N: 1}, ns.TTL))
+	require.NoError(t, m.Set(ctx, key, sample{Name: "beatrice", N: 1}))
 
 	calls := 0
 	load := func(context.Context) (sample, error) {
@@ -143,7 +165,7 @@ func TestLoadReturnsCachedValueWithoutCallingLoader(t *testing.T) {
 		return sample{Name: "battler", N: 2}, nil
 	}
 
-	got, err := m.Load(ctx, ns, load, "gold")
+	got, err := m.Load(ctx, key, load)
 
 	require.NoError(t, err)
 	assert.Equal(t, sample{Name: "beatrice", N: 1}, got)
@@ -151,7 +173,7 @@ func TestLoadReturnsCachedValueWithoutCallingLoader(t *testing.T) {
 }
 
 func TestLoadStoresLoadedValueOnMiss(t *testing.T) {
-	m, ns := newLoadManager()
+	m, key := newLoadManager()
 	ctx := t.Context()
 
 	want := sample{Name: "beatrice", N: 7}
@@ -159,17 +181,60 @@ func TestLoadStoresLoadedValueOnMiss(t *testing.T) {
 		return want, nil
 	}
 
-	got, err := m.Load(ctx, ns, load, "gold")
+	got, err := m.Load(ctx, key, load)
 	require.NoError(t, err)
 	assert.Equal(t, want, got)
 
-	cached, err := m.Get[sample](ctx, ns.Key("gold"))
+	cached, err := m.Get[sample](ctx, key)
 	require.NoError(t, err)
 	assert.Equal(t, want, cached)
 }
 
+func TestLoadStoresWithTheNamespaceTTL(t *testing.T) {
+	// given an engine that misses and then expects the write
+	stub := newEngineMock(t, "stub", true)
+	stub.EXPECT().Get(testifymock.Anything, "timed:gold").Return(nil, ErrMiss).Once()
+	stub.EXPECT().Set(testifymock.Anything, "timed:gold", []byte(`{"name":"beatrice","n":7}`), time.Minute).Return(nil).Once()
+
+	load := func(context.Context) (sample, error) {
+		return sample{Name: "beatrice", N: 7}, nil
+	}
+
+	// when
+	got, err := NewManager(stub).Load(t.Context(), timed.Key("gold"), load)
+
+	// then the write carried the key's own ttl, which the mock enforces
+	require.NoError(t, err)
+	assert.Equal(t, sample{Name: "beatrice", N: 7}, got)
+}
+
+func TestLoadLogsAFailedWriteAndStillReturnsTheLoadedValue(t *testing.T) {
+	// given an engine that misses and then fails the write
+	logs := captureLogs(t)
+	writeErr := errors.New("valkey went away")
+
+	stub := newEngineMock(t, "stub", true)
+	stub.EXPECT().Get(testifymock.Anything, "timed:gold").Return(nil, ErrMiss).Once()
+	stub.EXPECT().Set(testifymock.Anything, "timed:gold", testifymock.Anything, time.Minute).Return(writeErr).Once()
+
+	want := sample{Name: "beatrice", N: 7}
+	load := func(context.Context) (sample, error) {
+		return want, nil
+	}
+
+	// when
+	got, err := NewManager(stub).Load(t.Context(), timed.Key("gold"), load)
+
+	// then the caller still gets its value, and the failed write is reported rather than swallowed
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
+	assert.Contains(t, logs.String(), `"level":"error"`)
+	assert.Contains(t, logs.String(), writeErr.Error())
+	assert.Contains(t, logs.String(), `"key":"timed:gold"`)
+}
+
 func TestLoadPropagatesLoaderErrorAndCachesNothing(t *testing.T) {
-	m, ns := newLoadManager()
+	m, key := newLoadManager()
 	ctx := t.Context()
 
 	wantErr := errors.New("the golden land is closed")
@@ -177,12 +242,12 @@ func TestLoadPropagatesLoaderErrorAndCachesNothing(t *testing.T) {
 		return sample{Name: "battler", N: 2}, wantErr
 	}
 
-	got, err := m.Load(ctx, ns, load, "gold")
+	got, err := m.Load(ctx, key, load)
 
 	require.ErrorIs(t, err, wantErr)
 	assert.Zero(t, got)
 
-	_, err = m.Get[sample](ctx, ns.Key("gold"))
+	_, err = m.Get[sample](ctx, key)
 	assert.ErrorIs(t, err, ErrMiss)
 }
 
@@ -194,7 +259,7 @@ func TestLoadFallsBackToLoaderWithoutManager(t *testing.T) {
 		return want, nil
 	}
 
-	got, err := m.Load(t.Context(), Namespace{Prefix: "witch:"}, load, "gold")
+	got, err := m.Load(t.Context(), untimed.Key("gold"), load)
 
 	require.NoError(t, err)
 	assert.Equal(t, want, got)

@@ -110,5 +110,5 @@ func (r *vanityRoleRepository) GetAllAssignments(ctx context.Context, tx ...*sql
 		return r.VanityRoleDAO.GetAllAssignments(ctx, tx...)
 	}
 
-	return r.cache.Load(ctx, cache.VanityAssignments, load)
+	return r.cache.Load(ctx, cache.VanityAssignments.Key(), load)
 }

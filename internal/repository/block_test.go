@@ -56,9 +56,9 @@ func TestBlockRepo_GetBlockedIDs_CachesTheDaoResultPerUser(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, blocked, got)
 	require.Len(t, commands, 2)
-	assert.Equal(t, []string{"GET", cache.UserBlockedIDs.Key(userID.String())}, commands[0])
+	assert.Equal(t, []string{"GET", cache.UserBlockedIDs.Key(userID.String()).String()}, commands[0])
 	assert.Equal(t, "SET", commands[1][0])
-	assert.Equal(t, cache.UserBlockedIDs.Key(userID.String()), commands[1][1])
+	assert.Equal(t, cache.UserBlockedIDs.Key(userID.String()).String(), commands[1][1])
 }
 
 func TestBlockRepo_WritesInvalidateBothUsersBlockedIDs(t *testing.T) {
@@ -107,8 +107,8 @@ func TestBlockRepo_WritesInvalidateBothUsersBlockedIDs(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, []string{
 				"DEL",
-				cache.UserBlockedIDs.Key(s.BlockerID.String()),
-				cache.UserBlockedIDs.Key(s.BlockedID.String()),
+				cache.UserBlockedIDs.Key(s.BlockerID.String()).String(),
+				cache.UserBlockedIDs.Key(s.BlockedID.String()).String(),
 			}, commands)
 		})
 	}

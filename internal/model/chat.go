@@ -89,6 +89,7 @@ type (
 		EditedAt           *string
 		SenderNickname     string
 		SenderMemberAvatar string
+		ClientNonce        string
 	}
 
 	ReactionGroup struct {

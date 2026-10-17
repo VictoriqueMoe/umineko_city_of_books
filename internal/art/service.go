@@ -15,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/homefeed"
@@ -28,6 +29,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
 
@@ -40,12 +42,12 @@ type (
 		GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.ArtDetailResponse, error)
 		UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateArtRequest) error
 		DeleteArt(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		ListArt(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, page bounds.Page) (*dto.ArtListResponse, error)
+		ListArt(ctx context.Context, viewerID uuid.UUID, cornerSlug string, artType string, search string, tag string, sort string, page bounds.Page) (*dto.ArtListResponse, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.ArtListResponse, error)
 		LikeArt(ctx context.Context, userID uuid.UUID, artID uuid.UUID) error
 		UnlikeArt(ctx context.Context, userID uuid.UUID, artID uuid.UUID) error
 		GetCornerCounts(ctx context.Context) (map[string]int, error)
-		GetPopularTags(ctx context.Context, corner string) ([]dto.TagCountResponse, error)
+		GetPopularTags(ctx context.Context, cornerFilter string) ([]dto.TagCountResponse, error)
 
 		CreateComment(ctx context.Context, artID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)
 		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest) error
@@ -60,7 +62,7 @@ type (
 		DeleteGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		GetGallery(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.GalleryResponse, []dto.ArtResponse, int, error)
 		ListUserGalleries(ctx context.Context, userID uuid.UUID) ([]dto.GalleryResponse, error)
-		ListAllGalleries(ctx context.Context, corner string) ([]dto.GalleryResponse, error)
+		ListAllGalleries(ctx context.Context, cornerFilter string) ([]dto.GalleryResponse, error)
 		SetArtGallery(ctx context.Context, artID uuid.UUID, userID uuid.UUID, galleryID *uuid.UUID) error
 	}
 
@@ -80,6 +82,7 @@ type (
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
 		echoCache     homefeed.Service
+		activity      sidebar.ActivityBumper
 	}
 )
 
@@ -98,6 +101,7 @@ func NewService(
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
 	echoCache homefeed.Service,
+	activity sidebar.ActivityBumper,
 ) Service {
 	return &service{
 		artRepo:       artRepo,
@@ -115,6 +119,7 @@ func NewService(
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
 		echoCache:     echoCache,
+		activity:      activity,
 	}
 }
 
@@ -144,6 +149,12 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 	if strings.TrimSpace(req.Title) == "" {
 		return uuid.Nil, ErrEmptyTitle
 	}
+
+	gallery, err := corner.ParseGallery(req.Corner)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
 	if err := s.contentFilter.Check(ctx, req.Title, req.Description); err != nil {
 		return uuid.Nil, err
 	}
@@ -157,11 +168,6 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 		if count >= limit {
 			return uuid.Nil, ErrRateLimited
 		}
-	}
-
-	corner := req.Corner
-	if corner == "" {
-		corner = "general"
 	}
 
 	artType := req.ArtType
@@ -185,7 +191,7 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 
 	newArt := spec.NewArtWithTags{
 		UserID:      userID,
-		Corner:      corner,
+		Corner:      string(gallery),
 		ArtType:     artType,
 		Title:       title,
 		Description: description,
@@ -200,6 +206,8 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 	}
 
 	s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindArt, EntityID: created.ID}, userID, description)
+
+	s.activity.BumpSidebarActivity(sidebar.GalleryKey(gallery))
 
 	return created.ID, nil
 }
@@ -389,9 +397,10 @@ func (s *service) DeleteArt(ctx context.Context, id uuid.UUID, userID uuid.UUID)
 	return nil
 }
 
-func (s *service) ListArt(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, page bounds.Page) (*dto.ArtListResponse, error) {
-	if corner == "" {
-		corner = "general"
+func (s *service) ListArt(ctx context.Context, viewerID uuid.UUID, cornerSlug string, artType string, search string, tag string, sort string, page bounds.Page) (*dto.ArtListResponse, error) {
+	gallery, err := corner.ParseGallery(cornerSlug)
+	if err != nil {
+		return nil, err
 	}
 
 	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
@@ -401,7 +410,7 @@ func (s *service) ListArt(ctx context.Context, viewerID uuid.UUID, corner string
 
 	rows, total, err := s.artRepo.ListAll(ctx, spec.ArtFilter{
 		ViewerID:       viewerID,
-		Corner:         corner,
+		Corner:         string(gallery),
 		ArtType:        artType,
 		Search:         search,
 		Tag:            tag,
@@ -507,8 +516,12 @@ func (s *service) GetCornerCounts(ctx context.Context) (map[string]int, error) {
 	return s.artRepo.GetCornerCounts(ctx)
 }
 
-func (s *service) GetPopularTags(ctx context.Context, corner string) ([]dto.TagCountResponse, error) {
-	tags, err := s.artRepo.GetPopularTags(ctx, spec.PopularTagFilter{Corner: corner, Limit: 30})
+func (s *service) GetPopularTags(ctx context.Context, cornerFilter string) ([]dto.TagCountResponse, error) {
+	if err := validateGalleryFilter(cornerFilter); err != nil {
+		return nil, err
+	}
+
+	tags, err := s.artRepo.GetPopularTags(ctx, spec.PopularTagFilter{Corner: cornerFilter, Limit: 30})
 	if err != nil {
 		return nil, err
 	}
@@ -919,13 +932,27 @@ func (s *service) ListUserGalleries(ctx context.Context, userID uuid.UUID) ([]dt
 	return s.galleriesWithPreviews(ctx, rows)
 }
 
-func (s *service) ListAllGalleries(ctx context.Context, corner string) ([]dto.GalleryResponse, error) {
-	rows, err := s.artRepo.ListAllGalleries(ctx, corner)
+func (s *service) ListAllGalleries(ctx context.Context, cornerFilter string) ([]dto.GalleryResponse, error) {
+	if err := validateGalleryFilter(cornerFilter); err != nil {
+		return nil, err
+	}
+
+	rows, err := s.artRepo.ListAllGalleries(ctx, cornerFilter)
 	if err != nil {
 		return nil, err
 	}
 
 	return s.galleriesWithPreviews(ctx, rows)
+}
+
+func validateGalleryFilter(cornerFilter string) error {
+	if cornerFilter == "" {
+		return nil
+	}
+
+	_, err := corner.ParseGallery(cornerFilter)
+
+	return err
 }
 
 func (s *service) SetArtGallery(ctx context.Context, artID uuid.UUID, userID uuid.UUID, galleryID *uuid.UUID) error {

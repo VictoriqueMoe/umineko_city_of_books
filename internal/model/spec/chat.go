@@ -51,11 +51,12 @@ type (
 	}
 
 	NewChatMessage struct {
-		RoomID    uuid.UUID
-		SenderID  uuid.UUID
-		Body      string
-		ReplyToID *uuid.UUID
-		IsSystem  bool
+		RoomID      uuid.UUID
+		SenderID    uuid.UUID
+		Body        string
+		ReplyToID   *uuid.UUID
+		IsSystem    bool
+		ClientNonce string
 	}
 
 	NewChatMessageMedia struct {

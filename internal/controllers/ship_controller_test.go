@@ -94,7 +94,7 @@ func TestGetShip_Anonymous_OK(t *testing.T) {
 	// given
 	h, ss := newShipHarness(t)
 	shipID := uuid.New()
-	expected := &dto.ShipDetailResponse{ShipResponse: dto.ShipResponse{ID: shipID, Title: "BeatoXBattler"}}
+	expected := &dto.ShipDetailResponse{ID: shipID, Title: "BeatoXBattler"}
 	ss.EXPECT().GetShip(mock.Anything, shipID, uuid.Nil).Return(expected, nil)
 
 	// when
@@ -113,7 +113,7 @@ func TestGetShip_Authenticated_OK(t *testing.T) {
 	shipID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	ss.EXPECT().GetShip(mock.Anything, shipID, userID).
-		Return(&dto.ShipDetailResponse{ShipResponse: dto.ShipResponse{ID: shipID}}, nil)
+		Return(&dto.ShipDetailResponse{ID: shipID}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/ships/"+shipID.String()).WithCookie("valid-cookie").Do()

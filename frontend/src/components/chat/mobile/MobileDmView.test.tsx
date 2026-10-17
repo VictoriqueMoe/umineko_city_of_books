@@ -2,12 +2,14 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Room } from "livekit-client";
+import { isPendingSend, type ThreadEntry } from "../../../domain/chat/optimisticSend";
 import { roomCapabilities } from "../../../domain/chat/roomPolicy";
 import type { DmController } from "../../../hooks/useDmController";
 import { makeDmController } from "../../../hooks/useDmController.fixture";
-import { makeDmRoom, makePublicUser, makeUser } from "../../../test-utils/fixtures";
+import { makeChatMessage, makeDmRoom, makePendingSend, makePublicUser, makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { ChatRoom, User } from "../../../types/api";
+import type { ComposerTarget } from "../ChatComposer/ChatComposer";
 import { MobileDmView, type DmThreadView } from "./MobileDmView";
 
 const mocks = vi.hoisted(() => ({
@@ -36,18 +38,28 @@ vi.mock("../../../hooks/mutations/chat", async importOriginal => {
 
 vi.mock("../MessageList/MessageList", () => ({
     MessageList: ({
+        room,
+        emptyLabel,
+        entries,
         highlightedMessageId,
         viewerTimedOut,
     }: {
+        room: ChatRoom | null;
+        emptyLabel?: React.ReactNode;
+        entries: ThreadEntry[];
         highlightedMessageId?: string | null;
         viewerTimedOut?: boolean;
     }) => (
         <div
             data-testid="dm-messages"
+            data-room={room?.id ?? "none"}
             data-highlighted={highlightedMessageId ?? ""}
             data-timed-out={String(Boolean(viewerTimedOut))}
         >
-            messages
+            {entries.length === 0 && emptyLabel}
+            {entries.map(entry => (
+                <div key={isPendingSend(entry) ? entry.nonce : entry.id}>{entry.body}</div>
+            ))}
         </div>
     ),
 }));
@@ -85,16 +97,14 @@ vi.mock("../Voice/VoiceBar", () => ({
 
 vi.mock("../ChatComposer/ChatComposer", () => ({
     ChatComposer: ({
-        roomId,
-        draftRecipientId,
+        target,
         extraActions,
         onTyping,
         onEditLast,
         mentionPool,
         timeoutUntil,
     }: {
-        roomId: string | null;
-        draftRecipientId: string | null;
+        target: ComposerTarget | null;
         extraActions?: React.ReactNode;
         onTyping?: () => void;
         onEditLast?: () => void;
@@ -103,8 +113,8 @@ vi.mock("../ChatComposer/ChatComposer", () => ({
     }) => (
         <div
             data-testid="composer"
-            data-room-id={roomId ?? ""}
-            data-draft-recipient={draftRecipientId ?? ""}
+            data-room-id={target?.kind === "room" ? target.sender.roomId : ""}
+            data-draft-recipient={target?.kind === "draft" ? target.sender.recipientId : ""}
             data-has-typing={String(Boolean(onTyping))}
             data-has-edit-last={String(Boolean(onEditLast))}
             data-mention-pool={mentionPool === undefined ? "none" : mentionPool.map(u => u.username).join(",")}
@@ -145,6 +155,7 @@ function makeThread(overrides: Partial<DmThreadView> = {}): DmThreadView {
     return {
         anchor: { highlightedMsgId: null, handleJumpToMessage: vi.fn(() => Promise.resolve()) },
         mentionPool: [],
+        viewerMember: null,
         viewerTimedOut: false,
         searchOpen: false,
         setSearchOpen: vi.fn(),
@@ -166,6 +177,21 @@ function roomView(overrides: Partial<DmController> = {}, threadOverrides: Partia
             mobileView: "room",
             activeRoom: makeRoom(),
             activeRoomId: "room-1",
+            sender: { roomId: "room-1", send: vi.fn() },
+            ...overrides,
+        },
+        threadOverrides,
+    );
+}
+
+function draftView(overrides: Partial<DmController> = {}, threadOverrides: Partial<DmThreadView> = {}) {
+    const draftRecipient = overrides.draftRecipient ?? makeOther();
+
+    return renderView(
+        {
+            mobileView: "room",
+            draftRecipient,
+            draftSender: { recipientId: draftRecipient.id, send: vi.fn() },
             ...overrides,
         },
         threadOverrides,
@@ -445,11 +471,48 @@ describe("MobileDmView", () => {
         const draftRecipient = makeOther({ display_name: "Battler" });
 
         // when
-        renderView({ mobileView: "room", draftRecipient });
+        draftView({ draftRecipient });
 
         // then
         expect(screen.getByText(/Send your first message to/)).toHaveTextContent("Send your first message to Battler.");
-        expect(screen.queryByTestId("dm-messages")).not.toBeInTheDocument();
+        expect(screen.getByTestId("dm-messages")).toHaveAttribute("data-room", "none");
+    });
+
+    it("shows a first message that is still on its way in the draft conversation's thread", () => {
+        // given
+        const entries = [makePendingSend({ thread: { kind: "draft", recipientId: "u2" }, body: "are you there" })];
+
+        // when
+        draftView({ entries });
+
+        // then
+        expect(screen.getByTestId("dm-messages")).toHaveTextContent("are you there");
+        expect(screen.queryByText(/Send your first message to/)).not.toBeInTheDocument();
+    });
+
+    it("keeps the same thread and composer on screen when the draft becomes the conversation it opened", () => {
+        // given a first message on its way in the draft
+        const pending = makePendingSend({ thread: { kind: "draft", recipientId: "u2" }, body: "hello" });
+        const { rerender, thread } = draftView({ entries: [pending] });
+        const threadBefore = screen.getByTestId("dm-messages");
+        const composerBefore = screen.getByTestId("composer");
+
+        // when the room it opened is adopted
+        const adopted = makeController({
+            mobileView: "room",
+            activeRoom: makeRoom({ id: "room-9" }),
+            activeRoomId: "room-9",
+            sender: { roomId: "room-9", adoptedFrom: "u2", send: vi.fn() },
+            entries: [makeChatMessage({ id: "m1", body: "hello", client_nonce: pending.nonce })],
+        });
+        rerender(<MobileDmView controller={adopted} thread={thread} />);
+
+        // then
+        expect(screen.getByTestId("dm-messages")).toBe(threadBefore);
+        expect(screen.getByTestId("composer")).toBe(composerBefore);
+        expect(threadBefore).toHaveAttribute("data-room", "room-9");
+        expect(composerBefore).toHaveAttribute("data-room-id", "room-9");
+        expect(threadBefore).toHaveTextContent("hello");
     });
 
     it("shows the message history once a conversation exists", () => {
@@ -577,7 +640,7 @@ describe("MobileDmView", () => {
         const draftRecipient = makeOther({ id: "u2" });
 
         // when
-        renderView({ mobileView: "room", draftRecipient });
+        draftView({ draftRecipient });
 
         // then
         const composer = screen.getByTestId("composer");

@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
+	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/follow"
@@ -144,15 +145,18 @@ func (s *Service) getCornerCounts(ctx fiber.Ctx) error {
 func (s *Service) listPostFeed(ctx fiber.Ctx) error {
 	viewerID := utils.UserID(ctx)
 	tab := ctx.Query("tab", "everyone")
-	corner := ctx.Query("corner", "general")
+	cornerSlug := ctx.Query("corner")
 	search := ctx.Query("search")
 	sort := ctx.Query("sort")
 	page := utils.Page(ctx, 20)
 
 	resolvedFilter := ctx.Query("resolved")
 
-	result, err := s.PostService.ListFeed(ctx.Context(), tab, viewerID, corner, search, sort, page, resolvedFilter)
+	result, err := s.PostService.ListFeed(ctx.Context(), tab, viewerID, cornerSlug, search, sort, page, resolvedFilter)
 	if err != nil {
+		if errors.Is(err, corner.ErrInvalidCorner) {
+			return utils.BadRequest(ctx, err.Error())
+		}
 		return utils.InternalError(ctx, "failed to list posts", err)
 	}
 	return ctx.JSON(result)
@@ -170,7 +174,7 @@ func (s *Service) createPost(ctx fiber.Ctx) error {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
-		if errors.Is(err, postsvc.ErrEmptyBody) || errors.Is(err, postsvc.ErrInvalidShareType) {
+		if errors.Is(err, postsvc.ErrEmptyBody) || errors.Is(err, postsvc.ErrInvalidShareType) || errors.Is(err, corner.ErrInvalidCorner) {
 			return utils.BadRequest(ctx, err.Error())
 		}
 		if errors.Is(err, postsvc.ErrRateLimited) {
@@ -178,11 +182,6 @@ func (s *Service) createPost(ctx fiber.Ctx) error {
 		}
 		return utils.InternalError(ctx, "failed to create post", err)
 	}
-	corner := req.Corner
-	if corner == "" {
-		corner = "general"
-	}
-	s.Hub.BumpSidebarActivity("game_board_" + corner)
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 

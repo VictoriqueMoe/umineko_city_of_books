@@ -15,19 +15,25 @@ import (
 
 	"github.com/valkey-io/valkey-go"
 	"github.com/valkey-io/valkey-go/valkeyhook"
+	"github.com/valkey-io/valkey-go/valkeylimiter"
 )
 
 const (
 	probeTimeout = 5 * time.Second
 
 	recoveryInterval = 30 * time.Second
+
+	defaultAllowanceLimit  = 1
+	defaultAllowanceWindow = time.Second
 )
 
 type (
 	Valkey struct {
-		mu     sync.RWMutex
-		client valkey.Client
-		url    string
+		mu         sync.RWMutex
+		client     valkey.Client
+		limiter    valkeylimiter.RateLimiterClient
+		limiterErr error
+		url        string
 
 		healthy atomic.Bool
 		downAt  atomic.Int64
@@ -42,7 +48,8 @@ func NewValkey() *Valkey {
 }
 
 func NewValkeyWithClient(client valkey.Client) *Valkey {
-	v := &Valkey{client: client}
+	v := new(Valkey)
+	v.bind(client)
 	v.healthy.Store(true)
 
 	return v
@@ -210,6 +217,29 @@ func (v *Valkey) SetMany(ctx context.Context, entries map[string][]byte, ttl tim
 	return v.observe(nil)
 }
 
+func (v *Valkey) Allow(ctx context.Context, key string, limit int, window time.Duration) (engine.Allowance, error) {
+	limiter, err := v.currentLimiter()
+	if err != nil {
+		return engine.Allowance{}, err
+	}
+
+	result, err := limiter.Allow(ctx, key, valkeylimiter.WithCustomRateLimit(limit, window))
+	if err := v.observe(err); err != nil {
+		return engine.Allowance{}, err
+	}
+
+	return engine.Allowance{Allowed: result.Allowed, RetryAfter: max(result.RetryAfter, 0)}, nil
+}
+
+func (v *Valkey) Reset(ctx context.Context, key string) error {
+	limiter, err := v.currentLimiter()
+	if err != nil {
+		return err
+	}
+
+	return v.observe(limiter.Reset(ctx, key))
+}
+
 func (v *Valkey) Del(ctx context.Context, keys ...string) error {
 	client := v.current()
 	if client == nil || len(keys) == 0 {
@@ -232,12 +262,7 @@ func (v *Valkey) Close() error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	if v.client == nil {
-		return nil
-	}
-
-	v.client.Close()
-	v.client = nil
+	v.unbind()
 
 	return nil
 }
@@ -256,11 +281,7 @@ func (v *Valkey) swapClient(rawURL string) (valkey.Client, error) {
 		return nil, nil
 	}
 
-	if v.client != nil {
-		v.client.Close()
-		v.client = nil
-	}
-
+	v.unbind()
 	v.url = rawURL
 
 	if rawURL == "" {
@@ -281,9 +302,49 @@ func (v *Valkey) swapClient(rawURL string) (valkey.Client, error) {
 	}
 
 	client = valkeyhook.WithHook(client, observability.NewHook())
-	v.client = client
+
+	v.bind(client)
+	if v.limiterErr != nil {
+		err := v.limiterErr
+		v.unbind()
+		v.url = ""
+
+		return nil, err
+	}
 
 	return client, nil
+}
+
+func (v *Valkey) bind(client valkey.Client) {
+	v.client = client
+	v.limiter, v.limiterErr = newLimiter(client)
+}
+
+func (v *Valkey) unbind() {
+	if v.client == nil {
+		return
+	}
+
+	v.client.Close()
+	v.client = nil
+	v.limiter = nil
+	v.limiterErr = nil
+}
+
+func newLimiter(client valkey.Client) (valkeylimiter.RateLimiterClient, error) {
+	limiter, err := valkeylimiter.NewRateLimiter(valkeylimiter.RateLimiterOption{
+		ClientBuilder: func(valkey.ClientOption) (valkey.Client, error) {
+			return client, nil
+		},
+		KeyPrefix: allowanceKeyPrefix,
+		Limit:     defaultAllowanceLimit,
+		Window:    defaultAllowanceWindow,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cache: build valkey rate limiter: %w", err)
+	}
+
+	return limiter, nil
 }
 
 func (v *Valkey) current() valkey.Client {
@@ -295,4 +356,23 @@ func (v *Valkey) current() valkey.Client {
 	defer v.mu.RUnlock()
 
 	return v.client
+}
+
+func (v *Valkey) currentLimiter() (valkeylimiter.RateLimiterClient, error) {
+	if v == nil {
+		return nil, engine.ErrUnavailable
+	}
+
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+
+	if v.client == nil {
+		return nil, engine.ErrUnavailable
+	}
+
+	if v.limiterErr != nil {
+		return nil, v.limiterErr
+	}
+
+	return v.limiter, nil
 }

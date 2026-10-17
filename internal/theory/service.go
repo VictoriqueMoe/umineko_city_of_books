@@ -22,6 +22,7 @@ import (
 	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/theory/params"
 
 	"github.com/google/uuid"
@@ -56,6 +57,7 @@ type (
 		contentFilter  *contentfilter.Manager
 		ogCache        *og.Resolver
 		echoCache      homefeed.Service
+		activity       sidebar.ActivityBumper
 	}
 )
 
@@ -74,6 +76,7 @@ func NewService(
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
 	echoCache homefeed.Service,
+	activity sidebar.ActivityBumper,
 ) Service {
 	return &service{
 		repo:           repo,
@@ -90,6 +93,7 @@ func NewService(
 		contentFilter:  contentFilter,
 		ogCache:        ogCache,
 		echoCache:      echoCache,
+		activity:       activity,
 	}
 }
 
@@ -174,6 +178,15 @@ func (s *service) CreateTheory(ctx context.Context, userID uuid.UUID, req dto.Cr
 		return uuid.Nil, err
 	}
 
+	series := req.Series
+	if series != "" {
+		parsed, err := quotefinder.ParseSeries(series)
+		if err != nil {
+			return uuid.Nil, ErrInvalidSeries
+		}
+		series = string(parsed)
+	}
+
 	limit := s.settingsSvc.GetInt(ctx, config.SettingMaxTheoriesPerDay)
 	if limit > 0 {
 		count, err := s.repo.CountUserTheoriesToday(ctx, userID)
@@ -190,7 +203,7 @@ func (s *service) CreateTheory(ctx context.Context, userID uuid.UUID, req dto.Cr
 		Title:    req.Title,
 		Body:     req.Body,
 		Episode:  req.Episode,
-		Series:   req.Series,
+		Series:   series,
 		Evidence: req.Evidence,
 	})
 	if err != nil {
@@ -207,6 +220,8 @@ func (s *service) CreateTheory(ctx context.Context, userID uuid.UUID, req dto.Cr
 		Action:        "posted a new theory",
 		Title:         req.Title,
 	})
+
+	s.activity.BumpSidebarActivity(sidebar.TheoriesKey(created.Series))
 
 	return created.ID, nil
 }

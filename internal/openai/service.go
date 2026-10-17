@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	sdk "github.com/openai/openai-go/v3"
@@ -21,8 +20,10 @@ import (
 	"github.com/openai/openai-go/v3/responses"
 	"github.com/openai/openai-go/v3/shared"
 
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/httpclient"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/settings"
 )
 
@@ -68,15 +69,15 @@ type (
 	}
 
 	service struct {
-		settingsSvc        settings.Service
-		baseURL            string
-		httpClient         *httpclient.Client
-		mu                 sync.RWMutex
-		apiKey             string
-		adminKey           string
-		apiClient          sdk.Client
-		adminClient        sdk.Client
-		rateLimitedUntilNs atomic.Int64
+		settingsSvc settings.Service
+		cache       *cache.Manager
+		baseURL     string
+		httpClient  *httpclient.Client
+		mu          sync.RWMutex
+		apiKey      string
+		adminKey    string
+		apiClient   sdk.Client
+		adminClient sdk.Client
 	}
 )
 
@@ -99,13 +100,14 @@ const (
 	defaultCurrency = "usd"
 )
 
-func NewService(settingsSvc settings.Service) Service {
-	return newService(settingsSvc, defaultBaseURL)
+func NewService(settingsSvc settings.Service, cacheMgr *cache.Manager) Service {
+	return newService(settingsSvc, cacheMgr, defaultBaseURL)
 }
 
-func newService(settingsSvc settings.Service, baseURL string) *service {
+func newService(settingsSvc settings.Service, cacheMgr *cache.Manager, baseURL string) *service {
 	s := &service{
 		settingsSvc: settingsSvc,
+		cache:       cacheMgr,
 		baseURL:     baseURL,
 		httpClient:  httpclient.New(requestTimeout),
 	}
@@ -181,7 +183,7 @@ func (s *service) Complete(ctx context.Context, req CompletionRequest) (*Complet
 		return nil, ErrDisabled
 	}
 
-	if resetAt, limited := s.rateLimitResetAt(); limited {
+	if resetAt, limited := s.rateLimitResetAt(ctx); limited {
 		return nil, &RateLimitError{ResetAt: resetAt}
 	}
 
@@ -216,7 +218,7 @@ func (s *service) Complete(ctx context.Context, req CompletionRequest) (*Complet
 
 	resp, err := client.Responses.New(ctx, params)
 	if err != nil {
-		return nil, s.sanitise(err)
+		return nil, s.sanitise(ctx, err)
 	}
 
 	return &CompletionResult{
@@ -238,7 +240,7 @@ func (s *service) Models(ctx context.Context) ([]string, error) {
 		return nil, ErrDisabled
 	}
 
-	if resetAt, limited := s.rateLimitResetAt(); limited {
+	if resetAt, limited := s.rateLimitResetAt(ctx); limited {
 		return nil, &RateLimitError{ResetAt: resetAt}
 	}
 
@@ -249,7 +251,7 @@ func (s *service) Models(ctx context.Context) ([]string, error) {
 		models = append(models, pager.Current())
 	}
 	if err := pager.Err(); err != nil {
-		return nil, s.sanitise(err)
+		return nil, s.sanitise(ctx, err)
 	}
 
 	slices.SortStableFunc(models, func(a, b sdk.Model) int {
@@ -271,7 +273,7 @@ func (s *service) Costs(ctx context.Context, since time.Time) (*CostsResult, err
 		return nil, nil
 	}
 
-	if resetAt, limited := s.rateLimitResetAt(); limited {
+	if resetAt, limited := s.rateLimitResetAt(ctx); limited {
 		return nil, &RateLimitError{ResetAt: resetAt}
 	}
 
@@ -282,7 +284,7 @@ func (s *service) Costs(ctx context.Context, since time.Time) (*CostsResult, err
 
 	page, err := client.Admin.Organization.Usage.Costs(ctx, params)
 	if err != nil {
-		return nil, s.sanitise(err)
+		return nil, s.sanitise(ctx, err)
 	}
 
 	result := &CostsResult{Currency: defaultCurrency}
@@ -345,15 +347,14 @@ func outputText(items []responses.ResponseOutputItemUnion) string {
 	return strings.TrimSpace(sb.String())
 }
 
-func (s *service) sanitise(err error) error {
+func (s *service) sanitise(ctx context.Context, err error) error {
 	apiErr, ok := errors.AsType[*sdk.Error](err)
 	if !ok {
 		return fmt.Errorf("call openai: %w", stripRequestURL(err))
 	}
 
 	if apiErr.StatusCode == http.StatusTooManyRequests {
-		resetAt := parseRateLimitReset(errorHeader(apiErr), time.Now())
-		s.rateLimitedUntilNs.Store(resetAt.UnixNano())
+		resetAt := s.tripRateLimit(ctx, parseRateLimitReset(errorHeader(apiErr), time.Now()))
 
 		return &RateLimitError{ResetAt: resetAt}
 	}
@@ -386,13 +387,31 @@ func errorBody(apiErr *sdk.Error) string {
 	return body
 }
 
-func (s *service) rateLimitResetAt() (time.Time, bool) {
-	ns := s.rateLimitedUntilNs.Load()
-	if ns == 0 {
+func (s *service) tripRateLimit(ctx context.Context, resetAt time.Time) time.Time {
+	if !resetAt.After(time.Now()) {
+		return resetAt
+	}
+
+	err := s.cache.Set(ctx, cache.OpenAIRateLimitedUntil.Key(), resetAt)
+	if err != nil {
+		logger.Ctx(ctx).Error().Err(err).Time("reset_at", resetAt).Msg("openai could not record its upstream rate limit, later calls will reach openai until it is stored")
+	}
+
+	return resetAt
+}
+
+func (s *service) rateLimitResetAt(ctx context.Context) (time.Time, bool) {
+	resetAt, err := s.cache.Get[time.Time](ctx, cache.OpenAIRateLimitedUntil.Key())
+	if errors.Is(err, cache.ErrMiss) {
 		return time.Time{}, false
 	}
 
-	resetAt := time.Unix(0, ns)
+	if err != nil {
+		logger.Ctx(ctx).Error().Err(err).Msg("openai could not read its upstream rate limit, letting this call through")
+
+		return time.Time{}, false
+	}
+
 	if time.Now().After(resetAt) {
 		return time.Time{}, false
 	}

@@ -2,6 +2,7 @@ package chat
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -16,11 +18,15 @@ import (
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
-	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
+)
+
+const (
+	minClientNonceLength = 16
+	maxClientNonceLength = 64
 )
 
 var (
@@ -148,8 +154,8 @@ func (m *messagesService) ListRoomAttachments(ctx context.Context, userID, roomI
 	limit = bounds.NewPage(limit, 0).Limit()
 
 	rows, err := m.chatRepo.ListRoomAttachments(ctx, spec.ChatRoomAttachmentQuery{
-		ChatMessageCursorPage: spec.ChatMessageCursorPage{RoomID: roomID, ViewerID: userID, Before: before, Limit: limit},
-		Kind:                  kind,
+		RoomID: roomID, ViewerID: userID, Before: before, Limit: limit,
+		Kind: kind,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list room attachments: %w", err)
@@ -170,6 +176,9 @@ func (m *messagesService) ListRoomAttachments(ctx context.Context, userID, roomI
 func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest, files []FileUpload) (*dto.ChatMessageResponse, error) {
 	if req.Body == "" && len(files) == 0 {
 		return nil, ErrMissingFields
+	}
+	if !validClientNonce(req.ClientNonce) {
+		return nil, ErrInvalidClientNonce
 	}
 	if req.Body != "" {
 		if err := m.contentFilter.Check(ctx, req.Body); err != nil {
@@ -239,25 +248,25 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		if parent != nil && parent.RoomID == roomID {
 			replyToID = req.ReplyToID
 			replyToAuthor = parent.SenderID
-			preview := text.ClampRunes(parent.Body, 140)
-			if len(preview) != len(parent.Body) {
-				preview += "..."
-			}
 			replyToPreview = &dto.ChatMessageReplyPreview{
 				ID:          parent.ID,
 				SenderID:    parent.SenderID,
 				SenderName:  resolveSenderName(parent.SenderNickname, parent.SenderDisplayName, parent.SenderUsername),
-				BodyPreview: preview,
+				BodyPreview: clampReplyPreview(parent.Body),
 			}
 		}
 	}
 
 	created, err := m.chatRepo.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{
-		RoomID:    roomID,
-		SenderID:  senderID,
-		Body:      req.Body,
-		ReplyToID: replyToID,
+		RoomID:      roomID,
+		SenderID:    senderID,
+		Body:        req.Body,
+		ReplyToID:   replyToID,
+		ClientNonce: req.ClientNonce,
 	})
+	if replay, ok := errors.AsType[*dao.ChatMessageReplayError](err); ok {
+		return m.replayedMessage(ctx, roomID, sender, replay.Existing)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -276,46 +285,8 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		return nil, err
 	}
 
-	displayName := sender.DisplayName
-	avatarURL := sender.AvatarURL
-	memberRows, err := m.chatRepo.GetRoomMembersDetailed(ctx, roomID)
-	if err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("sent message: room alias lookup failed, using the profile name")
-	}
-	for _, mr := range memberRows {
-		if mr.UserID == senderID {
-			if mr.Nickname != "" {
-				displayName = mr.Nickname
-			}
-			if mr.MemberAvatarURL != "" {
-				avatarURL = mr.MemberAvatarURL
-			}
-			break
-		}
-	}
-
-	senderVanity, err := m.vanityRoleRepo.GetRolesForUser(ctx, senderID)
-	if err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Str("user_id", senderID.String()).Msg("sent message: vanity roles lookup failed")
-	}
-
-	resp := &dto.ChatMessageResponse{
-		ID:     msgID,
-		RoomID: roomID,
-		Sender: dto.UserResponse{
-			ID:          sender.ID,
-			Username:    sender.Username,
-			DisplayName: displayName,
-			AvatarURL:   avatarURL,
-			Role:        role.Role(sender.Role),
-			VanityRoles: m.toVanityRoleResponses(senderVanity),
-		},
-		Body:      req.Body,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		Media:     mediaResponses,
-		ReplyTo:   replyToPreview,
-		Reactions: []dto.ReactionGroup{},
-	}
+	resp := m.sentMessageResponse(ctx, *created, sender, mediaResponses, replyToPreview)
+	displayName := resp.Sender.DisplayName
 
 	var mentionedIDs map[uuid.UUID]struct{}
 	if !sender.IsBot {
@@ -381,6 +352,88 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 	}
 
 	return resp, nil
+}
+
+func (m *messagesService) replayedMessage(ctx context.Context, roomID uuid.UUID, sender *model.User, existing model.ChatMessageRow) (*dto.ChatMessageResponse, error) {
+	if existing.RoomID != roomID {
+		return nil, ErrClientNonceReused
+	}
+
+	mediaBatch, err := m.chatRepo.GetMessageMediaBatch(ctx, []uuid.UUID{existing.ID})
+	if err != nil {
+		return nil, fmt.Errorf("reload replayed message media: %w", err)
+	}
+
+	return m.sentMessageResponse(ctx, existing, sender, mediaBatch[existing.ID], replyPreviewFromRow(existing)), nil
+}
+
+func (m *messagesService) sentMessageResponse(
+	ctx context.Context,
+	row model.ChatMessageRow,
+	sender *model.User,
+	media []dto.PostMediaResponse,
+	replyTo *dto.ChatMessageReplyPreview,
+) *dto.ChatMessageResponse {
+	displayName := sender.DisplayName
+	avatarURL := sender.AvatarURL
+	memberRows, err := m.chatRepo.GetRoomMembersDetailed(ctx, row.RoomID)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", row.RoomID.String()).Msg("sent message: room alias lookup failed, using the profile name")
+	}
+	for _, mr := range memberRows {
+		if mr.UserID == sender.ID {
+			if mr.Nickname != "" {
+				displayName = mr.Nickname
+			}
+			if mr.MemberAvatarURL != "" {
+				avatarURL = mr.MemberAvatarURL
+			}
+			break
+		}
+	}
+
+	senderVanity, err := m.vanityRoleRepo.GetRolesForUser(ctx, sender.ID)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("user_id", sender.ID.String()).Msg("sent message: vanity roles lookup failed")
+	}
+
+	return &dto.ChatMessageResponse{
+		ID:     row.ID,
+		RoomID: row.RoomID,
+		Sender: dto.UserResponse{
+			ID:          sender.ID,
+			Username:    sender.Username,
+			DisplayName: displayName,
+			AvatarURL:   avatarURL,
+			Role:        role.Role(sender.Role),
+			VanityRoles: m.toVanityRoleResponses(senderVanity),
+		},
+		Body:        row.Body,
+		CreatedAt:   row.CreatedAt,
+		Media:       media,
+		ReplyTo:     replyTo,
+		Reactions:   []dto.ReactionGroup{},
+		ClientNonce: row.ClientNonce,
+	}
+}
+
+func validClientNonce(nonce string) bool {
+	if nonce == "" {
+		return true
+	}
+	if len(nonce) < minClientNonceLength || len(nonce) > maxClientNonceLength {
+		return false
+	}
+
+	for _, r := range nonce {
+		isLetter := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
+		isDigit := r >= '0' && r <= '9'
+		if !isLetter && !isDigit && r != '-' && r != '_' {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (m *messagesService) assertRecipientsAcceptNewThread(ctx context.Context, roomRow *model.ChatRoomSendContext, senderID uuid.UUID, members []uuid.UUID) error {
@@ -757,17 +810,15 @@ func (m *messagesService) saveMessageMedia(ctx context.Context, messageID uuid.U
 		saved, saveErr := m.uploader.SaveAndRecord(ctx, "chat", f.ContentType, f.Filename, f.Size, r, f.IsSpoiler,
 			func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 				return m.chatRepo.AddMessageMedia(ctx, spec.NewChatMessageMedia{
-					NewMedia: spec.NewMedia{
-						TargetID:     messageID,
-						MediaURL:     mediaURL,
-						MediaType:    mediaType,
-						ThumbnailURL: thumbURL,
-						Filename:     filename,
-						SortOrder:    sortOrder,
-						IsSpoiler:    f.IsSpoiler,
-					},
-					Width:  width,
-					Height: height,
+					TargetID:     messageID,
+					MediaURL:     mediaURL,
+					MediaType:    mediaType,
+					ThumbnailURL: thumbURL,
+					Filename:     filename,
+					SortOrder:    sortOrder,
+					IsSpoiler:    f.IsSpoiler,
+					Width:        width,
+					Height:       height,
 				})
 			},
 			m.chatRepo.UpdateMessageMediaURL,

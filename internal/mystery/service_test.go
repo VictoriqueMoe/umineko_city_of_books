@@ -25,6 +25,7 @@ import (
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
 
@@ -45,6 +46,7 @@ type testMocks struct {
 	uploadSvc    *upload.MockService
 	settingsSvc  *settings.MockService
 	followRepo   *repository.MockFollowRepository
+	activity     *sidebar.MockActivityBumper
 	fanout       chan uuid.UUID
 }
 
@@ -60,11 +62,12 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := &media.Processor{}
 	hub := ws.NewHub()
+	activity := sidebar.NewMockActivityBumper(t)
 	comments := dao.NewMockCommentDAO[uuid.UUID](t)
 	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, dao.CommentDAOs{
 		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindMysteryComment): comments},
 	})
-	svc := NewService(repo, userRepo, followRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New(), nil).(*service)
+	svc := NewService(repo, userRepo, followRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New(), nil, activity).(*service)
 	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
 	fanout := make(chan uuid.UUID, 8)
 	followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Run(func(_ context.Context, userID uuid.UUID, _ ...*sql.Tx) {
@@ -82,6 +85,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		uploadSvc:    uploadSvc,
 		settingsSvc:  settingsSvc,
 		followRepo:   followRepo,
+		activity:     activity,
 	}
 }
 
@@ -321,14 +325,12 @@ func validCreateSpec(userID uuid.UUID, clues ...spec.NewClue) spec.NewMysteryWit
 	}
 
 	return spec.NewMysteryWithClues{
-		NewMystery: spec.NewMystery{
-			UserID:     userID,
-			Title:      "Title",
-			Body:       "Body",
-			Difficulty: "medium",
-			Knox:       dto.DefaultKnoxContract(),
-		},
-		Clues: clues,
+		UserID:     userID,
+		Title:      "Title",
+		Body:       "Body",
+		Difficulty: "medium",
+		Knox:       dto.DefaultKnoxContract(),
+		Clues:      clues,
 	}
 }
 
@@ -345,11 +347,12 @@ func TestCreateMystery_RepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestCreateMystery_NotifiesFollowers(t *testing.T) {
+func TestCreateMystery_NotifiesFollowersAndBumpsTheMysteriesSection(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(&model.MysteryRow{ID: uuid.New()}, nil)
+	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyMysteries).Return().Once()
 
 	// when
 	_, err := svc.CreateMystery(context.Background(), userID, validCreateReq())
@@ -385,6 +388,7 @@ func TestCreateMystery_DefaultDifficulty(t *testing.T) {
 	req := validCreateReq()
 	req.Difficulty = ""
 	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(&model.MysteryRow{ID: uuid.New()}, nil)
+	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyMysteries).Return().Once()
 
 	// when
 	_, err := svc.CreateMystery(context.Background(), userID, req)
@@ -408,6 +412,7 @@ func TestCreateMystery_WithClues(t *testing.T) {
 		spec.NewClue{Body: "clue2", TruthType: "blue", SortOrder: 2},
 	)
 	m.repo.EXPECT().CreateWithClues(mock.Anything, createSpec).Return(&model.MysteryRow{ID: uuid.New()}, nil)
+	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyMysteries).Return().Once()
 
 	// when
 	id, err := svc.CreateMystery(context.Background(), userID, req)
@@ -431,6 +436,7 @@ func TestCreateMystery_MentionInTheBodyNotifiesTheNamedUser(t *testing.T) {
 	createSpec.Body = req.Body
 
 	m.repo.EXPECT().CreateWithClues(mock.Anything, createSpec).Return(&model.MysteryRow{ID: mysteryID}, nil)
+	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyMysteries).Return().Once()
 	stubActor(m, userID, "Battler")
 	stubMentionOf(m, userID, mentionedID, "alice")
 
@@ -494,14 +500,12 @@ func validUpdateSpec(id uuid.UUID, knox dto.KnoxContract, clues ...spec.NewClue)
 	}
 
 	return spec.MysteryUpdateWithClues{
-		MysteryUpdate: spec.MysteryUpdate{
-			ID:         id,
-			Title:      "Title",
-			Body:       "Body",
-			Difficulty: "medium",
-			Knox:       knox,
-		},
-		Clues: clues,
+		ID:         id,
+		Title:      "Title",
+		Body:       "Body",
+		Difficulty: "medium",
+		Knox:       knox,
+		Clues:      clues,
 	}
 }
 

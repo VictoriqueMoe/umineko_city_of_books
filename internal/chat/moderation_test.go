@@ -110,8 +110,8 @@ func TestUnbanMember_AuditsOnSuccess(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: room, ViewerID: actor}).Return(stubRoom(room), nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: actor}).Return("host", nil)
 	m.banRepo.EXPECT().UnbanWithAudit(mock.Anything, spec.ChatRoomUnban{
-		ChatMemberRef: spec.ChatMemberRef{RoomID: room, UserID: target},
-		ActorID:       actor,
+		RoomID: room, UserID: target,
+		ActorID: actor,
 	}).Return(nil)
 	stubSystemMessage(m, target, spec.NewChatMessage{RoomID: room, SenderID: actor, Body: "A user was unbanned."})
 
@@ -193,8 +193,8 @@ func TestUnbanMember_PostsSystemMessage(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: room, ViewerID: actor}).Return(stubRoom(room), nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: actor}).Return("host", nil)
 	m.banRepo.EXPECT().UnbanWithAudit(mock.Anything, spec.ChatRoomUnban{
-		ChatMemberRef: spec.ChatMemberRef{RoomID: room, UserID: target},
-		ActorID:       actor,
+		RoomID: room, UserID: target,
+		ActorID: actor,
 	}).Return(nil)
 
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{

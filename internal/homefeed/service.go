@@ -57,7 +57,7 @@ func (s *service) echoes(ctx context.Context) []dto.HomeEcho {
 		return s.buildEchoes(ctx), nil
 	}
 
-	echoes, _ := s.cache.Load(ctx, cache.HomeEchoes, load, echoDay())
+	echoes, _ := s.cache.Load(ctx, cache.HomeEchoes.Key(echoDay()), load)
 
 	return echoes
 }

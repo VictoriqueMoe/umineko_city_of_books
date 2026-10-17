@@ -228,8 +228,8 @@ func (s *moderationService) UnbanMember(ctx context.Context, actorID, roomID, ta
 	}
 
 	if err := s.banRepo.UnbanWithAudit(ctx, spec.ChatRoomUnban{
-		ChatMemberRef: spec.ChatMemberRef{RoomID: roomID, UserID: targetID},
-		ActorID:       actorID,
+		RoomID: roomID, UserID: targetID,
+		ActorID: actorID,
 	}); err != nil {
 		return err
 	}

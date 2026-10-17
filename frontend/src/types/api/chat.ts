@@ -118,6 +118,7 @@ export interface ChatMessage {
     reactions: ReactionGroup[];
     sender_nickname?: string;
     sender_member_avatar_url?: string;
+    client_nonce?: string;
 }
 
 export interface ChatMessageListResponse extends PaginationFields {
