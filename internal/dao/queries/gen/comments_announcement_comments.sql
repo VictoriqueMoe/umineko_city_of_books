@@ -57,6 +57,9 @@ SELECT announcement_id FROM announcement_comments WHERE id = $1;
 -- name: GetAnnouncementCommentAuthorID :one
 SELECT user_id FROM announcement_comments WHERE id = $1;
 
+-- name: GetAnnouncementCommentTargetOwner :one
+SELECT COALESCE(author_id, '00000000-0000-0000-0000-000000000000')::uuid AS owner_id FROM announcements WHERE id = $1;
+
 -- name: LikeAnnouncementComment :exec
 INSERT INTO announcement_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING;
 
@@ -80,10 +83,10 @@ FROM announcement_comment_media
 WHERE comment_id = ANY(string_to_array($1::text, ',')::uuid[])
 ORDER BY sort_order;
 
--- name: UpdateAnnouncementCommentMediaURL :exec
+-- name: UpdateAnnouncementCommentMediaURL :execrows
 UPDATE announcement_comment_media SET media_url = $1 WHERE id = $2;
 
--- name: UpdateAnnouncementCommentMediaThumbnail :exec
+-- name: UpdateAnnouncementCommentMediaThumbnail :execrows
 UPDATE announcement_comment_media SET thumbnail_url = $1 WHERE id = $2;
 
 -- name: CollectAnnouncementCommentMediaPaths :many

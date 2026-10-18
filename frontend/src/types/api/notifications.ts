@@ -27,6 +27,7 @@ export type NotificationType =
     | "mystery_gm_away_notif"
     | "mystery_gm_back_notif"
     | "mystery_solved_all"
+    | "mystery_commented"
     | "mystery_comment_reply"
     | "mystery_private_clue"
     | "journal_update"

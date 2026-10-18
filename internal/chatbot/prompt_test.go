@@ -85,12 +85,13 @@ func TestBuildMessages_GameBoardChain(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			postRepo := repository.NewMockPostRepository(t)
+			commentRepo := repository.NewMockCommentRepository(t)
 			for id, row := range tc.rows {
-				postRepo.EXPECT().GetCommentByID(mock.Anything, id).Return(row, nil).Maybe()
+				commentRepo.EXPECT().GetCommentByID(mock.Anything, spec.CommentRef{Kind: spec.CommentKindPost, CommentID: id}).Return(row, nil).Maybe()
 			}
 			postRepo.EXPECT().GetByID(mock.Anything, spec.PostLookup{ID: postID, ViewerID: botID}).Return(nil, nil).Maybe()
 
-			svc := &service{postRepo: postRepo}
+			svc := &service{postRepo: postRepo, commentRepo: commentRepo}
 			j := job{
 				ev: botEvent{
 					Surface:  SurfacePostComment,
@@ -284,7 +285,8 @@ func TestBuildMessages_AlwaysCarriesThePostBeingCommentedOn(t *testing.T) {
 			// given
 			postRepo := repository.NewMockPostRepository(t)
 			postRepo.EXPECT().GetByID(mock.Anything, spec.PostLookup{ID: postID, ViewerID: botID}).Return(post, nil).Once()
-			postRepo.EXPECT().GetCommentByID(mock.Anything, deepest).Return(&model.CommentRow{
+			commentRepo := repository.NewMockCommentRepository(t)
+			commentRepo.EXPECT().GetCommentByID(mock.Anything, spec.CommentRef{Kind: spec.CommentKindPost, CommentID: deepest}).Return(&model.CommentRow{
 				ID:                deepest,
 				EntityID:          postID.String(),
 				UserID:            uuid.New(),
@@ -293,7 +295,7 @@ func TestBuildMessages_AlwaysCarriesThePostBeingCommentedOn(t *testing.T) {
 				AuthorDisplayName: "Kujo",
 			}, nil).Maybe()
 
-			svc := &service{postRepo: postRepo}
+			svc := &service{postRepo: postRepo, commentRepo: commentRepo}
 			j := job{
 				ev: botEvent{
 					Surface:      SurfacePostComment,

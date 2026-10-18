@@ -385,6 +385,17 @@ func (q *Queries) GetFanficCommentMediaBatch(ctx context.Context, dollar_1 strin
 	return items, nil
 }
 
+const getFanficCommentTargetOwner = `-- name: GetFanficCommentTargetOwner :one
+SELECT COALESCE(user_id, '00000000-0000-0000-0000-000000000000')::uuid AS owner_id FROM fanfics WHERE id = $1
+`
+
+func (q *Queries) GetFanficCommentTargetOwner(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, getFanficCommentTargetOwner, id)
+	var owner_id uuid.UUID
+	err := row.Scan(&owner_id)
+	return owner_id, err
+}
+
 const likeFanficComment = `-- name: LikeFanficComment :exec
 INSERT INTO fanfic_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING
 `
@@ -524,7 +535,7 @@ func (q *Queries) UpdateFanficComment(ctx context.Context, arg UpdateFanficComme
 	return result.RowsAffected()
 }
 
-const updateFanficCommentMediaThumbnail = `-- name: UpdateFanficCommentMediaThumbnail :exec
+const updateFanficCommentMediaThumbnail = `-- name: UpdateFanficCommentMediaThumbnail :execrows
 UPDATE fanfic_comment_media SET thumbnail_url = $1 WHERE id = $2
 `
 
@@ -533,12 +544,15 @@ type UpdateFanficCommentMediaThumbnailParams struct {
 	ID           int64
 }
 
-func (q *Queries) UpdateFanficCommentMediaThumbnail(ctx context.Context, arg UpdateFanficCommentMediaThumbnailParams) error {
-	_, err := q.db.ExecContext(ctx, updateFanficCommentMediaThumbnail, arg.ThumbnailUrl, arg.ID)
-	return err
+func (q *Queries) UpdateFanficCommentMediaThumbnail(ctx context.Context, arg UpdateFanficCommentMediaThumbnailParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateFanficCommentMediaThumbnail, arg.ThumbnailUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const updateFanficCommentMediaURL = `-- name: UpdateFanficCommentMediaURL :exec
+const updateFanficCommentMediaURL = `-- name: UpdateFanficCommentMediaURL :execrows
 UPDATE fanfic_comment_media SET media_url = $1 WHERE id = $2
 `
 
@@ -547,7 +561,10 @@ type UpdateFanficCommentMediaURLParams struct {
 	ID       int64
 }
 
-func (q *Queries) UpdateFanficCommentMediaURL(ctx context.Context, arg UpdateFanficCommentMediaURLParams) error {
-	_, err := q.db.ExecContext(ctx, updateFanficCommentMediaURL, arg.MediaUrl, arg.ID)
-	return err
+func (q *Queries) UpdateFanficCommentMediaURL(ctx context.Context, arg UpdateFanficCommentMediaURLParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateFanficCommentMediaURL, arg.MediaUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

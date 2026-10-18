@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 	"strconv"
 
@@ -11,8 +12,10 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/follow"
 	postsvc "umineko_city_of_books/internal/post"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 func (s *Service) getAllPostRoutes() []FSetupRoute {
@@ -27,12 +30,7 @@ func (s *Service) getAllPostRoutes() []FSetupRoute {
 		s.setupDeletePostMedia,
 		s.setupLikePost,
 		s.setupUnlikePost,
-		s.setupCreateComment,
-		s.setupUpdateComment,
-		s.setupDeleteComment,
-		s.setupUploadCommentMedia,
-		s.setupLikeComment,
-		s.setupUnlikeComment,
+		s.setupCreatePostComment,
 		s.setupListUserPosts,
 		s.setupFollowUser,
 		s.setupUnfollowUser,
@@ -51,7 +49,7 @@ func (s *Service) setupListPostFeed(r fiber.Router) {
 }
 
 func (s *Service) setupCreatePost(r fiber.Router) {
-	r.Post("/posts", s.requireAuth(), s.createPost)
+	r.Post("/posts", s.requireAuth(), s.requireEstablished(), s.createPost)
 }
 
 func (s *Service) setupGetPost(r fiber.Router) {
@@ -82,28 +80,8 @@ func (s *Service) setupUnlikePost(r fiber.Router) {
 	r.Delete("/posts/:id/like", s.requireAuth(), s.unlikePost)
 }
 
-func (s *Service) setupCreateComment(r fiber.Router) {
-	r.Post("/posts/:id/comments", s.requireAuth(), s.createComment)
-}
-
-func (s *Service) setupUpdateComment(r fiber.Router) {
-	r.Put("/comments/:id", s.requireAuth(), s.updateComment)
-}
-
-func (s *Service) setupDeleteComment(r fiber.Router) {
-	r.Delete("/comments/:id", s.requireAuth(), s.deleteComment)
-}
-
-func (s *Service) setupUploadCommentMedia(r fiber.Router) {
-	r.Post("/comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadCommentMedia)
-}
-
-func (s *Service) setupLikeComment(r fiber.Router) {
-	r.Post("/comments/:id/like", s.requireAuth(), s.likeComment)
-}
-
-func (s *Service) setupUnlikeComment(r fiber.Router) {
-	r.Delete("/comments/:id/like", s.requireAuth(), s.unlikeComment)
+func (s *Service) setupCreatePostComment(r fiber.Router) {
+	r.Post("/posts/:id/comments", s.requireAuth(), s.requireEstablished(), s.createPostComment)
 }
 
 func (s *Service) setupGetCornerCounts(r fiber.Router) {
@@ -164,12 +142,12 @@ func (s *Service) listPostFeed(ctx fiber.Ctx) error {
 
 func (s *Service) createPost(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
-	req, ok := utils.BindJSON[dto.CreatePostRequest](ctx)
+	req, ok := utils.BindWithMedia[dto.CreatePostRequest](ctx)
 	if !ok {
 		return nil
 	}
 
-	id, err := s.PostService.CreatePost(ctx.Context(), userID, req)
+	id, err := s.PostService.CreatePost(ctx.Context(), userID, req.Payload, req.Media)
 	if err != nil {
 		if utils.MapFilterError(ctx, err) {
 			return nil
@@ -179,6 +157,9 @@ func (s *Service) createPost(ctx fiber.Ctx) error {
 		}
 		if errors.Is(err, postsvc.ErrRateLimited) {
 			return ctx.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": err.Error()})
+		}
+		if utils.IsUploadRejection(err) {
+			return utils.UploadRejected(ctx, err)
 		}
 		return utils.InternalError(ctx, "failed to create post", err)
 	}
@@ -265,7 +246,17 @@ func (s *Service) uploadPostMedia(ctx fiber.Ctx) error {
 
 	result, err := s.PostService.UploadPostMedia(ctx.Context(), postID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader, isSpoilerUpload(ctx))
 	if err != nil {
-		return uploadMediaError(ctx, err, postsvc.ErrNotAuthor)
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.NotFound(ctx, "not found")
+		}
+		if errors.Is(err, postsvc.ErrNotAuthor) {
+			return utils.Forbidden(ctx, postsvc.ErrNotAuthor.Error())
+		}
+		if utils.IsUploadRejection(err) {
+			return utils.UploadRejected(ctx, err)
+		}
+
+		return utils.InternalError(ctx, "failed to upload media", err)
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(result)
 }
@@ -326,72 +317,17 @@ func (s *Service) unlikePost(ctx fiber.Ctx) error {
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
-func (s *Service) createComment(ctx fiber.Ctx) error {
+func (s *Service) createPostComment(ctx fiber.Ctx) error {
 	postID, ok := utils.ParseID(ctx)
 	if !ok {
 		return nil
 	}
 
 	userID := utils.UserID(ctx)
-	req, ok := utils.BindJSON[dto.CreateCommentRequest](ctx)
-	if !ok {
-		return nil
-	}
 
-	id, err := s.PostService.CreateComment(ctx.Context(), postID, userID, req)
-	if err != nil {
-		if utils.MapFilterError(ctx, err) {
-			return nil
-		}
-		if errors.Is(err, block.ErrUserBlocked) {
-			return utils.Forbidden(ctx, "user is blocked")
-		}
-		if errors.Is(err, postsvc.ErrEmptyBody) {
-			return utils.BadRequest(ctx, err.Error())
-		}
-		return utils.InternalError(ctx, "failed to create comment", err)
-	}
-	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
-}
-
-func (s *Service) deleteComment(ctx fiber.Ctx) error {
-	return s.handleDeleteComment(ctx, s.PostService.DeleteComment)
-}
-
-func (s *Service) updateComment(ctx fiber.Ctx) error {
-	id, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-
-	userID := utils.UserID(ctx)
-	req, ok := utils.BindJSON[dto.UpdateCommentRequest](ctx)
-	if !ok {
-		return nil
-	}
-
-	if err := s.PostService.UpdateComment(ctx.Context(), id, userID, req); err != nil {
-		if utils.MapFilterError(ctx, err) {
-			return nil
-		}
-		if errors.Is(err, postsvc.ErrEmptyBody) {
-			return utils.BadRequest(ctx, err.Error())
-		}
-		return utils.InternalError(ctx, "failed to update comment", err)
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
-}
-
-func (s *Service) likeComment(ctx fiber.Ctx) error {
-	return s.handleLikeComment(ctx, s.PostService.LikeComment)
-}
-
-func (s *Service) unlikeComment(ctx fiber.Ctx) error {
-	return s.handleUnlikeComment(ctx, s.PostService.UnlikeComment)
-}
-
-func (s *Service) uploadCommentMedia(ctx fiber.Ctx) error {
-	return handleUploadCommentMedia(ctx, s.PostService.UploadCommentMedia)
+	return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
+		return s.PostService.CreateComment(c, postID, userID, req, files)
+	}, nil)
 }
 
 func (s *Service) listUserPosts(ctx fiber.Ctx) error {

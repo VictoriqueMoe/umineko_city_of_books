@@ -6,13 +6,12 @@ import { makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import { CommentsSection } from "./CommentsSection";
 
-const { likeComment, unlikeComment, deleteComment, updateComment, createComment, uploadMedia } = vi.hoisted(() => ({
+const { likeComment, unlikeComment, deleteComment, updateComment, createComment } = vi.hoisted(() => ({
     likeComment: vi.fn(),
     unlikeComment: vi.fn(),
     deleteComment: vi.fn(),
     updateComment: vi.fn(),
     createComment: vi.fn(),
-    uploadMedia: vi.fn(),
 }));
 
 vi.mock("../../../hooks/mutations/post", () => ({
@@ -21,7 +20,6 @@ vi.mock("../../../hooks/mutations/post", () => ({
     useDeleteComment: () => ({ mutateAsync: deleteComment }),
     useUpdateComment: () => ({ mutateAsync: updateComment }),
     useCreateComment: () => ({ mutateAsync: createComment }),
-    useUploadCommentMedia: () => ({ mutateAsync: uploadMedia }),
 }));
 
 const AUTHOR: User = { id: "user-1", username: "beatrice", display_name: "Beatrice" };
@@ -258,7 +256,7 @@ describe("CommentsSection", () => {
         await user.click(screen.getByRole("button", { name: "Comment" }));
 
         // then
-        expect(createCommentFn).toHaveBeenCalledWith("post-1", "the seventh twilight", undefined);
+        expect(createCommentFn).toHaveBeenCalledWith("post-1", "the seventh twilight", undefined, []);
         await waitFor(() => expect(onChanged).toHaveBeenCalledOnce());
     });
 
@@ -274,6 +272,6 @@ describe("CommentsSection", () => {
         await user.click(screen.getAllByRole("button", { name: "Reply" })[1]);
 
         // then
-        expect(createCommentFn).toHaveBeenCalledWith("post-1", "I reject that", "comment-1");
+        expect(createCommentFn).toHaveBeenCalledWith("post-1", "I reject that", "comment-1", []);
     });
 });

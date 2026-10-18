@@ -37,11 +37,6 @@ type (
 		Audit   audit.NewEntry
 	}
 
-	PostCommentDelete struct {
-		CommentDeletion
-		Audit audit.NewEntry
-	}
-
 	PostLookup struct {
 		ID       uuid.UUID
 		ViewerID uuid.UUID

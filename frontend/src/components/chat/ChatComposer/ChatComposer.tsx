@@ -12,12 +12,13 @@ import type { OutgoingAttachment } from "../../../domain/chat/optimisticSend";
 import { isTimeoutActive } from "../../../domain/chat/roomPolicy";
 import type { User } from "../../../types/api";
 import { GifPicker } from "../GifPicker/GifPicker";
+import { renderRichInline } from "../../richText/richText";
 import styles from "./ChatComposer.module.css";
 
 export interface ReplyTarget {
     id: string;
     senderName: string;
-    bodyPreview: string;
+    body: string;
 }
 
 export interface ChatComposerHandle {
@@ -269,7 +270,7 @@ export function ChatComposer({
                             Replying to <bdi>{replyingTo.senderName}</bdi>
                         </span>
                         <span dir="auto" className={styles.replyPreview}>
-                            {replyingTo.bodyPreview}
+                            {renderRichInline(replyingTo.body)}
                         </span>
                     </div>
                     {onCancelReply && (

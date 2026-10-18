@@ -90,6 +90,33 @@ describe("the mystery board API", () => {
     ];
 
     runRequestCases(cases);
+
+    it("createMystery sends the payload, its images and its attachments in one multipart request", async () => {
+        // given
+        const scene = new File(["x"], "scene.png", { type: "image/png" });
+        const notes = new File(["n"], "notes.txt", { type: "text/plain" });
+
+        // when
+        await api.createMystery(mysteryPayload, { media: [{ file: scene, isSpoiler: true }], attachments: [notes] });
+
+        // then
+        expect(postMock).not.toHaveBeenCalled();
+        const [path, formData] = postFormDataMock.mock.calls[0];
+        expect(path).toBe("/mysteries");
+        expect(JSON.parse(formData.get("payload") as string)).toEqual(mysteryPayload);
+        expect(formData.getAll("media")).toEqual([scene]);
+        expect(formData.get("spoiler_indexes")).toBe("0");
+        expect(formData.getAll("attachments")).toEqual([notes]);
+    });
+
+    it("createMystery keeps the JSON body when nothing is attached", async () => {
+        // when
+        await api.createMystery(mysteryPayload, { media: [], attachments: [] });
+
+        // then
+        expect(postFormDataMock).not.toHaveBeenCalled();
+        expect(postMock).toHaveBeenCalledWith("/mysteries", mysteryPayload);
+    });
 });
 
 describe("mystery attempts and votes", () => {

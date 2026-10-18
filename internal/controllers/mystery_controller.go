@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 	"strconv"
 
@@ -11,9 +12,14 @@ import (
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	mysterysvc "umineko_city_of_books/internal/mystery"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
+)
+
+const (
+	mysteryAttachmentsField = "attachments"
 )
 
 func (s *Service) getAllMysteryRoutes() []FSetupRoute {
@@ -33,11 +39,6 @@ func (s *Service) getAllMysteryRoutes() []FSetupRoute {
 		s.setupMarkPermanentlySolved,
 		s.setupAddClue,
 		s.setupCreateMysteryComment,
-		s.setupUpdateMysteryComment,
-		s.setupDeleteMysteryComment,
-		s.setupLikeMysteryComment,
-		s.setupUnlikeMysteryComment,
-		s.setupUploadMysteryCommentMedia,
 		s.setupUploadMysteryAttachment,
 		s.setupDeleteMysteryAttachment,
 		s.setupUploadMysteryMedia,
@@ -58,7 +59,7 @@ func (s *Service) setupGetMystery(r fiber.Router) {
 }
 
 func (s *Service) setupCreateMystery(r fiber.Router) {
-	r.Post("/mysteries", s.requireAuth(), s.createMystery)
+	r.Post("/mysteries", s.requireAuth(), s.requireEstablished(), s.createMystery)
 }
 
 func (s *Service) setupUpdateMystery(r fiber.Router) {
@@ -141,18 +142,21 @@ func (s *Service) getMystery(ctx fiber.Ctx) error {
 func (s *Service) createMystery(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
-	req, ok := utils.BindJSON[dto.CreateMysteryRequest](ctx)
+	req, ok := utils.BindWithMedia[dto.CreateMysteryRequest](ctx, mysteryAttachmentsField)
 	if !ok {
 		return nil
 	}
 
-	id, err := s.MysteryService.CreateMystery(ctx.Context(), userID, req)
+	id, err := s.MysteryService.CreateMystery(ctx.Context(), userID, req.Payload, req.Media, req.Files[mysteryAttachmentsField])
 	if err != nil {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
-		if errors.Is(err, mysterysvc.ErrEmptyTitle) {
+		if errors.Is(err, mysterysvc.ErrEmptyTitle) || errors.Is(err, mysterysvc.ErrDuplicateAttachment) {
 			return utils.BadRequest(ctx, err.Error())
+		}
+		if utils.IsUploadRejection(err) {
+			return utils.UploadRejected(ctx, err)
 		}
 		return utils.InternalError(ctx, "failed to create mystery", err)
 	}
@@ -404,27 +408,7 @@ func (s *Service) listUserMysteries(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupCreateMysteryComment(r fiber.Router) {
-	r.Post("/mysteries/:id/comments", s.requireAuth(), s.createMysteryComment)
-}
-
-func (s *Service) setupUpdateMysteryComment(r fiber.Router) {
-	r.Put("/mystery-comments/:id", s.requireAuth(), s.updateMysteryComment)
-}
-
-func (s *Service) setupDeleteMysteryComment(r fiber.Router) {
-	r.Delete("/mystery-comments/:id", s.requireAuth(), s.deleteMysteryComment)
-}
-
-func (s *Service) setupLikeMysteryComment(r fiber.Router) {
-	r.Post("/mystery-comments/:id/like", s.requireAuth(), s.likeMysteryComment)
-}
-
-func (s *Service) setupUnlikeMysteryComment(r fiber.Router) {
-	r.Delete("/mystery-comments/:id/like", s.requireAuth(), s.unlikeMysteryComment)
-}
-
-func (s *Service) setupUploadMysteryCommentMedia(r fiber.Router) {
-	r.Post("/mystery-comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadMysteryCommentMedia)
+	r.Post("/mysteries/:id/comments", s.requireAuth(), s.requireEstablished(), s.createMysteryComment)
 }
 
 func (s *Service) createMysteryComment(ctx fiber.Ctx) error {
@@ -434,77 +418,12 @@ func (s *Service) createMysteryComment(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	req, ok := utils.BindJSON[dto.CreateCommentRequest](ctx)
-	if !ok {
-		return nil
-	}
-
-	id, err := s.MysteryService.CreateComment(ctx.Context(), mysteryID, userID, req)
-	if err != nil {
-		if utils.MapFilterError(ctx, err) {
-			return nil
-		}
-		if errors.Is(err, mysterysvc.ErrEmptyBody) {
-			return utils.BadRequest(ctx, err.Error())
-		}
-		if errors.Is(err, mysterysvc.ErrNotSolved) {
-			return utils.Forbidden(ctx, err.Error())
-		}
-		if errors.Is(err, block.ErrUserBlocked) {
-			return utils.Forbidden(ctx, "user is blocked")
-		}
-		if errors.Is(err, mysterysvc.ErrNotFound) {
-			return utils.NotFound(ctx, "mystery not found")
-		}
-		return utils.InternalError(ctx, "failed to create comment", err)
-	}
-	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
-}
-
-func (s *Service) updateMysteryComment(ctx fiber.Ctx) error {
-	id, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	req, ok := utils.BindJSON[dto.UpdateCommentRequest](ctx)
-	if !ok {
-		return nil
-	}
-
-	if err := s.MysteryService.UpdateComment(ctx.Context(), id, userID, req); err != nil {
-		if utils.MapFilterError(ctx, err) {
-			return nil
-		}
-		if errors.Is(err, mysterysvc.ErrEmptyBody) {
-			return utils.BadRequest(ctx, err.Error())
-		}
-		if errors.Is(err, mysterysvc.ErrNotFound) {
-			return utils.NotFound(ctx, "comment not found")
-		}
-		if errors.Is(err, dao.ErrNotFound) {
-			return utils.Forbidden(ctx, "cannot update this comment")
-		}
-		return utils.InternalError(ctx, "failed to update comment", err)
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
-}
-
-func (s *Service) deleteMysteryComment(ctx fiber.Ctx) error {
-	return s.handleDeleteComment(ctx, s.MysteryService.DeleteComment)
-}
-
-func (s *Service) likeMysteryComment(ctx fiber.Ctx) error {
-	return s.handleLikeComment(ctx, s.MysteryService.LikeComment)
-}
-
-func (s *Service) unlikeMysteryComment(ctx fiber.Ctx) error {
-	return s.handleUnlikeComment(ctx, s.MysteryService.UnlikeComment)
-}
-
-func (s *Service) uploadMysteryCommentMedia(ctx fiber.Ctx) error {
-	return handleUploadCommentMedia(ctx, s.MysteryService.UploadCommentMedia)
+	return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
+		return s.MysteryService.CreateComment(c, mysteryID, userID, req, files)
+	}, []errorResponse{
+		{err: mysterysvc.ErrNotSolved, respond: utils.Forbidden},
+		{err: mysterysvc.ErrNotFound, respond: utils.NotFound, message: "mystery not found"},
+	})
 }
 
 func (s *Service) setupUploadMysteryAttachment(r fiber.Router) {

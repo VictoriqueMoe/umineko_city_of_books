@@ -13,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/sidebar"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -154,7 +155,7 @@ func TestObserveForBot(t *testing.T) {
 				if tc.parentAuthorSet {
 					row = &model.CommentRow{ID: *parentID, EntityID: postID.String(), UserID: parentAuthorID}
 				}
-				m.postRepo.EXPECT().GetCommentByID(mock.Anything, *parentID).Return(row, nil).Once()
+				m.commentRepo.EXPECT().GetCommentByID(mock.Anything, spec.CommentRef{Kind: spec.CommentKindPost, CommentID: *parentID}).Return(row, nil).Once()
 			}
 
 			if tc.expectMentions {
@@ -204,7 +205,7 @@ func TestObserveForBot_ParentOnAnotherPostIsIgnored(t *testing.T) {
 	commentID := uuid.New()
 
 	m.userRepo.EXPECT().GetByID(mock.Anything, authorID).Return(&model.User{ID: authorID}, nil).Once()
-	m.postRepo.EXPECT().GetCommentByID(mock.Anything, parentID).
+	m.commentRepo.EXPECT().GetCommentByID(mock.Anything, spec.CommentRef{Kind: spec.CommentKindPost, CommentID: parentID}).
 		Return(&model.CommentRow{ID: parentID, EntityID: otherPostID.String(), UserID: uuid.New()}, nil).Once()
 
 	// when
@@ -250,18 +251,15 @@ func TestCreateComment_EmitsBotTrigger(t *testing.T) {
 
 	postID := uuid.New()
 	userID := uuid.New()
-	authorID := uuid.New()
 	botID := uuid.New()
+	req := dto.CreateCommentRequest{Body: "  @beatrice hello  "}
 
-	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil).Maybe()
-	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
-	m.postComments.EXPECT().CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: postID, ParentID: nil, UserID: userID, Body: "@beatrice hello"}).Return(&model.CommentRow{ID: uuid.New()}, nil)
-	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil).Maybe()
-	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"beatrice"}).Return([]model.User{{ID: botID}}, nil).Maybe()
-	expectBackgroundSocial(m)
+	m.commentSvc.EXPECT().Create(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindPost, ID: postID}, userID, req, []upload.FileUpload(nil)).Return(uuid.New(), nil).Once()
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil).Once()
+	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"beatrice"}).Return([]model.User{{ID: botID}}, nil).Once()
 
 	// when
-	id, err := svc.CreateComment(context.Background(), postID, userID, dto.CreateCommentRequest{Body: "@beatrice hello"})
+	id, err := svc.CreateComment(context.Background(), postID, userID, req, nil)
 
 	// then
 	require.NoError(t, err)
@@ -276,7 +274,24 @@ func TestCreateComment_EmitsBotTrigger(t *testing.T) {
 	require.Len(t, events, 1)
 	assert.Equal(t, postID, events[0].PostID)
 	assert.Equal(t, id, *events[0].CommentID)
+	assert.Equal(t, "@beatrice hello", events[0].Body, "the bot reads the trimmed body the comment was stored with")
 	assert.Contains(t, events[0].MentionedIDs, botID)
+}
+
+func TestCreateComment_ARefusedCommentSummonsNoBot(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	obs := newCaptureObserver()
+	svc.SetCommentObserver(obs)
+	boom := errors.New("boom")
+	m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(uuid.Nil, boom).Once()
+
+	// when
+	_, err := svc.CreateComment(context.Background(), uuid.New(), uuid.New(), dto.CreateCommentRequest{Body: "@beatrice hello"}, nil)
+
+	// then the strict user mock proves the trigger never started
+	require.ErrorIs(t, err, boom)
+	assert.Empty(t, obs.captured())
 }
 
 func TestCreatePost_EmitsBotTriggerOutsideSuggestions(t *testing.T) {
@@ -307,7 +322,7 @@ func TestCreatePost_EmitsBotTriggerOutsideSuggestions(t *testing.T) {
 			expectBackgroundSocial(m)
 
 			// when
-			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: string(tc.corner), Body: "@beatrice hello"})
+			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: string(tc.corner), Body: "@beatrice hello"}, nil)
 
 			// then
 			require.NoError(t, err)

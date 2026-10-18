@@ -11,7 +11,6 @@ import {
     useUnlikeShipComment,
     useUpdateShip,
     useUpdateShipComment,
-    useUploadShipCommentMedia,
     useUploadShipImageById,
     useVoteShip,
 } from "./ship";
@@ -30,7 +29,6 @@ const commentMocks = vi.hoisted(() => ({
     likeShipComment: vi.fn(),
     unlikeShipComment: vi.fn(),
     updateShipComment: vi.fn(),
-    uploadShipCommentMedia: vi.fn(),
 }));
 
 vi.mock("../../api/endpoints/ship", () => mocks);
@@ -61,7 +59,6 @@ beforeEach(() => {
     commentMocks.unlikeShipComment.mockResolvedValue(undefined);
     mocks.updateShip.mockResolvedValue(undefined);
     commentMocks.updateShipComment.mockResolvedValue(undefined);
-    commentMocks.uploadShipCommentMedia.mockResolvedValue({ id: 9, media_url: "/m/9.png", media_type: "image" });
     mocks.uploadShipImage.mockResolvedValue({ image_url: "/ships/33.png" });
     mocks.voteShip.mockResolvedValue(undefined);
 });
@@ -231,7 +228,12 @@ describe("useCreateShipComment", () => {
 
         // then
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
-        expect(commentMocks.createShipComment).toHaveBeenCalledWith(shipId, "this pairing is my favourite", undefined);
+        expect(commentMocks.createShipComment).toHaveBeenCalledWith(
+            shipId,
+            "this pairing is my favourite",
+            undefined,
+            undefined,
+        );
         expect(invalidate).toHaveBeenCalledWith({ queryKey: ["ship"] });
     });
 
@@ -246,7 +248,22 @@ describe("useCreateShipComment", () => {
 
         // then
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
-        expect(commentMocks.createShipComment).toHaveBeenCalledWith(shipId, "agreed", commentId);
+        expect(commentMocks.createShipComment).toHaveBeenCalledWith(shipId, "agreed", commentId, undefined);
+    });
+
+    it("sends the staged media with the comment in the same request", async () => {
+        // given
+        const { result } = setup(() => useCreateShipComment(shipId));
+        const media = [{ file: new File(["fanart"], "art.png", { type: "image/png" }), isSpoiler: false }];
+
+        // when
+        act(() => {
+            result.current.mutate({ body: "fan art", media });
+        });
+
+        // then
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+        expect(commentMocks.createShipComment).toHaveBeenCalledWith(shipId, "fan art", undefined, media);
     });
 });
 
@@ -315,40 +332,5 @@ describe("useUnlikeShipComment", () => {
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
         expect(commentMocks.unlikeShipComment).toHaveBeenCalledWith(commentId);
         expect(invalidate).toHaveBeenCalledWith({ queryKey: ["ship"] });
-    });
-});
-
-describe("useUploadShipCommentMedia", () => {
-    it("uploads the file against the comment it is given and returns the stored media", async () => {
-        // given
-        const { result, invalidate } = setup(() => useUploadShipCommentMedia(shipId));
-        const file = new File(["fanart"], "art.png", { type: "image/png" });
-
-        // when
-        act(() => {
-            result.current.mutate({ commentId, file });
-        });
-
-        // then
-        await waitFor(() => expect(result.current.isSuccess).toBe(true));
-        expect(commentMocks.uploadShipCommentMedia).toHaveBeenCalledWith(commentId, file);
-        expect(result.current.data).toEqual({ id: 9, media_url: "/m/9.png", media_type: "image" });
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["ship"] });
-    });
-
-    it("leaves the cached ships untouched when the upload is rejected", async () => {
-        // given
-        commentMocks.uploadShipCommentMedia.mockRejectedValue(new Error("file too large"));
-        const { result, invalidate } = setup(() => useUploadShipCommentMedia(shipId));
-        const file = new File(["fanart"], "art.png", { type: "image/png" });
-
-        // when
-        act(() => {
-            result.current.mutate({ commentId, file });
-        });
-
-        // then
-        await waitFor(() => expect(result.current.isError).toBe(true));
-        expect(invalidate).not.toHaveBeenCalled();
     });
 });

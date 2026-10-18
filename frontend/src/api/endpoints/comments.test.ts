@@ -1,8 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "./comments";
+import type { MediaUpload } from "../../types/api";
 import { deleteMock, lastFormData, postFormDataMock, postMock, putMock, resetTransports } from "./testHarness";
 
-type CommentCreate = (parentId: string, body: string, replyToId?: string) => Promise<{ id: string }>;
+type CommentCreate = (
+    parentId: string,
+    body: string,
+    replyToId?: string,
+    media?: readonly MediaUpload[],
+) => Promise<{ id: string }>;
 
 interface CommentFamily {
     family: string;
@@ -14,7 +20,6 @@ interface CommentFamily {
     remove: (id: string) => Promise<void>;
     like: (id: string) => Promise<void>;
     unlike: (id: string) => Promise<void>;
-    uploadMedia: (commentId: string, file: File) => Promise<unknown>;
 }
 
 vi.mock("../client", async importOriginal => {
@@ -45,7 +50,6 @@ const families: CommentFamily[] = [
         remove: api.deleteComment,
         like: api.likeComment,
         unlike: api.unlikeComment,
-        uploadMedia: api.uploadCommentMedia,
     },
     {
         family: "art",
@@ -57,7 +61,6 @@ const families: CommentFamily[] = [
         remove: api.deleteArtComment,
         like: api.likeArtComment,
         unlike: api.unlikeArtComment,
-        uploadMedia: api.uploadArtCommentMedia,
     },
     {
         family: "mysteries",
@@ -69,7 +72,6 @@ const families: CommentFamily[] = [
         remove: api.deleteMysteryComment,
         like: api.likeMysteryComment,
         unlike: api.unlikeMysteryComment,
-        uploadMedia: api.uploadMysteryCommentMedia,
     },
     {
         family: "secrets",
@@ -81,7 +83,6 @@ const families: CommentFamily[] = [
         remove: api.deleteSecretComment,
         like: api.likeSecretComment,
         unlike: api.unlikeSecretComment,
-        uploadMedia: api.uploadSecretCommentMedia,
     },
     {
         family: "fanfics",
@@ -93,7 +94,6 @@ const families: CommentFamily[] = [
         remove: api.deleteFanficComment,
         like: api.likeFanficComment,
         unlike: api.unlikeFanficComment,
-        uploadMedia: api.uploadFanficCommentMedia,
     },
     {
         family: "announcements",
@@ -105,7 +105,6 @@ const families: CommentFamily[] = [
         remove: api.deleteAnnouncementComment,
         like: api.likeAnnouncementComment,
         unlike: api.unlikeAnnouncementComment,
-        uploadMedia: api.uploadAnnouncementCommentMedia,
     },
     {
         family: "journals",
@@ -117,7 +116,6 @@ const families: CommentFamily[] = [
         remove: api.deleteJournalComment,
         like: api.likeJournalComment,
         unlike: api.unlikeJournalComment,
-        uploadMedia: api.uploadJournalCommentMedia,
     },
     {
         family: "ships",
@@ -129,7 +127,6 @@ const families: CommentFamily[] = [
         remove: api.deleteShipComment,
         like: api.likeShipComment,
         unlike: api.unlikeShipComment,
-        uploadMedia: api.uploadShipCommentMedia,
     },
     {
         family: "ocs",
@@ -141,7 +138,6 @@ const families: CommentFamily[] = [
         remove: api.deleteOCComment,
         like: api.likeOCComment,
         unlike: api.unlikeOCComment,
-        uploadMedia: api.uploadOCCommentMedia,
     },
 ];
 
@@ -189,35 +185,65 @@ describe("the comment family table", () => {
 
 describe("the comment endpoint factory", () => {
     it.each(families)(
-        "$family comments create, update, delete, like, unlike and upload against their own paths",
+        "$family comments create, update, delete, like and unlike against their own paths",
         async family => {
             // given
-            const file = new File(["x"], "comment.png", { type: "image/png" });
+            const parentId = "parent-1";
 
             // when
             if (family.create) {
-                await family.create("parent-1", "lovely");
+                await family.create(parentId, "lovely");
             }
             await family.update("c-1", "on second thoughts");
             await family.remove("c-1");
             await family.like("c-1");
             await family.unlike("c-1");
-            await family.uploadMedia("c-1", file);
 
             // then
             if (family.create) {
                 expect(postMock.mock.calls[0]).toStrictEqual([
-                    `${family.parentPath}/parent-1/comments`,
+                    `${family.parentPath}/${parentId}/comments`,
                     { body: "lovely", parent_id: undefined },
                 ]);
             }
             expect(putMock.mock.lastCall).toStrictEqual([`${family.commentPath}/c-1`, { body: "on second thoughts" }]);
             expect(postMock.mock.lastCall).toStrictEqual([`${family.commentPath}/c-1/like`, family.likeBody]);
             expect(deleteMock.mock.calls).toEqual([[`${family.commentPath}/c-1`], [`${family.commentPath}/c-1/like`]]);
-            expect(postFormDataMock.mock.calls[0][0]).toBe(`${family.commentPath}/c-1/media`);
-            expect(lastFormData().get("media")).toBe(file);
+            expect(postFormDataMock).not.toHaveBeenCalled();
         },
     );
+
+    it.each(creatable)("$family comments send the text and every file in one multipart request", async family => {
+        // given
+        const first = new File(["x"], "first.png", { type: "image/png" });
+        const second = new File(["y"], "second.png", { type: "image/png" });
+
+        // when
+        await family.create("parent-1", "", "reply-to-1", [
+            { file: first, isSpoiler: false },
+            { file: second, isSpoiler: true },
+        ]);
+
+        // then
+        expect(postMock).not.toHaveBeenCalled();
+        expect(postFormDataMock).toHaveBeenCalledOnce();
+        expect(postFormDataMock.mock.calls[0][0]).toBe(`${family.parentPath}/parent-1/comments`);
+        expect(JSON.parse(lastFormData().get("payload") as string)).toEqual({ body: "", parent_id: "reply-to-1" });
+        expect(lastFormData().getAll("media")).toEqual([first, second]);
+        expect(lastFormData().get("spoiler_indexes")).toBe("1");
+    });
+
+    it.each(creatable)("$family comments keep the JSON body when no file is staged", async family => {
+        // when
+        await family.create("parent-1", "words only", undefined, []);
+
+        // then
+        expect(postFormDataMock).not.toHaveBeenCalled();
+        expect(postMock.mock.lastCall).toStrictEqual([
+            `${family.parentPath}/parent-1/comments`,
+            { body: "words only", parent_id: undefined },
+        ]);
+    });
 
     it.each(creatable)("$family comments carry the parent id of a reply", async family => {
         // when

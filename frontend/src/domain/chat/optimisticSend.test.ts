@@ -51,7 +51,7 @@ describe("createPendingSend", () => {
     it("keeps everything the viewer sent, pairs each attachment with its preview and starts as sending", () => {
         // given
         const file = new File(["portrait"], "beatrice.png", { type: "image/png" });
-        const replyTo = { id: "m-earlier", senderName: "Battler", bodyPreview: "an earlier claim" };
+        const replyTo = { id: "m-earlier", senderName: "Battler", body: "an earlier claim" };
 
         // when
         const pending = createPendingSend({
@@ -464,7 +464,7 @@ describe("pendingPreview", () => {
         const pending = makePendingSend({
             nonce: NONCE_A,
             body: "look",
-            replyTo: { id: "m-earlier", senderName: "Battler", bodyPreview: "an earlier claim" },
+            replyTo: { id: "m-earlier", senderName: "Battler", body: "an earlier claim" },
             attachments: [
                 { file: image, spoiler: false, previewUrl: "blob:image" },
                 { file: clip, spoiler: true, previewUrl: "blob:clip" },
@@ -481,7 +481,7 @@ describe("pendingPreview", () => {
             sender: viewer,
             body: "look",
             client_nonce: NONCE_A,
-            reply_to: { id: "m-earlier", sender_name: "Battler", body_preview: "an earlier claim" },
+            reply_to: { id: "m-earlier", sender_name: "Battler", body: "an earlier claim" },
             media: [
                 { id: 0, media_url: "blob:image", media_type: "image", filename: "beatrice.png", is_spoiler: false },
                 { id: 1, media_url: "blob:clip", media_type: "video", filename: "cat.mp4", is_spoiler: true },

@@ -121,7 +121,7 @@ func TestMessageRowToResponse_ReplyPreview(t *testing.T) {
 			row:  model.ChatMessageRow{ID: uuid.New(), RoomID: uuid.New(), SenderID: uuid.New(), Body: "hi"},
 		},
 		{
-			name: "reply body over 140 runes is clamped with an ellipsis",
+			name: "a long reply body is carried whole, so its markup is never cut",
 			row: model.ChatMessageRow{
 				ID:                uuid.New(),
 				RoomID:            uuid.New(),
@@ -130,13 +130,13 @@ func TestMessageRowToResponse_ReplyPreview(t *testing.T) {
 				ReplyToID:         &replyID,
 				ReplyToSenderID:   &replySenderID,
 				ReplyToSenderName: new("Sender"),
-				ReplyToBody:       new(strings.Repeat("x", 200)),
+				ReplyToBody:       new("||" + strings.Repeat("x", 200) + "||"),
 			},
 			wantReply: &dto.ChatMessageReplyPreview{
-				ID:          replyID,
-				SenderID:    replySenderID,
-				SenderName:  "Sender",
-				BodyPreview: strings.Repeat("x", 140) + "...",
+				ID:         replyID,
+				SenderID:   replySenderID,
+				SenderName: "Sender",
+				Body:       "||" + strings.Repeat("x", 200) + "||",
 			},
 		},
 	}

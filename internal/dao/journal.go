@@ -28,10 +28,7 @@ type (
 		Delete(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error
 		CollectMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)
-		CollectCommentMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)
-		CollectSingleCommentMediaPaths(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error)
 		ListEntryIDs(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)
-		ListEntryCommentIDs(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)
 		GetAuthorID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
 		GetTitle(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (string, error)
 		IsArchived(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (bool, error)
@@ -54,24 +51,7 @@ type (
 		GetEntryByID(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) (*model.JournalEntryRow, error)
 		ListEntries(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx) ([]model.JournalEntrySummaryRow, error)
 		GetNextEntryNumber(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx) (int, error)
-		GetEntryJournalID(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
 		GetEntryAuthorID(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
-
-		CreateComment(ctx context.Context, s spec.NewJournalComment, tx ...*sql.Tx) (*model.CommentRow, error)
-		UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error
-		DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error
-		GetComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error)
-		GetEntryComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error)
-		GetCommentEntityID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
-		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
-		GetCommentEntryNumber(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (*int, error)
-		LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
-		UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
-
-		AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)
-		UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
-		UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
-		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)
 
 		AddMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)
 		UpdateMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
@@ -83,7 +63,6 @@ type (
 	journalDAO struct {
 		db *sql.DB
 		*ownedDAO
-		*commentDAO[uuid.UUID]
 		*mediaDAO
 	}
 
@@ -190,6 +169,7 @@ func toJournalCommentRow(row journalCommentJoinRow) model.CommentRow {
 		AuthorDisplayName: row.DisplayName,
 		AuthorAvatarURL:   row.AvatarUrl,
 		AuthorRole:        row.AuthorRole,
+		AuthorBanned:      row.AuthorBanned,
 		LikeCount:         int(row.LikeCount),
 		UserLiked:         row.UserLiked,
 	}
@@ -366,15 +346,6 @@ func (r *journalDAO) ListEntryIDs(ctx context.Context, journalID uuid.UUID, tx .
 	ids, err := genQueries(r.db, tx).ListJournalEntryIDs(ctx, journalID)
 	if err != nil {
 		return nil, fmt.Errorf("list journal entry ids: %w", err)
-	}
-
-	return ids, nil
-}
-
-func (r *journalDAO) ListEntryCommentIDs(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	ids, err := genQueries(r.db, tx).ListJournalEntryCommentIDs(ctx, entryID)
-	if err != nil {
-		return nil, fmt.Errorf("list entry comment ids: %w", err)
 	}
 
 	return ids, nil
@@ -667,18 +638,6 @@ func (r *journalDAO) GetNextEntryNumber(ctx context.Context, journalID uuid.UUID
 	return int(next), nil
 }
 
-func (r *journalDAO) GetEntryJournalID(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
-	id, err := genQueries(r.db, tx).GetJournalEntryJournalID(ctx, entryID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return uuid.Nil, fmt.Errorf("get entry journal id: %w", ErrNotFound)
-	}
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("get entry journal id: %w", err)
-	}
-
-	return id, nil
-}
-
 func (r *journalDAO) GetEntryAuthorID(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	userID, err := genQueries(r.db, tx).GetJournalEntryAuthorID(ctx, entryID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -689,111 +648,4 @@ func (r *journalDAO) GetEntryAuthorID(ctx context.Context, entryID uuid.UUID, tx
 	}
 
 	return userID, nil
-}
-
-func (r *journalDAO) CreateComment(ctx context.Context, s spec.NewJournalComment, tx ...*sql.Tx) (*model.CommentRow, error) {
-	created, err := genQueries(r.db, tx).CreateJournalCommentWithEntry(ctx, sqlcgen.CreateJournalCommentWithEntryParams{
-		JournalID: s.JournalID,
-		EntryID:   s.EntryID,
-		ParentID:  s.ParentID,
-		UserID:    s.UserID,
-		Body:      s.Body,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("create journal comment: %w", err)
-	}
-
-	comment := toJournalCommentRow(journalCommentJoinRow{
-		ID:          created.ID,
-		EntityID:    created.EntityID,
-		EntryID:     created.EntryID,
-		ParentID:    created.ParentID,
-		UserID:      created.UserID,
-		Body:        created.Body,
-		CreatedAt:   created.CreatedAt,
-		UpdatedAt:   created.UpdatedAt,
-		Username:    created.Username,
-		DisplayName: created.DisplayName,
-		AvatarUrl:   created.AvatarUrl,
-		AuthorRole:  created.AuthorRole,
-		LikeCount:   created.LikeCount,
-		UserLiked:   created.UserLiked,
-	})
-	comment.AuthorBanned = created.AuthorBanned
-
-	return &comment, nil
-}
-
-func (r *journalDAO) GetComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error) {
-	queries := genQueries(r.db, tx)
-	exclude := joinUUIDs(q.ExcludeUserIDs)
-
-	total, err := queries.CountJournalRootComments(ctx, sqlcgen.CountJournalRootCommentsParams{
-		JournalID: q.TargetID,
-		Column2:   exclude,
-	})
-	if err != nil {
-		return nil, 0, fmt.Errorf("count journal comments: %w", err)
-	}
-
-	rows, err := queries.ListJournalRootComments(ctx, sqlcgen.ListJournalRootCommentsParams{
-		UserID:    q.ViewerID,
-		JournalID: q.TargetID,
-		Column3:   exclude,
-		Limit:     int32(q.Limit),
-		Offset:    int32(q.Offset),
-	})
-	if err != nil {
-		return nil, 0, fmt.Errorf("get journal comments: %w", err)
-	}
-
-	var comments []model.CommentRow
-	for _, row := range rows {
-		comments = append(comments, toJournalCommentRow(row))
-	}
-
-	return comments, int(total), nil
-}
-
-func (r *journalDAO) GetEntryComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error) {
-	queries := genQueries(r.db, tx)
-	exclude := joinUUIDs(q.ExcludeUserIDs)
-
-	total, err := queries.CountJournalEntryComments(ctx, sqlcgen.CountJournalEntryCommentsParams{
-		Column1: q.TargetID,
-		Column2: exclude,
-	})
-	if err != nil {
-		return nil, 0, fmt.Errorf("count entry comments: %w", err)
-	}
-
-	rows, err := queries.ListJournalEntryComments(ctx, sqlcgen.ListJournalEntryCommentsParams{
-		UserID:  q.ViewerID,
-		Column2: q.TargetID,
-		Column3: exclude,
-		Limit:   int32(q.Limit),
-		Offset:  int32(q.Offset),
-	})
-	if err != nil {
-		return nil, 0, fmt.Errorf("get entry comments: %w", err)
-	}
-
-	var comments []model.CommentRow
-	for _, row := range rows {
-		comments = append(comments, toJournalCommentRow(journalCommentJoinRow(row)))
-	}
-
-	return comments, int(total), nil
-}
-
-func (r *journalDAO) GetCommentEntryNumber(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (*int, error) {
-	entryNumber, err := genQueries(r.db, tx).GetJournalCommentEntryNumber(ctx, commentID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get comment entry number: %w", err)
-	}
-
-	return journalIntPtr(entryNumber), nil
 }

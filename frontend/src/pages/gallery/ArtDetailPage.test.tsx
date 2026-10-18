@@ -27,7 +27,6 @@ vi.mock("../../hooks/mutations/art", () => ({
     useDeleteArtComment: () => ({ mutateAsync: vi.fn() }),
     useLikeArtComment: () => ({ mutateAsync: vi.fn() }),
     useUnlikeArtComment: () => ({ mutateAsync: vi.fn() }),
-    useUploadArtCommentMedia: () => ({ mutateAsync: vi.fn() }),
 }));
 
 vi.mock("react-router", async importOriginal => {

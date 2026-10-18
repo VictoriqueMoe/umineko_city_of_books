@@ -36,6 +36,9 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 	scheduleJob(stop, wg, "clean orphaned uploads", "cleaned orphaned upload files", 24*time.Hour, func() (int, error) {
 		return upload.CleanOrphanedFiles(context.Background(), repos.Upload, repos.StoredFile, svc.storage)
 	})
+	scheduleJob(stop, wg, "flush local fallback uploads", "flushed local fallback uploads to the active storage backend", 5*time.Minute, func() (int, error) {
+		return svc.storage.FlushFallback(context.Background())
+	})
 	scheduleJob(stop, wg, "clean abandoned upload staging", "cleaned abandoned upload staging directories", time.Hour, func() (int, error) {
 		return svc.upload.CleanStaging(time.Hour)
 	})
@@ -119,7 +122,13 @@ func registerValidators(settingsSvc settings.Service, svc *services, repos *repo
 	settingsSvc.RegisterValidator(config.SettingChatbotModel, chatbot.ModelValidator(svc.openai))
 	settingsSvc.RegisterValidator(config.SettingChatbotOptInRole, chatbot.OptInRoleValidator(repos.VanityRole, repos.Permission))
 	settingsSvc.RegisterValidator(config.SettingCrawlerFeeds, feed.Validator(svc.crawlerFeeds))
-	settingsSvc.RegisterValidator(config.SettingValkeyURL, engines.ProbeURL)
+	settingsSvc.RegisterValidator(config.SettingValkeyURL, func(ctx context.Context, value string) error {
+		if err := engines.ProbeURL(ctx, value); err != nil {
+			return &settings.RejectedError{Err: err}
+		}
+
+		return nil
+	})
 	settingsSvc.RegisterBatchValidator(storage.SettingsValidator(repos.StoredFile, storageengines.ProbeS3))
 }
 

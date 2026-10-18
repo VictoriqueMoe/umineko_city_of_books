@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"io"
 	"regexp"
 	"strings"
 	"sync"
@@ -103,14 +102,6 @@ type (
 		MentionedIDs  map[uuid.UUID]struct{}
 		ReplyToID     *uuid.UUID
 		ReplyToAuthor uuid.UUID
-	}
-
-	FileUpload struct {
-		ContentType string
-		Filename    string
-		Size        int64
-		IsSpoiler   bool
-		Open        func() (io.ReadCloser, error)
 	}
 )
 
@@ -631,20 +622,11 @@ func replyPreviewFromRow(row model.ChatMessageRow) *dto.ChatMessageReplyPreview 
 	}
 
 	return &dto.ChatMessageReplyPreview{
-		ID:          *row.ReplyToID,
-		SenderID:    *row.ReplyToSenderID,
-		SenderName:  *row.ReplyToSenderName,
-		BodyPreview: clampReplyPreview(*row.ReplyToBody),
+		ID:         *row.ReplyToID,
+		SenderID:   *row.ReplyToSenderID,
+		SenderName: *row.ReplyToSenderName,
+		Body:       *row.ReplyToBody,
 	}
-}
-
-func clampReplyPreview(body string) string {
-	preview := text.ClampRunes(body, 140)
-	if len(preview) != len(body) {
-		preview += "..."
-	}
-
-	return preview
 }
 
 func toDTOReactions(groups []model.ReactionGroup) []dto.ReactionGroup {

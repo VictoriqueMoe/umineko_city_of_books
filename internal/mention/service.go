@@ -2,16 +2,13 @@ package mention
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
 	"umineko_city_of_books/internal/block"
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
-	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 
@@ -25,22 +22,9 @@ const (
 )
 
 type (
-	CommentSpec struct {
-		Kind                 Kind
-		EntityID             uuid.UUID
-		EntityKey            string
-		EntryID              *uuid.UUID
-		EntryNumber          int
-		ParentID             *uuid.UUID
-		AuthorID             uuid.UUID
-		Body                 string
-		RecordAuthorActivity bool
-	}
-
 	Service interface {
 		Notify(ctx context.Context, ref Reference, actorID uuid.UUID, body string) error
 		NotifyAsync(ctx context.Context, ref Reference, actorID uuid.UUID, body string)
-		CreateComment(ctx context.Context, cs CommentSpec) (uuid.UUID, error)
 		Recipients(ctx context.Context, usernames []string, actorID uuid.UUID) ([]model.User, error)
 	}
 
@@ -48,119 +32,15 @@ type (
 		userRepo repository.UserRepository
 		blockSvc block.Service
 		notifSvc notification.Service
-		comments dao.CommentDAOs
 	}
 )
 
-var ErrNoCommentDAO = errors.New("mention: kind has no comment dao")
-
-func NewService(userRepo repository.UserRepository, blockSvc block.Service, notifSvc notification.Service, comments dao.CommentDAOs) Service {
+func NewService(userRepo repository.UserRepository, blockSvc block.Service, notifSvc notification.Service) Service {
 	return &service{
 		userRepo: userRepo,
 		blockSvc: blockSvc,
 		notifSvc: notifSvc,
-		comments: comments,
 	}
-}
-
-func ValidateCommentDAOs(comments dao.CommentDAOs) error {
-	for _, kind := range CommentKinds() {
-		if !hasCommentDAO(kind, comments) {
-			return fmt.Errorf("%w: %q", ErrNoCommentDAO, kind)
-		}
-	}
-
-	return nil
-}
-
-func hasCommentDAO(kind Kind, comments dao.CommentDAOs) bool {
-	if isJournalCommentKind(kind) {
-		return comments.Journal != nil
-	}
-
-	if comments.BySlug[string(kind)] != nil {
-		return true
-	}
-
-	return comments.ByID[string(kind)] != nil
-}
-
-func isJournalCommentKind(kind Kind) bool {
-	return kind == KindJournalComment || kind == KindJournalEntryComment
-}
-
-func (s *service) CreateComment(ctx context.Context, cs CommentSpec) (uuid.UUID, error) {
-	commentID, err := s.writeComment(ctx, cs)
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	s.notifyChild(ctx, cs, commentID)
-
-	return commentID, nil
-}
-
-func (s *service) writeComment(ctx context.Context, cs CommentSpec) (uuid.UUID, error) {
-	if isJournalCommentKind(cs.Kind) {
-		if s.comments.Journal == nil {
-			return uuid.Nil, fmt.Errorf("%w: %q", ErrNoCommentDAO, cs.Kind)
-		}
-
-		created, err := s.comments.Journal.CreateComment(ctx, spec.NewJournalComment{
-			JournalID:            cs.EntityID,
-			EntryID:              cs.EntryID,
-			ParentID:             cs.ParentID,
-			UserID:               cs.AuthorID,
-			Body:                 cs.Body,
-			RecordAuthorActivity: cs.RecordAuthorActivity,
-		})
-		if err != nil {
-			return uuid.Nil, err
-		}
-
-		return created.ID, nil
-	}
-
-	if bySlug := s.comments.BySlug[string(cs.Kind)]; bySlug != nil {
-		created, err := bySlug.CreateComment(ctx, spec.NewComment[string]{
-			TargetID: cs.EntityKey,
-			ParentID: cs.ParentID,
-			UserID:   cs.AuthorID,
-			Body:     cs.Body,
-		})
-		if err != nil {
-			return uuid.Nil, err
-		}
-
-		return created.ID, nil
-	}
-
-	byID := s.comments.ByID[string(cs.Kind)]
-	if byID == nil {
-		return uuid.Nil, fmt.Errorf("%w: %q", ErrNoCommentDAO, cs.Kind)
-	}
-
-	created, err := byID.CreateComment(ctx, spec.NewComment[uuid.UUID]{
-		TargetID: cs.EntityID,
-		ParentID: cs.ParentID,
-		UserID:   cs.AuthorID,
-		Body:     cs.Body,
-	})
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	return created.ID, nil
-}
-
-func (s *service) notifyChild(ctx context.Context, cs CommentSpec, childID uuid.UUID) {
-	s.NotifyAsync(ctx, Reference{
-		Kind:        cs.Kind,
-		EntityID:    cs.EntityID,
-		EntityKey:   cs.EntityKey,
-		EntryNumber: cs.EntryNumber,
-		ChildID:     childID,
-	}, cs.AuthorID, cs.Body)
 }
 
 func (s *service) NotifyAsync(ctx context.Context, ref Reference, actorID uuid.UUID, body string) {

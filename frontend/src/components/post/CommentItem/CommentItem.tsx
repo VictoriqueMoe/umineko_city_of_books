@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { CommentBase } from "../../../types/api";
 import { useDeleteComment, useLikeComment, useUnlikeComment, useUpdateComment } from "../../../hooks/mutations/post";
 import { useAuth } from "../../../hooks/useAuth";
+import type { CreateCommentHandler } from "../../../hooks/useCommentHandlers";
 import { useSyncedState } from "../../../hooks/useResetOnChange";
 import { can } from "../../../domain/permissions";
 import { extractGif } from "../../../utils/gif";
@@ -18,9 +19,6 @@ import { ReportButton } from "../../ReportButton/ReportButton";
 import { siteUrl } from "../../../platform/siteOrigin";
 import styles from "./CommentItem.module.css";
 
-type CreateCommentFn = (postId: string, body: string, parentId?: string) => Promise<{ id: string }>;
-type UploadMediaFn = (commentId: string, file: File) => Promise<unknown>;
-
 interface CommentItemProps {
     comment: CommentBase;
     postId: string;
@@ -34,8 +32,7 @@ interface CommentItemProps {
     unlikeFn?: (id: string) => Promise<void>;
     deleteFn?: (id: string) => Promise<void>;
     updateFn?: (id: string, body: string) => Promise<void>;
-    createCommentFn?: CreateCommentFn;
-    uploadMediaFn?: UploadMediaFn;
+    createCommentFn?: CreateCommentHandler;
     viewerBlocked?: boolean;
 }
 
@@ -67,7 +64,6 @@ function SingleComment({
     deleteFn,
     updateFn,
     createCommentFn,
-    uploadMediaFn,
     viewerBlocked,
 }: CommentItemProps) {
     const highlighted = highlightedId === comment.id;
@@ -258,7 +254,6 @@ function SingleComment({
                         onDelete();
                     }}
                     createCommentFn={createCommentFn}
-                    uploadMediaFn={uploadMediaFn}
                 />
             )}
         </div>
@@ -277,7 +272,6 @@ export function CommentItem({
     deleteFn,
     updateFn,
     createCommentFn,
-    uploadMediaFn,
     viewerBlocked,
 }: CommentItemProps) {
     const allReplies = flattenReplies(comment);
@@ -293,7 +287,6 @@ export function CommentItem({
         deleteFn,
         updateFn,
         createCommentFn,
-        uploadMediaFn,
         viewerBlocked,
     };
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 
-	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/model/spec"
@@ -15,18 +14,17 @@ type (
 		dao.OCDAO
 
 		DeleteOC(ctx context.Context, s spec.OCDeletion, tx ...*sql.Tx) ([]string, error)
-		DeleteCommentWithMedia(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) ([]string, error)
 	}
 
 	ocRepository struct {
 		db *sql.DB
 		dao.OCDAO
-		audit AuditLogRepository
+		comments dao.CommentDAO
 	}
 )
 
-func NewOCRepo(database *sql.DB, ocs dao.OCDAO, auditLog AuditLogRepository) OCRepository {
-	return &ocRepository{db: database, OCDAO: ocs, audit: auditLog}
+func NewOCRepo(database *sql.DB, ocs dao.OCDAO, comments dao.CommentDAO) OCRepository {
+	return &ocRepository{db: database, OCDAO: ocs, comments: comments}
 }
 
 func (r *ocRepository) DeleteOC(ctx context.Context, s spec.OCDeletion, tx ...*sql.Tx) ([]string, error) {
@@ -43,7 +41,7 @@ func (r *ocRepository) DeleteOC(ctx context.Context, s spec.OCDeletion, tx ...*s
 			return err
 		}
 
-		commentPaths, err := r.OCDAO.CollectCommentMediaPaths(ctx, s.ID, tx)
+		commentPaths, err := r.comments.CollectCommentMediaPaths(ctx, spec.CommentTarget{Kind: spec.CommentKindOC, ID: s.ID}, tx)
 		if err != nil {
 			return err
 		}
@@ -70,13 +68,4 @@ func (r *ocRepository) DeleteOC(ctx context.Context, s spec.OCDeletion, tx ...*s
 	}
 
 	return paths, nil
-}
-
-func (r *ocRepository) DeleteCommentWithMedia(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) ([]string, error) {
-	return deleteCommentWithAudit(ctx, r.db, r.OCDAO, r.audit, commentDeleteSpec{
-		CommentDeletion: s,
-		OwnAction:       audit.ActionOCCommentDelete,
-		AdminAction:     audit.ActionOCCommentDeleteAdmin,
-		TargetType:      audit.TargetOCComment,
-	}, tx)
 }

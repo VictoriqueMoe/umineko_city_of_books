@@ -364,7 +364,7 @@ describe("MessageList, the surface both room kinds share", () => {
             const messages = [
                 makeMessage({
                     id: "reply",
-                    reply_to: { id: "m0", sender_id: "u1", sender_name: "Beatrice", body_preview: "earlier" },
+                    reply_to: { id: "m0", sender_id: "u1", sender_name: "Beatrice", body: "earlier" },
                 }),
                 makeMessage({ id: "mention", body: "@beatrice explain" }),
                 makeMessage({ id: "plain" }),
@@ -406,31 +406,10 @@ describe("MessageList, the surface both room kinds share", () => {
             expect(screen.getByTestId("bubble-m2")).toHaveAttribute("data-highlighted", "true");
         });
 
-        it(`quotes a short body whole when the viewer of ${kind.name} replies`, async () => {
+        it(`quotes a long body whole, so its spoiler is never cut, when the viewer of ${kind.name} replies`, async () => {
             // given
             const onReply = vi.fn();
-            const user = userEvent.setup();
-            renderList({
-                room: kind.makeRoom(),
-                onReply,
-                messages: [makeMessage({ id: "m1", body: "a short claim" })],
-            });
-
-            // when
-            await user.click(screen.getByRole("button", { name: "reply to m1" }));
-
-            // then
-            expect(onReply).toHaveBeenCalledWith({
-                id: "m1",
-                senderName: "Battler",
-                bodyPreview: "a short claim",
-            });
-        });
-
-        it(`truncates a long body when the viewer of ${kind.name} replies to it`, async () => {
-            // given
-            const onReply = vi.fn();
-            const body = "x".repeat(120);
+            const body = `||${"x".repeat(120)}||`;
             const user = userEvent.setup();
             renderList({ room: kind.makeRoom(), onReply, messages: [makeMessage({ id: "m1", body })] });
 
@@ -438,11 +417,7 @@ describe("MessageList, the surface both room kinds share", () => {
             await user.click(screen.getByRole("button", { name: "reply to m1" }));
 
             // then
-            expect(onReply).toHaveBeenCalledWith({
-                id: "m1",
-                senderName: "Battler",
-                bodyPreview: `${"x".repeat(80)}...`,
-            });
+            expect(onReply).toHaveBeenCalledWith({ id: "m1", senderName: "Battler", body });
         });
 
         it(`opens the editor in ${kind.name} for the message the viewer chose`, async () => {

@@ -148,12 +148,12 @@ func Validator(svc *Service) settings.Validator {
 
 		parsed := parseSources(value)
 		if len(parsed) == 0 {
-			return fmt.Errorf("each entry must read name=https://example.com/ranges.json")
+			return &settings.RejectedError{Err: fmt.Errorf("each entry must read name=https://example.com/ranges.json")}
 		}
 
 		for _, source := range parsed {
 			if _, err := svc.fetch(ctx, source.URL); err != nil {
-				return fmt.Errorf("%s: %w", source.Name, err)
+				return &settings.RejectedError{Err: fmt.Errorf("%s: %w", source.Name, err)}
 			}
 		}
 

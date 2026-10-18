@@ -30,11 +30,11 @@ func SettingsValidator(repo repository.StoredFileRepository, probe func(ctx cont
 			}
 
 			if stored > 0 && !cfg.Complete() {
-				return fmt.Errorf("%d uploads are stored in S3, so the S3 connection cannot be cleared while they exist", stored)
+				return &settings.RejectedError{Err: fmt.Errorf("%d uploads are stored in S3, so the S3 connection cannot be cleared while they exist", stored)}
 			}
 
 			if stored > 0 && slices.Contains(changed, config.SettingS3Endpoint.Key) {
-				return fmt.Errorf("%d uploads are stored on the current S3 endpoint and would stop loading if it changed", stored)
+				return &settings.RejectedError{Err: fmt.Errorf("%d uploads are stored on the current S3 endpoint and would stop loading if it changed", stored)}
 			}
 		}
 
@@ -47,7 +47,7 @@ func SettingsValidator(repo repository.StoredFileRepository, probe func(ctx cont
 		}
 
 		if err := probe(ctx, cfg); err != nil {
-			return fmt.Errorf("cannot use these S3 settings: %w", err)
+			return &settings.RejectedError{Err: fmt.Errorf("cannot use these S3 settings: %w", err)}
 		}
 
 		return nil

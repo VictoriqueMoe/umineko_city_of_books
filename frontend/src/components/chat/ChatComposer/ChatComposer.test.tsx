@@ -28,7 +28,7 @@ const ENTER_PLACEHOLDER = "Type a message... (Enter to send, Shift+Enter for new
 
 interface ComposerOptions {
     target?: ComposerTarget | null;
-    replyingTo?: { id: string; senderName: string; bodyPreview: string } | null;
+    replyingTo?: { id: string; senderName: string; body: string } | null;
     onCancelReply?: () => void;
     onTyping?: () => void;
     onEditLast?: () => void;
@@ -196,7 +196,7 @@ describe("ChatComposer in a room", () => {
         // given
         const onCancelReply = vi.fn();
         const user = userEvent.setup();
-        const replyingTo = { id: "m-earlier", senderName: "Battler", bodyPreview: "an earlier claim" };
+        const replyingTo = { id: "m-earlier", senderName: "Battler", body: "an earlier claim" };
         const { sender } = renderComposer({ replyingTo, onCancelReply });
 
         // when
@@ -217,7 +217,7 @@ describe("ChatComposer in a room", () => {
         const onCancelReply = vi.fn();
         const user = userEvent.setup();
         renderComposer({
-            replyingTo: { id: "m-earlier", senderName: "Battler", bodyPreview: "an earlier claim" },
+            replyingTo: { id: "m-earlier", senderName: "Battler", body: "an earlier claim" },
             onCancelReply,
         });
 
@@ -228,6 +228,18 @@ describe("ChatComposer in a room", () => {
         expect(screen.getByText(/Replying to/)).toHaveTextContent("Replying to Battler");
         expect(screen.getByText("an earlier claim")).toBeInTheDocument();
         expect(onCancelReply).toHaveBeenCalledOnce();
+    });
+
+    it("keeps a spoiler in the message being replied to hidden and renders its formatting", () => {
+        // given
+        const body = "||Does that mean [purple]Lambdadelta[/purple] is jealous?||";
+
+        // when
+        renderComposer({ replyingTo: { id: "m-earlier", senderName: "Battler", body } });
+
+        // then
+        expect(screen.getByTitle("Hover to reveal")).toHaveTextContent("Does that mean Lambdadelta is jealous?");
+        expect(screen.queryByText(/\|\||\[purple\]/)).not.toBeInTheDocument();
     });
 
     it("hands over an attachment marked as a spoiler with its flag set", async () => {
@@ -390,7 +402,7 @@ describe("ChatComposer in a room", () => {
         const user = userEvent.setup();
         renderComposer({
             onEditLast,
-            replyingTo: { id: "m-earlier", senderName: "Battler", bodyPreview: "an earlier claim" },
+            replyingTo: { id: "m-earlier", senderName: "Battler", body: "an earlier claim" },
         });
 
         // when

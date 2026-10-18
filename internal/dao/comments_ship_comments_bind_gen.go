@@ -19,9 +19,9 @@ type (
 	shipCommentQuerier struct{}
 )
 
-func (shipCommentQuerier) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment[uuid.UUID]) (*model.CommentRow, error) {
+func (shipCommentQuerier) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment) (*model.CommentRow, error) {
 	row, err := q.CreateShipComment(ctx, sqlcgen.CreateShipCommentParams{
-		ShipID:   s.TargetID,
+		ShipID:   s.Target.ID,
 		ParentID: s.ParentID,
 		UserID:   s.UserID,
 		Body:     s.Body,
@@ -50,17 +50,17 @@ func (shipCommentQuerier) Delete(ctx context.Context, q *sqlcgen.Queries, s spec
 	})
 }
 
-func (shipCommentQuerier) Count(ctx context.Context, q *sqlcgen.Queries, target uuid.UUID, exclude []uuid.UUID) (int64, error) {
+func (shipCommentQuerier) Count(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget, exclude []uuid.UUID) (int64, error) {
 	return q.CountShipComments(ctx, sqlcgen.CountShipCommentsParams{
-		ShipID:  target,
+		ShipID:  target.ID,
 		Column2: joinUUIDs(exclude),
 	})
 }
 
-func (shipCommentQuerier) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery[uuid.UUID]) ([]model.CommentRow, error) {
+func (shipCommentQuerier) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery) ([]model.CommentRow, error) {
 	rows, err := q.ListShipComments(ctx, sqlcgen.ListShipCommentsParams{
 		UserID:  s.ViewerID,
-		ShipID:  s.TargetID,
+		ShipID:  s.Target.ID,
 		Column3: joinUUIDs(s.ExcludeUserIDs),
 		Limit:   int32(s.Limit),
 		Offset:  int32(s.Offset),
@@ -86,12 +86,25 @@ func (shipCommentQuerier) ByID(ctx context.Context, q *sqlcgen.Queries, id uuid.
 	return new(commentRowFromCreate(commentCreateRow(row))), nil
 }
 
-func (shipCommentQuerier) EntityID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error) {
-	return q.GetShipCommentEntityID(ctx, id)
+func (shipCommentQuerier) Target(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (spec.CommentTarget, error) {
+	entityID, err := q.GetShipCommentEntityID(ctx, id)
+	if err != nil {
+		return spec.CommentTarget{}, err
+	}
+
+	return spec.CommentTarget{ID: entityID}, nil
 }
 
 func (shipCommentQuerier) AuthorID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error) {
 	return q.GetShipCommentAuthorID(ctx, id)
+}
+
+func (shipCommentQuerier) MediaDir() string {
+	return "ships"
+}
+
+func (shipCommentQuerier) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
+	return q.GetShipCommentTargetOwner(ctx, target.ID)
 }
 
 func (shipCommentQuerier) Like(ctx context.Context, q *sqlcgen.Queries, s spec.CommentLike) error {
@@ -142,16 +155,16 @@ func (shipCommentQuerier) MediaBatch(ctx context.Context, q *sqlcgen.Queries, id
 	return out, nil
 }
 
-func (shipCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (shipCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateShipCommentMediaURL(ctx, sqlcgen.UpdateShipCommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
 }
 
-func (shipCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (shipCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateShipCommentMediaThumbnail(ctx, sqlcgen.UpdateShipCommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
-func (shipCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target uuid.UUID) ([]string, error) {
-	rows, err := q.CollectShipCommentMediaPaths(ctx, target)
+func (shipCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {
+	rows, err := q.CollectShipCommentMediaPaths(ctx, target.ID)
 	if err != nil {
 		return nil, err
 	}

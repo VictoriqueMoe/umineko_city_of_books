@@ -338,7 +338,6 @@ func TestOCWriteRoutes_ServiceOutcomes(t *testing.T) {
 
 	notOwned := fmt.Errorf("oc not found or not owned: %w", dao.ErrNotFound)
 	imageMissing := fmt.Errorf("gallery image not found or not in oc: %w", dao.ErrNotFound)
-	commentNotOwned := fmt.Errorf("comment not found or not owned: %w", dao.ErrNotFound)
 	tooLarge := fmt.Errorf("%w: file size 9MB exceeds maximum 5MB", upload.ErrFileTooLarge)
 	dbDown := errors.New("pq: connection refused")
 	ocMissing := outcome{"missing oc", ocsvc.ErrNotFound, http.StatusNotFound, "oc not found"}
@@ -453,33 +452,6 @@ func TestOCWriteRoutes_ServiceOutcomes(t *testing.T) {
 				{"server failure", dbDown, http.StatusInternalServerError, `{"error":"failed to vote"}`},
 			},
 		},
-		{
-			name:   "create comment",
-			method: "POST",
-			path:   "/ocs/:id/comments",
-			json:   dto.CreateCommentRequest{Body: "hi"},
-			expect: func(os *ocsvc.MockService, id, userID uuid.UUID, err error) {
-				os.EXPECT().CreateComment(mock.Anything, id, userID, dto.CreateCommentRequest{Body: "hi"}).Return(uuid.Nil, err)
-			},
-			outcomes: []outcome{
-				ocMissing,
-				{"server failure", dbDown, http.StatusInternalServerError, `{"error":"failed to create comment"}`},
-			},
-		},
-		{
-			name:   "update comment",
-			method: "PUT",
-			path:   "/oc-comments/:id",
-			json:   dto.UpdateCommentRequest{Body: "hi"},
-			expect: func(os *ocsvc.MockService, id, userID uuid.UUID, err error) {
-				os.EXPECT().UpdateComment(mock.Anything, id, userID, dto.UpdateCommentRequest{Body: "hi"}).Return(err)
-			},
-			outcomes: []outcome{
-				{"missing comment", ocsvc.ErrNotFound, http.StatusNotFound, "comment not found"},
-				{"not owned", commentNotOwned, http.StatusForbidden, "cannot update this comment"},
-				{"server failure", dbDown, http.StatusInternalServerError, `{"error":"failed to update comment"}`},
-			},
-		},
 	}
 
 	for _, route := range routes {
@@ -511,27 +483,6 @@ func TestOCWriteRoutes_ServiceOutcomes(t *testing.T) {
 			})
 		}
 	}
-}
-
-func TestCreateOCComment_OK(t *testing.T) {
-	// given
-	h, os := newOCHarness(t)
-	userID := uuid.New()
-	ocID := uuid.New()
-	commentID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	req := dto.CreateCommentRequest{Body: "nice OC"}
-	os.EXPECT().CreateComment(mock.Anything, ocID, userID, req).Return(commentID, nil)
-
-	// when
-	status, body := h.NewRequest("POST", "/ocs/"+ocID.String()+"/comments").
-		WithCookie("valid-cookie").
-		WithJSONBody(req).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusCreated, status)
-	assert.Contains(t, string(body), commentID.String())
 }
 
 func TestListUserOCs_OK(t *testing.T) {

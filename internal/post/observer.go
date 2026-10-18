@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 )
@@ -55,7 +56,7 @@ func (s *service) observeForBot(postID uuid.UUID, commentID *uuid.UUID, authorID
 
 	var parentAuthor uuid.UUID
 	if parentID != nil {
-		parent, err := s.postRepo.GetCommentByID(ctx, *parentID)
+		parent, err := s.commentRepo.GetCommentByID(ctx, spec.CommentRef{Kind: spec.CommentKindPost, CommentID: *parentID})
 		if err == nil && parent != nil && parent.EntityID == postID.String() {
 			parentAuthor = parent.UserID
 		}

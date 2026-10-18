@@ -4,11 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"umineko_city_of_books/internal/audit"
-	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
-	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
@@ -198,12 +195,9 @@ func TestOCDAO_DeleteOC_ReturnsImageGalleryAndCommentMediaPaths(t *testing.T) {
 	require.NoError(t, err)
 	_, err = repos.OC.AddGalleryImage(context.Background(), spec.NewOCGalleryImage{OCID: id, ImageURL: "/uploads/ocs/gallery_two.png", Caption: "Second", SortOrder: 1})
 	require.NoError(t, err)
-	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: id, UserID: user.ID, Body: "nice"})
-	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: comment.ID, MediaURL: "/uploads/ocs/comment.png", MediaType: "image", ThumbnailURL: "/uploads/ocs/comment_thumb.png", Filename: "comment.png", SortOrder: 0})
-	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: comment.ID, MediaURL: "/uploads/ocs/comment_two.gif", MediaType: "image", Filename: "comment_two.gif", SortOrder: 1})
-	require.NoError(t, err)
+	commentID := createComment(t, repos, spec.CommentTarget{Kind: spec.CommentKindOC, ID: id}, user.ID, nil, "nice")
+	addCommentMedia(t, repos, spec.CommentKindOC, commentID, "/uploads/ocs/comment.png", "/uploads/ocs/comment_thumb.png")
+	addCommentMedia(t, repos, spec.CommentKindOC, commentID, "/uploads/ocs/comment_two.gif", "")
 
 	// when
 	paths, err := repos.OC.DeleteOC(context.Background(), spec.OCDeletion{ID: id, UserID: user.ID})
@@ -262,128 +256,6 @@ func TestOCDAO_DeleteOC_AsAdmin_ReturnsGalleryPaths(t *testing.T) {
 	row, err := repos.OC.GetByID(context.Background(), spec.OCByID{ID: id, ViewerID: owner.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row)
-}
-
-func TestOCDAO_DeleteCommentWithMedia_ReturnsOnlyThatCommentMediaPaths(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
-	target, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: id, UserID: user.ID, Body: "target"})
-	require.NoError(t, err)
-	other, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: id, UserID: user.ID, Body: "other"})
-	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: target.ID, MediaURL: "/uploads/ocs/target.png", MediaType: "image", ThumbnailURL: "/uploads/ocs/target_thumb.png", Filename: "target.png", SortOrder: 0})
-	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: target.ID, MediaURL: "/uploads/ocs/target_two.gif", MediaType: "image", Filename: "target_two.gif", SortOrder: 1})
-	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: other.ID, MediaURL: "/uploads/ocs/other.png", MediaType: "image", Filename: "other.png", SortOrder: 0})
-	require.NoError(t, err)
-
-	// when
-	paths, err := repos.OC.DeleteCommentWithMedia(context.Background(), spec.CommentDeletion{CommentID: target.ID, UserID: user.ID})
-
-	// then
-	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{
-		"/uploads/ocs/target.png",
-		"/uploads/ocs/target_thumb.png",
-		"/uploads/ocs/target_two.gif",
-	}, paths)
-	remaining, err := repos.OC.GetCommentMedia(context.Background(), other.ID)
-	require.NoError(t, err)
-	require.Len(t, remaining, 1)
-	assert.Equal(t, "/uploads/ocs/other.png", remaining[0].MediaURL)
-}
-
-func TestOCDAO_DeleteCommentWithMedia_AsAdmin(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	moderator := daotest.CreateUser(t, repos)
-	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
-	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: id, UserID: user.ID, Body: "spam"})
-	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: comment.ID, MediaURL: "/uploads/ocs/spam.png", MediaType: "image", ThumbnailURL: "/uploads/ocs/spam_thumb.png", Filename: "spam.png", SortOrder: 0})
-	require.NoError(t, err)
-
-	// when
-	paths, err := repos.OC.DeleteCommentWithMedia(context.Background(), spec.CommentDeletion{CommentID: comment.ID, UserID: moderator.ID, AsAdmin: true})
-
-	// then
-	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{"/uploads/ocs/spam.png", "/uploads/ocs/spam_thumb.png"}, paths)
-	_, total, err := repos.OC.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: user.ID, Limit: 20, Offset: 0})
-	require.NoError(t, err)
-	assert.Equal(t, 0, total)
-}
-
-func TestOCDAO_DeleteCommentWithMedia_AsAdminWritesAudit(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	moderator := daotest.CreateUser(t, repos)
-	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
-	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: id, UserID: user.ID, Body: "spam"})
-	require.NoError(t, err)
-
-	// when
-	_, err = repos.OC.DeleteCommentWithMedia(context.Background(), spec.CommentDeletion{CommentID: comment.ID, UserID: moderator.ID, AsAdmin: true})
-
-	// then
-	require.NoError(t, err)
-	entries, _, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionOCCommentDeleteAdmin, Page: bounds.NewPage(10, 0)})
-	require.NoError(t, err)
-	require.Len(t, entries, 1)
-	assert.Equal(t, moderator.ID, entries[0].ActorID)
-	assert.Equal(t, audit.TargetOCComment, entries[0].TargetType)
-	assert.Equal(t, comment.ID.String(), entries[0].TargetID)
-	require.NotNil(t, entries[0].SubjectID)
-	assert.Equal(t, user.ID, *entries[0].SubjectID)
-	assert.Empty(t, entries[0].Details)
-}
-
-func TestOCDAO_DeleteCommentWithMedia_AsOwnerWritesAudit(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
-	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: id, UserID: user.ID, Body: "mine"})
-	require.NoError(t, err)
-
-	// when
-	_, err = repos.OC.DeleteCommentWithMedia(context.Background(), spec.CommentDeletion{CommentID: comment.ID, UserID: user.ID})
-
-	// then
-	require.NoError(t, err)
-	entries, _, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionOCCommentDelete, Page: bounds.NewPage(10, 0)})
-	require.NoError(t, err)
-	require.Len(t, entries, 1)
-	assert.Equal(t, user.ID, entries[0].ActorID)
-	require.NotNil(t, entries[0].SubjectID)
-	assert.Equal(t, user.ID, *entries[0].SubjectID)
-}
-
-func TestOCDAO_DeleteCommentWithMedia_NotOwnedWritesNoAudit(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	stranger := daotest.CreateUser(t, repos)
-	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
-	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: id, UserID: user.ID, Body: "mine"})
-	require.NoError(t, err)
-
-	// when
-	_, err = repos.OC.DeleteCommentWithMedia(context.Background(), spec.CommentDeletion{CommentID: comment.ID, UserID: stranger.ID})
-
-	// then
-	require.Error(t, err)
-	entries, _, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionOCCommentDeleteAdmin, Page: bounds.NewPage(10, 0)})
-	require.NoError(t, err)
-	assert.Empty(t, entries)
-	_, total, err := repos.OC.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: user.ID, Limit: 20, Offset: 0})
-	require.NoError(t, err)
-	assert.Equal(t, 1, total)
 }
 
 func TestOCDAO_List_FiltersBySeries(t *testing.T) {
@@ -448,8 +320,7 @@ func ocFavourite(t *testing.T, repos *repository.Repositories, ocID uuid.UUID) u
 func ocComment(t *testing.T, repos *repository.Repositories, ocID, userID uuid.UUID) {
 	t.Helper()
 
-	_, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: ocID, UserID: userID, Body: "lovely"})
-	require.NoError(t, err)
+	createComment(t, repos, spec.CommentTarget{Kind: spec.CommentKindOC, ID: ocID}, userID, nil, "lovely")
 }
 
 func TestOCDAO_List_SortsByEngagement(t *testing.T) {
@@ -674,42 +545,4 @@ func TestOCDAO_FavouriteRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, row.FavouriteCount)
 	assert.False(t, row.UserFavourited)
-}
-
-func TestOCDAO_CommentsRoundTrip(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	owner := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	id := createOC(t, repos, owner.ID, "Linda", "umineko", "")
-
-	// when (create)
-	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: id, UserID: commenter.ID, Body: "great oc"})
-	require.NoError(t, err)
-	commentID := comment.ID
-
-	rows, total, err := repos.OC.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: commenter.ID, Limit: 20, Offset: 0})
-	require.NoError(t, err)
-	assert.Equal(t, 1, total)
-	require.Len(t, rows, 1)
-	assert.Equal(t, "great oc", rows[0].Body)
-
-	// when (update)
-	require.NoError(t, repos.OC.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: commentID, UserID: commenter.ID, Body: "edited"}))
-	rows, _, err = repos.OC.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: commenter.ID, Limit: 20, Offset: 0})
-	require.NoError(t, err)
-	assert.Equal(t, "edited", rows[0].Body)
-
-	// when (like)
-	require.NoError(t, repos.OC.LikeComment(context.Background(), spec.CommentLike{UserID: commenter.ID, CommentID: commentID}))
-	rows, _, err = repos.OC.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: commenter.ID, Limit: 20, Offset: 0})
-	require.NoError(t, err)
-	assert.Equal(t, 1, rows[0].LikeCount)
-	assert.True(t, rows[0].UserLiked)
-
-	// when (delete)
-	require.NoError(t, repos.OC.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: commentID, UserID: commenter.ID}))
-	_, total, err = repos.OC.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: commenter.ID, Limit: 20, Offset: 0})
-	require.NoError(t, err)
-	assert.Equal(t, 0, total)
 }

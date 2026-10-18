@@ -2,28 +2,20 @@ package announcement
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 
 	"umineko_city_of_books/internal/audit"
-	"umineko_city_of_books/internal/authz"
-	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
-	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
-	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
-	"umineko_city_of_books/internal/utils"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -40,58 +32,36 @@ type (
 		Update(ctx context.Context, actorID uuid.UUID, id uuid.UUID, title, body string) error
 		Delete(ctx context.Context, actorID uuid.UUID, id uuid.UUID) error
 		SetPinned(ctx context.Context, actorID uuid.UUID, id uuid.UUID, pinned bool) error
-
-		CreateComment(ctx context.Context, announcementID, userID uuid.UUID, parentID *uuid.UUID, body string) (uuid.UUID, error)
-		UpdateComment(ctx context.Context, id, userID uuid.UUID, body string) error
-		DeleteComment(ctx context.Context, id, userID uuid.UUID) error
-		LikeComment(ctx context.Context, userID, commentID uuid.UUID) error
-		UnlikeComment(ctx context.Context, userID, commentID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
 	}
 
 	service struct {
-		repo         repository.AnnouncementRepository
-		userRepo     repository.UserRepository
-		auditRepo    repository.AuditLogRepository
-		blockSvc     block.Service
-		notifService notification.Service
-		mentionSvc   mention.Service
-		settingsSvc  settings.Service
-		authzSvc     authz.Service
-		hub          *ws.Hub
-		uploader     *media.Uploader
-		uploadSvc    upload.Service
-		ogCache      *og.Resolver
+		repo       repository.AnnouncementRepository
+		auditRepo  repository.AuditLogRepository
+		mentionSvc mention.Service
+		commentSvc comment.Service
+		hub        *ws.Hub
+		uploadSvc  upload.Service
+		ogCache    *og.Resolver
 	}
 )
 
 func NewService(
 	repo repository.AnnouncementRepository,
-	userRepo repository.UserRepository,
 	auditRepo repository.AuditLogRepository,
-	blockSvc block.Service,
-	notifService notification.Service,
 	mentionSvc mention.Service,
-	settingsSvc settings.Service,
-	authzSvc authz.Service,
+	commentSvc comment.Service,
 	hub *ws.Hub,
-	uploader *media.Uploader,
 	uploadSvc upload.Service,
 	ogCache *og.Resolver,
 ) Service {
 	return &service{
-		repo:         repo,
-		userRepo:     userRepo,
-		auditRepo:    auditRepo,
-		blockSvc:     blockSvc,
-		notifService: notifService,
-		mentionSvc:   mentionSvc,
-		settingsSvc:  settingsSvc,
-		authzSvc:     authzSvc,
-		hub:          hub,
-		uploader:     uploader,
-		uploadSvc:    uploadSvc,
-		ogCache:      ogCache,
+		repo:       repo,
+		auditRepo:  auditRepo,
+		mentionSvc: mentionSvc,
+		commentSvc: commentSvc,
+		hub:        hub,
+		uploadSvc:  uploadSvc,
+		ogCache:    ogCache,
 	}
 }
 
@@ -114,26 +84,6 @@ func rowToResponse(r model.AnnouncementRow) dto.AnnouncementResponse {
 			AvatarURL:   r.AuthorAvatarURL,
 			Role:        role.Role(r.AuthorRole),
 		},
-	}
-}
-
-func announcementCommentToResponse(c model.CommentRow, media []model.PostMediaRow) dto.AnnouncementCommentResponse {
-	return dto.AnnouncementCommentResponse{
-		ID:       c.ID,
-		ParentID: c.ParentID,
-		Author: dto.UserResponse{
-			ID:          c.UserID,
-			Username:    c.AuthorUsername,
-			DisplayName: c.AuthorDisplayName,
-			AvatarURL:   c.AuthorAvatarURL,
-			Role:        role.Role(c.AuthorRole),
-		},
-		Body:      c.Body,
-		Media:     model.MediaRowsToResponse(media),
-		LikeCount: c.LikeCount,
-		UserLiked: c.UserLiked,
-		CreatedAt: c.CreatedAt,
-		UpdatedAt: c.UpdatedAt,
 	}
 }
 
@@ -163,46 +113,14 @@ func (s *service) GetDetail(ctx context.Context, id, viewerID uuid.UUID) (*dto.A
 		return nil, ErrNotFound
 	}
 
-	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	if err != nil {
-		return nil, fmt.Errorf("blocked users: %w", err)
-	}
-
-	commentRows, _, err := s.repo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
-		TargetID:       id,
-		ViewerID:       viewerID,
-		Limit:          500,
-		Offset:         0,
-		ExcludeUserIDs: blockedIDs,
-	})
+	comments, err := s.commentSvc.Thread(ctx, spec.CommentTarget{Kind: spec.CommentKindAnnouncement, ID: id}, viewerID)
 	if err != nil {
 		return nil, fmt.Errorf("announcement comments: %w", err)
 	}
 
-	commentIDs := make([]uuid.UUID, len(commentRows))
-	for i, c := range commentRows {
-		commentIDs[i] = c.ID
-	}
-	mediaMap, err := s.repo.GetCommentMediaBatch(ctx, commentIDs)
-	if err != nil {
-		return nil, fmt.Errorf("announcement comment media: %w", err)
-	}
-
-	flat := make([]dto.AnnouncementCommentResponse, len(commentRows))
-	for i, c := range commentRows {
-		flat[i] = announcementCommentToResponse(c, mediaMap[c.ID])
-	}
-	tree := utils.BuildTree(flat,
-		func(c dto.AnnouncementCommentResponse) uuid.UUID { return c.ID },
-		func(c dto.AnnouncementCommentResponse) *uuid.UUID { return c.ParentID },
-		func(c *dto.AnnouncementCommentResponse, replies []dto.AnnouncementCommentResponse) {
-			c.Replies = replies
-		},
-	)
-
 	return &dto.AnnouncementDetailResponse{
 		AnnouncementResponse: rowToResponse(*row),
-		Comments:             tree,
+		Comments:             comments,
 	}, nil
 }
 
@@ -323,237 +241,4 @@ func (s *service) SetPinned(ctx context.Context, actorID uuid.UUID, id uuid.UUID
 	s.audit(ctx, actorID, audit.ActionAnnouncementPin, id, current.AuthorID, fmt.Sprintf("title=%s pinned=%t", current.Title, pinned))
 
 	return nil
-}
-
-func (s *service) CreateComment(ctx context.Context, announcementID, userID uuid.UUID, parentID *uuid.UUID, body string) (uuid.UUID, error) {
-	if body == "" {
-		return uuid.Nil, ErrEmptyBody
-	}
-
-	ann, err := s.repo.GetByID(ctx, announcementID)
-	if err != nil {
-		return uuid.Nil, err
-	}
-	if ann == nil {
-		return uuid.Nil, ErrNotFound
-	}
-
-	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, ann.AuthorID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("block check: %w", err)
-	}
-	if blocked {
-		return uuid.Nil, ErrBlocked
-	}
-
-	commentID, err := s.mentionSvc.CreateComment(ctx, mention.CommentSpec{
-		Kind:     mention.KindAnnouncementComment,
-		EntityID: announcementID,
-		ParentID: parentID,
-		AuthorID: userID,
-		Body:     body,
-	})
-	if err != nil {
-		logger.Ctx(ctx).Error().Err(err).
-			Str("announcement_id", announcementID.String()).
-			Str("user_id", userID.String()).
-			Msg("failed to create announcement comment")
-
-		return uuid.Nil, err
-	}
-
-	go s.notifyCommentCreated(ann, announcementID, commentID, userID, parentID)
-
-	return commentID, nil
-}
-
-func (s *service) notifyCommentCreated(ann *model.AnnouncementRow, announcementID, commentID, actorID uuid.UUID, parentID *uuid.UUID) {
-	if ann.AuthorID == uuid.Nil {
-		return
-	}
-
-	bgCtx := context.Background()
-	actor, err := s.userRepo.GetByID(bgCtx, actorID)
-	if err != nil {
-		logger.Ctx(bgCtx).Warn().Err(err).Str("user_id", actorID.String()).Msg("announcement comment notification skipped, actor lookup failed")
-
-		return
-	}
-	if actor == nil {
-		return
-	}
-	_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
-		RecipientID:   ann.AuthorID,
-		Type:          dto.NotifAnnouncementCommented,
-		ReferenceID:   announcementID,
-		ReferenceType: fmt.Sprintf("announcement_comment:%s", commentID),
-		ActorID:       actorID,
-		EmailActor:    actor.DisplayName,
-		EmailAction:   "commented on your announcement",
-		EmailTitle:    ann.Title,
-		EmailLink:     fmt.Sprintf("/announcements/%s#comment-%s", announcementID, commentID),
-	})
-
-	if parentID != nil {
-		parentAuthor, err := s.repo.GetCommentAuthorID(bgCtx, *parentID)
-		if err != nil {
-			logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", parentID.String()).Msg("announcement reply notification skipped, parent lookup failed")
-
-			return
-		}
-		if parentAuthor != ann.AuthorID {
-			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
-				RecipientID:   parentAuthor,
-				Type:          dto.NotifAnnouncementCommentReply,
-				ReferenceID:   announcementID,
-				ReferenceType: fmt.Sprintf("announcement_comment:%s", commentID),
-				ActorID:       actorID,
-				EmailActor:    actor.DisplayName,
-				EmailAction:   "replied to your comment",
-				EmailTitle:    ann.Title,
-				EmailLink:     fmt.Sprintf("/announcements/%s#comment-%s", announcementID, commentID),
-			})
-		}
-	}
-}
-
-func (s *service) UpdateComment(ctx context.Context, id, userID uuid.UUID, body string) error {
-	if body == "" {
-		return ErrEmptyBody
-	}
-
-	asAdmin := s.authzSvc.Can(ctx, userID, authz.PermEditAnyComment)
-
-	update := spec.CommentUpdate{
-		CommentID: id,
-		UserID:    userID,
-		Body:      body,
-		AsAdmin:   asAdmin,
-	}
-
-	if err := s.repo.UpdateCommentBody(ctx, update); err != nil {
-		return commentWriteError(err, asAdmin)
-	}
-
-	return nil
-}
-
-func commentWriteError(err error, asAdmin bool) error {
-	if !errors.Is(err, dao.ErrNotFound) {
-		return err
-	}
-	if asAdmin {
-		return ErrCommentNotFound
-	}
-
-	return ErrForbidden
-}
-
-func (s *service) DeleteComment(ctx context.Context, id, userID uuid.UUID) error {
-	asAdmin := s.authzSvc.Can(ctx, userID, authz.PermDeleteAnyComment)
-
-	deletion := spec.CommentDeletion{
-		CommentID: id,
-		UserID:    userID,
-		AsAdmin:   asAdmin,
-	}
-
-	paths, err := s.repo.DeleteCommentWithAudit(ctx, deletion)
-	if err != nil {
-		return commentWriteError(err, asAdmin)
-	}
-
-	s.uploadSvc.Delete(paths...)
-
-	return nil
-}
-
-func (s *service) LikeComment(ctx context.Context, userID, commentID uuid.UUID) error {
-	commentAuthorID, err := s.repo.GetCommentAuthorID(ctx, commentID)
-	if errors.Is(err, dao.ErrNotFound) {
-		return ErrCommentNotFound
-	}
-	if err != nil {
-		return err
-	}
-
-	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID)
-	if err != nil {
-		return fmt.Errorf("block check: %w", err)
-	}
-	if blocked {
-		return ErrBlocked
-	}
-	if err := s.repo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID}); err != nil {
-		if errors.Is(err, block.ErrUserBlocked) {
-			return ErrBlocked
-		}
-		return err
-	}
-
-	go s.notifyCommentLiked(commentID, commentAuthorID, userID)
-
-	return nil
-}
-
-func (s *service) notifyCommentLiked(commentID, recipientID, actorID uuid.UUID) {
-	bgCtx := context.Background()
-	announcementID, err := s.repo.GetCommentEntityID(bgCtx, commentID)
-	if err != nil {
-		logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", commentID.String()).Msg("announcement like notification skipped, announcement lookup failed")
-
-		return
-	}
-	actor, err := s.userRepo.GetByID(bgCtx, actorID)
-	if err != nil {
-		logger.Ctx(bgCtx).Warn().Err(err).Str("user_id", actorID.String()).Msg("announcement like notification skipped, actor lookup failed")
-
-		return
-	}
-	if actor == nil {
-		return
-	}
-	_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
-		RecipientID:   recipientID,
-		Type:          dto.NotifAnnouncementCommentLiked,
-		ReferenceID:   announcementID,
-		ReferenceType: fmt.Sprintf("announcement_comment:%s", commentID),
-		ActorID:       actorID,
-		EmailActor:    actor.DisplayName,
-		EmailAction:   "liked your comment",
-		EmailLink:     fmt.Sprintf("/announcements/%s#comment-%s", announcementID, commentID),
-	})
-}
-
-func (s *service) UnlikeComment(ctx context.Context, userID, commentID uuid.UUID) error {
-	return s.repo.UnlikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID})
-}
-
-func (s *service) UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
-	authorID, err := s.repo.GetCommentAuthorID(ctx, commentID)
-	if errors.Is(err, dao.ErrNotFound) {
-		return nil, ErrCommentNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-	if authorID != userID {
-		return nil, ErrForbidden
-	}
-
-	return s.uploader.SaveAndRecord(ctx, "announcements", contentType, filename, fileSize, reader, isSpoiler,
-		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-			return s.repo.AddCommentMedia(ctx, spec.NewMedia{
-				TargetID:     commentID,
-				MediaURL:     mediaURL,
-				MediaType:    mediaType,
-				ThumbnailURL: thumbURL,
-				Filename:     filename,
-				SortOrder:    sortOrder,
-				IsSpoiler:    isSpoiler,
-			})
-		},
-		s.repo.UpdateCommentMediaURL,
-		s.repo.UpdateCommentMediaThumbnail,
-	)
 }

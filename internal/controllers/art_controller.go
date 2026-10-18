@@ -26,12 +26,6 @@ func (s *Service) getAllArtRoutes() []FSetupRoute {
 		s.setupDeleteArt,
 		s.setupLikeArt,
 		s.setupUnlikeArt,
-		s.setupCreateArtComment,
-		s.setupUpdateArtComment,
-		s.setupDeleteArtComment,
-		s.setupLikeArtComment,
-		s.setupUnlikeArtComment,
-		s.setupUploadArtCommentMedia,
 		s.setupListUserArt,
 		s.setupCreateGallery,
 		s.setupListAllGalleries,
@@ -78,30 +72,6 @@ func (s *Service) setupLikeArt(r fiber.Router) {
 
 func (s *Service) setupUnlikeArt(r fiber.Router) {
 	r.Delete("/art/:id/like", s.requireAuth(), s.unlikeArt)
-}
-
-func (s *Service) setupCreateArtComment(r fiber.Router) {
-	r.Post("/art/:id/comments", s.requireAuth(), s.createArtComment)
-}
-
-func (s *Service) setupUpdateArtComment(r fiber.Router) {
-	r.Put("/art-comments/:id", s.requireAuth(), s.updateArtComment)
-}
-
-func (s *Service) setupDeleteArtComment(r fiber.Router) {
-	r.Delete("/art-comments/:id", s.requireAuth(), s.deleteArtComment)
-}
-
-func (s *Service) setupLikeArtComment(r fiber.Router) {
-	r.Post("/art-comments/:id/like", s.requireAuth(), s.likeArtComment)
-}
-
-func (s *Service) setupUnlikeArtComment(r fiber.Router) {
-	r.Delete("/art-comments/:id/like", s.requireAuth(), s.unlikeArtComment)
-}
-
-func (s *Service) setupUploadArtCommentMedia(r fiber.Router) {
-	r.Post("/art-comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadArtCommentMedia)
 }
 
 func (s *Service) setupListUserArt(r fiber.Router) {
@@ -279,83 +249,6 @@ func (s *Service) unlikeArt(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to unlike art", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
-}
-
-func (s *Service) createArtComment(ctx fiber.Ctx) error {
-	artID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-
-	userID := utils.UserID(ctx)
-	req, ok := utils.BindJSON[dto.CreateCommentRequest](ctx)
-	if !ok {
-		return nil
-	}
-
-	id, err := s.ArtService.CreateComment(ctx.Context(), artID, userID, req)
-	if err != nil {
-		if utils.MapFilterError(ctx, err) {
-			return nil
-		}
-		if errors.Is(err, block.ErrUserBlocked) {
-			return utils.Forbidden(ctx, "user is blocked")
-		}
-		if errors.Is(err, artsvc.ErrEmptyBody) {
-			return utils.BadRequest(ctx, err.Error())
-		}
-		if errors.Is(err, artsvc.ErrNotFound) {
-			return utils.NotFound(ctx, "art not found")
-		}
-		return utils.InternalError(ctx, "failed to create comment", err)
-	}
-	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
-}
-
-func (s *Service) updateArtComment(ctx fiber.Ctx) error {
-	id, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-
-	userID := utils.UserID(ctx)
-	req, ok := utils.BindJSON[dto.UpdateCommentRequest](ctx)
-	if !ok {
-		return nil
-	}
-
-	if err := s.ArtService.UpdateComment(ctx.Context(), id, userID, req); err != nil {
-		if utils.MapFilterError(ctx, err) {
-			return nil
-		}
-		if errors.Is(err, artsvc.ErrEmptyBody) {
-			return utils.BadRequest(ctx, err.Error())
-		}
-		if errors.Is(err, artsvc.ErrNotFound) {
-			return utils.NotFound(ctx, "comment not found")
-		}
-		if errors.Is(err, dao.ErrNotFound) {
-			return utils.Forbidden(ctx, "cannot update this comment")
-		}
-		return utils.InternalError(ctx, "failed to update comment", err)
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
-}
-
-func (s *Service) deleteArtComment(ctx fiber.Ctx) error {
-	return s.handleDeleteComment(ctx, s.ArtService.DeleteComment)
-}
-
-func (s *Service) likeArtComment(ctx fiber.Ctx) error {
-	return s.handleLikeComment(ctx, s.ArtService.LikeComment)
-}
-
-func (s *Service) unlikeArtComment(ctx fiber.Ctx) error {
-	return s.handleUnlikeComment(ctx, s.ArtService.UnlikeComment)
-}
-
-func (s *Service) uploadArtCommentMedia(ctx fiber.Ctx) error {
-	return handleUploadCommentMedia(ctx, s.ArtService.UploadCommentMedia)
 }
 
 func (s *Service) listUserArt(ctx fiber.Ctx) error {

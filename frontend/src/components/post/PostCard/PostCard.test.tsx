@@ -16,7 +16,6 @@ const mocks = vi.hoisted(() => ({
     deletePostMedia: vi.fn(),
     createPost: vi.fn(),
     createComment: vi.fn(),
-    uploadCommentMedia: vi.fn(),
     votePoll: vi.fn(),
     createReport: vi.fn(),
     navigate: vi.fn(),
@@ -33,7 +32,6 @@ vi.mock("../../../hooks/mutations/post", () => ({
     useDeletePostMedia: () => ({ mutateAsync: mocks.deletePostMedia }),
     useCreatePost: () => ({ mutateAsync: mocks.createPost }),
     useCreateComment: () => ({ mutateAsync: mocks.createComment }),
-    useUploadCommentMedia: () => ({ mutateAsync: mocks.uploadCommentMedia }),
     useVotePoll: () => ({ mutateAsync: mocks.votePoll }),
 }));
 

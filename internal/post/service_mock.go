@@ -9,6 +9,7 @@ import (
 	"io"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -51,8 +52,8 @@ func (_m *MockService) EXPECT() *MockService_Expecter {
 }
 
 // CreateComment provides a mock function for the type MockService
-func (_mock *MockService) CreateComment(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, postID, userID, req)
+func (_mock *MockService) CreateComment(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
+	ret := _mock.Called(ctx, postID, userID, req, files)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateComment")
@@ -60,18 +61,18 @@ func (_mock *MockService) CreateComment(ctx context.Context, postID uuid.UUID, u
 
 	var r0 uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, postID, userID, req)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest, []upload.FileUpload) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, postID, userID, req, files)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest) uuid.UUID); ok {
-		r0 = returnFunc(ctx, postID, userID, req)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest, []upload.FileUpload) uuid.UUID); ok {
+		r0 = returnFunc(ctx, postID, userID, req, files)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest) error); ok {
-		r1 = returnFunc(ctx, postID, userID, req)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest, []upload.FileUpload) error); ok {
+		r1 = returnFunc(ctx, postID, userID, req, files)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -88,11 +89,12 @@ type MockService_CreateComment_Call struct {
 //   - postID uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.CreateCommentRequest
-func (_e *MockService_Expecter) CreateComment(ctx any, postID any, userID any, req any) *MockService_CreateComment_Call {
-	return &MockService_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, postID, userID, req)}
+//   - files []upload.FileUpload
+func (_e *MockService_Expecter) CreateComment(ctx any, postID any, userID any, req any, files any) *MockService_CreateComment_Call {
+	return &MockService_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, postID, userID, req, files)}
 }
 
-func (_c *MockService_CreateComment_Call) Run(run func(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest)) *MockService_CreateComment_Call {
+func (_c *MockService_CreateComment_Call) Run(run func(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload)) *MockService_CreateComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -110,11 +112,16 @@ func (_c *MockService_CreateComment_Call) Run(run func(ctx context.Context, post
 		if args[3] != nil {
 			arg3 = args[3].(dto.CreateCommentRequest)
 		}
+		var arg4 []upload.FileUpload
+		if args[4] != nil {
+			arg4 = args[4].([]upload.FileUpload)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4,
 		)
 	})
 	return _c
@@ -125,14 +132,14 @@ func (_c *MockService_CreateComment_Call) Return(uUID uuid.UUID, err error) *Moc
 	return _c
 }
 
-func (_c *MockService_CreateComment_Call) RunAndReturn(run func(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)) *MockService_CreateComment_Call {
+func (_c *MockService_CreateComment_Call) RunAndReturn(run func(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error)) *MockService_CreateComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreatePost provides a mock function for the type MockService
-func (_mock *MockService) CreatePost(ctx context.Context, userID uuid.UUID, req dto.CreatePostRequest) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, userID, req)
+func (_mock *MockService) CreatePost(ctx context.Context, userID uuid.UUID, req dto.CreatePostRequest, files []upload.FileUpload) (uuid.UUID, error) {
+	ret := _mock.Called(ctx, userID, req, files)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreatePost")
@@ -140,18 +147,18 @@ func (_mock *MockService) CreatePost(ctx context.Context, userID uuid.UUID, req 
 
 	var r0 uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreatePostRequest) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, userID, req)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreatePostRequest, []upload.FileUpload) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, userID, req, files)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreatePostRequest) uuid.UUID); ok {
-		r0 = returnFunc(ctx, userID, req)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreatePostRequest, []upload.FileUpload) uuid.UUID); ok {
+		r0 = returnFunc(ctx, userID, req, files)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.CreatePostRequest) error); ok {
-		r1 = returnFunc(ctx, userID, req)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.CreatePostRequest, []upload.FileUpload) error); ok {
+		r1 = returnFunc(ctx, userID, req, files)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -167,11 +174,12 @@ type MockService_CreatePost_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - req dto.CreatePostRequest
-func (_e *MockService_Expecter) CreatePost(ctx any, userID any, req any) *MockService_CreatePost_Call {
-	return &MockService_CreatePost_Call{Call: _e.mock.On("CreatePost", ctx, userID, req)}
+//   - files []upload.FileUpload
+func (_e *MockService_Expecter) CreatePost(ctx any, userID any, req any, files any) *MockService_CreatePost_Call {
+	return &MockService_CreatePost_Call{Call: _e.mock.On("CreatePost", ctx, userID, req, files)}
 }
 
-func (_c *MockService_CreatePost_Call) Run(run func(ctx context.Context, userID uuid.UUID, req dto.CreatePostRequest)) *MockService_CreatePost_Call {
+func (_c *MockService_CreatePost_Call) Run(run func(ctx context.Context, userID uuid.UUID, req dto.CreatePostRequest, files []upload.FileUpload)) *MockService_CreatePost_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -185,10 +193,15 @@ func (_c *MockService_CreatePost_Call) Run(run func(ctx context.Context, userID 
 		if args[2] != nil {
 			arg2 = args[2].(dto.CreatePostRequest)
 		}
+		var arg3 []upload.FileUpload
+		if args[3] != nil {
+			arg3 = args[3].([]upload.FileUpload)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -199,70 +212,7 @@ func (_c *MockService_CreatePost_Call) Return(uUID uuid.UUID, err error) *MockSe
 	return _c
 }
 
-func (_c *MockService_CreatePost_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, req dto.CreatePostRequest) (uuid.UUID, error)) *MockService_CreatePost_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteComment provides a mock function for the type MockService
-func (_mock *MockService) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, id, userID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteComment")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, userID)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockService_DeleteComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteComment'
-type MockService_DeleteComment_Call struct {
-	*mock.Call
-}
-
-// DeleteComment is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-func (_e *MockService_Expecter) DeleteComment(ctx any, id any, userID any) *MockService_DeleteComment_Call {
-	return &MockService_DeleteComment_Call{Call: _e.mock.On("DeleteComment", ctx, id, userID)}
-}
-
-func (_c *MockService_DeleteComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID)) *MockService_DeleteComment_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockService_DeleteComment_Call) Return(err error) *MockService_DeleteComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockService_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID) error) *MockService_DeleteComment_Call {
+func (_c *MockService_CreatePost_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, req dto.CreatePostRequest, files []upload.FileUpload) (uuid.UUID, error)) *MockService_CreatePost_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -609,69 +559,6 @@ func (_c *MockService_GetShareCount_Call) Return(n int, err error) *MockService_
 }
 
 func (_c *MockService_GetShareCount_Call) RunAndReturn(run func(ctx context.Context, contentID string, contentType string) (int, error)) *MockService_GetShareCount_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// LikeComment provides a mock function for the type MockService
-func (_mock *MockService) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	ret := _mock.Called(ctx, userID, commentID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for LikeComment")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, userID, commentID)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockService_LikeComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LikeComment'
-type MockService_LikeComment_Call struct {
-	*mock.Call
-}
-
-// LikeComment is a helper method to define mock.On call
-//   - ctx context.Context
-//   - userID uuid.UUID
-//   - commentID uuid.UUID
-func (_e *MockService_Expecter) LikeComment(ctx any, userID any, commentID any) *MockService_LikeComment_Call {
-	return &MockService_LikeComment_Call{Call: _e.mock.On("LikeComment", ctx, userID, commentID)}
-}
-
-func (_c *MockService_LikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID)) *MockService_LikeComment_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockService_LikeComment_Call) Return(err error) *MockService_LikeComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockService_LikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error) *MockService_LikeComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1032,69 +919,6 @@ func (_c *MockService_SetCommentObserver_Call) RunAndReturn(run func(obs Comment
 	return _c
 }
 
-// UnlikeComment provides a mock function for the type MockService
-func (_mock *MockService) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	ret := _mock.Called(ctx, userID, commentID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UnlikeComment")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, userID, commentID)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockService_UnlikeComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnlikeComment'
-type MockService_UnlikeComment_Call struct {
-	*mock.Call
-}
-
-// UnlikeComment is a helper method to define mock.On call
-//   - ctx context.Context
-//   - userID uuid.UUID
-//   - commentID uuid.UUID
-func (_e *MockService_Expecter) UnlikeComment(ctx any, userID any, commentID any) *MockService_UnlikeComment_Call {
-	return &MockService_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment", ctx, userID, commentID)}
-}
-
-func (_c *MockService_UnlikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID)) *MockService_UnlikeComment_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockService_UnlikeComment_Call) Return(err error) *MockService_UnlikeComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockService_UnlikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error) *MockService_UnlikeComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // UnlikePost provides a mock function for the type MockService
 func (_mock *MockService) UnlikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error {
 	ret := _mock.Called(ctx, userID, postID)
@@ -1221,75 +1045,6 @@ func (_c *MockService_UnresolveSuggestion_Call) RunAndReturn(run func(ctx contex
 	return _c
 }
 
-// UpdateComment provides a mock function for the type MockService
-func (_mock *MockService) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest) error {
-	ret := _mock.Called(ctx, id, userID, req)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateComment")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.UpdateCommentRequest) error); ok {
-		r0 = returnFunc(ctx, id, userID, req)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockService_UpdateComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateComment'
-type MockService_UpdateComment_Call struct {
-	*mock.Call
-}
-
-// UpdateComment is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-//   - req dto.UpdateCommentRequest
-func (_e *MockService_Expecter) UpdateComment(ctx any, id any, userID any, req any) *MockService_UpdateComment_Call {
-	return &MockService_UpdateComment_Call{Call: _e.mock.On("UpdateComment", ctx, id, userID, req)}
-}
-
-func (_c *MockService_UpdateComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest)) *MockService_UpdateComment_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 dto.UpdateCommentRequest
-		if args[3] != nil {
-			arg3 = args[3].(dto.UpdateCommentRequest)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
-	})
-	return _c
-}
-
-func (_c *MockService_UpdateComment_Call) Return(err error) *MockService_UpdateComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockService_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest) error) *MockService_UpdateComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // UpdatePost provides a mock function for the type MockService
 func (_mock *MockService) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdatePostRequest) error {
 	ret := _mock.Called(ctx, id, userID, req)
@@ -1355,110 +1110,6 @@ func (_c *MockService_UpdatePost_Call) Return(err error) *MockService_UpdatePost
 }
 
 func (_c *MockService_UpdatePost_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdatePostRequest) error) *MockService_UpdatePost_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UploadCommentMedia provides a mock function for the type MockService
-func (_mock *MockService) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
-	ret := _mock.Called(ctx, commentID, userID, contentType, filename, fileSize, reader, isSpoiler)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UploadCommentMedia")
-	}
-
-	var r0 *dto.PostMediaResponse
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, int64, io.Reader, bool) (*dto.PostMediaResponse, error)); ok {
-		return returnFunc(ctx, commentID, userID, contentType, filename, fileSize, reader, isSpoiler)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, int64, io.Reader, bool) *dto.PostMediaResponse); ok {
-		r0 = returnFunc(ctx, commentID, userID, contentType, filename, fileSize, reader, isSpoiler)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*dto.PostMediaResponse)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, string, int64, io.Reader, bool) error); ok {
-		r1 = returnFunc(ctx, commentID, userID, contentType, filename, fileSize, reader, isSpoiler)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockService_UploadCommentMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UploadCommentMedia'
-type MockService_UploadCommentMedia_Call struct {
-	*mock.Call
-}
-
-// UploadCommentMedia is a helper method to define mock.On call
-//   - ctx context.Context
-//   - commentID uuid.UUID
-//   - userID uuid.UUID
-//   - contentType string
-//   - filename string
-//   - fileSize int64
-//   - reader io.Reader
-//   - isSpoiler bool
-func (_e *MockService_Expecter) UploadCommentMedia(ctx any, commentID any, userID any, contentType any, filename any, fileSize any, reader any, isSpoiler any) *MockService_UploadCommentMedia_Call {
-	return &MockService_UploadCommentMedia_Call{Call: _e.mock.On("UploadCommentMedia", ctx, commentID, userID, contentType, filename, fileSize, reader, isSpoiler)}
-}
-
-func (_c *MockService_UploadCommentMedia_Call) Run(run func(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool)) *MockService_UploadCommentMedia_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 int64
-		if args[5] != nil {
-			arg5 = args[5].(int64)
-		}
-		var arg6 io.Reader
-		if args[6] != nil {
-			arg6 = args[6].(io.Reader)
-		}
-		var arg7 bool
-		if args[7] != nil {
-			arg7 = args[7].(bool)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6,
-			arg7,
-		)
-	})
-	return _c
-}
-
-func (_c *MockService_UploadCommentMedia_Call) Return(postMediaResponse *dto.PostMediaResponse, err error) *MockService_UploadCommentMedia_Call {
-	_c.Call.Return(postMediaResponse, err)
-	return _c
-}
-
-func (_c *MockService_UploadCommentMedia_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)) *MockService_UploadCommentMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }

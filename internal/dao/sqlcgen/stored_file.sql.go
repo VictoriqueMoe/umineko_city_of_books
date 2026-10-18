@@ -48,17 +48,44 @@ func (q *Queries) CountStoredFilesByBackend(ctx context.Context, backend Storage
 	return count, err
 }
 
-const deleteStoredFiles = `-- name: DeleteStoredFiles :exec
-DELETE FROM stored_files WHERE key = ANY($1::text[])
+const deleteStoredFilesAt = `-- name: DeleteStoredFilesAt :many
+DELETE FROM stored_files
+WHERE backend = $1::storage_backend
+  AND (key, location) IN (SELECT unnest($2::text[]), unnest($3::text[]))
+RETURNING key
 `
 
-func (q *Queries) DeleteStoredFiles(ctx context.Context, keys []string) error {
-	_, err := q.db.ExecContext(ctx, deleteStoredFiles, pq.Array(keys))
-	return err
+type DeleteStoredFilesAtParams struct {
+	Backend   StorageBackend
+	Keys      []string
+	Locations []string
+}
+
+func (q *Queries) DeleteStoredFilesAt(ctx context.Context, arg DeleteStoredFilesAtParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, deleteStoredFilesAt, arg.Backend, pq.Array(arg.Keys), pq.Array(arg.Locations))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		items = append(items, key)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getStoredFile = `-- name: GetStoredFile :one
-SELECT key, backend, location, size, created_at FROM stored_files WHERE key = $1
+SELECT key, backend, location, size, created_at, fallback FROM stored_files WHERE key = $1
 `
 
 func (q *Queries) GetStoredFile(ctx context.Context, key string) (StoredFile, error) {
@@ -70,12 +97,49 @@ func (q *Queries) GetStoredFile(ctx context.Context, key string) (StoredFile, er
 		&i.Location,
 		&i.Size,
 		&i.CreatedAt,
+		&i.Fallback,
 	)
 	return i, err
 }
 
+const listFallbackStoredFiles = `-- name: ListFallbackStoredFiles :many
+SELECT key, backend, location, size, created_at, fallback FROM stored_files
+WHERE fallback AND backend = 'local'
+ORDER BY key
+`
+
+func (q *Queries) ListFallbackStoredFiles(ctx context.Context) ([]StoredFile, error) {
+	rows, err := q.db.QueryContext(ctx, listFallbackStoredFiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []StoredFile{}
+	for rows.Next() {
+		var i StoredFile
+		if err := rows.Scan(
+			&i.Key,
+			&i.Backend,
+			&i.Location,
+			&i.Size,
+			&i.CreatedAt,
+			&i.Fallback,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listStoredFilesByKeys = `-- name: ListStoredFilesByKeys :many
-SELECT key, backend, location, size, created_at FROM stored_files WHERE key = ANY($1::text[])
+SELECT key, backend, location, size, created_at, fallback FROM stored_files WHERE key = ANY($1::text[])
 `
 
 func (q *Queries) ListStoredFilesByKeys(ctx context.Context, keys []string) ([]StoredFile, error) {
@@ -93,6 +157,7 @@ func (q *Queries) ListStoredFilesByKeys(ctx context.Context, keys []string) ([]S
 			&i.Location,
 			&i.Size,
 			&i.CreatedAt,
+			&i.Fallback,
 		); err != nil {
 			return nil, err
 		}
@@ -108,7 +173,7 @@ func (q *Queries) ListStoredFilesByKeys(ctx context.Context, keys []string) ([]S
 }
 
 const listStoredFilesByPrefix = `-- name: ListStoredFilesByPrefix :many
-SELECT key, backend, location, size, created_at FROM stored_files
+SELECT key, backend, location, size, created_at, fallback FROM stored_files
 WHERE starts_with(key, $1::text)
 ORDER BY key
 `
@@ -128,6 +193,7 @@ func (q *Queries) ListStoredFilesByPrefix(ctx context.Context, prefix string) ([
 			&i.Location,
 			&i.Size,
 			&i.CreatedAt,
+			&i.Fallback,
 		); err != nil {
 			return nil, err
 		}
@@ -142,9 +208,38 @@ func (q *Queries) ListStoredFilesByPrefix(ctx context.Context, prefix string) ([
 	return items, nil
 }
 
+const moveStoredFile = `-- name: MoveStoredFile :execrows
+UPDATE stored_files SET backend = $1, location = $2, size = $3, fallback = false
+WHERE key = $4 AND backend = $5 AND location = $6
+`
+
+type MoveStoredFileParams struct {
+	Backend      StorageBackend
+	Location     string
+	Size         int64
+	Key          string
+	FromBackend  StorageBackend
+	FromLocation string
+}
+
+func (q *Queries) MoveStoredFile(ctx context.Context, arg MoveStoredFileParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, moveStoredFile,
+		arg.Backend,
+		arg.Location,
+		arg.Size,
+		arg.Key,
+		arg.FromBackend,
+		arg.FromLocation,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const upsertStoredFile = `-- name: UpsertStoredFile :exec
-INSERT INTO stored_files (key, backend, location, size) VALUES ($1, $2, $3, $4)
-ON CONFLICT (key) DO UPDATE SET backend = EXCLUDED.backend, location = EXCLUDED.location, size = EXCLUDED.size, created_at = now()
+INSERT INTO stored_files (key, backend, location, size, fallback) VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (key) DO UPDATE SET backend = EXCLUDED.backend, location = EXCLUDED.location, size = EXCLUDED.size, fallback = EXCLUDED.fallback, created_at = now()
 `
 
 type UpsertStoredFileParams struct {
@@ -152,6 +247,7 @@ type UpsertStoredFileParams struct {
 	Backend  StorageBackend
 	Location string
 	Size     int64
+	Fallback bool
 }
 
 func (q *Queries) UpsertStoredFile(ctx context.Context, arg UpsertStoredFileParams) error {
@@ -160,6 +256,7 @@ func (q *Queries) UpsertStoredFile(ctx context.Context, arg UpsertStoredFilePara
 		arg.Backend,
 		arg.Location,
 		arg.Size,
+		arg.Fallback,
 	)
 	return err
 }

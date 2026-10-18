@@ -385,6 +385,17 @@ func (q *Queries) GetOCCommentMediaBatch(ctx context.Context, dollar_1 string) (
 	return items, nil
 }
 
+const getOCCommentTargetOwner = `-- name: GetOCCommentTargetOwner :one
+SELECT COALESCE(user_id, '00000000-0000-0000-0000-000000000000')::uuid AS owner_id FROM ocs WHERE id = $1
+`
+
+func (q *Queries) GetOCCommentTargetOwner(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, getOCCommentTargetOwner, id)
+	var owner_id uuid.UUID
+	err := row.Scan(&owner_id)
+	return owner_id, err
+}
+
 const likeOCComment = `-- name: LikeOCComment :exec
 INSERT INTO oc_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING
 `
@@ -524,7 +535,7 @@ func (q *Queries) UpdateOCComment(ctx context.Context, arg UpdateOCCommentParams
 	return result.RowsAffected()
 }
 
-const updateOCCommentMediaThumbnail = `-- name: UpdateOCCommentMediaThumbnail :exec
+const updateOCCommentMediaThumbnail = `-- name: UpdateOCCommentMediaThumbnail :execrows
 UPDATE oc_comment_media SET thumbnail_url = $1 WHERE id = $2
 `
 
@@ -533,12 +544,15 @@ type UpdateOCCommentMediaThumbnailParams struct {
 	ID           int64
 }
 
-func (q *Queries) UpdateOCCommentMediaThumbnail(ctx context.Context, arg UpdateOCCommentMediaThumbnailParams) error {
-	_, err := q.db.ExecContext(ctx, updateOCCommentMediaThumbnail, arg.ThumbnailUrl, arg.ID)
-	return err
+func (q *Queries) UpdateOCCommentMediaThumbnail(ctx context.Context, arg UpdateOCCommentMediaThumbnailParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateOCCommentMediaThumbnail, arg.ThumbnailUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const updateOCCommentMediaURL = `-- name: UpdateOCCommentMediaURL :exec
+const updateOCCommentMediaURL = `-- name: UpdateOCCommentMediaURL :execrows
 UPDATE oc_comment_media SET media_url = $1 WHERE id = $2
 `
 
@@ -547,7 +561,10 @@ type UpdateOCCommentMediaURLParams struct {
 	ID       int64
 }
 
-func (q *Queries) UpdateOCCommentMediaURL(ctx context.Context, arg UpdateOCCommentMediaURLParams) error {
-	_, err := q.db.ExecContext(ctx, updateOCCommentMediaURL, arg.MediaUrl, arg.ID)
-	return err
+func (q *Queries) UpdateOCCommentMediaURL(ctx context.Context, arg UpdateOCCommentMediaURLParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateOCCommentMediaURL, arg.MediaUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

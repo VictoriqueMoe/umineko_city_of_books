@@ -181,6 +181,11 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         category: "mysteries_player",
         route: routeByReferenceType,
     },
+    mystery_commented: {
+        text: "commented on your mystery",
+        category: "mysteries_gm",
+        route: routeByReferenceType,
+    },
     mystery_comment_reply: {
         text: "replied to your comment on a mystery",
         category: "mysteries_player",

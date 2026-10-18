@@ -2,11 +2,15 @@ package media
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/stretchr/testify/assert"
@@ -81,6 +85,42 @@ func TestSaveAndRecord_VideoStoreFailureReleasesTheStagedCopy(t *testing.T) {
 
 	// then no row was added for a file that was never stored
 	require.EqualError(t, err, "bucket gone")
+}
+
+func TestTranscodeDone_ARowRemovedMeanwhileDiscardsTheTranscodedOutput(t *testing.T) {
+	tests := []struct {
+		name      string
+		updateErr error
+	}{
+		{name: "the row was rolled back or deleted", updateErr: fmt.Errorf("update media url 7: %w", dao.ErrNotFound)},
+		{name: "the update failed for another reason", updateErr: errors.New("db down")},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a finished transcode whose media row update fails
+			uploadSvc := newMockuploadSvc(t)
+			uploader := NewUploader(uploadSvc, settings.NewMockService(t), nil)
+			const output = "/uploads/.staging/upload-1/clip.mp4"
+			const transcoded = "/uploads/posts/clip.mp4"
+			uploadSvc.EXPECT().Store(mock.Anything, "posts", output).Return(transcoded, nil).Once()
+			uploadSvc.EXPECT().Delete([]string{transcoded}).Once()
+			uploadSvc.EXPECT().Discard(output).Once()
+
+			var updated spec.MediaURLUpdate
+			updateURL := func(_ context.Context, s spec.MediaURLUpdate, _ ...*sql.Tx) error {
+				updated = s
+				return tc.updateErr
+			}
+			done := uploader.transcodeDone(context.Background(), "posts", storedVideo, stagedVideo, 7, updateURL, nil)
+
+			// when
+			done(output)
+
+			// then the transcoded copy is unlinked, and the strict mock proves the source file was left alone
+			assert.Equal(t, spec.MediaURLUpdate{ID: 7, URL: transcoded}, updated)
+		})
+	}
 }
 
 func TestSaveAndRecord_ImageAndAudioAreSavedDirectly(t *testing.T) {

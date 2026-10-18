@@ -408,20 +408,29 @@ func (_c *mockmediaQuerier_Paths_Call) RunAndReturn(run func(ctx context.Context
 }
 
 // SetThumbnail provides a mock function for the type mockmediaQuerier
-func (_mock *mockmediaQuerier) SetThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (_mock *mockmediaQuerier) SetThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	ret := _mock.Called(ctx, q, s)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetThumbnail")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *sqlcgen.Queries, spec.MediaURLUpdate) error); ok {
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *sqlcgen.Queries, spec.MediaURLUpdate) (int64, error)); ok {
+		return returnFunc(ctx, q, s)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *sqlcgen.Queries, spec.MediaURLUpdate) int64); ok {
 		r0 = returnFunc(ctx, q, s)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(int64)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *sqlcgen.Queries, spec.MediaURLUpdate) error); ok {
+		r1 = returnFunc(ctx, q, s)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // mockmediaQuerier_SetThumbnail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetThumbnail'
@@ -460,31 +469,40 @@ func (_c *mockmediaQuerier_SetThumbnail_Call) Run(run func(ctx context.Context, 
 	return _c
 }
 
-func (_c *mockmediaQuerier_SetThumbnail_Call) Return(err error) *mockmediaQuerier_SetThumbnail_Call {
-	_c.Call.Return(err)
+func (_c *mockmediaQuerier_SetThumbnail_Call) Return(n int64, err error) *mockmediaQuerier_SetThumbnail_Call {
+	_c.Call.Return(n, err)
 	return _c
 }
 
-func (_c *mockmediaQuerier_SetThumbnail_Call) RunAndReturn(run func(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error) *mockmediaQuerier_SetThumbnail_Call {
+func (_c *mockmediaQuerier_SetThumbnail_Call) RunAndReturn(run func(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error)) *mockmediaQuerier_SetThumbnail_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetURL provides a mock function for the type mockmediaQuerier
-func (_mock *mockmediaQuerier) SetURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (_mock *mockmediaQuerier) SetURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	ret := _mock.Called(ctx, q, s)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetURL")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *sqlcgen.Queries, spec.MediaURLUpdate) error); ok {
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *sqlcgen.Queries, spec.MediaURLUpdate) (int64, error)); ok {
+		return returnFunc(ctx, q, s)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *sqlcgen.Queries, spec.MediaURLUpdate) int64); ok {
 		r0 = returnFunc(ctx, q, s)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(int64)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *sqlcgen.Queries, spec.MediaURLUpdate) error); ok {
+		r1 = returnFunc(ctx, q, s)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // mockmediaQuerier_SetURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetURL'
@@ -523,12 +541,12 @@ func (_c *mockmediaQuerier_SetURL_Call) Run(run func(ctx context.Context, q *sql
 	return _c
 }
 
-func (_c *mockmediaQuerier_SetURL_Call) Return(err error) *mockmediaQuerier_SetURL_Call {
-	_c.Call.Return(err)
+func (_c *mockmediaQuerier_SetURL_Call) Return(n int64, err error) *mockmediaQuerier_SetURL_Call {
+	_c.Call.Return(n, err)
 	return _c
 }
 
-func (_c *mockmediaQuerier_SetURL_Call) RunAndReturn(run func(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error) *mockmediaQuerier_SetURL_Call {
+func (_c *mockmediaQuerier_SetURL_Call) RunAndReturn(run func(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error)) *mockmediaQuerier_SetURL_Call {
 	_c.Call.Return(run)
 	return _c
 }

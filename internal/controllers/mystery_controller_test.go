@@ -1,17 +1,23 @@
 package controllers
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model"
 	mysterysvc "umineko_city_of_books/internal/mystery"
 	"umineko_city_of_books/internal/upload"
 
@@ -52,10 +58,11 @@ func newMysteryHarness(t *testing.T) (*testutil.Harness, *mysterysvc.MockService
 	ms := mysterysvc.NewMockService(t)
 
 	s := &Service{
-		MysteryService: ms,
-		AuthSession:    h.SessionManager,
-		AuthService:    h.AuthService,
-		AuthzService:   h.AuthzService,
+		MysteryService:  ms,
+		SettingsService: h.SettingsService,
+		AuthSession:     h.SessionManager,
+		AuthService:     h.AuthService,
+		AuthzService:    h.AuthzService,
 	}
 	for _, setup := range s.getAllMysteryRoutes() {
 		setup(h.App)
@@ -153,11 +160,6 @@ func TestMysteryRoutes_AuthFailures(t *testing.T) {
 		{"upload media", "POST", "/mysteries/" + id + "/media", nil},
 		{"delete media", "DELETE", "/mysteries/" + id + "/media/1", nil},
 		{"create comment", "POST", "/mysteries/" + id + "/comments", dto.CreateCommentRequest{Body: "hi"}},
-		{"update comment", "PUT", "/mystery-comments/" + id, dto.UpdateCommentRequest{Body: "x"}},
-		{"delete comment", "DELETE", "/mystery-comments/" + id, nil},
-		{"like comment", "POST", "/mystery-comments/" + id + "/like", nil},
-		{"unlike comment", "DELETE", "/mystery-comments/" + id + "/like", nil},
-		{"upload comment media", "POST", "/mystery-comments/" + id + "/media", nil},
 	}
 
 	for _, route := range routes {
@@ -198,11 +200,6 @@ func TestMysteryRoutes_RejectedBeforeService(t *testing.T) {
 		{name: "upload media with a malformed id", method: "POST", path: "/mysteries/not-a-uuid/media", wantCode: http.StatusBadRequest, wantBody: "invalid id"},
 		{name: "delete media with a malformed mystery id", method: "DELETE", path: "/mysteries/not-a-uuid/media/1", wantCode: http.StatusBadRequest, wantBody: "invalid id"},
 		{name: "create comment with a malformed id", method: "POST", path: "/mysteries/not-a-uuid/comments", body: dto.CreateCommentRequest{Body: "hi"}, wantCode: http.StatusBadRequest, wantBody: "invalid id"},
-		{name: "update comment with a malformed id", method: "PUT", path: "/mystery-comments/not-a-uuid", body: dto.UpdateCommentRequest{Body: "x"}, wantCode: http.StatusBadRequest, wantBody: "invalid id"},
-		{name: "delete comment with a malformed id", method: "DELETE", path: "/mystery-comments/not-a-uuid", wantCode: http.StatusBadRequest, wantBody: "invalid id"},
-		{name: "like comment with a malformed id", method: "POST", path: "/mystery-comments/not-a-uuid/like", wantCode: http.StatusBadRequest, wantBody: "invalid id"},
-		{name: "unlike comment with a malformed id", method: "DELETE", path: "/mystery-comments/not-a-uuid/like", wantCode: http.StatusBadRequest, wantBody: "invalid id"},
-		{name: "upload comment media with a malformed id", method: "POST", path: "/mystery-comments/not-a-uuid/media", wantCode: http.StatusBadRequest, wantBody: "invalid id"},
 		{name: "delete attachment with a non-numeric attachment id", method: "DELETE", path: "/mysteries/" + id + "/attachments/not-an-int", wantCode: http.StatusBadRequest, wantBody: "invalid attachment id"},
 		{name: "delete media with a non-numeric media id", method: "DELETE", path: "/mysteries/" + id + "/media/not-an-int", wantCode: http.StatusBadRequest, wantBody: "invalid media id"},
 		{name: "delete clue with a non-numeric clue id", method: "DELETE", path: "/mysteries/" + id + "/clues/not-an-int", editPerm: granted, wantCode: http.StatusBadRequest, wantBody: "invalid clue id"},
@@ -217,11 +214,9 @@ func TestMysteryRoutes_RejectedBeforeService(t *testing.T) {
 		{name: "toggle pause with malformed json", method: "POST", path: "/mysteries/" + id + "/pause", body: "not json", wantCode: http.StatusBadRequest, wantBody: "invalid request body"},
 		{name: "toggle gm away with malformed json", method: "POST", path: "/mysteries/" + id + "/away", body: "not json", wantCode: http.StatusBadRequest, wantBody: "invalid request body"},
 		{name: "create comment with malformed json", method: "POST", path: "/mysteries/" + id + "/comments", body: "not json", wantCode: http.StatusBadRequest, wantBody: "invalid request body"},
-		{name: "update comment with malformed json", method: "PUT", path: "/mystery-comments/" + id, body: "not json", wantCode: http.StatusBadRequest, wantBody: "invalid request body"},
 		{name: "mark solved without an attempt id", method: "POST", path: "/mysteries/" + id + "/solve", body: map[string]string{}, wantCode: http.StatusBadRequest, wantBody: "attempt_id is required"},
 		{name: "upload attachment without a file (multipart happy path deliberately not covered)", method: "POST", path: "/mysteries/" + id + "/attachments", wantCode: http.StatusBadRequest, wantBody: "no file provided"},
 		{name: "upload media without a file (multipart happy path deliberately not covered)", method: "POST", path: "/mysteries/" + id + "/media", wantCode: http.StatusBadRequest, wantBody: "no media file provided"},
-		{name: "upload comment media without a file (multipart happy path deliberately not covered)", method: "POST", path: "/mystery-comments/" + id + "/media", wantCode: http.StatusBadRequest, wantBody: "no media file provided"},
 		{name: "update clue without the edit-any-theory permission", method: "PUT", path: "/mysteries/" + id + "/clues/1", body: map[string]string{"body": "x"}, editPerm: denied, wantCode: http.StatusForbidden, wantBody: "insufficient permissions"},
 		{name: "delete clue without the edit-any-theory permission", method: "DELETE", path: "/mysteries/" + id + "/clues/1", editPerm: denied, wantCode: http.StatusForbidden, wantBody: "insufficient permissions"},
 	}
@@ -387,13 +382,16 @@ func TestCreateMystery(t *testing.T) {
 	}{
 		{"created", dto.CreateMysteryRequest{Title: "A Mystery", Body: "body", Difficulty: "medium"}, nil, http.StatusCreated, `{"id":"` + mysteryID.String() + `"}`},
 		{"empty title", dto.CreateMysteryRequest{Title: ""}, mysterysvc.ErrEmptyTitle, http.StatusBadRequest, mysterysvc.ErrEmptyTitle.Error()},
+		{"two attachments sharing a name", dto.CreateMysteryRequest{Title: "A Mystery"}, fmt.Errorf("%w: %q", mysterysvc.ErrDuplicateAttachment, "notes.pdf"), http.StatusBadRequest, "already attached"},
+		{"a refused file", dto.CreateMysteryRequest{Title: "A Mystery"}, upload.ErrInvalidAttachmentType, http.StatusBadRequest, upload.ErrInvalidAttachmentType.Error()},
+		{"a server failure", dto.CreateMysteryRequest{Title: "A Mystery"}, errors.New("pq: connection refused"), http.StatusInternalServerError, "failed to create mystery"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// given
+			// given an old client posting plain json with no files
 			h, ms, userID := mysteryCtlSignIn(t, nil)
-			ms.EXPECT().CreateMystery(mock.Anything, userID, tc.req).Return(mysteryID, tc.svcErr)
+			ms.EXPECT().CreateMystery(mock.Anything, userID, tc.req, []upload.FileUpload(nil), []upload.FileUpload(nil)).Return(mysteryID, tc.svcErr)
 
 			// when
 			status, body := mysteryCtlRequest(h, "POST", "/mysteries", tc.req).WithCookie("valid-cookie").Do()
@@ -401,6 +399,103 @@ func TestCreateMystery(t *testing.T) {
 			// then
 			require.Equal(t, tc.wantCode, status)
 			assert.Contains(t, string(body), tc.wantBody)
+			assert.NotContains(t, string(body), "pq:")
+		})
+	}
+}
+
+func mysteryCtlCreateForm(t *testing.T, payload string) (string, string) {
+	t.Helper()
+
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	require.NoError(t, w.WriteField("payload", payload))
+	require.NoError(t, w.WriteField("spoiler_indexes", "1"))
+
+	parts := []struct {
+		field       string
+		filename    string
+		contentType string
+	}{
+		{field: "media", filename: "one.png", contentType: "image/png"},
+		{field: "media", filename: "two.png", contentType: "image/png"},
+		{field: "attachments", filename: "notes.pdf", contentType: "application/pdf"},
+	}
+	for _, p := range parts {
+		part, err := w.CreatePart(textproto.MIMEHeader{
+			"Content-Disposition": {`form-data; name="` + p.field + `"; filename="` + p.filename + `"`},
+			"Content-Type":        {p.contentType},
+		})
+		require.NoError(t, err)
+
+		_, err = part.Write([]byte("content of " + p.filename))
+		require.NoError(t, err)
+	}
+	require.NoError(t, w.Close())
+
+	return buf.String(), w.FormDataContentType()
+}
+
+func TestCreateMystery_MultipartCarriesThePayloadMediaAndAttachments(t *testing.T) {
+	// given a form carrying the json payload, two images with the second spoilered, and one attachment
+	h, ms, userID := mysteryCtlSignIn(t, nil)
+	mysteryID := uuid.New()
+	form, contentType := mysteryCtlCreateForm(t, `{"title":"A Mystery","body":"body","difficulty":"hard"}`)
+
+	twoImagesSecondSpoilered := mock.MatchedBy(func(files []upload.FileUpload) bool {
+		return len(files) == 2 &&
+			files[0].Filename == "one.png" && !files[0].IsSpoiler &&
+			files[1].Filename == "two.png" && files[1].IsSpoiler
+	})
+	oneAttachment := mock.MatchedBy(func(files []upload.FileUpload) bool {
+		return len(files) == 1 && files[0].Filename == "notes.pdf" && files[0].ContentType == "application/pdf" && !files[0].IsSpoiler
+	})
+	ms.EXPECT().
+		CreateMystery(mock.Anything, userID, dto.CreateMysteryRequest{Title: "A Mystery", Body: "body", Difficulty: "hard"}, twoImagesSecondSpoilered, oneAttachment).
+		Return(mysteryID, nil)
+
+	// when
+	status, body := h.NewRequest("POST", "/mysteries").WithCookie("valid-cookie").WithRawBody(form, contentType).Do()
+
+	// then
+	require.Equal(t, http.StatusCreated, status)
+	assert.Contains(t, string(body), `{"id":"`+mysteryID.String()+`"}`)
+}
+
+func TestMysteryCreateRoutes_NewAccountsCannotAttachFiles(t *testing.T) {
+	cases := []struct {
+		name  string
+		path  string
+		field string
+	}{
+		{name: "media on a mystery", path: "/mysteries", field: "media"},
+		{name: "an attachment on a mystery", path: "/mysteries", field: "attachments"},
+		{name: "media on a comment", path: "/mysteries/" + uuid.NewString() + "/comments", field: "media"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, _ := newMysteryHarness(t)
+			userID := uuid.New()
+			h.AuthService.EXPECT().
+				Authenticate(mock.Anything, "new-cookie").
+				Return(model.SessionAuthState{UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}, nil).
+				Maybe()
+			h.SessionRepo.EXPECT().GetUserID(mock.Anything, "new-cookie").Return(userID, time.Now().Add(time.Hour), nil).Maybe()
+			h.AuthzService.EXPECT().IsBanned(mock.Anything, userID).Return(false).Maybe()
+			h.AuthzService.EXPECT().IsRestrictedNewAccount(mock.Anything, userID).Return(true)
+			form, contentType := testutil.MediaForm(t, tc.field, map[string]string{"payload": `{"title":"A Mystery","body":"body"}`})
+
+			// when
+			status, body := h.NewRequest("POST", tc.path).
+				WithCookie("new-cookie").
+				WithRawBody(form, contentType).
+				Do()
+
+			// then
+			require.Equal(t, http.StatusForbidden, status)
+			assert.Contains(t, string(body), "new accounts cannot post attachments")
 		})
 	}
 }
@@ -751,98 +846,36 @@ func TestCreateMysteryComment(t *testing.T) {
 		path:   "/mysteries/" + mysteryID.String() + "/comments",
 		body:   req,
 		expect: func(ms *mysterysvc.MockService, userID uuid.UUID, svcErr error) {
-			ms.EXPECT().CreateComment(mock.Anything, mysteryID, userID, req).Return(commentID, svcErr)
+			ms.EXPECT().CreateComment(mock.Anything, mysteryID, userID, req, []upload.FileUpload(nil)).Return(commentID, svcErr)
 		},
 	}
 
 	mysteryCtlRunOutcomes(t, route, []mysteryCtlOutcome{
 		{"created", nil, http.StatusCreated, `{"id":"` + commentID.String() + `"}`},
-		{"empty body", mysterysvc.ErrEmptyBody, http.StatusBadRequest, mysterysvc.ErrEmptyBody.Error()},
+		{"empty body", comment.ErrEmptyBody, http.StatusBadRequest, comment.ErrEmptyBody.Error()},
 		{"not solved", mysterysvc.ErrNotSolved, http.StatusForbidden, mysterysvc.ErrNotSolved.Error()},
 		{"blocked", block.ErrUserBlocked, http.StatusForbidden, "user is blocked"},
 		{"not found", mysterysvc.ErrNotFound, http.StatusNotFound, "mystery not found"},
+		{"a refused file", fmt.Errorf("%w: file size 9MB exceeds maximum 5MB", upload.ErrFileTooLarge), http.StatusBadRequest, "exceeds maximum 5MB"},
 		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to create comment"},
 	})
 }
 
-func TestUpdateMysteryComment(t *testing.T) {
+func TestCreateMysteryComment_MultipartCarriesABlankBodyAndItsMedia(t *testing.T) {
+	// given a form carrying a blank comment and one image marked as a spoiler
+	h, ms, userID := mysteryCtlSignIn(t, nil)
+	mysteryID := uuid.New()
 	commentID := uuid.New()
-	cases := []struct {
-		name     string
-		body     string
-		svcErr   error
-		wantCode int
-		wantBody string
-	}{
-		{"updated", "new", nil, http.StatusNoContent, ""},
-		{"empty body", "", mysterysvc.ErrEmptyBody, http.StatusBadRequest, mysterysvc.ErrEmptyBody.Error()},
-		{"not found", "x", mysterysvc.ErrNotFound, http.StatusNotFound, "comment not found"},
-		{"not owned", "x", errors.Join(errors.New("comment not found or not owned"), dao.ErrNotFound), http.StatusForbidden, "cannot update this comment"},
-		{"internal", "x", errors.New("boom"), http.StatusInternalServerError, "failed to update comment"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			h, ms, userID := mysteryCtlSignIn(t, nil)
-			req := dto.UpdateCommentRequest{Body: tc.body}
-			ms.EXPECT().UpdateComment(mock.Anything, commentID, userID, req).Return(tc.svcErr)
-
-			// when
-			status, body := mysteryCtlRequest(h, "PUT", "/mystery-comments/"+commentID.String(), req).WithCookie("valid-cookie").Do()
-
-			// then
-			require.Equal(t, tc.wantCode, status)
-			assert.Contains(t, string(body), tc.wantBody)
-		})
-	}
-}
-
-func TestDeleteMysteryComment(t *testing.T) {
-	commentID := uuid.New()
-	route := mysteryCtlRoute{
-		method: "DELETE",
-		path:   "/mystery-comments/" + commentID.String(),
-		expect: func(ms *mysterysvc.MockService, userID uuid.UUID, svcErr error) {
-			ms.EXPECT().DeleteComment(mock.Anything, commentID, userID).Return(svcErr)
-		},
-	}
-
-	mysteryCtlRunOutcomes(t, route, []mysteryCtlOutcome{
-		{"deleted", nil, http.StatusNoContent, ""},
-		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to delete comment"},
+	form, contentType := testutil.MediaForm(t, "media", map[string]string{"payload": `{"body":""}`, "spoiler_indexes": "0"})
+	oneSpoileredPic := mock.MatchedBy(func(files []upload.FileUpload) bool {
+		return len(files) == 1 && files[0].Filename == "pic.png" && files[0].IsSpoiler
 	})
-}
+	ms.EXPECT().CreateComment(mock.Anything, mysteryID, userID, dto.CreateCommentRequest{}, oneSpoileredPic).Return(commentID, nil)
 
-func TestLikeMysteryComment(t *testing.T) {
-	commentID := uuid.New()
-	route := mysteryCtlRoute{
-		method: "POST",
-		path:   "/mystery-comments/" + commentID.String() + "/like",
-		expect: func(ms *mysterysvc.MockService, userID uuid.UUID, svcErr error) {
-			ms.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(svcErr)
-		},
-	}
+	// when
+	status, body := h.NewRequest("POST", "/mysteries/"+mysteryID.String()+"/comments").WithCookie("valid-cookie").WithRawBody(form, contentType).Do()
 
-	mysteryCtlRunOutcomes(t, route, []mysteryCtlOutcome{
-		{"liked", nil, http.StatusNoContent, ""},
-		{"blocked", block.ErrUserBlocked, http.StatusForbidden, "user is blocked"},
-		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to like comment"},
-	})
-}
-
-func TestUnlikeMysteryComment(t *testing.T) {
-	commentID := uuid.New()
-	route := mysteryCtlRoute{
-		method: "DELETE",
-		path:   "/mystery-comments/" + commentID.String() + "/like",
-		expect: func(ms *mysterysvc.MockService, userID uuid.UUID, svcErr error) {
-			ms.EXPECT().UnlikeComment(mock.Anything, userID, commentID).Return(svcErr)
-		},
-	}
-
-	mysteryCtlRunOutcomes(t, route, []mysteryCtlOutcome{
-		{"unliked", nil, http.StatusNoContent, ""},
-		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to unlike comment"},
-	})
+	// then
+	require.Equal(t, http.StatusCreated, status)
+	assert.Contains(t, string(body), `{"id":"`+commentID.String()+`"}`)
 }

@@ -21,12 +21,6 @@ func (s *Service) getAllShipRoutes() []FSetupRoute {
 		s.setupDeleteShip,
 		s.setupUploadShipImage,
 		s.setupVoteShip,
-		s.setupCreateShipComment,
-		s.setupUpdateShipComment,
-		s.setupDeleteShipComment,
-		s.setupLikeShipComment,
-		s.setupUnlikeShipComment,
-		s.setupUploadShipCommentMedia,
 		s.setupListCharacters,
 		s.setupListUserShips,
 	}
@@ -58,30 +52,6 @@ func (s *Service) setupUploadShipImage(r fiber.Router) {
 
 func (s *Service) setupVoteShip(r fiber.Router) {
 	r.Post("/ships/:id/vote", s.requireAuth(), s.voteShip)
-}
-
-func (s *Service) setupCreateShipComment(r fiber.Router) {
-	r.Post("/ships/:id/comments", s.requireAuth(), s.createShipComment)
-}
-
-func (s *Service) setupUpdateShipComment(r fiber.Router) {
-	r.Put("/ship-comments/:id", s.requireAuth(), s.updateShipComment)
-}
-
-func (s *Service) setupDeleteShipComment(r fiber.Router) {
-	r.Delete("/ship-comments/:id", s.requireAuth(), s.deleteShipComment)
-}
-
-func (s *Service) setupLikeShipComment(r fiber.Router) {
-	r.Post("/ship-comments/:id/like", s.requireAuth(), s.likeShipComment)
-}
-
-func (s *Service) setupUnlikeShipComment(r fiber.Router) {
-	r.Delete("/ship-comments/:id/like", s.requireAuth(), s.unlikeShipComment)
-}
-
-func (s *Service) setupUploadShipCommentMedia(r fiber.Router) {
-	r.Post("/ship-comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadShipCommentMedia)
 }
 
 func (s *Service) setupListCharacters(r fiber.Router) {
@@ -223,74 +193,6 @@ func (s *Service) voteShip(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to vote")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
-}
-
-func (s *Service) createShipComment(ctx fiber.Ctx) error {
-	shipID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	req, ok := utils.BindJSON[dto.CreateCommentRequest](ctx)
-	if !ok {
-		return nil
-	}
-
-	id, err := s.ShipService.CreateComment(ctx.Context(), shipID, userID, req)
-	if err != nil {
-		if utils.MapFilterError(ctx, err) {
-			return nil
-		}
-		if errors.Is(err, block.ErrUserBlocked) {
-			return utils.Forbidden(ctx, "user is blocked")
-		}
-		if errors.Is(err, ship.ErrEmptyBody) {
-			return utils.BadRequest(ctx, err.Error())
-		}
-		return utils.InternalError(ctx, "failed to create comment")
-	}
-	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
-}
-
-func (s *Service) updateShipComment(ctx fiber.Ctx) error {
-	id, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	req, ok := utils.BindJSON[dto.UpdateCommentRequest](ctx)
-	if !ok {
-		return nil
-	}
-
-	if err := s.ShipService.UpdateComment(ctx.Context(), id, userID, req); err != nil {
-		if utils.MapFilterError(ctx, err) {
-			return nil
-		}
-		if errors.Is(err, ship.ErrEmptyBody) {
-			return utils.BadRequest(ctx, err.Error())
-		}
-		return utils.InternalError(ctx, "failed to update comment")
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
-}
-
-func (s *Service) deleteShipComment(ctx fiber.Ctx) error {
-	return s.handleDeleteComment(ctx, s.ShipService.DeleteComment)
-}
-
-func (s *Service) likeShipComment(ctx fiber.Ctx) error {
-	return s.handleLikeComment(ctx, s.ShipService.LikeComment)
-}
-
-func (s *Service) unlikeShipComment(ctx fiber.Ctx) error {
-	return s.handleUnlikeComment(ctx, s.ShipService.UnlikeComment)
-}
-
-func (s *Service) uploadShipCommentMedia(ctx fiber.Ctx) error {
-	return handleUploadCommentMedia(ctx, s.ShipService.UploadCommentMedia)
 }
 
 func (s *Service) listCharacters(ctx fiber.Ctx) error {

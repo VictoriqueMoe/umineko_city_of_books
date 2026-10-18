@@ -19,9 +19,9 @@ type (
 	postCommentQuerier struct{}
 )
 
-func (postCommentQuerier) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment[uuid.UUID]) (*model.CommentRow, error) {
+func (postCommentQuerier) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment) (*model.CommentRow, error) {
 	row, err := q.CreatePostComment(ctx, sqlcgen.CreatePostCommentParams{
-		PostID:   s.TargetID,
+		PostID:   s.Target.ID,
 		ParentID: s.ParentID,
 		UserID:   s.UserID,
 		Body:     s.Body,
@@ -50,17 +50,17 @@ func (postCommentQuerier) Delete(ctx context.Context, q *sqlcgen.Queries, s spec
 	})
 }
 
-func (postCommentQuerier) Count(ctx context.Context, q *sqlcgen.Queries, target uuid.UUID, exclude []uuid.UUID) (int64, error) {
+func (postCommentQuerier) Count(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget, exclude []uuid.UUID) (int64, error) {
 	return q.CountPostComments(ctx, sqlcgen.CountPostCommentsParams{
-		PostID:  target,
+		PostID:  target.ID,
 		Column2: joinUUIDs(exclude),
 	})
 }
 
-func (postCommentQuerier) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery[uuid.UUID]) ([]model.CommentRow, error) {
+func (postCommentQuerier) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery) ([]model.CommentRow, error) {
 	rows, err := q.ListPostComments(ctx, sqlcgen.ListPostCommentsParams{
 		UserID:  s.ViewerID,
-		PostID:  s.TargetID,
+		PostID:  s.Target.ID,
 		Column3: joinUUIDs(s.ExcludeUserIDs),
 		Limit:   int32(s.Limit),
 		Offset:  int32(s.Offset),
@@ -86,12 +86,25 @@ func (postCommentQuerier) ByID(ctx context.Context, q *sqlcgen.Queries, id uuid.
 	return new(commentRowFromCreate(commentCreateRow(row))), nil
 }
 
-func (postCommentQuerier) EntityID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error) {
-	return q.GetPostCommentEntityID(ctx, id)
+func (postCommentQuerier) Target(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (spec.CommentTarget, error) {
+	entityID, err := q.GetPostCommentEntityID(ctx, id)
+	if err != nil {
+		return spec.CommentTarget{}, err
+	}
+
+	return spec.CommentTarget{ID: entityID}, nil
 }
 
 func (postCommentQuerier) AuthorID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error) {
 	return q.GetPostCommentAuthorID(ctx, id)
+}
+
+func (postCommentQuerier) MediaDir() string {
+	return "posts"
+}
+
+func (postCommentQuerier) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
+	return q.GetPostCommentTargetOwner(ctx, target.ID)
 }
 
 func (postCommentQuerier) Like(ctx context.Context, q *sqlcgen.Queries, s spec.CommentLike) error {
@@ -142,16 +155,16 @@ func (postCommentQuerier) MediaBatch(ctx context.Context, q *sqlcgen.Queries, id
 	return out, nil
 }
 
-func (postCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (postCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdatePostCommentMediaURL(ctx, sqlcgen.UpdatePostCommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
 }
 
-func (postCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (postCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdatePostCommentMediaThumbnail(ctx, sqlcgen.UpdatePostCommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
-func (postCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target uuid.UUID) ([]string, error) {
-	rows, err := q.CollectPostCommentMediaPaths(ctx, target)
+func (postCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {
+	rows, err := q.CollectPostCommentMediaPaths(ctx, target.ID)
 	if err != nil {
 		return nil, err
 	}

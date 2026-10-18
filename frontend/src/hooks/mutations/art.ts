@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import type { ArtDetail } from "../../types/api";
+import type { ArtDetail, MediaUpload } from "../../types/api";
 import {
     createArt,
     createGallery,
@@ -18,7 +18,6 @@ import {
     likeArtComment,
     unlikeArtComment,
     updateArtComment,
-    uploadArtCommentMedia,
 } from "../../api/endpoints/comments";
 import { invalidateViews } from "../../api/cache/invalidate";
 import { queryKeys } from "../../api/queryKeys";
@@ -109,8 +108,8 @@ export function useUnlikeArt() {
 export function useCreateArtComment(artId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ body, parentId }: { body: string; parentId?: string }) =>
-            createArtComment(artId, body, parentId),
+        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly MediaUpload[] }) =>
+            createArtComment(artId, body, parentId, media),
         onSuccess: () => {
             invalidateViews(qc, "art");
         },
@@ -151,16 +150,6 @@ export function useUnlikeArtComment(artId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (commentId: string) => unlikeArtComment(commentId),
-        onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.art.detail(artId) });
-        },
-    });
-}
-
-export function useUploadArtCommentMedia(artId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({ commentId, file }: { commentId: string; file: File }) => uploadArtCommentMedia(commentId, file),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.art.detail(artId) });
         },

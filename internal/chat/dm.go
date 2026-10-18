@@ -7,6 +7,7 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 )
@@ -80,7 +81,7 @@ func (d *dmService) ResolveDMRoom(ctx context.Context, senderID, recipientID uui
 	return resp, nil
 }
 
-func (d *dmService) SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, req dto.SendDMRequest, files []FileUpload) (*dto.SendDMResponse, error) {
+func (d *dmService) SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, req dto.SendDMRequest, files []upload.FileUpload) (*dto.SendDMResponse, error) {
 	if req.Body == "" && len(files) == 0 {
 		return nil, ErrMissingFields
 	}

@@ -52,11 +52,10 @@ export function JournalEntryPage() {
     const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
     useScrollToHash(!loading && !!entry, highlightedComment ? `comment-${highlightedComment}` : null);
 
-    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn, uploadMediaFn } = useCommentHandlers(
-        "journal",
-        journalId ?? "",
-        { enabled: ["create", "update", "delete", "like", "unlike", "uploadMedia"], entryId: entry?.id },
-    );
+    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn } = useCommentHandlers("journal", journalId ?? "", {
+        enabled: ["create", "update", "delete", "like", "unlike"],
+        entryId: entry?.id,
+    });
     const deleteEntryMutation = useDeleteJournalEntry(journalId ?? "");
     const [deleteError, setDeleteError] = useState("");
 
@@ -190,7 +189,6 @@ export function JournalEntryPage() {
                 deleteFn={deleteFn}
                 updateFn={updateFn}
                 createCommentFn={createCommentFn}
-                uploadMediaFn={uploadMediaFn}
             />
         </div>
     );

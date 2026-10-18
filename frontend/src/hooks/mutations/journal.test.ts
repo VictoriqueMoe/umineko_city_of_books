@@ -20,7 +20,6 @@ import {
     useUpdateJournal,
     useUpdateJournalComment,
     useUpdateJournalEntry,
-    useUploadJournalCommentMedia,
     useUploadJournalEntryMedia,
 } from "./journal";
 
@@ -44,7 +43,6 @@ const commentMocks = vi.hoisted(() => ({
     likeJournalComment: vi.fn(),
     unlikeJournalComment: vi.fn(),
     updateJournalComment: vi.fn(),
-    uploadJournalCommentMedia: vi.fn(),
 }));
 
 vi.mock("../../api/endpoints/journal", () => mocks);
@@ -356,6 +354,7 @@ describe("useCreateJournalComment", () => {
             "without love it cannot be seen",
             undefined,
             undefined,
+            undefined,
         );
     });
 
@@ -370,7 +369,22 @@ describe("useCreateJournalComment", () => {
         });
 
         // then
-        expect(mocks.createJournalComment).toHaveBeenCalledWith(journalId, "a reply", commentId, undefined);
+        expect(mocks.createJournalComment).toHaveBeenCalledWith(journalId, "a reply", commentId, undefined, undefined);
+    });
+
+    it("sends the staged media with the entry comment in the same request", async () => {
+        // given
+        const { wrapper } = harness();
+        const media = [{ file: makeFile(), isSpoiler: true }];
+        const { result } = renderHook(() => useCreateJournalComment(journalId, entryId), { wrapper });
+
+        // when
+        await act(async () => {
+            await result.current.mutateAsync({ body: "", media });
+        });
+
+        // then
+        expect(mocks.createJournalComment).toHaveBeenCalledWith(journalId, "", undefined, entryId, media);
     });
 
     it("attaches the comment to an entry when the hook was scoped to one", async () => {
@@ -384,7 +398,13 @@ describe("useCreateJournalComment", () => {
         });
 
         // then
-        expect(mocks.createJournalComment).toHaveBeenCalledWith(journalId, "on this entry", undefined, entryId);
+        expect(mocks.createJournalComment).toHaveBeenCalledWith(
+            journalId,
+            "on this entry",
+            undefined,
+            entryId,
+            undefined,
+        );
         expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: journalKey });
     });
 });
@@ -398,12 +418,28 @@ describe("useCreateJournalEntry", () => {
 
         // when
         await act(async () => {
-            await result.current.mutateAsync(entryPayload);
+            await result.current.mutateAsync({ payload: entryPayload });
         });
 
         // then
-        expect(mocks.createJournalEntry).toHaveBeenCalledWith(journalId, entryPayload);
+        expect(mocks.createJournalEntry).toHaveBeenCalledWith(journalId, entryPayload, undefined);
         expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: journalKey });
+    });
+
+    it("sends the staged media with the entry in the same request", async () => {
+        // given
+        const { wrapper } = harness();
+        mocks.createJournalEntry.mockResolvedValue({ id: entryId, entry_number: 2 });
+        const media = [{ file: makeFile(), isSpoiler: false }];
+        const { result } = renderHook(() => useCreateJournalEntry(journalId), { wrapper });
+
+        // when
+        await act(async () => {
+            await result.current.mutateAsync({ payload: entryPayload, media });
+        });
+
+        // then
+        expect(mocks.createJournalEntry).toHaveBeenCalledWith(journalId, entryPayload, media);
     });
 
     it("returns the new entry number to the caller", async () => {
@@ -415,7 +451,7 @@ describe("useCreateJournalEntry", () => {
         // when
         let created: { id: string; entry_number: number } | undefined;
         await act(async () => {
-            created = await result.current.mutateAsync(entryPayload);
+            created = await result.current.mutateAsync({ payload: entryPayload });
         });
 
         // then
@@ -521,24 +557,6 @@ describe("useUnlikeJournalComment", () => {
 
         // then
         expect(commentMocks.unlikeJournalComment).toHaveBeenCalledWith(commentId);
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: journalKey });
-    });
-});
-
-describe("useUploadJournalCommentMedia", () => {
-    it("uploads the file against the comment it was given", async () => {
-        // given
-        const { wrapper, invalidateQueries } = harness();
-        const file = makeFile();
-        const { result } = renderHook(() => useUploadJournalCommentMedia(journalId), { wrapper });
-
-        // when
-        await act(async () => {
-            await result.current.mutateAsync({ commentId, file });
-        });
-
-        // then
-        expect(commentMocks.uploadJournalCommentMedia).toHaveBeenCalledWith(commentId, file);
         expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: journalKey });
     });
 });

@@ -17,10 +17,12 @@ type (
 		Get(ctx context.Context, s spec.StoredFileKey, tx ...*sql.Tx) (*model.StoredFileRow, error)
 		Upsert(ctx context.Context, s spec.NewStoredFile, tx ...*sql.Tx) error
 		Backfill(ctx context.Context, s spec.StoredFileBackfill, tx ...*sql.Tx) (int64, error)
-		Delete(ctx context.Context, s spec.StoredFileKeys, tx ...*sql.Tx) error
+		DeleteAt(ctx context.Context, s spec.StoredFileLocations, tx ...*sql.Tx) ([]string, error)
 		ListByKeys(ctx context.Context, s spec.StoredFileKeys, tx ...*sql.Tx) ([]model.StoredFileRow, error)
 		ListByPrefix(ctx context.Context, s spec.StoredFilePrefix, tx ...*sql.Tx) ([]model.StoredFileRow, error)
 		CountByBackend(ctx context.Context, s spec.StoredFileBackend, tx ...*sql.Tx) (int64, error)
+		ListFallback(ctx context.Context, tx ...*sql.Tx) ([]model.StoredFileRow, error)
+		Move(ctx context.Context, s spec.StoredFileMove, tx ...*sql.Tx) (bool, error)
 	}
 
 	storedFileDAO struct {
@@ -35,6 +37,7 @@ func toStoredFileRow(row sqlcgen.StoredFile) model.StoredFileRow {
 		Location:  row.Location,
 		Size:      row.Size,
 		CreatedAt: row.CreatedAt,
+		Fallback:  row.Fallback,
 	}
 }
 
@@ -57,6 +60,7 @@ func (r *storedFileDAO) Upsert(ctx context.Context, s spec.NewStoredFile, tx ...
 		Backend:  sqlcgen.StorageBackend(s.Backend),
 		Location: s.Location,
 		Size:     s.Size,
+		Fallback: s.Fallback,
 	})
 	if err != nil {
 		return fmt.Errorf("upsert stored file %s: %w", s.Key, err)
@@ -87,16 +91,25 @@ func (r *storedFileDAO) Backfill(ctx context.Context, s spec.StoredFileBackfill,
 	return inserted, nil
 }
 
-func (r *storedFileDAO) Delete(ctx context.Context, s spec.StoredFileKeys, tx ...*sql.Tx) error {
+func (r *storedFileDAO) DeleteAt(ctx context.Context, s spec.StoredFileLocations, tx ...*sql.Tx) ([]string, error) {
+	if len(s.Keys) != len(s.Locations) {
+		return nil, fmt.Errorf("delete stored files: %d keys and %d locations", len(s.Keys), len(s.Locations))
+	}
+
 	if len(s.Keys) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	if err := genQueries(r.db, tx).DeleteStoredFiles(ctx, s.Keys); err != nil {
-		return fmt.Errorf("delete stored files: %w", err)
+	deleted, err := genQueries(r.db, tx).DeleteStoredFilesAt(ctx, sqlcgen.DeleteStoredFilesAtParams{
+		Backend:   sqlcgen.StorageBackend(s.Backend),
+		Keys:      s.Keys,
+		Locations: s.Locations,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("delete stored files on %s: %w", s.Backend, err)
 	}
 
-	return nil
+	return deleted, nil
 }
 
 func (r *storedFileDAO) ListByKeys(ctx context.Context, s spec.StoredFileKeys, tx ...*sql.Tx) ([]model.StoredFileRow, error) {
@@ -138,4 +151,34 @@ func (r *storedFileDAO) CountByBackend(ctx context.Context, s spec.StoredFileBac
 	}
 
 	return count, nil
+}
+
+func (r *storedFileDAO) ListFallback(ctx context.Context, tx ...*sql.Tx) ([]model.StoredFileRow, error) {
+	rows, err := genQueries(r.db, tx).ListFallbackStoredFiles(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list local fallback stored files: %w", err)
+	}
+
+	result := make([]model.StoredFileRow, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, toStoredFileRow(row))
+	}
+
+	return result, nil
+}
+
+func (r *storedFileDAO) Move(ctx context.Context, s spec.StoredFileMove, tx ...*sql.Tx) (bool, error) {
+	affected, err := genQueries(r.db, tx).MoveStoredFile(ctx, sqlcgen.MoveStoredFileParams{
+		Backend:      sqlcgen.StorageBackend(s.Backend),
+		Location:     s.Location,
+		Size:         s.Size,
+		Key:          s.Key,
+		FromBackend:  sqlcgen.StorageBackend(s.FromBackend),
+		FromLocation: s.FromLocation,
+	})
+	if err != nil {
+		return false, fmt.Errorf("move stored file %s to %s: %w", s.Key, s.Backend, err)
+	}
+
+	return affected > 0, nil
 }

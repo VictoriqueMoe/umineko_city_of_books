@@ -190,7 +190,7 @@ func (s *service) deliver(ctx context.Context, j job, body string) error {
 			parentID = new(j.ev.ItemID)
 		}
 
-		_, err := s.postSvc.CreateComment(ctx, j.ev.ScopeID, j.bot.UserID, dto.CreateCommentRequest{Body: body, ParentID: parentID})
+		_, err := s.postSvc.CreateComment(ctx, j.ev.ScopeID, j.bot.UserID, dto.CreateCommentRequest{Body: body, ParentID: parentID}, nil)
 
 		return err
 	}

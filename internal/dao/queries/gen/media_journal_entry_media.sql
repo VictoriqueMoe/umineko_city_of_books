@@ -9,10 +9,10 @@ SELECT media_url FROM journal_entry_media WHERE id = $1 AND entry_id = $2;
 -- name: DeleteJournalEntryMediaRow :exec
 DELETE FROM journal_entry_media WHERE id = $1 AND entry_id = $2;
 
--- name: UpdateJournalEntryMediaURL :exec
+-- name: UpdateJournalEntryMediaURL :execrows
 UPDATE journal_entry_media SET media_url = $1 WHERE id = $2;
 
--- name: UpdateJournalEntryMediaThumbnail :exec
+-- name: UpdateJournalEntryMediaThumbnail :execrows
 UPDATE journal_entry_media SET thumbnail_url = $1 WHERE id = $2;
 
 -- name: GetJournalEntryMedia :many

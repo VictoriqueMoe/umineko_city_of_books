@@ -14,8 +14,9 @@ type (
 )
 
 var (
-	ErrNotFound     = errors.New("not found")
-	ErrAlreadyVoted = errors.New("already voted")
+	ErrNotFound           = errors.New("not found")
+	ErrAlreadyVoted       = errors.New("already voted")
+	ErrUnknownCommentKind = errors.New("unknown comment kind")
 )
 
 func (e *ChatMessageReplayError) Error() string {

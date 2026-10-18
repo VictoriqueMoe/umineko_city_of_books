@@ -7,7 +7,7 @@ export type DeliveryState = "sending" | "failed";
 export interface PendingReply {
     id: string;
     senderName: string;
-    bodyPreview: string;
+    body: string;
 }
 
 export interface OutgoingAttachment {
@@ -230,7 +230,7 @@ export function pendingPreview(pending: PendingSend, viewer: User, identity: Sen
                   id: pending.replyTo.id,
                   sender_id: "",
                   sender_name: pending.replyTo.senderName,
-                  body_preview: pending.replyTo.bodyPreview,
+                  body: pending.replyTo.body,
               }
             : undefined,
         pinned: false,

@@ -39,11 +39,11 @@ func ({{.Recv}}) DeleteRow(ctx context.Context, q *sqlcgen.Queries, s spec.Media
 	return q.Delete{{.Entity}}MediaRow(ctx, sqlcgen.Delete{{.Entity}}MediaRowParams{ID: s.ID, {{.FKField}}: s.TargetID})
 }
 
-func ({{.Recv}}) SetURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func ({{.Recv}}) SetURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.Update{{.Entity}}MediaURL(ctx, sqlcgen.Update{{.Entity}}MediaURLParams{MediaUrl: s.URL, ID: s.ID})
 }
 
-func ({{.Recv}}) SetThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func ({{.Recv}}) SetThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.Update{{.Entity}}MediaThumbnail(ctx, sqlcgen.Update{{.Entity}}MediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 

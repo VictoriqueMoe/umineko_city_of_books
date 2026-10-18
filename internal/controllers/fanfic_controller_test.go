@@ -6,14 +6,16 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
@@ -45,10 +47,11 @@ func newFanficHarness(t *testing.T) (*testutil.Harness, *fanficsvc.MockService) 
 	fs := fanficsvc.NewMockService(t)
 
 	s := &Service{
-		FanficService: fs,
-		AuthSession:   h.SessionManager,
-		AuthService:   h.AuthService,
-		AuthzService:  h.AuthzService,
+		FanficService:   fs,
+		SettingsService: h.SettingsService,
+		AuthSession:     h.SessionManager,
+		AuthService:     h.AuthService,
+		AuthzService:    h.AuthzService,
 	}
 
 	for _, setup := range s.getAllFanficRoutes() {
@@ -95,7 +98,6 @@ func fanficCtlWriteEndpoints() []fanficCtlWrite {
 	createChapter := dto.CreateChapterRequest{Title: "Ch1", Body: "body"}
 	updateChapter := dto.UpdateChapterRequest{Title: "Updated", Body: "body"}
 	createComment := dto.CreateCommentRequest{Body: "nice"}
-	updateComment := dto.UpdateCommentRequest{Body: "edited"}
 
 	created := fanficCtlOutcome{"created", nil, http.StatusCreated, ""}
 	noContent := fanficCtlOutcome{"no content", nil, http.StatusNoContent, ""}
@@ -221,62 +223,17 @@ func fanficCtlWriteEndpoints() []fanficCtlWrite {
 		{
 			name: "create comment", method: "POST", route: "/fanfics/:id/comments", body: createComment,
 			expect: func(fs *fanficsvc.MockService, userID, targetID, newID uuid.UUID, err error) {
-				fs.EXPECT().CreateComment(mock.Anything, targetID, userID, createComment).Return(newID, err)
+				fs.EXPECT().CreateComment(mock.Anything, targetID, userID, createComment, []upload.FileUpload(nil)).Return(newID, err)
 			},
 			outcomes: []fanficCtlOutcome{
 				created,
 				blocked,
-				emptyBody,
+				{"empty body", comment.ErrEmptyBody, http.StatusBadRequest, comment.ErrEmptyBody.Error()},
 				{"not found", fanficsvc.ErrNotFound, http.StatusNotFound, "fanfic not found"},
+				{"rejected upload", fmt.Errorf("%w: file size 9MB exceeds maximum 5MB", upload.ErrFileTooLarge), http.StatusBadRequest, "exceeds maximum 5MB"},
 				{"internal", boom, http.StatusInternalServerError, "failed to create comment"},
 			},
 		},
-		{
-			name: "update comment", method: "PUT", route: "/fanfic-comments/:id", body: updateComment,
-			expect: func(fs *fanficsvc.MockService, userID, targetID, _ uuid.UUID, err error) {
-				fs.EXPECT().UpdateComment(mock.Anything, targetID, userID, updateComment).Return(err)
-			},
-			outcomes: []fanficCtlOutcome{
-				noContent,
-				emptyBody,
-				{"not found", fanficsvc.ErrNotFound, http.StatusNotFound, "comment not found"},
-				{"not owned", errors.Join(errors.New("comment not found or not owned"), dao.ErrNotFound), http.StatusForbidden, "cannot update this comment"},
-				{"internal", boom, http.StatusInternalServerError, "failed to update comment"},
-			},
-		},
-		{
-			name: "delete comment", method: "DELETE", route: "/fanfic-comments/:id",
-			expect: func(fs *fanficsvc.MockService, userID, targetID, _ uuid.UUID, err error) {
-				fs.EXPECT().DeleteComment(mock.Anything, targetID, userID).Return(err)
-			},
-			outcomes: []fanficCtlOutcome{
-				noContent,
-				{"internal", boom, http.StatusInternalServerError, "failed to delete comment"},
-			},
-		},
-		{
-			name: "like comment", method: "POST", route: "/fanfic-comments/:id/like",
-			expect: func(fs *fanficsvc.MockService, userID, targetID, _ uuid.UUID, err error) {
-				fs.EXPECT().LikeComment(mock.Anything, userID, targetID).Return(err)
-			},
-			outcomes: []fanficCtlOutcome{
-				noContent,
-				blocked,
-				{"not found", fanficsvc.ErrNotFound, http.StatusNotFound, "comment not found"},
-				{"internal", boom, http.StatusInternalServerError, "failed to like comment"},
-			},
-		},
-		{
-			name: "unlike comment", method: "DELETE", route: "/fanfic-comments/:id/like",
-			expect: func(fs *fanficsvc.MockService, userID, targetID, _ uuid.UUID, err error) {
-				fs.EXPECT().UnlikeComment(mock.Anything, userID, targetID).Return(err)
-			},
-			outcomes: []fanficCtlOutcome{
-				noContent,
-				{"internal", boom, http.StatusInternalServerError, "failed to unlike comment"},
-			},
-		},
-		{name: "upload comment media", method: "POST", route: "/fanfic-comments/:id/media"},
 	}
 }
 
@@ -307,6 +264,88 @@ func TestUploadFanficCover(t *testing.T) {
 			assert.NotContains(t, string(body), "pq:")
 		})
 	}
+}
+
+func TestCreateFanficComment_Multipart(t *testing.T) {
+	newID := uuid.New()
+
+	cases := []struct {
+		name     string
+		values   map[string]string
+		calls    bool
+		wantCode int
+		wantBody string
+	}{
+		{
+			name:     "the payload and spoilered media reach the service",
+			values:   map[string]string{"payload": `{"body":"nice"}`, "spoiler_indexes": "0"},
+			calls:    true,
+			wantCode: http.StatusCreated,
+			wantBody: `{"id":"` + newID.String() + `"}`,
+		},
+		{
+			name:     "a malformed payload is refused",
+			values:   map[string]string{"payload": "not json"},
+			wantCode: http.StatusBadRequest,
+			wantBody: "invalid request body",
+		},
+		{
+			name:     "malformed spoiler indexes are refused",
+			values:   map[string]string{"payload": `{"body":"nice"}`, "spoiler_indexes": "first"},
+			wantCode: http.StatusBadRequest,
+			wantBody: "invalid spoiler_indexes",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, fs := newFanficHarness(t)
+			userID := uuid.New()
+			fanficID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			form, contentType := testutil.MediaForm(t, "media", tc.values)
+
+			if tc.calls {
+				fs.EXPECT().
+					CreateComment(mock.Anything, fanficID, userID, dto.CreateCommentRequest{Body: "nice"}, mock.MatchedBy(func(files []upload.FileUpload) bool {
+						return len(files) == 1 && files[0].Filename == "pic.png" && files[0].ContentType == "image/png" && files[0].IsSpoiler
+					})).
+					Return(newID, nil)
+			}
+
+			// when
+			status, body := h.NewRequest("POST", "/fanfics/"+fanficID.String()+"/comments").WithCookie("valid-cookie").WithRawBody(form, contentType).Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestCreateFanficComment_NewAccountsCannotAttachFiles(t *testing.T) {
+	// given
+	h, _ := newFanficHarness(t)
+	userID := uuid.New()
+	h.AuthService.EXPECT().
+		Authenticate(mock.Anything, "new-cookie").
+		Return(model.SessionAuthState{UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}, nil).
+		Maybe()
+	h.SessionRepo.EXPECT().GetUserID(mock.Anything, "new-cookie").Return(userID, time.Now().Add(time.Hour), nil).Maybe()
+	h.AuthzService.EXPECT().IsBanned(mock.Anything, userID).Return(false).Maybe()
+	h.AuthzService.EXPECT().IsRestrictedNewAccount(mock.Anything, userID).Return(true)
+	form, contentType := testutil.MediaForm(t, "media", map[string]string{"payload": `{"body":"nice"}`})
+
+	// when
+	status, body := h.NewRequest("POST", "/fanfics/"+uuid.NewString()+"/comments").
+		WithCookie("new-cookie").
+		WithRawBody(form, contentType).
+		Do()
+
+	// then
+	require.Equal(t, http.StatusForbidden, status)
+	assert.Contains(t, string(body), "new accounts cannot post attachments")
 }
 
 func TestFanficWrites_AuthFailures(t *testing.T) {
@@ -396,7 +435,6 @@ func TestFanficUploads_NoFile_BadRequest(t *testing.T) {
 		wantBody string
 	}{
 		{"cover", "/fanfics/" + uuid.NewString() + "/cover", "no image file provided"},
-		{"comment media", "/fanfic-comments/" + uuid.NewString() + "/media", "no media file provided"},
 	}
 
 	for _, tc := range cases {

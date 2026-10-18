@@ -39,11 +39,11 @@ func (journalEntryMediaQuerier) DeleteRow(ctx context.Context, q *sqlcgen.Querie
 	return q.DeleteJournalEntryMediaRow(ctx, sqlcgen.DeleteJournalEntryMediaRowParams{ID: s.ID, EntryID: s.TargetID})
 }
 
-func (journalEntryMediaQuerier) SetURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (journalEntryMediaQuerier) SetURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateJournalEntryMediaURL(ctx, sqlcgen.UpdateJournalEntryMediaURLParams{MediaUrl: s.URL, ID: s.ID})
 }
 
-func (journalEntryMediaQuerier) SetThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (journalEntryMediaQuerier) SetThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateJournalEntryMediaThumbnail(ctx, sqlcgen.UpdateJournalEntryMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 

@@ -177,7 +177,7 @@ func (s *service) replyChain(ctx context.Context, ev botEvent, botUserID uuid.UU
 
 func (s *service) parentRow(ctx context.Context, ev botEvent, id uuid.UUID) (promptRow, *uuid.UUID, bool) {
 	if ev.Surface.gameBoard() {
-		row, err := s.postRepo.GetCommentByID(ctx, id)
+		row, err := s.commentRepo.GetCommentByID(ctx, spec.CommentRef{Kind: spec.CommentKindPost, CommentID: id})
 		if err != nil || row == nil || row.EntityID != ev.ScopeID.String() {
 			return promptRow{}, nil, false
 		}

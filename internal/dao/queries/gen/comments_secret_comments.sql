@@ -80,10 +80,10 @@ FROM secret_comment_media
 WHERE comment_id = ANY(string_to_array($1::text, ',')::uuid[])
 ORDER BY sort_order;
 
--- name: UpdateSecretCommentMediaURL :exec
+-- name: UpdateSecretCommentMediaURL :execrows
 UPDATE secret_comment_media SET media_url = $1 WHERE id = $2;
 
--- name: UpdateSecretCommentMediaThumbnail :exec
+-- name: UpdateSecretCommentMediaThumbnail :execrows
 UPDATE secret_comment_media SET thumbnail_url = $1 WHERE id = $2;
 
 -- name: CollectSecretCommentMediaPaths :many

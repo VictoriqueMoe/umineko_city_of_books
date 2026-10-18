@@ -25,32 +25,32 @@ type (
 	}
 
 	MysteryDetailResponse struct {
-		ID                    uuid.UUID                `json:"id"`
-		Title                 string                   `json:"title"`
-		Body                  string                   `json:"body"`
-		Difficulty            string                   `json:"difficulty"`
-		Author                UserResponse             `json:"author"`
-		Solved                bool                     `json:"solved"`
-		Paused                bool                     `json:"paused"`
-		GmAway                bool                     `json:"gm_away"`
-		FreeForAll            bool                     `json:"free_for_all"`
-		KeepOpenAfterSolve    bool                     `json:"keep_open_after_solve"`
-		KnoxContract          KnoxContract             `json:"knox_contract"`
-		KnoxContractPublished bool                     `json:"knox_contract_published"`
-		KnoxContractLocked    bool                     `json:"knox_contract_locked"`
-		SolverCount           int                      `json:"solver_count"`
-		ViewerHasSolved       bool                     `json:"viewer_has_solved"`
-		Winner                *UserResponse            `json:"winner,omitempty"`
-		SolvedAt              *string                  `json:"solved_at,omitempty"`
-		PausedAt              *string                  `json:"paused_at,omitempty"`
-		PausedDurationSeconds int                      `json:"paused_duration_seconds"`
-		Clues                 []MysteryClue            `json:"clues"`
-		Attempts              []MysteryAttempt         `json:"attempts"`
-		Comments              []MysteryCommentResponse `json:"comments"`
-		Attachments           []MysteryAttachment      `json:"attachments"`
-		Media                 []PostMediaResponse      `json:"media"`
-		PlayerCount           int                      `json:"player_count"`
-		CreatedAt             string                   `json:"created_at"`
+		ID                    uuid.UUID           `json:"id"`
+		Title                 string              `json:"title"`
+		Body                  string              `json:"body"`
+		Difficulty            string              `json:"difficulty"`
+		Author                UserResponse        `json:"author"`
+		Solved                bool                `json:"solved"`
+		Paused                bool                `json:"paused"`
+		GmAway                bool                `json:"gm_away"`
+		FreeForAll            bool                `json:"free_for_all"`
+		KeepOpenAfterSolve    bool                `json:"keep_open_after_solve"`
+		KnoxContract          KnoxContract        `json:"knox_contract"`
+		KnoxContractPublished bool                `json:"knox_contract_published"`
+		KnoxContractLocked    bool                `json:"knox_contract_locked"`
+		SolverCount           int                 `json:"solver_count"`
+		ViewerHasSolved       bool                `json:"viewer_has_solved"`
+		Winner                *UserResponse       `json:"winner,omitempty"`
+		SolvedAt              *string             `json:"solved_at,omitempty"`
+		PausedAt              *string             `json:"paused_at,omitempty"`
+		PausedDurationSeconds int                 `json:"paused_duration_seconds"`
+		Clues                 []MysteryClue       `json:"clues"`
+		Attempts              []MysteryAttempt    `json:"attempts"`
+		Comments              []CommentResponse   `json:"comments"`
+		Attachments           []MysteryAttachment `json:"attachments"`
+		Media                 []PostMediaResponse `json:"media"`
+		PlayerCount           int                 `json:"player_count"`
+		CreatedAt             string              `json:"created_at"`
 	}
 
 	KnoxContract struct {
@@ -71,19 +71,6 @@ type (
 		FileURL  string `json:"file_url"`
 		FileName string `json:"file_name"`
 		FileSize int    `json:"file_size"`
-	}
-
-	MysteryCommentResponse struct {
-		ID        uuid.UUID                `json:"id"`
-		ParentID  *uuid.UUID               `json:"parent_id,omitempty"`
-		Author    UserResponse             `json:"author"`
-		Body      string                   `json:"body"`
-		Media     []PostMediaResponse      `json:"media"`
-		LikeCount int                      `json:"like_count"`
-		UserLiked bool                     `json:"user_liked"`
-		Replies   []MysteryCommentResponse `json:"replies,omitempty"`
-		CreatedAt string                   `json:"created_at"`
-		UpdatedAt *string                  `json:"updated_at,omitempty"`
 	}
 
 	MysteryClue struct {

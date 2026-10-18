@@ -275,3 +275,30 @@ export function renderRich(text: string): ReactNode[] {
     }
     return nodes;
 }
+
+export function renderRichInline(text: string): ReactNode[] {
+    const nodes: ReactNode[] = [];
+    for (const [i, block] of parseBlocks(text).entries()) {
+        const key = `b${i}`;
+        const content = block.content.replace(/\s*\n\s*/g, " ");
+        const separator = i > 0 ? " " : "";
+
+        if (block.type === "code") {
+            nodes.push(
+                <Fragment key={key}>
+                    {separator}
+                    <code className="rich-inline-code">{content}</code>
+                </Fragment>,
+            );
+            continue;
+        }
+
+        nodes.push(
+            <Fragment key={key}>
+                {separator}
+                {renderInline(content, `${key}i`)}
+            </Fragment>,
+        );
+    }
+    return nodes;
+}

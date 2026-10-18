@@ -26,7 +26,6 @@ import {
     useUpdateMysteryComment,
     useUploadMysteryAttachment,
     useUploadMysteryAttachmentToAny,
-    useUploadMysteryCommentMedia,
     useUploadMysteryMedia,
     useUploadMysteryMediaToAny,
     useVoteMysteryAttempt,
@@ -58,7 +57,6 @@ vi.mock("../../api/endpoints/comments", () => ({
     likeMysteryComment: vi.fn(),
     unlikeMysteryComment: vi.fn(),
     updateMysteryComment: vi.fn(),
-    uploadMysteryCommentMedia: vi.fn(),
 }));
 
 interface MutationCase {
@@ -114,9 +112,16 @@ describe("mystery mutations", () => {
         {
             name: "useCreateMystery posts the whole draft",
             useHook: () => useCreateMystery(),
-            variables: draft,
+            variables: { data: draft },
             endpoint: vi.mocked(endpoints.createMystery),
-            args: [draft],
+            args: [draft, { media: undefined, attachments: undefined }],
+        },
+        {
+            name: "useCreateMystery sends the staged media and attachments with the draft",
+            useHook: () => useCreateMystery(),
+            variables: { data: draft, media: [{ file, isSpoiler: true }], attachments: [file] },
+            endpoint: vi.mocked(endpoints.createMystery),
+            args: [draft, { media: [{ file, isSpoiler: true }], attachments: [file] }],
         },
         {
             name: "useUpdateMystery puts the draft against the id it was built with",
@@ -207,7 +212,14 @@ describe("mystery mutations", () => {
             useHook: () => useCreateMysteryComment(mysteryId),
             variables: { body: "A fine theory", parentId: "c-parent" },
             endpoint: vi.mocked(comments.createMysteryComment),
-            args: [mysteryId, "A fine theory", "c-parent"],
+            args: [mysteryId, "A fine theory", "c-parent", undefined],
+        },
+        {
+            name: "useCreateMysteryComment sends the staged media in the same request",
+            useHook: () => useCreateMysteryComment(mysteryId),
+            variables: { body: "", media: [{ file, isSpoiler: false }] },
+            endpoint: vi.mocked(comments.createMysteryComment),
+            args: [mysteryId, "", undefined, [{ file, isSpoiler: false }]],
         },
         {
             name: "useUpdateMysteryComment addresses the comment directly",
@@ -236,13 +248,6 @@ describe("mystery mutations", () => {
             variables: "c-1",
             endpoint: vi.mocked(comments.unlikeMysteryComment),
             args: ["c-1"],
-        },
-        {
-            name: "useUploadMysteryCommentMedia attaches the file to the given comment",
-            useHook: () => useUploadMysteryCommentMedia(mysteryId),
-            variables: { commentId: "c-1", file },
-            endpoint: vi.mocked(comments.uploadMysteryCommentMedia),
-            args: ["c-1", file],
         },
         {
             name: "useUploadMysteryAttachment attaches the file to its own mystery",
@@ -313,7 +318,7 @@ describe("useCreateMystery", () => {
         // when
         let created: { id: string } | undefined;
         await act(async () => {
-            created = await result.current.mutateAsync(draft);
+            created = await result.current.mutateAsync({ data: draft });
         });
 
         // then
@@ -327,7 +332,7 @@ describe("useCreateMystery", () => {
 
         // when
         const attempt = act(async () => {
-            await result.current.mutateAsync(draft);
+            await result.current.mutateAsync({ data: draft });
         });
 
         // then
@@ -362,7 +367,7 @@ describe("useCreateMysteryComment", () => {
         });
 
         // then
-        expect(comments.createMysteryComment).toHaveBeenCalledWith(mysteryId, "Nice one", undefined);
+        expect(comments.createMysteryComment).toHaveBeenCalledWith(mysteryId, "Nice one", undefined, undefined);
     });
 });
 

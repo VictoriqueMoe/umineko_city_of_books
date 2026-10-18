@@ -2,7 +2,6 @@ import { useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router";
 import { isPendingSend, pendingPreview, threadEntryKey } from "../../../domain/chat/optimisticSend";
-import { replyPreview } from "../../../domain/chat/replyPreview";
 import { useAuth } from "../../../hooks/useAuth";
 import { useBlockedUserIds } from "../../../hooks/useBlockedUserIds";
 import { useChatSession } from "../../../hooks/chat/useChatSession";
@@ -82,7 +81,7 @@ function RoomChatPanelInner({
         setReplyingTo({
             id: message.id,
             senderName: message.sender.display_name || message.sender.username,
-            bodyPreview: replyPreview(message.body),
+            body: message.body,
         });
     }, []);
 

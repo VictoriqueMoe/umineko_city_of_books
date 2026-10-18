@@ -19,7 +19,7 @@ const {
     useDeleteSecretComment,
     useLikeSecretComment,
     useUnlikeSecretComment,
-    useUploadSecretCommentMedia,
+    stagedImage,
 } = vi.hoisted(() => ({
     useSecretRoom: vi.fn(),
     useCreateSecretComment: vi.fn(),
@@ -27,7 +27,7 @@ const {
     useDeleteSecretComment: vi.fn(),
     useLikeSecretComment: vi.fn(),
     useUnlikeSecretComment: vi.fn(),
-    useUploadSecretCommentMedia: vi.fn(),
+    stagedImage: new File(["x"], "clue.png", { type: "image/png" }),
 }));
 
 vi.mock("../../hooks/useSecretRoom", () => ({ useSecretRoom }));
@@ -37,7 +37,6 @@ vi.mock("../../hooks/mutations/secret", () => ({
     useDeleteSecretComment,
     useLikeSecretComment,
     useUnlikeSecretComment,
-    useUploadSecretCommentMedia,
 }));
 vi.mock("../../components/post/CommentsSection/CommentsSection", () => ({
     CommentsSection: (props: {
@@ -53,8 +52,12 @@ vi.mock("../../components/post/CommentsSection/CommentsSection", () => ({
         unlikeFn?: (id: string) => Promise<unknown>;
         deleteFn?: (id: string) => Promise<unknown>;
         updateFn?: (id: string, body: string) => Promise<unknown>;
-        createCommentFn?: (targetId: string, body: string, parentId?: string) => Promise<unknown>;
-        uploadMediaFn?: (commentId: string, file: File) => Promise<unknown>;
+        createCommentFn?: (
+            targetId: string,
+            body: string,
+            parentId?: string,
+            media?: readonly { file: File; isSpoiler: boolean }[],
+        ) => Promise<unknown>;
     }) => (
         <section
             data-testid="comments-section"
@@ -72,7 +75,13 @@ vi.mock("../../components/post/CommentsSection/CommentsSection", () => ({
             <button onClick={() => props.deleteFn?.("comment-9")}>stub delete</button>
             <button onClick={() => props.updateFn?.("comment-9", "edited body")}>stub update</button>
             <button onClick={() => props.createCommentFn?.("ignored", "new body", "parent-1")}>stub create</button>
-            <button onClick={() => props.uploadMediaFn?.("comment-9", new File(["x"], "clue.png"))}>stub upload</button>
+            <button
+                onClick={() =>
+                    props.createCommentFn?.("ignored", "", undefined, [{ file: stagedImage, isSpoiler: false }])
+                }
+            >
+                stub create with media
+            </button>
         </section>
     ),
 }));
@@ -142,16 +151,14 @@ function stubSecret(options: StubOptions = {}) {
     const deleteAsync = vi.fn(() => Promise.resolve(undefined));
     const likeAsync = vi.fn(() => Promise.resolve(undefined));
     const unlikeAsync = vi.fn(() => Promise.resolve(undefined));
-    const uploadAsync = vi.fn(() => Promise.resolve(undefined));
 
     useCreateSecretComment.mockReturnValue({ mutateAsync: createAsync });
     useUpdateSecretComment.mockReturnValue({ mutateAsync: updateAsync });
     useDeleteSecretComment.mockReturnValue({ mutateAsync: deleteAsync });
     useLikeSecretComment.mockReturnValue({ mutateAsync: likeAsync });
     useUnlikeSecretComment.mockReturnValue({ mutateAsync: unlikeAsync });
-    useUploadSecretCommentMedia.mockReturnValue({ mutateAsync: uploadAsync });
 
-    return { refresh, dismissSolved, createAsync, updateAsync, deleteAsync, likeAsync, unlikeAsync, uploadAsync };
+    return { refresh, dismissSolved, createAsync, updateAsync, deleteAsync, likeAsync, unlikeAsync };
 }
 
 interface PageOptions {
@@ -386,7 +393,7 @@ describe("SecretDetailPage", () => {
         await user.click(screen.getByRole("button", { name: "stub create" }));
 
         // then
-        expect(createAsync).toHaveBeenCalledWith({ body: "new body", parentId: "parent-1" });
+        expect(createAsync).toHaveBeenCalledWith({ body: "new body", parentId: "parent-1", media: undefined });
     });
 
     it("edits a word through the hunt's own comment mutation", async () => {
@@ -419,17 +426,21 @@ describe("SecretDetailPage", () => {
         expect(deleteAsync).toHaveBeenCalledWith("comment-9");
     });
 
-    it("uploads an attachment against the comment it belongs to", async () => {
+    it("posts a word and its media through the hunt's own comment mutation in one call", async () => {
         // given
-        const { uploadAsync } = stubSecret();
+        const { createAsync } = stubSecret();
         const user = userEvent.setup();
         renderPage({ user: reader });
 
         // when
-        await user.click(screen.getByRole("button", { name: "stub upload" }));
+        await user.click(screen.getByRole("button", { name: "stub create with media" }));
 
         // then
-        expect(uploadAsync).toHaveBeenCalledWith({ commentId: "comment-9", file: expect.any(File) });
+        expect(createAsync).toHaveBeenCalledWith({
+            body: "",
+            parentId: undefined,
+            media: [{ file: stagedImage, isSpoiler: false }],
+        });
     });
 
     it("refetches the hunt after the discussion changes", async () => {

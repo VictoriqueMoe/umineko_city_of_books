@@ -46,7 +46,6 @@ const mocked = vi.hoisted(() => ({
     likeComment: vi.fn(),
     unlikeComment: vi.fn(),
     updateComment: vi.fn(),
-    uploadCommentMedia: vi.fn(),
 }));
 
 vi.mock("./queries/mystery", () => ({ useMystery: mocked.useMystery }));
@@ -69,7 +68,6 @@ vi.mock("./mutations/mystery", () => ({
     useLikeMysteryComment: () => ({ mutateAsync: mocked.likeComment }),
     useUnlikeMysteryComment: () => ({ mutateAsync: mocked.unlikeComment }),
     useUpdateMysteryComment: () => ({ mutateAsync: mocked.updateComment }),
-    useUploadMysteryCommentMedia: () => ({ mutateAsync: mocked.uploadCommentMedia }),
 }));
 
 vi.mock("react-router", async importOriginal => {

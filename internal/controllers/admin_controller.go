@@ -15,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 	usersvc "umineko_city_of_books/internal/user"
 
@@ -695,6 +696,9 @@ func handleAdminError(ctx fiber.Ctx, err error) error {
 	}
 	if errors.Is(err, auth.ErrUserNotFound) {
 		return utils.NotFound(ctx, "user not found")
+	}
+	if rejected, ok := errors.AsType[*settings.RejectedError](err); ok {
+		return utils.BadRequest(ctx, rejected.Error())
 	}
 	return utils.InternalError(ctx, "admin action failed", err)
 }

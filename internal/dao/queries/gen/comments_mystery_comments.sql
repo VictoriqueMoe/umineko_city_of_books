@@ -57,6 +57,9 @@ SELECT mystery_id FROM mystery_comments WHERE id = $1;
 -- name: GetMysteryCommentAuthorID :one
 SELECT user_id FROM mystery_comments WHERE id = $1;
 
+-- name: GetMysteryCommentTargetOwner :one
+SELECT COALESCE(user_id, '00000000-0000-0000-0000-000000000000')::uuid AS owner_id FROM mysteries WHERE id = $1;
+
 -- name: LikeMysteryComment :exec
 INSERT INTO mystery_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING;
 
@@ -80,10 +83,10 @@ FROM mystery_comment_media
 WHERE comment_id = ANY(string_to_array($1::text, ',')::uuid[])
 ORDER BY sort_order;
 
--- name: UpdateMysteryCommentMediaURL :exec
+-- name: UpdateMysteryCommentMediaURL :execrows
 UPDATE mystery_comment_media SET media_url = $1 WHERE id = $2;
 
--- name: UpdateMysteryCommentMediaThumbnail :exec
+-- name: UpdateMysteryCommentMediaThumbnail :execrows
 UPDATE mystery_comment_media SET thumbnail_url = $1 WHERE id = $2;
 
 -- name: CollectMysteryCommentMediaPaths :many

@@ -3,17 +3,14 @@ package mention
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"umineko_city_of_books/internal/block"
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
-	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 
@@ -26,10 +23,9 @@ import (
 const emailHTTPTimeout = 30 * time.Second
 
 type serviceMocks struct {
-	userRepo     *repository.MockUserRepository
-	blockSvc     *block.MockService
-	notifSvc     *notification.MockService
-	shipComments *dao.MockCommentDAO[uuid.UUID]
+	userRepo *repository.MockUserRepository
+	blockSvc *block.MockService
+	notifSvc *notification.MockService
 }
 
 var (
@@ -37,25 +33,18 @@ var (
 	testAliceID = uuid.MustParse("22222222-2222-2222-2222-222222222222")
 	testBobID   = uuid.MustParse("33333333-3333-3333-3333-333333333333")
 	testCarolID = uuid.MustParse("66666666-6666-6666-6666-666666666666")
-
-	errCreateFailed = errors.New("create failed")
 )
 
 func newTestService(t *testing.T) (Service, serviceMocks) {
 	t.Helper()
 
 	m := serviceMocks{
-		userRepo:     repository.NewMockUserRepository(t),
-		blockSvc:     block.NewMockService(t),
-		notifSvc:     notification.NewMockService(t),
-		shipComments: dao.NewMockCommentDAO[uuid.UUID](t),
+		userRepo: repository.NewMockUserRepository(t),
+		blockSvc: block.NewMockService(t),
+		notifSvc: notification.NewMockService(t),
 	}
 
-	comments := dao.CommentDAOs{
-		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(KindShipComment): m.shipComments},
-	}
-
-	return NewService(m.userRepo, m.blockSvc, m.notifSvc, comments), m
+	return NewService(m.userRepo, m.blockSvc, m.notifSvc), m
 }
 
 func testArtComment() Reference {
@@ -246,128 +235,6 @@ func TestServiceNotifyRejectsAnUnregisteredKind(t *testing.T) {
 	require.ErrorIs(t, err, ErrUnknownKind)
 }
 
-func TestServiceCreateComment(t *testing.T) {
-	tests := []struct {
-		name       string
-		createID   uuid.UUID
-		createErr  error
-		wantID     uuid.UUID
-		wantFanOut bool
-	}{
-		{
-			name:       "a created comment fans its mentions out",
-			createID:   testChildID,
-			wantID:     testChildID,
-			wantFanOut: true,
-		},
-		{
-			name:      "a failed create fans nothing out",
-			createErr: errCreateFailed,
-			wantID:    uuid.Nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			notified := make(chan dto.NotifyParams, 1)
-
-			if tt.wantFanOut {
-				m.userRepo.EXPECT().GetByID(mock.Anything, testActorID).
-					Return(&model.User{ID: testActorID, DisplayName: "Kujo Kazuya"}, nil)
-				m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).
-					Return([]model.User{{ID: testAliceID, Username: "alice"}}, nil)
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, testActorID, testAliceID).Return(false, nil)
-				m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
-					RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
-						notified <- p
-						return nil
-					})
-			}
-
-			cs := CommentSpec{
-				Kind:     KindShipComment,
-				EntityID: testEntityID,
-				AuthorID: testActorID,
-				Body:     "nice one @alice",
-			}
-
-			var row *model.CommentRow
-			if tt.createErr == nil {
-				row = &model.CommentRow{ID: tt.createID}
-			}
-
-			m.shipComments.EXPECT().
-				CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{
-					TargetID: testEntityID,
-					ParentID: nil,
-					UserID:   testActorID,
-					Body:     "nice one @alice",
-				}).
-				Return(row, tt.createErr).
-				Once()
-
-			// when
-			got, err := svc.CreateComment(t.Context(), cs)
-
-			// then
-			assert.Equal(t, tt.wantID, got)
-
-			if tt.createErr != nil {
-				require.ErrorIs(t, err, tt.createErr)
-				return
-			}
-
-			require.NoError(t, err)
-
-			select {
-			case p := <-notified:
-				assert.Equal(t, testAliceID, p.RecipientID)
-				assert.Equal(t, "ship_comment:"+testChildID.String(), p.ReferenceType)
-				assert.Equal(t, "/ships/"+testEntityID.String()+"#comment-"+testChildID.String(), p.EmailLink)
-			case <-time.After(5 * time.Second):
-				t.Fatal("mention fan-out did not reach the notification service")
-			}
-		})
-	}
-}
-
-func TestServiceCreateCommentWithoutARegisteredDAO(t *testing.T) {
-	tests := []struct {
-		name string
-		kind Kind
-	}{
-		{
-			name: "an unregistered entity kind is reported",
-			kind: KindArtComment,
-		},
-		{
-			name: "an unregistered journal kind is reported",
-			kind: KindJournalComment,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// given
-			svc, _ := newTestService(t)
-
-			// when
-			got, err := svc.CreateComment(t.Context(), CommentSpec{
-				Kind:     tt.kind,
-				EntityID: testEntityID,
-				AuthorID: testActorID,
-				Body:     "hello @alice",
-			})
-
-			// then
-			require.ErrorIs(t, err, ErrNoCommentDAO)
-			assert.Equal(t, uuid.Nil, got)
-		})
-	}
-}
-
 func TestFanOutBudgetScalesWithRecipientCount(t *testing.T) {
 	// given a detached fan-out whose deadline the goroutine can report back
 	svc, m := newTestService(t)
@@ -400,68 +267,5 @@ func TestFanOutBudgetScalesWithRecipientCount(t *testing.T) {
 			"the fan-out budget must stay the per-recipient budget times the recipient cap")
 	case <-time.After(5 * time.Second):
 		t.Fatal("mention fan-out never started")
-	}
-}
-
-func TestValidateCommentDAOs(t *testing.T) {
-	complete := func(t *testing.T) dao.CommentDAOs {
-		t.Helper()
-
-		byID := make(map[string]dao.CommentDAO[uuid.UUID])
-		for _, kind := range []Kind{KindPostComment, KindArtComment, KindShipComment, KindOCComment, KindMysteryComment, KindFanficComment, KindAnnouncementComment} {
-			byID[string(kind)] = dao.NewMockCommentDAO[uuid.UUID](t)
-		}
-
-		return dao.CommentDAOs{
-			ByID:    byID,
-			BySlug:  map[string]dao.CommentDAO[string]{string(KindSecretComment): dao.NewMockCommentDAO[string](t)},
-			Journal: dao.NewMockJournalCommentWriter(t),
-		}
-	}
-
-	tests := []struct {
-		name    string
-		drop    func(c *dao.CommentDAOs)
-		wantErr bool
-	}{
-		{
-			name: "every comment kind has a dao",
-		},
-		{
-			name:    "a missing entity dao is reported",
-			drop:    func(c *dao.CommentDAOs) { delete(c.ByID, string(KindOCComment)) },
-			wantErr: true,
-		},
-		{
-			name:    "a missing journal dao is reported",
-			drop:    func(c *dao.CommentDAOs) { c.Journal = nil },
-			wantErr: true,
-		},
-		{
-			name:    "a missing secret dao is reported",
-			drop:    func(c *dao.CommentDAOs) { delete(c.BySlug, string(KindSecretComment)) },
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// given
-			comments := complete(t)
-			if tt.drop != nil {
-				tt.drop(&comments)
-			}
-
-			// when
-			err := ValidateCommentDAOs(comments)
-
-			// then
-			if tt.wantErr {
-				require.ErrorIs(t, err, ErrNoCommentDAO)
-				return
-			}
-
-			require.NoError(t, err)
-		})
 	}
 }

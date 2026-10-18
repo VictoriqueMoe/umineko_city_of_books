@@ -46,6 +46,11 @@ export interface PostMedia {
     is_spoiler?: boolean;
 }
 
+export interface MediaUpload {
+    file: File;
+    isSpoiler: boolean;
+}
+
 export type LinkPreviewType = "" | "link" | "youtube" | "image" | "video";
 
 export interface LinkPreview {

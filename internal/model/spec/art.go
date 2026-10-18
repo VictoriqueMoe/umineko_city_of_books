@@ -46,12 +46,6 @@ type (
 		Audit   audit.NewEntry
 	}
 
-	ArtCommentDeletion struct {
-		CommentDeletion
-
-		Audit audit.NewEntry
-	}
-
 	ArtLookup struct {
 		ID       uuid.UUID
 		ViewerID uuid.UUID

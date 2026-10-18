@@ -1,9 +1,10 @@
 package mention
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
+
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 )
@@ -55,32 +56,27 @@ const (
 
 const (
 	KindPost                Kind = "post"
-	KindPostComment         Kind = "post_comment"
+	KindPostComment         Kind = Kind(spec.CommentKindPost)
 	KindArt                 Kind = "art"
-	KindArtComment          Kind = "art_comment"
+	KindArtComment          Kind = Kind(spec.CommentKindArt)
 	KindTheory              Kind = "theory"
 	KindTheoryResponse      Kind = "theory_response"
 	KindShip                Kind = "ship"
-	KindShipComment         Kind = "ship_comment"
+	KindShipComment         Kind = Kind(spec.CommentKindShip)
 	KindOC                  Kind = "oc"
-	KindOCComment           Kind = "oc_comment"
+	KindOCComment           Kind = Kind(spec.CommentKindOC)
 	KindMystery             Kind = "mystery"
 	KindMysteryAttempt      Kind = "mystery_attempt"
-	KindMysteryComment      Kind = "mystery_comment"
+	KindMysteryComment      Kind = Kind(spec.CommentKindMystery)
 	KindFanfic              Kind = "fanfic"
-	KindFanficComment       Kind = "fanfic_comment"
+	KindFanficComment       Kind = Kind(spec.CommentKindFanfic)
 	KindAnnouncement        Kind = "announcement"
-	KindAnnouncementComment Kind = "announcement_comment"
+	KindAnnouncementComment Kind = Kind(spec.CommentKindAnnouncement)
 	KindJournal             Kind = "journal"
-	KindJournalComment      Kind = "journal_comment"
+	KindJournalComment      Kind = Kind(spec.CommentKindJournal)
 	KindJournalEntry        Kind = "journal_entry"
-	KindJournalEntryComment Kind = "journal_entry_comment"
-	KindSecretComment       Kind = "secret_comment"
-)
-
-var (
-	ErrUnknownKind      = errors.New("mention: kind is not registered")
-	ErrInvalidReference = errors.New("mention: reference is incomplete for its kind")
+	KindJournalEntryComment Kind = Kind(spec.CommentKindJournalEntry)
+	KindSecretComment       Kind = Kind(spec.CommentKindSecret)
 )
 
 var registry = []entry{

@@ -240,7 +240,7 @@ func TestHomeFeedDAO_ListSidebarActivity_AggregatesByKey(t *testing.T) {
 	createOC(t, repos, user.ID, "oc", "umineko", "")
 	createJournal(t, repos, user.ID, "j", "body", "umineko")
 	unlockSecretFor(t, repos, user.ID, testSecretID)
-	createSecretComment(t, repos, testSecretID, nil, user.ID, "s")
+	createSecretComment(t, repos, testSecretID, user.ID, "s")
 
 	_, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "d", Type: "group", IsPublic: true, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)

@@ -74,7 +74,7 @@ var (
 
 	Version = "dev"
 
-	SettingUploadDir                   = &SiteSettingDef{"upload_dir", "uploads", TypeString, false}
+	SettingUploadDir                   = &SiteSettingDef{"upload_dir", "data/uploads", TypeString, false}
 	SettingStorageBackend              = &SiteSettingDef{"storage_backend", string(StorageBackendLocal), TypeString, false}
 	SettingS3Endpoint                  = &SiteSettingDef{"s3_endpoint", "", TypeString, false}
 	SettingS3Region                    = &SiteSettingDef{"s3_region", "", TypeString, false}

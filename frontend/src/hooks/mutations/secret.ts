@@ -6,16 +6,16 @@ import {
     likeSecretComment,
     unlikeSecretComment,
     updateSecretComment,
-    uploadSecretCommentMedia,
 } from "../../api/endpoints/comments";
+import type { MediaUpload } from "../../types/api";
 import { invalidateViews } from "../../api/cache/invalidate";
 import { commentMutations } from "./comments";
 
 export function useCreateSecretComment(secretId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ body, parentId }: { body: string; parentId?: string }) =>
-            createSecretComment(secretId, body, parentId),
+        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly MediaUpload[] }) =>
+            createSecretComment(secretId, body, parentId, media),
         onSuccess: () => invalidateViews(qc, "secret"),
     });
 }
@@ -25,14 +25,12 @@ const secretCommentMutations = commentMutations("secret", {
     remove: id => deleteSecretComment(id),
     like: id => likeSecretComment(id),
     unlike: id => unlikeSecretComment(id),
-    uploadMedia: (commentId, file) => uploadSecretCommentMedia(commentId, file),
 });
 
 export const useUpdateSecretComment = secretCommentMutations.useUpdate;
 export const useDeleteSecretComment = secretCommentMutations.useDelete;
 export const useLikeSecretComment = secretCommentMutations.useLike;
 export const useUnlikeSecretComment = secretCommentMutations.useUnlike;
-export const useUploadSecretCommentMedia = secretCommentMutations.useUploadMedia;
 
 export function useUnlockSecret() {
     return useMutation({

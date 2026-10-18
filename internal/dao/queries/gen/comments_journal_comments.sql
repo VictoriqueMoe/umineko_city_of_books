@@ -57,6 +57,9 @@ SELECT journal_id FROM journal_comments WHERE id = $1;
 -- name: GetJournalCommentAuthorID :one
 SELECT user_id FROM journal_comments WHERE id = $1;
 
+-- name: GetJournalCommentTargetOwner :one
+SELECT COALESCE(user_id, '00000000-0000-0000-0000-000000000000')::uuid AS owner_id FROM journals WHERE id = $1;
+
 -- name: LikeJournalComment :exec
 INSERT INTO journal_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING;
 
@@ -80,10 +83,10 @@ FROM journal_comment_media
 WHERE comment_id = ANY(string_to_array($1::text, ',')::uuid[])
 ORDER BY sort_order;
 
--- name: UpdateJournalCommentMediaURL :exec
+-- name: UpdateJournalCommentMediaURL :execrows
 UPDATE journal_comment_media SET media_url = $1 WHERE id = $2;
 
--- name: UpdateJournalCommentMediaThumbnail :exec
+-- name: UpdateJournalCommentMediaThumbnail :execrows
 UPDATE journal_comment_media SET thumbnail_url = $1 WHERE id = $2;
 
 -- name: CollectJournalCommentMediaPaths :many

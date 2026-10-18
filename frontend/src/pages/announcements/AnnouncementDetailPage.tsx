@@ -26,11 +26,9 @@ export function AnnouncementDetailPage() {
     const hash = location.hash;
     const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
 
-    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn, uploadMediaFn } = useCommentHandlers(
-        "announcement",
-        id ?? "",
-        { enabled: ["create", "update", "delete", "like", "unlike", "uploadMedia"] },
-    );
+    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn } = useCommentHandlers("announcement", id ?? "", {
+        enabled: ["create", "update", "delete", "like", "unlike"],
+    });
 
     useScrollToHash(!loading && !!announcement, highlightedComment ? `comment-${highlightedComment}` : null);
 
@@ -79,7 +77,6 @@ export function AnnouncementDetailPage() {
                 deleteFn={deleteFn}
                 updateFn={updateFn}
                 createCommentFn={createCommentFn}
-                uploadMediaFn={uploadMediaFn}
             />
         </div>
     );

@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/chatbot"
+	"umineko_city_of_books/internal/comment"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/follow"
 	"umineko_city_of_books/internal/gameroom"
@@ -65,6 +66,7 @@ type (
 		PostService           postsvc.Service
 		FollowService         follow.Service
 		ArtService            artsvc.Service
+		CommentService        comment.Service
 		BlockService          block.Service
 		AnnouncementService   announcementsvc.Service
 		MysteryService        mysterysvc.Service
@@ -116,6 +118,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllReportRoutes()...)
 	all = append(all, s.getAllPostRoutes()...)
 	all = append(all, s.getAllArtRoutes()...)
+	all = append(all, s.getAllCommentRoutes()...)
 	all = append(all, s.getAllBlockRoutes()...)
 	all = append(all, s.getAllAnnouncementRoutes()...)
 	all = append(all, s.getAllMysteryRoutes()...)

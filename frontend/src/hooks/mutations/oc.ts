@@ -15,8 +15,8 @@ import {
     likeOCComment,
     unlikeOCComment,
     updateOCComment,
-    uploadOCCommentMedia,
 } from "../../api/endpoints/comments";
+import type { MediaUpload } from "../../types/api";
 import { invalidateViews } from "../../api/cache/invalidate";
 import { commentMutations } from "./comments";
 
@@ -90,7 +90,8 @@ export function useFavouriteOC() {
 export function useCreateOCComment(ocId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ body, parentId }: { body: string; parentId?: string }) => createOCComment(ocId, body, parentId),
+        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly MediaUpload[] }) =>
+            createOCComment(ocId, body, parentId, media),
         onSuccess: () => invalidateViews(qc, "oc"),
     });
 }
@@ -100,11 +101,9 @@ const ocCommentMutations = commentMutations("oc", {
     remove: id => deleteOCComment(id),
     like: id => likeOCComment(id),
     unlike: id => unlikeOCComment(id),
-    uploadMedia: (commentId, file) => uploadOCCommentMedia(commentId, file),
 });
 
 export const useUpdateOCComment = ocCommentMutations.useUpdate;
 export const useDeleteOCComment = ocCommentMutations.useDelete;
 export const useLikeOCComment = ocCommentMutations.useLike;
 export const useUnlikeOCComment = ocCommentMutations.useUnlike;
-export const useUploadOCCommentMedia = ocCommentMutations.useUploadMedia;

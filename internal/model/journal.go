@@ -2,7 +2,6 @@ package model
 
 import (
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
 )
@@ -33,28 +32,6 @@ type (
 		CreatedAt   string
 	}
 )
-
-func JournalCommentToDTO(c CommentRow, media []PostMediaRow, authorID uuid.UUID) dto.JournalCommentResponse {
-	return dto.JournalCommentResponse{
-		ID:       c.ID,
-		ParentID: c.ParentID,
-		EntryID:  c.EntryID,
-		Author: dto.UserResponse{
-			ID:          c.UserID,
-			Username:    c.AuthorUsername,
-			DisplayName: c.AuthorDisplayName,
-			AvatarURL:   c.AuthorAvatarURL,
-			Role:        role.Role(c.AuthorRole),
-		},
-		Body:      c.Body,
-		Media:     MediaRowsToResponse(media),
-		LikeCount: c.LikeCount,
-		UserLiked: c.UserLiked,
-		IsAuthor:  c.UserID == authorID,
-		CreatedAt: c.CreatedAt,
-		UpdatedAt: c.UpdatedAt,
-	}
-}
 
 func JournalEntryToDTO(e *JournalEntryRow, media []PostMediaRow) dto.JournalEntryResponse {
 	mediaList := MediaRowsToResponse(media)

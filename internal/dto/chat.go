@@ -46,10 +46,10 @@ type (
 	}
 
 	ChatMessageReplyPreview struct {
-		ID          uuid.UUID `json:"id"`
-		SenderID    uuid.UUID `json:"sender_id"`
-		SenderName  string    `json:"sender_name"`
-		BodyPreview string    `json:"body_preview"`
+		ID         uuid.UUID `json:"id"`
+		SenderID   uuid.UUID `json:"sender_id"`
+		SenderName string    `json:"sender_name"`
+		Body       string    `json:"body"`
 	}
 
 	ResolveDMResponse struct {

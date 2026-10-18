@@ -6,9 +6,8 @@ import {
     likeShipComment,
     unlikeShipComment,
     updateShipComment,
-    uploadShipCommentMedia,
 } from "../../api/endpoints/comments";
-import type { ShipCharacter } from "../../types/api";
+import type { MediaUpload, ShipCharacter } from "../../types/api";
 import { invalidateViews } from "../../api/cache/invalidate";
 import { commentMutations } from "./comments";
 
@@ -55,8 +54,8 @@ export function useVoteShip(id: string) {
 export function useCreateShipComment(shipId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ body, parentId }: { body: string; parentId?: string }) =>
-            createShipComment(shipId, body, parentId),
+        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly MediaUpload[] }) =>
+            createShipComment(shipId, body, parentId, media),
         onSuccess: () => invalidateViews(qc, "ship"),
     });
 }
@@ -66,11 +65,9 @@ const shipCommentMutations = commentMutations("ship", {
     remove: id => deleteShipComment(id),
     like: id => likeShipComment(id),
     unlike: id => unlikeShipComment(id),
-    uploadMedia: (commentId, file) => uploadShipCommentMedia(commentId, file),
 });
 
 export const useUpdateShipComment = shipCommentMutations.useUpdate;
 export const useDeleteShipComment = shipCommentMutations.useDelete;
 export const useLikeShipComment = shipCommentMutations.useLike;
 export const useUnlikeShipComment = shipCommentMutations.useUnlike;
-export const useUploadShipCommentMedia = shipCommentMutations.useUploadMedia;

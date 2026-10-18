@@ -70,3 +70,12 @@ export function invalidateViews(qc: QueryClient, domain: ViewDomain): void {
         qc.invalidateQueries({ queryKey: queryKeys.profile.all });
     }
 }
+
+export function invalidateReferencedViews(qc: QueryClient, referenceType: string): void {
+    const family = referenceType.split(":")[0].split("_")[0];
+    if (!Object.keys(domainViews).includes(family)) {
+        return;
+    }
+
+    invalidateViews(qc, family as ViewDomain);
+}

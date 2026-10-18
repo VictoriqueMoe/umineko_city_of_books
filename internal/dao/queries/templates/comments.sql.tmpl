@@ -56,6 +56,11 @@ SELECT {{.FK}} FROM {{.Table}} WHERE id = $1;
 
 -- name: Get{{.Entity}}CommentAuthorID :one
 SELECT user_id FROM {{.Table}} WHERE id = $1;
+{{- if .ParentTable}}
+
+-- name: Get{{.Entity}}CommentTargetOwner :one
+SELECT COALESCE({{.OwnerColumn}}, '00000000-0000-0000-0000-000000000000')::uuid AS owner_id FROM {{.ParentTable}} WHERE id = $1;
+{{- end}}
 
 -- name: Like{{.Entity}}Comment :exec
 INSERT INTO {{.LikesTable}} (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING;
@@ -80,10 +85,10 @@ FROM {{.MediaTable}}
 WHERE comment_id = ANY(string_to_array($1::text, ',')::uuid[])
 ORDER BY sort_order;
 
--- name: Update{{.Entity}}CommentMediaURL :exec
+-- name: Update{{.Entity}}CommentMediaURL :execrows
 UPDATE {{.MediaTable}} SET media_url = $1 WHERE id = $2;
 
--- name: Update{{.Entity}}CommentMediaThumbnail :exec
+-- name: Update{{.Entity}}CommentMediaThumbnail :execrows
 UPDATE {{.MediaTable}} SET thumbnail_url = $1 WHERE id = $2;
 
 -- name: Collect{{.Entity}}CommentMediaPaths :many

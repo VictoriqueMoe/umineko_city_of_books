@@ -237,6 +237,66 @@ func (_c *MockService_Fetch_Call) RunAndReturn(run func(ctx context.Context, inf
 	return _c
 }
 
+// FlushFallback provides a mock function for the type MockService
+func (_mock *MockService) FlushFallback(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FlushFallback")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_FlushFallback_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FlushFallback'
+type MockService_FlushFallback_Call struct {
+	*mock.Call
+}
+
+// FlushFallback is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockService_Expecter) FlushFallback(ctx any) *MockService_FlushFallback_Call {
+	return &MockService_FlushFallback_Call{Call: _e.mock.On("FlushFallback", ctx)}
+}
+
+func (_c *MockService_FlushFallback_Call) Run(run func(ctx context.Context)) *MockService_FlushFallback_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_FlushFallback_Call) Return(n int, err error) *MockService_FlushFallback_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockService_FlushFallback_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *MockService_FlushFallback_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Open provides a mock function for the type MockService
 func (_mock *MockService) Open(ctx context.Context, info engine.ObjectInfo, rng *engine.ByteRange) (io.ReadCloser, error) {
 	ret := _mock.Called(ctx, info, rng)

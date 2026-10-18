@@ -2,39 +2,21 @@ package secret
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
-	"strings"
 
-	"umineko_city_of_books/internal/authz"
-	"umineko_city_of_books/internal/block"
-	"umineko_city_of_books/internal/contentfilter"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/media"
-	"umineko_city_of_books/internal/mention"
-	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/secrets"
-	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
-	"umineko_city_of_books/internal/utils"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
-)
-
-var (
-	ErrNotFound    = fmt.Errorf("secret not found: %w", dao.ErrNotFound)
-	ErrEmptyBody   = errors.New("comment body cannot be empty")
-	ErrNotOwner    = authz.ErrNotCommentAuthor
-	ErrUserBlocked = block.ErrUserBlocked
 )
 
 type (
@@ -42,12 +24,7 @@ type (
 		List(ctx context.Context, viewerID uuid.UUID) (*dto.SecretListResponse, error)
 		Get(ctx context.Context, id string, viewerID uuid.UUID) (*dto.SecretDetailResponse, error)
 
-		CreateComment(ctx context.Context, secretID string, userID uuid.UUID, req dto.CreateSecretCommentRequest) (uuid.UUID, error)
-		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateSecretCommentRequest) error
-		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
-		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
+		CreateComment(ctx context.Context, secretID string, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error)
 
 		BroadcastProgress(ctx context.Context, parentID string, actor uuid.UUID)
 		BroadcastSolved(ctx context.Context, parentID string, actor uuid.UUID, solvedAt string)
@@ -57,15 +34,10 @@ type (
 		secretRepo    repository.SecretRepository
 		userSecretSvc repository.UserSecretRepository
 		userRepo      repository.UserRepository
-		authz         authz.Service
-		blockSvc      block.Service
+		commentRepo   repository.CommentRepository
 		notifService  notification.Service
-		mentionSvc    mention.Service
-		settingsSvc   settings.Service
-		uploader      *media.Uploader
-		uploadSvc     upload.Service
+		commentSvc    comment.Service
 		hub           *ws.Hub
-		contentFilter *contentfilter.Manager
 		activity      sidebar.ActivityBumper
 	}
 )
@@ -74,30 +46,20 @@ func NewService(
 	secretRepo repository.SecretRepository,
 	userSecretRepo repository.UserSecretRepository,
 	userRepo repository.UserRepository,
-	authzService authz.Service,
-	blockSvc block.Service,
+	commentRepo repository.CommentRepository,
 	notifService notification.Service,
-	mentionSvc mention.Service,
-	settingsSvc settings.Service,
-	uploadSvc upload.Service,
-	mediaProc *media.Processor,
+	commentSvc comment.Service,
 	hub *ws.Hub,
-	contentFilter *contentfilter.Manager,
 	activity sidebar.ActivityBumper,
 ) Service {
 	return &service{
 		secretRepo:    secretRepo,
 		userSecretSvc: userSecretRepo,
 		userRepo:      userRepo,
-		authz:         authzService,
-		blockSvc:      blockSvc,
+		commentRepo:   commentRepo,
 		notifService:  notifService,
-		mentionSvc:    mentionSvc,
-		settingsSvc:   settingsSvc,
-		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
-		uploadSvc:     uploadSvc,
+		commentSvc:    commentSvc,
 		hub:           hub,
-		contentFilter: contentFilter,
 		activity:      activity,
 	}
 }
@@ -231,44 +193,9 @@ func (s *service) Get(ctx context.Context, id string, viewerID uuid.UUID) (*dto.
 		leaderboard = []dto.SecretLeaderboardEntry{}
 	}
 
-	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	if err != nil {
-		return nil, fmt.Errorf("blocked users: %w", err)
-	}
-
-	commentRows, _, err := s.secretRepo.GetComments(ctx, spec.CommentQuery[string]{
-		TargetID:       id,
-		ViewerID:       viewerID,
-		Limit:          500,
-		Offset:         0,
-		ExcludeUserIDs: blockedIDs,
-	})
+	comments, err := s.commentSvc.Thread(ctx, spec.CommentTarget{Kind: spec.CommentKindSecret, Key: id}, viewerID)
 	if err != nil {
 		return nil, fmt.Errorf("secret comments: %w", err)
-	}
-
-	var comments []dto.SecretCommentResponse
-	if len(commentRows) > 0 {
-		commentIDs := make([]uuid.UUID, len(commentRows))
-		for i := range commentRows {
-			commentIDs[i] = commentRows[i].ID
-		}
-		mediaBatch, err := s.secretRepo.GetCommentMediaBatch(ctx, commentIDs)
-		if err != nil {
-			return nil, fmt.Errorf("secret comment media: %w", err)
-		}
-		flat := make([]dto.SecretCommentResponse, len(commentRows))
-		for i := range commentRows {
-			flat[i] = secretCommentToResponse(commentRows[i], mediaBatch[commentRows[i].ID])
-		}
-		comments = utils.BuildTree(flat,
-			func(c dto.SecretCommentResponse) uuid.UUID { return c.ID },
-			func(c dto.SecretCommentResponse) *uuid.UUID { return c.ParentID },
-			func(c *dto.SecretCommentResponse, replies []dto.SecretCommentResponse) { c.Replies = replies },
-		)
-	}
-	if comments == nil {
-		comments = []dto.SecretCommentResponse{}
 	}
 
 	return &dto.SecretDetailResponse{
@@ -277,18 +204,6 @@ func (s *service) Get(ctx context.Context, id string, viewerID uuid.UUID) (*dto.
 		Leaderboard:   leaderboard,
 		Comments:      comments,
 	}, nil
-}
-
-func (s *service) commentAuthor(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	authorID, err := s.secretRepo.GetCommentAuthorID(ctx, commentID)
-	if errors.Is(err, dao.ErrNotFound) {
-		return uuid.Nil, ErrNotFound
-	}
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	return authorID, nil
 }
 
 func (s *service) solvedUserSet(ctx context.Context, parentID string) (map[uuid.UUID]bool, error) {
@@ -303,26 +218,13 @@ func (s *service) solvedUserSet(ctx context.Context, parentID string) (map[uuid.
 	return set, nil
 }
 
-func (s *service) CreateComment(ctx context.Context, secretID string, userID uuid.UUID, req dto.CreateSecretCommentRequest) (uuid.UUID, error) {
+func (s *service) CreateComment(ctx context.Context, secretID string, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
 	secretSpec, ok := secrets.Lookup(secretID)
 	if !ok || secretSpec.Title == "" {
 		return uuid.Nil, ErrNotFound
 	}
-	body := strings.TrimSpace(req.Body)
-	if body == "" {
-		return uuid.Nil, ErrEmptyBody
-	}
-	if err := s.contentFilter.Check(ctx, body); err != nil {
-		return uuid.Nil, err
-	}
 
-	id, err := s.mentionSvc.CreateComment(ctx, mention.CommentSpec{
-		Kind:      mention.KindSecretComment,
-		EntityKey: secretID,
-		ParentID:  req.ParentID,
-		AuthorID:  userID,
-		Body:      body,
-	})
+	id, err := s.commentSvc.Create(ctx, spec.CommentTarget{Kind: spec.CommentKindSecret, Key: secretID}, userID, req, files)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -338,23 +240,14 @@ func (s *service) CreateComment(ctx context.Context, secretID string, userID uui
 		if actor == nil {
 			return
 		}
+
 		var parentAuthor uuid.UUID
 		if req.ParentID != nil {
-			parent, err := s.secretRepo.GetCommentAuthorID(bgCtx, *req.ParentID)
+			parentAuthor, err = s.commentRepo.GetCommentAuthorID(bgCtx, spec.CommentRef{Kind: spec.CommentKindSecret, CommentID: *req.ParentID})
 			if err != nil {
-				logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", req.ParentID.String()).Msg("secret reply notification skipped, parent lookup failed")
-			}
-			if err == nil && parent != userID {
-				parentAuthor = parent
-				_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
-					RecipientID:   parentAuthor,
-					Type:          dto.NotifSecretCommentReply,
-					ReferenceType: fmt.Sprintf("secret_comment:%s:%s", secretID, id),
-					ActorID:       userID,
-					EmailActor:    actor.DisplayName,
-					EmailAction:   "replied to your comment",
-					EmailLink:     fmt.Sprintf("/secrets/%s#comment-%s", secretID, id),
-				})
+				logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", req.ParentID.String()).Msg("secret comment fan-out skipped, parent lookup failed")
+
+				return
 			}
 		}
 
@@ -383,145 +276,6 @@ func (s *service) CreateComment(ctx context.Context, secretID string, userID uui
 	s.activity.BumpSidebarActivity(sidebar.KeySecrets)
 
 	return id, nil
-}
-
-func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateSecretCommentRequest) error {
-	body := strings.TrimSpace(req.Body)
-	if body == "" {
-		return ErrEmptyBody
-	}
-	if err := s.contentFilter.Check(ctx, body); err != nil {
-		return err
-	}
-
-	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyComment)
-
-	return s.secretRepo.UpdateCommentBody(ctx, spec.CommentUpdate{
-		CommentID: id,
-		UserID:    userID,
-		Body:      body,
-		AsAdmin:   asAdmin,
-	})
-}
-
-func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
-
-	paths, err := s.secretRepo.DeleteCommentWithAudit(ctx, spec.CommentDeletion{
-		CommentID: id,
-		UserID:    userID,
-		AsAdmin:   asAdmin,
-	})
-	if err != nil {
-		return err
-	}
-
-	s.uploadSvc.Delete(paths...)
-
-	return nil
-}
-
-func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	commentAuthorID, err := s.commentAuthor(ctx, commentID)
-	if err != nil {
-		return err
-	}
-
-	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID)
-	if err != nil {
-		return fmt.Errorf("block check: %w", err)
-	}
-	if blocked {
-		return ErrUserBlocked
-	}
-	if err := s.secretRepo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID}); err != nil {
-		return err
-	}
-
-	go func() {
-		bgCtx := context.Background()
-		if commentAuthorID == userID {
-			return
-		}
-		secretID, err := s.secretRepo.GetCommentEntityID(bgCtx, commentID)
-		if err != nil {
-			logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", commentID.String()).Msg("secret comment like notification skipped, secret lookup failed")
-
-			return
-		}
-		if secretID == "" {
-			return
-		}
-		actor, err := s.userRepo.GetByID(bgCtx, userID)
-		if err != nil {
-			logger.Ctx(bgCtx).Warn().Err(err).Str("user_id", userID.String()).Msg("secret comment like notification skipped, actor lookup failed")
-
-			return
-		}
-		if actor == nil {
-			return
-		}
-		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
-			RecipientID:   commentAuthorID,
-			Type:          dto.NotifSecretCommentLiked,
-			ReferenceType: fmt.Sprintf("secret_comment:%s:%s", secretID, commentID),
-			ActorID:       userID,
-			EmailActor:    actor.DisplayName,
-			EmailAction:   "liked your comment",
-			EmailLink:     fmt.Sprintf("/secrets/%s#comment-%s", secretID, commentID),
-		})
-	}()
-
-	return nil
-}
-
-func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	return s.secretRepo.UnlikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID})
-}
-
-func (s *service) UploadCommentMedia(
-	ctx context.Context,
-	commentID uuid.UUID,
-	userID uuid.UUID,
-	contentType string,
-	filename string,
-	fileSize int64,
-	reader io.Reader,
-	isSpoiler bool,
-) (*dto.PostMediaResponse, error) {
-	authorID, err := s.commentAuthor(ctx, commentID)
-	if err != nil {
-		return nil, err
-	}
-	if authorID != userID {
-		return nil, ErrNotOwner
-	}
-
-	existing, err := s.secretRepo.GetCommentMedia(ctx, commentID)
-	if err != nil {
-		return nil, fmt.Errorf("existing comment media: %w", err)
-	}
-	sortOrder := len(existing)
-
-	resp, err := s.uploader.SaveAndRecord(ctx, "secrets", contentType, filename, fileSize, reader, isSpoiler,
-		func(mediaURL, mediaType, _, filename string, _ int) (int64, error) {
-			return s.secretRepo.AddCommentMedia(ctx, spec.NewMedia{
-				TargetID:  commentID,
-				MediaURL:  mediaURL,
-				MediaType: mediaType,
-				Filename:  filename,
-				SortOrder: sortOrder,
-				IsSpoiler: isSpoiler,
-			})
-		},
-		s.secretRepo.UpdateCommentMediaURL,
-		s.secretRepo.UpdateCommentMediaThumbnail,
-	)
-	if err != nil {
-		return nil, err
-	}
-	resp.SortOrder = sortOrder
-	return resp, nil
 }
 
 func (s *service) BroadcastProgress(ctx context.Context, parentID string, actor uuid.UUID) {
@@ -620,25 +374,5 @@ func (s *service) BroadcastSolved(ctx context.Context, parentID string, actor uu
 				}
 			}(participants, solverName, message, emailLink, message)
 		}
-	}
-}
-
-func secretCommentToResponse(c model.CommentRow, media []model.PostMediaRow) dto.SecretCommentResponse {
-	return dto.SecretCommentResponse{
-		ID:       c.ID,
-		ParentID: c.ParentID,
-		Author: dto.UserResponse{
-			ID:          c.UserID,
-			Username:    c.AuthorUsername,
-			DisplayName: c.AuthorDisplayName,
-			AvatarURL:   c.AuthorAvatarURL,
-			Role:        role.Role(c.AuthorRole),
-		},
-		Body:      c.Body,
-		Media:     model.MediaRowsToResponse(media),
-		LikeCount: c.LikeCount,
-		UserLiked: c.UserLiked,
-		CreatedAt: c.CreatedAt,
-		UpdatedAt: c.UpdatedAt,
 	}
 }

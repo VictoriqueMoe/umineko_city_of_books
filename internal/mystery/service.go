@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
@@ -37,7 +38,7 @@ type (
 	Service interface {
 		ListMysteries(ctx context.Context, sort string, solved *bool, viewerID uuid.UUID, page bounds.Page) (*dto.MysteryListResponse, error)
 		GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*dto.MysteryDetailResponse, error)
-		CreateMystery(ctx context.Context, userID uuid.UUID, req dto.CreateMysteryRequest) (uuid.UUID, error)
+		CreateMystery(ctx context.Context, userID uuid.UUID, req dto.CreateMysteryRequest, files []upload.FileUpload, attachments []upload.FileUpload) (uuid.UUID, error)
 		UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateMysteryRequest) error
 		DeleteMystery(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateAttemptRequest) (uuid.UUID, error)
@@ -51,12 +52,7 @@ type (
 		GetGMLeaderboard(ctx context.Context, page bounds.Page) (*dto.GMLeaderboardResponse, error)
 		GetTopGMIDs(ctx context.Context) ([]string, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, page bounds.Page) (*dto.MysteryListResponse, error)
-		CreateComment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)
-		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest) error
-		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
-		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
+		CreateComment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error)
 		UploadAttachment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, reader io.Reader) (*dto.MysteryAttachment, error)
 		DeleteAttachment(ctx context.Context, attachmentID int64, mysteryID uuid.UUID, userID uuid.UUID) error
 		UploadMedia(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
@@ -76,9 +72,10 @@ type (
 		blockSvc      block.Service
 		notifService  notification.Service
 		mentionSvc    mention.Service
+		commentSvc    comment.Service
 		settingsSvc   settings.Service
 		uploadSvc     upload.Service
-		uploader      *media.Uploader
+		uploader      upload.MediaRecorder
 		hub           *ws.Hub
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
@@ -95,6 +92,7 @@ func NewService(
 	blockSvc block.Service,
 	notifService notification.Service,
 	mentionSvc mention.Service,
+	commentSvc comment.Service,
 	settingsSvc settings.Service,
 	uploadSvc upload.Service,
 	mediaProc *media.Processor,
@@ -112,6 +110,7 @@ func NewService(
 		blockSvc:      blockSvc,
 		notifService:  notifService,
 		mentionSvc:    mentionSvc,
+		commentSvc:    commentSvc,
 		settingsSvc:   settingsSvc,
 		uploadSvc:     uploadSvc,
 		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
@@ -142,6 +141,21 @@ func (s *service) mysteryAuthor(ctx context.Context, mysteryID uuid.UUID) (uuid.
 	}
 
 	return authorID, nil
+}
+
+func (s *service) CreateComment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
+	solved, err := s.mysteryRepo.IsSolved(ctx, mysteryID)
+	if errors.Is(err, dao.ErrNotFound) {
+		return uuid.Nil, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if !solved {
+		return uuid.Nil, ErrNotSolved
+	}
+
+	return s.commentSvc.Create(ctx, spec.CommentTarget{Kind: spec.CommentKindMystery, ID: mysteryID}, userID, req, files)
 }
 
 func clueBodies(clues []dto.CreateClueRequest) []string {
@@ -291,46 +305,12 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		}
 	}
 
-	var comments []dto.MysteryCommentResponse
+	comments := []dto.CommentResponse{}
 	if row.Solved {
-		blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-		if err != nil {
-			return nil, fmt.Errorf("blocked users: %w", err)
-		}
-
-		commentRows, _, err := s.mysteryRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
-			TargetID:       id,
-			ViewerID:       viewerID,
-			Limit:          500,
-			Offset:         0,
-			ExcludeUserIDs: blockedIDs,
-		})
+		comments, err = s.commentSvc.Thread(ctx, spec.CommentTarget{Kind: spec.CommentKindMystery, ID: id}, viewerID)
 		if err != nil {
 			return nil, fmt.Errorf("mystery comments: %w", err)
 		}
-
-		if len(commentRows) > 0 {
-			commentIDs := make([]uuid.UUID, len(commentRows))
-			for i, c := range commentRows {
-				commentIDs[i] = c.ID
-			}
-			mediaBatch, err := s.mysteryRepo.GetCommentMediaBatch(ctx, commentIDs)
-			if err != nil {
-				return nil, fmt.Errorf("mystery comment media: %w", err)
-			}
-			flat := make([]dto.MysteryCommentResponse, len(commentRows))
-			for i, c := range commentRows {
-				flat[i] = mysteryCommentToResponse(c, mediaBatch[c.ID])
-			}
-			comments = utils.BuildTree(flat,
-				func(c dto.MysteryCommentResponse) uuid.UUID { return c.ID },
-				func(c dto.MysteryCommentResponse) *uuid.UUID { return c.ParentID },
-				func(c *dto.MysteryCommentResponse, replies []dto.MysteryCommentResponse) { c.Replies = replies },
-			)
-		}
-	}
-	if comments == nil {
-		comments = []dto.MysteryCommentResponse{}
 	}
 
 	attachments, err := s.mysteryRepo.GetAttachments(ctx, id)
@@ -401,7 +381,7 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 	return &resp, nil
 }
 
-func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.CreateMysteryRequest) (uuid.UUID, error) {
+func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.CreateMysteryRequest, files []upload.FileUpload, attachments []upload.FileUpload) (uuid.UUID, error) {
 	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.Body) == "" {
 		return uuid.Nil, ErrEmptyTitle
 	}
@@ -410,6 +390,15 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 	}
 	if req.Difficulty == "" {
 		req.Difficulty = "medium"
+	}
+
+	validated, err := upload.ValidateMedia(ctx, s.settingsSvc, files)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	if err := s.validateAttachments(ctx, attachments); err != nil {
+		return uuid.Nil, err
 	}
 
 	contract := dto.DefaultKnoxContract()
@@ -429,6 +418,10 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 	})
 	if err != nil {
 		return uuid.Nil, err
+	}
+
+	if err := s.attachCreatedFiles(ctx, created.ID, validated, attachments); err != nil {
+		return uuid.Nil, upload.DiscardOwned(ctx, s.mysteryRepo, s.uploadSvc, "mystery", spec.OwnedDeletion{ID: created.ID, UserID: userID}, err)
 	}
 
 	s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindMystery, EntityID: created.ID}, userID, req.Body)

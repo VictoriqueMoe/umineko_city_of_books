@@ -19,9 +19,9 @@ type (
 	artCommentQuerier struct{}
 )
 
-func (artCommentQuerier) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment[uuid.UUID]) (*model.CommentRow, error) {
+func (artCommentQuerier) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment) (*model.CommentRow, error) {
 	row, err := q.CreateArtComment(ctx, sqlcgen.CreateArtCommentParams{
-		ArtID:    s.TargetID,
+		ArtID:    s.Target.ID,
 		ParentID: s.ParentID,
 		UserID:   s.UserID,
 		Body:     s.Body,
@@ -50,17 +50,17 @@ func (artCommentQuerier) Delete(ctx context.Context, q *sqlcgen.Queries, s spec.
 	})
 }
 
-func (artCommentQuerier) Count(ctx context.Context, q *sqlcgen.Queries, target uuid.UUID, exclude []uuid.UUID) (int64, error) {
+func (artCommentQuerier) Count(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget, exclude []uuid.UUID) (int64, error) {
 	return q.CountArtComments(ctx, sqlcgen.CountArtCommentsParams{
-		ArtID:   target,
+		ArtID:   target.ID,
 		Column2: joinUUIDs(exclude),
 	})
 }
 
-func (artCommentQuerier) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery[uuid.UUID]) ([]model.CommentRow, error) {
+func (artCommentQuerier) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery) ([]model.CommentRow, error) {
 	rows, err := q.ListArtComments(ctx, sqlcgen.ListArtCommentsParams{
 		UserID:  s.ViewerID,
-		ArtID:   s.TargetID,
+		ArtID:   s.Target.ID,
 		Column3: joinUUIDs(s.ExcludeUserIDs),
 		Limit:   int32(s.Limit),
 		Offset:  int32(s.Offset),
@@ -86,12 +86,25 @@ func (artCommentQuerier) ByID(ctx context.Context, q *sqlcgen.Queries, id uuid.U
 	return new(commentRowFromCreate(commentCreateRow(row))), nil
 }
 
-func (artCommentQuerier) EntityID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error) {
-	return q.GetArtCommentEntityID(ctx, id)
+func (artCommentQuerier) Target(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (spec.CommentTarget, error) {
+	entityID, err := q.GetArtCommentEntityID(ctx, id)
+	if err != nil {
+		return spec.CommentTarget{}, err
+	}
+
+	return spec.CommentTarget{ID: entityID}, nil
 }
 
 func (artCommentQuerier) AuthorID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error) {
 	return q.GetArtCommentAuthorID(ctx, id)
+}
+
+func (artCommentQuerier) MediaDir() string {
+	return "art"
+}
+
+func (artCommentQuerier) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
+	return q.GetArtCommentTargetOwner(ctx, target.ID)
 }
 
 func (artCommentQuerier) Like(ctx context.Context, q *sqlcgen.Queries, s spec.CommentLike) error {
@@ -142,16 +155,16 @@ func (artCommentQuerier) MediaBatch(ctx context.Context, q *sqlcgen.Queries, ids
 	return out, nil
 }
 
-func (artCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (artCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateArtCommentMediaURL(ctx, sqlcgen.UpdateArtCommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
 }
 
-func (artCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (artCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateArtCommentMediaThumbnail(ctx, sqlcgen.UpdateArtCommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
-func (artCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target uuid.UUID) ([]string, error) {
-	rows, err := q.CollectArtCommentMediaPaths(ctx, target)
+func (artCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {
+	rows, err := q.CollectArtCommentMediaPaths(ctx, target.ID)
 	if err != nil {
 		return nil, err
 	}

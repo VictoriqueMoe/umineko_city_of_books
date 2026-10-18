@@ -11,12 +11,15 @@ import (
 
 type (
 	entity struct {
-		Entity     string
-		Table      string
-		FK         string
-		LikesTable string
-		MediaTable string
-		KeyType    string
+		Entity      string
+		Table       string
+		FK          string
+		LikesTable  string
+		MediaTable  string
+		KeyType     string
+		ParentTable string
+		OwnerColumn string
+		MediaDir    string
 	}
 
 	family struct {
@@ -28,8 +31,9 @@ type (
 
 	binding struct {
 		entity
-		Recv    string
-		FKField string
+		Recv        string
+		FKField     string
+		TargetField string
 	}
 )
 
@@ -39,15 +43,15 @@ var families = []family{
 		Template: "comments",
 		Suffix:   "Comment",
 		Entities: []entity{
-			{Entity: "Post", Table: "post_comments", FK: "post_id", LikesTable: "post_comment_likes", MediaTable: "post_comment_media", KeyType: "uuid.UUID"},
-			{Entity: "Art", Table: "art_comments", FK: "art_id", LikesTable: "art_comment_likes", MediaTable: "art_comment_media", KeyType: "uuid.UUID"},
-			{Entity: "Announcement", Table: "announcement_comments", FK: "announcement_id", LikesTable: "announcement_comment_likes", MediaTable: "announcement_comment_media", KeyType: "uuid.UUID"},
-			{Entity: "Mystery", Table: "mystery_comments", FK: "mystery_id", LikesTable: "mystery_comment_likes", MediaTable: "mystery_comment_media", KeyType: "uuid.UUID"},
-			{Entity: "Ship", Table: "ship_comments", FK: "ship_id", LikesTable: "ship_comment_likes", MediaTable: "ship_comment_media", KeyType: "uuid.UUID"},
-			{Entity: "OC", Table: "oc_comments", FK: "oc_id", LikesTable: "oc_comment_likes", MediaTable: "oc_comment_media", KeyType: "uuid.UUID"},
-			{Entity: "Fanfic", Table: "fanfic_comments", FK: "fanfic_id", LikesTable: "fanfic_comment_likes", MediaTable: "fanfic_comment_media", KeyType: "uuid.UUID"},
-			{Entity: "Journal", Table: "journal_comments", FK: "journal_id", LikesTable: "journal_comment_likes", MediaTable: "journal_comment_media", KeyType: "uuid.UUID"},
-			{Entity: "Secret", Table: "secret_comments", FK: "secret_id", LikesTable: "secret_comment_likes", MediaTable: "secret_comment_media", KeyType: "string"},
+			{Entity: "Post", Table: "post_comments", FK: "post_id", LikesTable: "post_comment_likes", MediaTable: "post_comment_media", KeyType: "uuid.UUID", ParentTable: "posts", OwnerColumn: "user_id", MediaDir: "posts"},
+			{Entity: "Art", Table: "art_comments", FK: "art_id", LikesTable: "art_comment_likes", MediaTable: "art_comment_media", KeyType: "uuid.UUID", ParentTable: "art", OwnerColumn: "user_id", MediaDir: "art"},
+			{Entity: "Announcement", Table: "announcement_comments", FK: "announcement_id", LikesTable: "announcement_comment_likes", MediaTable: "announcement_comment_media", KeyType: "uuid.UUID", ParentTable: "announcements", OwnerColumn: "author_id", MediaDir: "announcements"},
+			{Entity: "Mystery", Table: "mystery_comments", FK: "mystery_id", LikesTable: "mystery_comment_likes", MediaTable: "mystery_comment_media", KeyType: "uuid.UUID", ParentTable: "mysteries", OwnerColumn: "user_id", MediaDir: "mysteries"},
+			{Entity: "Ship", Table: "ship_comments", FK: "ship_id", LikesTable: "ship_comment_likes", MediaTable: "ship_comment_media", KeyType: "uuid.UUID", ParentTable: "ships", OwnerColumn: "user_id", MediaDir: "ships"},
+			{Entity: "OC", Table: "oc_comments", FK: "oc_id", LikesTable: "oc_comment_likes", MediaTable: "oc_comment_media", KeyType: "uuid.UUID", ParentTable: "ocs", OwnerColumn: "user_id", MediaDir: "ocs"},
+			{Entity: "Fanfic", Table: "fanfic_comments", FK: "fanfic_id", LikesTable: "fanfic_comment_likes", MediaTable: "fanfic_comment_media", KeyType: "uuid.UUID", ParentTable: "fanfics", OwnerColumn: "user_id", MediaDir: "fanfics"},
+			{Entity: "Journal", Table: "journal_comments", FK: "journal_id", LikesTable: "journal_comment_likes", MediaTable: "journal_comment_media", KeyType: "uuid.UUID", ParentTable: "journals", OwnerColumn: "user_id", MediaDir: "journals"},
+			{Entity: "Secret", Table: "secret_comments", FK: "secret_id", LikesTable: "secret_comment_likes", MediaTable: "secret_comment_media", KeyType: "string", MediaDir: "secrets"},
 		},
 	},
 	{
@@ -149,9 +153,10 @@ func main() {
 			}
 
 			b := binding{
-				entity:  e,
-				Recv:    lowerFirst(e.Entity) + f.Suffix + "Querier",
-				FKField: fkField(e.FK),
+				entity:      e,
+				Recv:        lowerFirst(e.Entity) + f.Suffix + "Querier",
+				FKField:     fkField(e.FK),
+				TargetField: targetField(e.KeyType),
 			}
 
 			writeRendered(bindTmpl, b, filepath.Join(root, "internal", "dao", f.Name+"_"+e.Table+"_bind_gen.go"), true)
@@ -214,6 +219,14 @@ func fkField(fk string) string {
 	}
 
 	return out.String()
+}
+
+func targetField(keyType string) string {
+	if keyType == "string" {
+		return "Key"
+	}
+
+	return "ID"
 }
 
 func fail(err error) {

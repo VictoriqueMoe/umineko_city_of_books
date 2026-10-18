@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 )
@@ -33,9 +34,12 @@ func (s *service) UploadAttachment(ctx context.Context, mysteryID uuid.UUID, use
 	}
 
 	maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxGeneralSize))
-	subDir := "mystery-attachments/" + mysteryID.String()
 
-	urlPath, err := s.uploadSvc.SaveAttachment(ctx, subDir, fileSize, maxSize, reader)
+	return s.storeAttachment(ctx, mysteryID, maxSize, fileName, fileSize, reader)
+}
+
+func (s *service) storeAttachment(ctx context.Context, mysteryID uuid.UUID, maxSize int64, fileName string, fileSize int64, reader io.Reader) (*dto.MysteryAttachment, error) {
+	urlPath, err := s.uploadSvc.SaveAttachment(ctx, "mystery-attachments/"+mysteryID.String(), fileSize, maxSize, reader)
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +51,8 @@ func (s *service) UploadAttachment(ctx context.Context, mysteryID uuid.UUID, use
 		FileSize:  int(fileSize),
 	})
 	if err != nil {
+		s.uploadSvc.Delete(urlPath)
+
 		return nil, err
 	}
 
@@ -56,6 +62,59 @@ func (s *service) UploadAttachment(ctx context.Context, mysteryID uuid.UUID, use
 		FileName: fileName,
 		FileSize: int(fileSize),
 	}, nil
+}
+
+func (s *service) validateAttachments(ctx context.Context, attachments []upload.FileUpload) error {
+	if len(attachments) == 0 {
+		return nil
+	}
+
+	maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxGeneralSize))
+
+	seen := make(map[string]struct{}, len(attachments))
+	for _, f := range attachments {
+		if _, dup := seen[f.Filename]; dup {
+			return fmt.Errorf("%w: %q", ErrDuplicateAttachment, f.Filename)
+		}
+		seen[f.Filename] = struct{}{}
+
+		if err := upload.ValidateAttachmentFile(f, maxSize); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *service) attachCreatedFiles(ctx context.Context, mysteryID uuid.UUID, validated upload.ValidatedMedia, attachments []upload.FileUpload) error {
+	if err := validated.SaveToEntity(ctx, s.uploader, s.uploadSvc, "mysteries", s.mysteryRepo, mysteryID); err != nil {
+		return err
+	}
+
+	if len(attachments) == 0 {
+		return nil
+	}
+
+	maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxGeneralSize))
+	for _, f := range attachments {
+		if err := s.storeAttachmentFile(ctx, mysteryID, maxSize, f); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *service) storeAttachmentFile(ctx context.Context, mysteryID uuid.UUID, maxSize int64, f upload.FileUpload) error {
+	r, err := f.Open()
+	if err != nil {
+		return fmt.Errorf("open attachment: %w", err)
+	}
+	defer r.Close()
+
+	_, err = s.storeAttachment(ctx, mysteryID, maxSize, f.Filename, f.Size, r)
+
+	return err
 }
 
 func (s *service) UploadMedia(

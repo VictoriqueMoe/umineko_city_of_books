@@ -16,7 +16,6 @@ import {
     useUpdateFanfic,
     useUpdateFanficChapter,
     useUpdateFanficComment,
-    useUploadFanficCommentMedia,
     useUploadFanficCover,
     useUploadFanficCoverFor,
 } from "./fanfic";
@@ -40,7 +39,6 @@ const commentMocks = vi.hoisted(() => ({
     likeFanficComment: vi.fn(),
     unlikeFanficComment: vi.fn(),
     updateFanficComment: vi.fn(),
-    uploadFanficCommentMedia: vi.fn(),
 }));
 
 vi.mock("../../api/endpoints/fanfic", () => mocks);
@@ -340,6 +338,7 @@ describe("useCreateFanficComment", () => {
             fanficId,
             "without love it cannot be seen",
             undefined,
+            undefined,
         );
         expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: fanficKey });
     });
@@ -355,7 +354,22 @@ describe("useCreateFanficComment", () => {
         });
 
         // then
-        expect(commentMocks.createFanficComment).toHaveBeenCalledWith(fanficId, "a reply", commentId);
+        expect(commentMocks.createFanficComment).toHaveBeenCalledWith(fanficId, "a reply", commentId, undefined);
+    });
+
+    it("sends the staged media with the comment in the same request", async () => {
+        // given
+        const { wrapper } = harness();
+        const media = [{ file: makeFile(), isSpoiler: true }];
+        const { result } = renderHook(() => useCreateFanficComment(fanficId), { wrapper });
+
+        // when
+        await act(async () => {
+            await result.current.mutateAsync({ body: "", media });
+        });
+
+        // then
+        expect(commentMocks.createFanficComment).toHaveBeenCalledWith(fanficId, "", undefined, media);
     });
 });
 
@@ -423,24 +437,6 @@ describe("useUnlikeFanficComment", () => {
 
         // then
         expect(commentMocks.unlikeFanficComment).toHaveBeenCalledWith(commentId);
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: fanficKey });
-    });
-});
-
-describe("useUploadFanficCommentMedia", () => {
-    it("uploads the file against the comment it was given", async () => {
-        // given
-        const { wrapper, invalidateQueries } = harness();
-        const file = makeFile();
-        const { result } = renderHook(() => useUploadFanficCommentMedia(fanficId), { wrapper });
-
-        // when
-        await act(async () => {
-            await result.current.mutateAsync({ commentId, file });
-        });
-
-        // then
-        expect(commentMocks.uploadFanficCommentMedia).toHaveBeenCalledWith(commentId, file);
         expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: fanficKey });
     });
 });

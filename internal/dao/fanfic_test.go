@@ -4,17 +4,13 @@ import (
 	"cmp"
 	"context"
 	"database/sql"
-	"slices"
 	"testing"
 	"time"
 
-	"umineko_city_of_books/internal/audit"
-	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
-	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
@@ -56,20 +52,6 @@ func createFanfic(t *testing.T, repos *repository.Repositories, userID uuid.UUID
 	})
 }
 
-func createFanficComment(t *testing.T, repos *repository.Repositories, fanficID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) uuid.UUID {
-	t.Helper()
-
-	created, err := repos.Comments.ByID[string(mention.KindFanficComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{
-		TargetID: fanficID,
-		ParentID: parentID,
-		UserID:   userID,
-		Body:     body,
-	})
-	require.NoError(t, err)
-
-	return created.ID
-}
-
 func createFanficChapter(t *testing.T, repos *repository.Repositories, fanficID uuid.UUID, chapterNumber int) uuid.UUID {
 	t.Helper()
 
@@ -83,20 +65,6 @@ func createFanficChapter(t *testing.T, repos *repository.Repositories, fanficID 
 	require.NoError(t, err)
 
 	return created.ID
-}
-
-func fanficAddCommentMedia(t *testing.T, repos *repository.Repositories, commentID uuid.UUID, mediaURL, thumbnailURL string) int64 {
-	t.Helper()
-
-	id, err := repos.Fanfic.AddCommentMedia(context.Background(), spec.NewMedia{
-		TargetID:     commentID,
-		MediaURL:     mediaURL,
-		MediaType:    "image",
-		ThumbnailURL: thumbnailURL,
-	})
-	require.NoError(t, err)
-
-	return id
 }
 
 func fanficRow(t *testing.T, repos *repository.Repositories, id, viewerID uuid.UUID) *model.FanficRow {
@@ -116,35 +84,6 @@ func fanficChapter(t *testing.T, repos *repository.Repositories, fanficID uuid.U
 	require.NoError(t, err)
 
 	return chapter
-}
-
-func fanficComments(t *testing.T, repos *repository.Repositories, fanficID, viewerID uuid.UUID) []model.CommentRow {
-	t.Helper()
-
-	rows, _, err := repos.Fanfic.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: fanficID, ViewerID: viewerID, Limit: 500})
-	require.NoError(t, err)
-
-	return rows
-}
-
-func fanficCommentByID(t *testing.T, rows []model.CommentRow, id uuid.UUID) model.CommentRow {
-	t.Helper()
-
-	i := slices.IndexFunc(rows, func(row model.CommentRow) bool {
-		return row.ID == id
-	})
-	require.NotEqual(t, -1, i)
-
-	return rows[i]
-}
-
-func fanficCommentBodies(rows []model.CommentRow) []string {
-	var bodies []string
-	for _, row := range rows {
-		bodies = append(bodies, row.Body)
-	}
-
-	return bodies
 }
 
 func fanficTitles(rows []model.FanficRow) []string {
@@ -499,11 +438,12 @@ func TestFanficDAO_DeleteFanfic(t *testing.T) {
 			commenter := daotest.CreateUser(t, repos)
 			id := createFanfic(t, repos, owner.ID, "Title")
 			require.NoError(t, repos.Fanfic.UpdateCoverImage(ctx, spec.FanficCoverUpdate{ID: id, ImageURL: "/uploads/images/cover.png", ThumbnailURL: tc.coverThumb}))
-			ownersComment := createFanficComment(t, repos, id, nil, owner.ID, "one")
-			commentersComment := createFanficComment(t, repos, id, nil, commenter.ID, "two")
-			fanficAddCommentMedia(t, repos, ownersComment, "/uploads/images/one.png", "/uploads/images/one_thumb.png")
-			fanficAddCommentMedia(t, repos, ownersComment, "/uploads/images/one_no_thumb.gif", "")
-			fanficAddCommentMedia(t, repos, commentersComment, "/uploads/images/two.png", "/uploads/images/two_thumb.png")
+			target := spec.CommentTarget{Kind: spec.CommentKindFanfic, ID: id}
+			ownersComment := createComment(t, repos, target, owner.ID, nil, "one")
+			commentersComment := createComment(t, repos, target, commenter.ID, nil, "two")
+			addCommentMedia(t, repos, spec.CommentKindFanfic, ownersComment, "/uploads/images/one.png", "/uploads/images/one_thumb.png")
+			addCommentMedia(t, repos, spec.CommentKindFanfic, ownersComment, "/uploads/images/one_no_thumb.gif", "")
+			addCommentMedia(t, repos, spec.CommentKindFanfic, commentersComment, "/uploads/images/two.png", "/uploads/images/two_thumb.png")
 
 			deleter := other.ID
 			if tc.byOwner {
@@ -1093,257 +1033,4 @@ func TestFanficDAO_ReadingProgress(t *testing.T) {
 
 	// then the failure surfaces instead of reading as "not started"
 	require.Error(t, err)
-}
-
-func TestFanficDAO_CreateComment(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	ctx := context.Background()
-	author := daotest.CreateUser(t, repos)
-	replier := daotest.CreateUser(t, repos)
-	fid := createFanfic(t, repos, author.ID, "T")
-
-	// when
-	parentID := createFanficComment(t, repos, fid, nil, author.ID, "Nice!")
-	childID := createFanficComment(t, repos, fid, &parentID, replier.ID, "child")
-
-	// then
-	comments := fanficComments(t, repos, fid, author.ID)
-	require.Len(t, comments, 2)
-
-	parent := fanficCommentByID(t, comments, parentID)
-	assert.Equal(t, "Nice!", parent.Body)
-	assert.Nil(t, parent.ParentID)
-
-	child := fanficCommentByID(t, comments, childID)
-	assert.Equal(t, "child", child.Body)
-	require.NotNil(t, child.ParentID)
-	assert.Equal(t, parentID, *child.ParentID)
-
-	// when the reply is traced back to its fanfic and its author
-	entityID, entityIDErr := repos.Fanfic.GetCommentEntityID(ctx, childID)
-	authorID, authorIDErr := repos.Fanfic.GetCommentAuthorID(ctx, childID)
-
-	// then
-	require.NoError(t, entityIDErr)
-	assert.Equal(t, fid, entityID)
-
-	require.NoError(t, authorIDErr)
-	assert.Equal(t, replier.ID, authorID)
-
-	// when the replier is excluded
-	visible, total, err := repos.Fanfic.GetComments(ctx, spec.CommentQuery[uuid.UUID]{TargetID: fid, ViewerID: author.ID, Limit: 500, Offset: 0, ExcludeUserIDs: []uuid.UUID{replier.ID}})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, 1, total)
-	require.Len(t, visible, 1)
-	assert.Equal(t, "Nice!", visible[0].Body)
-}
-
-func TestFanficDAO_UpdateComment(t *testing.T) {
-	cases := []struct {
-		name     string
-		byOwner  bool
-		asAdmin  bool
-		wantErr  bool
-		wantBody string
-	}{
-		{name: "the author edits their own comment", byOwner: true, asAdmin: false, wantErr: false, wantBody: "edited"},
-		{name: "an admin edits someone else's comment", byOwner: false, asAdmin: true, wantErr: false, wantBody: "edited"},
-		{name: "another user is refused and the comment is left alone", byOwner: false, asAdmin: false, wantErr: true, wantBody: "old"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			repos := daotest.NewRepos(t)
-			owner := daotest.CreateUser(t, repos)
-			other := daotest.CreateUser(t, repos)
-			fid := createFanfic(t, repos, owner.ID, "T")
-			cid := createFanficComment(t, repos, fid, nil, owner.ID, "old")
-
-			editor := other.ID
-			if tc.byOwner {
-				editor = owner.ID
-			}
-
-			// when
-			err := repos.Fanfic.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: cid, UserID: editor, Body: "edited", AsAdmin: tc.asAdmin})
-
-			// then
-			if tc.wantErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
-
-			comments := fanficComments(t, repos, fid, owner.ID)
-			require.Len(t, comments, 1)
-			assert.Equal(t, tc.wantBody, comments[0].Body)
-		})
-	}
-}
-
-func TestFanficDAO_DeleteCommentWithAudit(t *testing.T) {
-	targetPaths := []string{"/uploads/images/target.png", "/uploads/images/target_thumb.png", "/uploads/images/target_no_thumb.gif"}
-
-	cases := []struct {
-		name          string
-		byOwner       bool
-		asAdmin       bool
-		action        audit.Action
-		wantErr       bool
-		wantPaths     []string
-		wantRemaining []string
-		wantAudits    int
-	}{
-		{name: "the author deletes their comment, gets back only its media and an audit entry is written", byOwner: true, asAdmin: false, action: audit.ActionFanficCommentDelete, wantErr: false, wantPaths: targetPaths, wantRemaining: []string{"sibling"}, wantAudits: 1},
-		{name: "an admin deletes someone else's comment and the audit entry names the admin", byOwner: false, asAdmin: true, action: audit.ActionFanficCommentDeleteAdmin, wantErr: false, wantPaths: targetPaths, wantRemaining: []string{"sibling"}, wantAudits: 1},
-		{name: "another user is refused, gets no paths back and no audit entry is written", byOwner: false, asAdmin: false, action: audit.ActionFanficCommentDelete, wantErr: true, wantPaths: nil, wantRemaining: []string{"target", "sibling"}, wantAudits: 0},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			repos := daotest.NewRepos(t)
-			ctx := context.Background()
-			owner := daotest.CreateUser(t, repos)
-			other := daotest.CreateUser(t, repos)
-			fid := createFanfic(t, repos, owner.ID, "T")
-			target := createFanficComment(t, repos, fid, nil, owner.ID, "target")
-			sibling := createFanficComment(t, repos, fid, nil, owner.ID, "sibling")
-			fanficAddCommentMedia(t, repos, target, "/uploads/images/target.png", "/uploads/images/target_thumb.png")
-			fanficAddCommentMedia(t, repos, target, "/uploads/images/target_no_thumb.gif", "")
-			fanficAddCommentMedia(t, repos, sibling, "/uploads/images/sibling.png", "")
-
-			deleter := other.ID
-			if tc.byOwner {
-				deleter = owner.ID
-			}
-
-			// when
-			paths, err := repos.Fanfic.DeleteCommentWithAudit(ctx, spec.FanficCommentDelete{
-				CommentID: target, UserID: deleter, AsAdmin: tc.asAdmin,
-				Audit: audit.NewEntry{ActorID: deleter, Action: tc.action, TargetType: audit.TargetFanficComment, TargetID: target.String()},
-			})
-
-			// then
-			if tc.wantErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
-
-			assert.ElementsMatch(t, tc.wantPaths, paths)
-			assert.ElementsMatch(t, tc.wantRemaining, fanficCommentBodies(fanficComments(t, repos, fid, owner.ID)))
-
-			siblingMedia, err := repos.Fanfic.GetCommentMedia(ctx, sibling)
-			require.NoError(t, err)
-			assert.Len(t, siblingMedia, 1)
-
-			entries, auditTotal, err := repos.AuditLog.List(ctx, spec.AuditLogListing{Action: tc.action, Page: bounds.NewPage(10, 0)})
-			require.NoError(t, err)
-			assert.Equal(t, tc.wantAudits, auditTotal)
-			require.Len(t, entries, tc.wantAudits)
-			for _, entry := range entries {
-				assert.Equal(t, target.String(), entry.TargetID)
-				assert.Equal(t, deleter, entry.ActorID)
-			}
-		})
-	}
-}
-
-func TestFanficDAO_LikeComment(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	ctx := context.Background()
-	owner := daotest.CreateUser(t, repos)
-	liker := daotest.CreateUser(t, repos)
-	fid := createFanfic(t, repos, owner.ID, "T")
-	like := spec.CommentLike{UserID: liker.ID, CommentID: createFanficComment(t, repos, fid, nil, owner.ID, "body")}
-
-	// when
-	err := repos.Fanfic.LikeComment(ctx, like)
-
-	// then
-	require.NoError(t, err)
-
-	comments := fanficComments(t, repos, fid, liker.ID)
-	require.Len(t, comments, 1)
-	assert.Equal(t, 1, comments[0].LikeCount)
-	assert.True(t, comments[0].UserLiked)
-
-	// when the same user likes it again
-	err = repos.Fanfic.LikeComment(ctx, like)
-
-	// then
-	require.NoError(t, err)
-
-	comments = fanficComments(t, repos, fid, liker.ID)
-	require.Len(t, comments, 1)
-	assert.Equal(t, 1, comments[0].LikeCount)
-
-	// when the like is taken back
-	err = repos.Fanfic.UnlikeComment(ctx, like)
-
-	// then
-	require.NoError(t, err)
-
-	comments = fanficComments(t, repos, fid, liker.ID)
-	require.Len(t, comments, 1)
-	assert.Equal(t, 0, comments[0].LikeCount)
-	assert.False(t, comments[0].UserLiked)
-}
-
-func TestFanficDAO_CommentMedia(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	ctx := context.Background()
-	user := daotest.CreateUser(t, repos)
-	fid := createFanfic(t, repos, user.ID, "T")
-	commentID := createFanficComment(t, repos, fid, nil, user.ID, "a")
-	otherID := createFanficComment(t, repos, fid, nil, user.ID, "b")
-
-	// when
-	firstID := fanficAddCommentMedia(t, repos, commentID, "http://x/0.png", "http://x/0_t.png")
-	secondID := fanficAddCommentMedia(t, repos, commentID, "http://x/1.png", "")
-	fanficAddCommentMedia(t, repos, commentID, "http://x/2.png", "")
-	fanficAddCommentMedia(t, repos, otherID, "http://x/other.png", "")
-
-	// then
-	assert.NotZero(t, firstID)
-
-	media, err := repos.Fanfic.GetCommentMedia(ctx, commentID)
-	require.NoError(t, err)
-	require.Len(t, media, 3)
-	assert.Equal(t, "http://x/0.png", media[0].MediaURL)
-	assert.Equal(t, "image", media[0].MediaType)
-	assert.Equal(t, "http://x/1.png", media[1].MediaURL)
-	assert.Equal(t, "http://x/2.png", media[2].MediaURL)
-
-	// when one item's url and thumbnail are replaced
-	require.NoError(t, repos.Fanfic.UpdateCommentMediaURL(ctx, spec.MediaURLUpdate{ID: secondID, URL: "http://new/1.png"}))
-	err = repos.Fanfic.UpdateCommentMediaThumbnail(ctx, spec.MediaURLUpdate{ID: secondID, URL: "http://x/1_t.png"})
-
-	// then
-	require.NoError(t, err)
-
-	media, err = repos.Fanfic.GetCommentMedia(ctx, commentID)
-	require.NoError(t, err)
-	require.Len(t, media, 3)
-	assert.Equal(t, "http://new/1.png", media[1].MediaURL)
-	assert.Equal(t, "http://x/1_t.png", media[1].ThumbnailURL)
-
-	// when the media is fetched in a batch
-	batch, batchErr := repos.Fanfic.GetCommentMediaBatch(ctx, []uuid.UUID{commentID, otherID})
-	none, noneErr := repos.Fanfic.GetCommentMediaBatch(ctx, nil)
-
-	// then
-	require.NoError(t, batchErr)
-	assert.Len(t, batch[commentID], 3)
-	assert.Len(t, batch[otherID], 1)
-
-	require.NoError(t, noneErr)
-	assert.Nil(t, none)
 }

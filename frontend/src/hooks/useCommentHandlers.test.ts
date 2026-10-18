@@ -16,7 +16,6 @@ const mocks = vi.hoisted(() => {
             delete: operation(undefined),
             like: operation(undefined),
             unlike: operation(undefined),
-            uploadMedia: operation({ id: `${name}-media` }),
         };
     }
 
@@ -39,7 +38,6 @@ vi.mock("./mutations/announcement", () => ({
     useDeleteAnnouncementComment: mocks.announcement.delete.hook,
     useLikeAnnouncementComment: mocks.announcement.like.hook,
     useUnlikeAnnouncementComment: mocks.announcement.unlike.hook,
-    useUploadAnnouncementCommentMedia: mocks.announcement.uploadMedia.hook,
 }));
 
 vi.mock("./mutations/art", () => ({
@@ -48,7 +46,6 @@ vi.mock("./mutations/art", () => ({
     useDeleteArtComment: mocks.art.delete.hook,
     useLikeArtComment: mocks.art.like.hook,
     useUnlikeArtComment: mocks.art.unlike.hook,
-    useUploadArtCommentMedia: mocks.art.uploadMedia.hook,
 }));
 
 vi.mock("./mutations/fanfic", () => ({
@@ -57,7 +54,6 @@ vi.mock("./mutations/fanfic", () => ({
     useDeleteFanficComment: mocks.fanfic.delete.hook,
     useLikeFanficComment: mocks.fanfic.like.hook,
     useUnlikeFanficComment: mocks.fanfic.unlike.hook,
-    useUploadFanficCommentMedia: mocks.fanfic.uploadMedia.hook,
 }));
 
 vi.mock("./mutations/journal", () => ({
@@ -66,7 +62,6 @@ vi.mock("./mutations/journal", () => ({
     useDeleteJournalComment: mocks.journal.delete.hook,
     useLikeJournalComment: mocks.journal.like.hook,
     useUnlikeJournalComment: mocks.journal.unlike.hook,
-    useUploadJournalCommentMedia: mocks.journal.uploadMedia.hook,
 }));
 
 vi.mock("./mutations/mystery", () => ({
@@ -75,7 +70,6 @@ vi.mock("./mutations/mystery", () => ({
     useDeleteMysteryComment: mocks.mystery.delete.hook,
     useLikeMysteryComment: mocks.mystery.like.hook,
     useUnlikeMysteryComment: mocks.mystery.unlike.hook,
-    useUploadMysteryCommentMedia: mocks.mystery.uploadMedia.hook,
 }));
 
 vi.mock("./mutations/oc", () => ({
@@ -84,7 +78,6 @@ vi.mock("./mutations/oc", () => ({
     useDeleteOCComment: mocks.oc.delete.hook,
     useLikeOCComment: mocks.oc.like.hook,
     useUnlikeOCComment: mocks.oc.unlike.hook,
-    useUploadOCCommentMedia: mocks.oc.uploadMedia.hook,
 }));
 
 vi.mock("./mutations/post", () => ({
@@ -93,7 +86,6 @@ vi.mock("./mutations/post", () => ({
     useDeleteComment: mocks.post.delete.hook,
     useLikeComment: mocks.post.like.hook,
     useUnlikeComment: mocks.post.unlike.hook,
-    useUploadCommentMedia: mocks.post.uploadMedia.hook,
 }));
 
 vi.mock("./mutations/secret", () => ({
@@ -102,7 +94,6 @@ vi.mock("./mutations/secret", () => ({
     useDeleteSecretComment: mocks.secret.delete.hook,
     useLikeSecretComment: mocks.secret.like.hook,
     useUnlikeSecretComment: mocks.secret.unlike.hook,
-    useUploadSecretCommentMedia: mocks.secret.uploadMedia.hook,
 }));
 
 vi.mock("./mutations/ship", () => ({
@@ -111,7 +102,6 @@ vi.mock("./mutations/ship", () => ({
     useDeleteShipComment: mocks.ship.delete.hook,
     useLikeShipComment: mocks.ship.like.hook,
     useUnlikeShipComment: mocks.ship.unlike.hook,
-    useUploadShipCommentMedia: mocks.ship.uploadMedia.hook,
 }));
 
 const everyFamily: CommentFamily[] = [
@@ -126,12 +116,12 @@ const everyFamily: CommentFamily[] = [
     "ship",
 ];
 
-const everyOperation: readonly CommentOperation[] = ["create", "update", "delete", "like", "unlike", "uploadMedia"];
+const everyOperation: readonly CommentOperation[] = ["create", "update", "delete", "like", "unlike"];
 
 function operationsOf(family: CommentFamily) {
     const set = mocks[family];
 
-    return [set.create, set.update, set.delete, set.like, set.unlike, set.uploadMedia];
+    return [set.create, set.update, set.delete, set.like, set.unlike];
 }
 
 describe("the family registry", () => {
@@ -146,7 +136,6 @@ describe("the family registry", () => {
             await result.current.deleteFn("comment-1");
             await result.current.likeFn("comment-1");
             await result.current.unlikeFn("comment-1");
-            await result.current.uploadMediaFn("comment-1", new File(["x"], "witch.png"));
         });
 
         // then
@@ -169,7 +158,6 @@ describe("the family registry", () => {
         for (const rest of [mocks.secret.update, mocks.secret.delete, mocks.secret.like, mocks.secret.unlike]) {
             expect(rest.hook).toHaveBeenCalledWith("secret-1");
         }
-        expect(mocks.secret.uploadMedia.hook).toHaveBeenCalledWith("secret-1");
     });
 });
 
@@ -214,14 +202,14 @@ describe("the enabled set", () => {
         expect(result.current.deleteFn).toBeUndefined();
         expect(result.current.likeFn).toBeUndefined();
         expect(result.current.unlikeFn).toBeUndefined();
-        expect(result.current.uploadMediaFn).toBeUndefined();
     });
 
-    it("hands back every operation when the caller asks for all six", () => {
+    it("hands back every operation when the caller asks for all five", () => {
         // given / when
         const { result } = renderHook(() => useCommentHandlers("post", "post-1", { enabled: everyOperation }));
 
         // then
+        expect(Object.keys(result.current)).toHaveLength(5);
         for (const handler of Object.values(result.current)) {
             expect(typeof handler).toBe("function");
         }
@@ -253,8 +241,26 @@ describe("createCommentFn", () => {
         expect(mocks.mystery.create.mutateAsync).toHaveBeenCalledWith({
             body: "the golden truth",
             parentId: "comment-1",
+            media: undefined,
         });
         expect(created).toEqual({ id: "mystery-comment" });
+    });
+
+    it("sends the staged media with the comment so it is created in one request", async () => {
+        // given
+        const media = [
+            { file: new File(["x"], "witch.png"), isSpoiler: false },
+            { file: new File(["y"], "truth.png"), isSpoiler: true },
+        ];
+        const { result } = renderHook(() => useCommentHandlers("fanfic", "fanfic-1", { enabled: ["create"] }));
+
+        // when
+        await act(async () => {
+            await result.current.createCommentFn("ignored", "", undefined, media);
+        });
+
+        // then
+        expect(mocks.fanfic.create.mutateAsync).toHaveBeenCalledWith({ body: "", parentId: undefined, media });
     });
 
     it("forwards the journal entry id so an entry comment stays on its entry", () => {
@@ -305,23 +311,5 @@ describe("deleteFn, likeFn and unlikeFn", () => {
         expect(mocks.art.delete.mutateAsync).toHaveBeenCalledWith("comment-1");
         expect(mocks.art.like.mutateAsync).toHaveBeenCalledWith("comment-2");
         expect(mocks.art.unlike.mutateAsync).toHaveBeenCalledWith("comment-3");
-    });
-});
-
-describe("uploadMediaFn", () => {
-    it("sends the comment id and the file", async () => {
-        // given
-        const file = new File(["x"], "witch.png");
-        const { result } = renderHook(() => useCommentHandlers("fanfic", "fanfic-1", { enabled: ["uploadMedia"] }));
-
-        // when
-        let uploaded: unknown;
-        await act(async () => {
-            uploaded = await result.current.uploadMediaFn("comment-1", file);
-        });
-
-        // then
-        expect(mocks.fanfic.uploadMedia.mutateAsync).toHaveBeenCalledWith({ commentId: "comment-1", file });
-        expect(uploaded).toEqual({ id: "fanfic-media" });
     });
 });

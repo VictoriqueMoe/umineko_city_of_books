@@ -25,7 +25,6 @@ vi.mock("../../hooks/mutations/ship", () => ({
     useDeleteShipComment: () => ({ mutateAsync: vi.fn() }),
     useUpdateShipComment: () => ({ mutateAsync: vi.fn() }),
     useCreateShipComment: () => ({ mutateAsync: vi.fn() }),
-    useUploadShipCommentMedia: () => ({ mutateAsync: vi.fn() }),
 }));
 
 vi.mock("react-router", async importOriginal => {

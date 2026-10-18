@@ -21,21 +21,21 @@ type (
 		CreateWithDetails(ctx context.Context, post spec.NewPost, tx ...*sql.Tx) (*model.PostRow, error)
 		UpdateWithDetails(ctx context.Context, update spec.PostUpdate, tx ...*sql.Tx) error
 		DeleteWithSharedContent(ctx context.Context, deletion spec.PostDelete, tx ...*sql.Tx) (*model.SharedContentRef, []string, error)
-		UpdateCommentWithDetails(ctx context.Context, update spec.CommentUpdate, tx ...*sql.Tx) error
-		DeleteCommentWithAudit(ctx context.Context, deletion spec.PostCommentDelete, tx ...*sql.Tx) ([]string, error)
+		DeleteWithMedia(ctx context.Context, deletion spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error)
 		CreatePollWithOptions(ctx context.Context, poll spec.NewPoll, tx ...*sql.Tx) (*model.PollRow, error)
 	}
 
 	postRepository struct {
 		db *sql.DB
 		dao.PostDAO
-		audit AuditLogRepository
-		cache *cache.Manager
+		comments dao.CommentDAO
+		audit    AuditLogRepository
+		cache    *cache.Manager
 	}
 )
 
-func NewPostRepo(database *sql.DB, postDAO dao.PostDAO, auditLog AuditLogRepository, c *cache.Manager) PostRepository {
-	return &postRepository{db: database, PostDAO: postDAO, audit: auditLog, cache: c}
+func NewPostRepo(database *sql.DB, postDAO dao.PostDAO, comments dao.CommentDAO, auditLog AuditLogRepository, c *cache.Manager) PostRepository {
+	return &postRepository{db: database, PostDAO: postDAO, comments: comments, audit: auditLog, cache: c}
 }
 
 func (r *postRepository) GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (map[string]int, error) {
@@ -138,7 +138,7 @@ func (r *postRepository) DeleteWithSharedContent(ctx context.Context, deletion s
 			return err
 		}
 
-		commentPaths, err := r.PostDAO.CollectCommentMediaPaths(ctx, deletion.ID, tx)
+		commentPaths, err := r.comments.CollectCommentMediaPaths(ctx, spec.CommentTarget{Kind: spec.CommentKindPost, ID: deletion.ID}, tx)
 		if err != nil {
 			return err
 		}
@@ -169,29 +169,24 @@ func (r *postRepository) DeleteWithSharedContent(ctx context.Context, deletion s
 	return shared, paths, nil
 }
 
-func (r *postRepository) UpdateCommentWithDetails(ctx context.Context, update spec.CommentUpdate, tx ...*sql.Tx) error {
-	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
-		return r.PostDAO.UpdateComment(ctx, update, tx)
-	})
-}
-
-func (r *postRepository) DeleteCommentWithAudit(ctx context.Context, deletion spec.PostCommentDelete, tx ...*sql.Tx) ([]string, error) {
+func (r *postRepository) DeleteWithMedia(ctx context.Context, deletion spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
 	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
-		mediaPaths, err := r.PostDAO.CollectSingleCommentMediaPaths(ctx, deletion.CommentID, tx)
+		mediaPaths, err := r.PostDAO.CollectMediaPaths(ctx, deletion.ID, tx)
 		if err != nil {
-			return err
+			return fmt.Errorf("collect post media paths: %w", err)
 		}
 
-		paths = mediaPaths
-
-		if err := r.PostDAO.DeleteComment(ctx, deletion.CommentDeletion, tx); err != nil {
-			return err
+		commentPaths, err := r.comments.CollectCommentMediaPaths(ctx, spec.CommentTarget{Kind: spec.CommentKindPost, ID: deletion.ID}, tx)
+		if err != nil {
+			return fmt.Errorf("collect post comment media paths: %w", err)
 		}
 
-		if err := r.audit.Create(ctx, deletion.Audit, tx); err != nil {
-			return fmt.Errorf("audit comment delete: %w", err)
+		paths = dedupePaths(append(mediaPaths, commentPaths...))
+
+		if err := r.PostDAO.Delete(ctx, deletion, tx); err != nil {
+			return fmt.Errorf("delete post: %w", err)
 		}
 
 		return nil
@@ -199,6 +194,8 @@ func (r *postRepository) DeleteCommentWithAudit(ctx context.Context, deletion sp
 	if err != nil {
 		return nil, err
 	}
+
+	r.invalidateCornerCounts(ctx)
 
 	return paths, nil
 }

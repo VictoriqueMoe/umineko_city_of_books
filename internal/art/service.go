@@ -13,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/corner"
@@ -31,7 +32,6 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
-	"umineko_city_of_books/internal/utils"
 
 	"github.com/google/uuid"
 )
@@ -48,13 +48,6 @@ type (
 		UnlikeArt(ctx context.Context, userID uuid.UUID, artID uuid.UUID) error
 		GetCornerCounts(ctx context.Context) (map[string]int, error)
 		GetPopularTags(ctx context.Context, cornerFilter string) ([]dto.TagCountResponse, error)
-
-		CreateComment(ctx context.Context, artID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)
-		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest) error
-		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
-		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
 
 		CreateGallery(ctx context.Context, userID uuid.UUID, req dto.CreateGalleryRequest) (uuid.UUID, error)
 		UpdateGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateGalleryRequest) error
@@ -75,9 +68,9 @@ type (
 		blockSvc      block.Service
 		notifService  notification.Service
 		mentionSvc    mention.Service
+		commentSvc    comment.Service
 		uploadSvc     upload.Service
 		mediaProc     *media.Processor
-		uploader      *media.Uploader
 		settingsSvc   settings.Service
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
@@ -95,6 +88,7 @@ func NewService(
 	blockSvc block.Service,
 	notifService notification.Service,
 	mentionSvc mention.Service,
+	commentSvc comment.Service,
 	uploadSvc upload.Service,
 	mediaProc *media.Processor,
 	settingsSvc settings.Service,
@@ -112,9 +106,9 @@ func NewService(
 		blockSvc:      blockSvc,
 		notifService:  notifService,
 		mentionSvc:    mentionSvc,
+		commentSvc:    commentSvc,
 		uploadSvc:     uploadSvc,
 		mediaProc:     mediaProc,
-		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		settingsSvc:   settingsSvc,
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
@@ -248,34 +242,10 @@ func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 		return nil, fmt.Errorf("art tags: %w", err)
 	}
 
-	comments, _, err := s.artRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
-		TargetID:       id,
-		ViewerID:       viewerID,
-		Limit:          500,
-		ExcludeUserIDs: blockedIDs,
-	})
+	comments, err := s.commentSvc.Thread(ctx, spec.CommentTarget{Kind: spec.CommentKindArt, ID: id}, viewerID)
 	if err != nil {
 		return nil, fmt.Errorf("art comments: %w", err)
 	}
-
-	var commentIDs []uuid.UUID
-	for _, c := range comments {
-		commentIDs = append(commentIDs, c.ID)
-	}
-	commentMediaMap, err := s.artRepo.GetCommentMediaBatch(ctx, commentIDs)
-	if err != nil {
-		return nil, fmt.Errorf("comment media: %w", err)
-	}
-
-	flatComments := make([]dto.ArtCommentResponse, len(comments))
-	for i, c := range comments {
-		flatComments[i] = artCommentToResponse(c, commentMediaMap[c.ID])
-	}
-	dtoComments := utils.BuildTree(flatComments,
-		func(c dto.ArtCommentResponse) uuid.UUID { return c.ID },
-		func(c dto.ArtCommentResponse) *uuid.UUID { return c.ParentID },
-		func(c *dto.ArtCommentResponse, replies []dto.ArtCommentResponse) { c.Replies = replies },
-	)
 
 	likeUsers, err := s.artRepo.GetLikedBy(ctx, spec.LikedByQuery{TargetID: id, ExcludeUserIDs: blockedIDs})
 	if err != nil {
@@ -306,7 +276,7 @@ func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 
 	return &dto.ArtDetailResponse{
 		ArtResponse:   artResp,
-		Comments:      dtoComments,
+		Comments:      comments,
 		LikedBy:       likedBy,
 		ViewerBlocked: viewerBlocked,
 	}, nil
@@ -532,255 +502,6 @@ func (s *service) GetPopularTags(ctx context.Context, cornerFilter string) ([]dt
 	return result, nil
 }
 
-func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
-	if strings.TrimSpace(req.Body) == "" {
-		return uuid.Nil, ErrEmptyBody
-	}
-	if err := s.contentFilter.Check(ctx, req.Body); err != nil {
-		return uuid.Nil, err
-	}
-
-	authorID, err := s.artAuthor(ctx, artID)
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("block check: %w", err)
-	}
-	if blocked {
-		return uuid.Nil, block.ErrUserBlocked
-	}
-
-	body := strings.TrimSpace(req.Body)
-
-	id, err := s.mentionSvc.CreateComment(ctx, mention.CommentSpec{
-		Kind:     mention.KindArtComment,
-		EntityID: artID,
-		ParentID: req.ParentID,
-		AuthorID: userID,
-		Body:     body,
-	})
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	go func() {
-		actor, err := s.userRepo.GetByID(ctx, userID)
-		if err != nil {
-			logger.Ctx(ctx).Warn().Err(err).Str("user_id", userID.String()).Msg("art notification skipped, actor lookup failed")
-
-			return
-		}
-		if actor == nil {
-			return
-		}
-		linkURL := fmt.Sprintf("/gallery/art/%s#comment-%s", artID, id)
-
-		if req.ParentID == nil {
-			_ = s.notifService.Notify(ctx, dto.NotifyParams{
-				RecipientID:   authorID,
-				Type:          dto.NotifArtCommented,
-				ReferenceID:   artID,
-				ReferenceType: fmt.Sprintf("art_comment:%s", id),
-				ActorID:       userID,
-				EmailActor:    actor.DisplayName,
-				EmailAction:   "commented on your art",
-				EmailLink:     linkURL,
-			})
-			return
-		}
-
-		parentAuthorID, err := s.artRepo.GetCommentAuthorID(ctx, *req.ParentID)
-		if err == nil && parentAuthorID != userID {
-			_ = s.notifService.Notify(ctx, dto.NotifyParams{
-				RecipientID:   parentAuthorID,
-				Type:          dto.NotifArtCommentReply,
-				ReferenceID:   artID,
-				ReferenceType: fmt.Sprintf("art_comment:%s", id),
-				ActorID:       userID,
-				EmailActor:    actor.DisplayName,
-				EmailAction:   "replied to your comment",
-				EmailLink:     linkURL,
-			})
-		}
-
-		if authorID != userID && authorID != parentAuthorID {
-			_ = s.notifService.Notify(ctx, dto.NotifyParams{
-				RecipientID:   authorID,
-				Type:          dto.NotifArtCommented,
-				ReferenceID:   artID,
-				ReferenceType: fmt.Sprintf("art_comment:%s", id),
-				ActorID:       userID,
-				EmailActor:    actor.DisplayName,
-				EmailAction:   "commented on your art",
-				EmailLink:     linkURL,
-			})
-		}
-	}()
-
-	return id, nil
-}
-
-func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest) error {
-	body := strings.TrimSpace(req.Body)
-	if body == "" {
-		return ErrEmptyBody
-	}
-	if err := s.contentFilter.Check(ctx, body); err != nil {
-		return err
-	}
-
-	authorID, err := s.artRepo.GetCommentAuthorID(ctx, id)
-	if errors.Is(err, dao.ErrNotFound) {
-		return ErrNotFound
-	}
-	if err != nil {
-		return err
-	}
-
-	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyComment)
-
-	update := spec.CommentUpdate{
-		CommentID: id,
-		UserID:    userID,
-		Body:      body,
-		AsAdmin:   asAdmin,
-	}
-
-	if err := s.artRepo.UpdateCommentWithDetails(ctx, update); err != nil {
-		return err
-	}
-
-	if authorID != userID {
-		s.writeAudit(ctx, audit.NewEntry{
-			ActorID:    userID,
-			Action:     audit.ActionArtCommentUpdateAdmin,
-			TargetType: audit.TargetArtComment,
-			TargetID:   id.String(),
-			SubjectID:  authorID,
-		})
-	}
-
-	if asAdmin {
-		go s.notifyArtCommentEdited(ctx, id, userID)
-	}
-
-	return nil
-}
-
-func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	authorID, err := s.artRepo.GetCommentAuthorID(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	action := audit.ActionArtCommentDelete
-	if authorID != userID {
-		action = audit.ActionArtCommentDeleteAdmin
-	}
-
-	paths, err := s.artRepo.DeleteCommentWithAudit(ctx, spec.ArtCommentDeletion{
-		CommentID: id,
-		UserID:    userID,
-		AsAdmin:   s.authz.Can(ctx, userID, authz.PermDeleteAnyComment),
-		Audit: audit.NewEntry{
-			ActorID:    userID,
-			Action:     action,
-			TargetType: audit.TargetArtComment,
-			TargetID:   id.String(),
-			SubjectID:  authorID,
-		},
-	})
-	if err != nil {
-		return err
-	}
-
-	s.uploadSvc.Delete(paths...)
-
-	return nil
-}
-
-func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	commentAuthorID, err := s.artRepo.GetCommentAuthorID(ctx, commentID)
-	if err != nil {
-		return err
-	}
-
-	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID)
-	if err != nil {
-		return fmt.Errorf("block check: %w", err)
-	}
-	if blocked {
-		return block.ErrUserBlocked
-	}
-
-	if err := s.artRepo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID}); err != nil {
-		return err
-	}
-
-	go func() {
-		artID, err := s.artRepo.GetCommentEntityID(ctx, commentID)
-		if err != nil {
-			logger.Ctx(ctx).Warn().Err(err).Str("comment_id", commentID.String()).Msg("art comment like notification skipped, art lookup failed")
-
-			return
-		}
-		actor, err := s.userRepo.GetByID(ctx, userID)
-		if err != nil {
-			logger.Ctx(ctx).Warn().Err(err).Str("user_id", userID.String()).Msg("art notification skipped, actor lookup failed")
-
-			return
-		}
-		if actor == nil {
-			return
-		}
-		_ = s.notifService.Notify(ctx, dto.NotifyParams{
-			RecipientID:   commentAuthorID,
-			Type:          dto.NotifCommentLiked,
-			ReferenceID:   artID,
-			ReferenceType: fmt.Sprintf("art_comment:%s", commentID),
-			ActorID:       userID,
-			EmailActor:    actor.DisplayName,
-			EmailAction:   "liked your comment",
-			EmailLink:     fmt.Sprintf("/gallery/art/%s#comment-%s", artID, commentID),
-		})
-	}()
-
-	return nil
-}
-
-func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	return s.artRepo.UnlikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID})
-}
-
-func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
-	authorID, err := s.artRepo.GetCommentAuthorID(ctx, commentID)
-	if err != nil {
-		return nil, ErrNotFound
-	}
-	if authorID != userID {
-		return nil, authz.ErrNotCommentAuthor
-	}
-
-	return s.uploader.SaveAndRecord(ctx, "art", contentType, filename, fileSize, reader, isSpoiler,
-		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-			return s.artRepo.AddCommentMedia(ctx, spec.NewMedia{
-				TargetID:     commentID,
-				MediaURL:     mediaURL,
-				MediaType:    mediaType,
-				ThumbnailURL: thumbURL,
-				Filename:     filename,
-				SortOrder:    sortOrder,
-				IsSpoiler:    isSpoiler,
-			})
-		},
-		s.artRepo.UpdateCommentMediaURL,
-		s.artRepo.UpdateCommentMediaThumbnail,
-	)
-}
-
 func (s *service) CreateGallery(ctx context.Context, userID uuid.UUID, req dto.CreateGalleryRequest) (uuid.UUID, error) {
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
@@ -978,43 +699,4 @@ func (s *service) notifyArtEdited(ctx context.Context, artID uuid.UUID, editorID
 		ReferenceType: "art",
 		LinkPath:      fmt.Sprintf("/gallery/art/%s", artID),
 	})
-}
-
-func (s *service) notifyArtCommentEdited(ctx context.Context, commentID uuid.UUID, editorID uuid.UUID) {
-	authorID, err := s.artRepo.GetCommentAuthorID(ctx, commentID)
-	if err != nil {
-		return
-	}
-	artID, err := s.artRepo.GetCommentEntityID(ctx, commentID)
-	if err != nil {
-		return
-	}
-	notification.SendEditNotification(ctx, s.userRepo, s.notifService, notification.EditNotifyParams{
-		AuthorID:      authorID,
-		EditorID:      editorID,
-		ContentType:   "comment",
-		ReferenceID:   artID,
-		ReferenceType: fmt.Sprintf("art_comment:%s", commentID),
-		LinkPath:      fmt.Sprintf("/gallery/art/%s#comment-%s", artID, commentID),
-	})
-}
-
-func artCommentToResponse(c model.CommentRow, media []model.PostMediaRow) dto.ArtCommentResponse {
-	return dto.ArtCommentResponse{
-		ID:       c.ID,
-		ParentID: c.ParentID,
-		Author: dto.UserResponse{
-			ID:          c.UserID,
-			Username:    c.AuthorUsername,
-			DisplayName: c.AuthorDisplayName,
-			AvatarURL:   c.AuthorAvatarURL,
-			Role:        role.Role(c.AuthorRole),
-		},
-		Body:      c.Body,
-		Media:     model.MediaRowsToResponse(media),
-		LikeCount: c.LikeCount,
-		UserLiked: c.UserLiked,
-		CreatedAt: c.CreatedAt,
-		UpdatedAt: c.UpdatedAt,
-	}
 }

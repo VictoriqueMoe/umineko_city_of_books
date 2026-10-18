@@ -18,9 +18,8 @@ import {
     likeJournalComment,
     unlikeJournalComment,
     updateJournalComment,
-    uploadJournalCommentMedia,
 } from "../../api/endpoints/comments";
-import type { CreateJournalPayload, JournalDetail, JournalEntryPayload } from "../../types/api";
+import type { CreateJournalPayload, JournalDetail, JournalEntryPayload, MediaUpload } from "../../types/api";
 import { invalidateViews } from "../../api/cache/invalidate";
 import { queryKeys } from "../../api/queryKeys";
 import { commentMutations } from "./comments";
@@ -106,8 +105,8 @@ export function useUnfollowJournal() {
 export function useCreateJournalComment(journalId: string, entryId?: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ body, parentId }: { body: string; parentId?: string }) =>
-            createJournalComment(journalId, body, parentId, entryId),
+        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly MediaUpload[] }) =>
+            createJournalComment(journalId, body, parentId, entryId, media),
         onSuccess: () => invalidateViews(qc, "journal"),
     });
 }
@@ -115,7 +114,8 @@ export function useCreateJournalComment(journalId: string, entryId?: string) {
 export function useCreateJournalEntry(journalId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (payload: JournalEntryPayload) => createJournalEntry(journalId, payload),
+        mutationFn: ({ payload, media }: { payload: JournalEntryPayload; media?: readonly MediaUpload[] }) =>
+            createJournalEntry(journalId, payload, media),
         onSuccess: () => invalidateViews(qc, "journal"),
     });
 }
@@ -141,14 +141,12 @@ const journalCommentMutations = commentMutations("journal", {
     remove: id => deleteJournalComment(id),
     like: id => likeJournalComment(id),
     unlike: id => unlikeJournalComment(id),
-    uploadMedia: (commentId, file) => uploadJournalCommentMedia(commentId, file),
 });
 
 export const useUpdateJournalComment = journalCommentMutations.useUpdate;
 export const useDeleteJournalComment = journalCommentMutations.useDelete;
 export const useLikeJournalComment = journalCommentMutations.useLike;
 export const useUnlikeJournalComment = journalCommentMutations.useUnlike;
-export const useUploadJournalCommentMedia = journalCommentMutations.useUploadMedia;
 
 export function useUploadJournalEntryMedia(_journalId: string) {
     const qc = useQueryClient();

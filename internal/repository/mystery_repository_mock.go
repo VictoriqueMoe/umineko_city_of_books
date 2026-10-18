@@ -215,87 +215,6 @@ func (_c *MockMysteryRepository_AddClue_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
-// AddCommentMedia provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error) {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, s, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, s)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for AddCommentMedia")
-	}
-
-	var r0 int64
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMedia, ...*sql.Tx) (int64, error)); ok {
-		return returnFunc(ctx, s, tx...)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMedia, ...*sql.Tx) int64); ok {
-		r0 = returnFunc(ctx, s, tx...)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewMedia, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, s, tx...)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_AddCommentMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddCommentMedia'
-type MockMysteryRepository_AddCommentMedia_Call struct {
-	*mock.Call
-}
-
-// AddCommentMedia is a helper method to define mock.On call
-//   - ctx context.Context
-//   - s spec.NewMedia
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) AddCommentMedia(ctx any, s any, tx ...any) *MockMysteryRepository_AddCommentMedia_Call {
-	return &MockMysteryRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia",
-		append([]any{ctx, s}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_AddCommentMedia_Call) Run(run func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx)) *MockMysteryRepository_AddCommentMedia_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.NewMedia
-		if args[1] != nil {
-			arg1 = args[1].(spec.NewMedia)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_AddCommentMedia_Call) Return(n int64, err error) *MockMysteryRepository_AddCommentMedia_Call {
-	_c.Call.Return(n, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)) *MockMysteryRepository_AddCommentMedia_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // AddMedia provides a mock function for the type MockMysteryRepository
 func (_mock *MockMysteryRepository) AddMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error) {
 	var tmpRet mock.Arguments
@@ -373,89 +292,6 @@ func (_c *MockMysteryRepository_AddMedia_Call) Return(n int64, err error) *MockM
 }
 
 func (_c *MockMysteryRepository_AddMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)) *MockMysteryRepository_AddMedia_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// CollectCommentMediaPaths provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) CollectCommentMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, entityID, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, entityID)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for CollectCommentMediaPaths")
-	}
-
-	var r0 []string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
-		return returnFunc(ctx, entityID, tx...)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
-		r0 = returnFunc(ctx, entityID, tx...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, entityID, tx...)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_CollectCommentMediaPaths_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CollectCommentMediaPaths'
-type MockMysteryRepository_CollectCommentMediaPaths_Call struct {
-	*mock.Call
-}
-
-// CollectCommentMediaPaths is a helper method to define mock.On call
-//   - ctx context.Context
-//   - entityID uuid.UUID
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) CollectCommentMediaPaths(ctx any, entityID any, tx ...any) *MockMysteryRepository_CollectCommentMediaPaths_Call {
-	return &MockMysteryRepository_CollectCommentMediaPaths_Call{Call: _e.mock.On("CollectCommentMediaPaths",
-		append([]any{ctx, entityID}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_CollectCommentMediaPaths_Call) Run(run func(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_CollectCommentMediaPaths_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_CollectCommentMediaPaths_Call) Return(strings []string, err error) *MockMysteryRepository_CollectCommentMediaPaths_Call {
-	_c.Call.Return(strings, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_CollectCommentMediaPaths_Call) RunAndReturn(run func(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockMysteryRepository_CollectCommentMediaPaths_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -539,89 +375,6 @@ func (_c *MockMysteryRepository_CollectMediaPaths_Call) Return(strings []string,
 }
 
 func (_c *MockMysteryRepository_CollectMediaPaths_Call) RunAndReturn(run func(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockMysteryRepository_CollectMediaPaths_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// CollectSingleCommentMediaPaths provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) CollectSingleCommentMediaPaths(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, commentID, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, commentID)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for CollectSingleCommentMediaPaths")
-	}
-
-	var r0 []string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
-		return returnFunc(ctx, commentID, tx...)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
-		r0 = returnFunc(ctx, commentID, tx...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, commentID, tx...)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_CollectSingleCommentMediaPaths_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CollectSingleCommentMediaPaths'
-type MockMysteryRepository_CollectSingleCommentMediaPaths_Call struct {
-	*mock.Call
-}
-
-// CollectSingleCommentMediaPaths is a helper method to define mock.On call
-//   - ctx context.Context
-//   - commentID uuid.UUID
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) CollectSingleCommentMediaPaths(ctx any, commentID any, tx ...any) *MockMysteryRepository_CollectSingleCommentMediaPaths_Call {
-	return &MockMysteryRepository_CollectSingleCommentMediaPaths_Call{Call: _e.mock.On("CollectSingleCommentMediaPaths",
-		append([]any{ctx, commentID}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_CollectSingleCommentMediaPaths_Call) Run(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_CollectSingleCommentMediaPaths_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_CollectSingleCommentMediaPaths_Call) Return(strings []string, err error) *MockMysteryRepository_CollectSingleCommentMediaPaths_Call {
-	_c.Call.Return(strings, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_CollectSingleCommentMediaPaths_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockMysteryRepository_CollectSingleCommentMediaPaths_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1541,161 +1294,6 @@ func (_c *MockMysteryRepository_DeleteClues_Call) RunAndReturn(run func(ctx cont
 	return _c
 }
 
-// DeleteComment provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, s, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, s)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteComment")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, s, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_DeleteComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteComment'
-type MockMysteryRepository_DeleteComment_Call struct {
-	*mock.Call
-}
-
-// DeleteComment is a helper method to define mock.On call
-//   - ctx context.Context
-//   - s spec.CommentDeletion
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) DeleteComment(ctx any, s any, tx ...any) *MockMysteryRepository_DeleteComment_Call {
-	return &MockMysteryRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment",
-		append([]any{ctx, s}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_DeleteComment_Call) Run(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx)) *MockMysteryRepository_DeleteComment_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.CommentDeletion
-		if args[1] != nil {
-			arg1 = args[1].(spec.CommentDeletion)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteComment_Call) Return(err error) *MockMysteryRepository_DeleteComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error) *MockMysteryRepository_DeleteComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteCommentWithAudit provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) DeleteCommentWithAudit(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) ([]string, error) {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, s, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, s)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteCommentWithAudit")
-	}
-
-	var r0 []string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) ([]string, error)); ok {
-		return returnFunc(ctx, s, tx...)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) []string); ok {
-		r0 = returnFunc(ctx, s, tx...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, s, tx...)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_DeleteCommentWithAudit_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteCommentWithAudit'
-type MockMysteryRepository_DeleteCommentWithAudit_Call struct {
-	*mock.Call
-}
-
-// DeleteCommentWithAudit is a helper method to define mock.On call
-//   - ctx context.Context
-//   - s spec.CommentDeletion
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) DeleteCommentWithAudit(ctx any, s any, tx ...any) *MockMysteryRepository_DeleteCommentWithAudit_Call {
-	return &MockMysteryRepository_DeleteCommentWithAudit_Call{Call: _e.mock.On("DeleteCommentWithAudit",
-		append([]any{ctx, s}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_DeleteCommentWithAudit_Call) Run(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx)) *MockMysteryRepository_DeleteCommentWithAudit_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.CommentDeletion
-		if args[1] != nil {
-			arg1 = args[1].(spec.CommentDeletion)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteCommentWithAudit_Call) Return(strings []string, err error) *MockMysteryRepository_DeleteCommentWithAudit_Call {
-	_c.Call.Return(strings, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteCommentWithAudit_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) ([]string, error)) *MockMysteryRepository_DeleteCommentWithAudit_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // DeleteMedia provides a mock function for the type MockMysteryRepository
 func (_mock *MockMysteryRepository) DeleteMedia(ctx context.Context, s spec.MediaDeletion, tx ...*sql.Tx) (string, error) {
 	var tmpRet mock.Arguments
@@ -1856,6 +1454,89 @@ func (_c *MockMysteryRepository_DeleteWithFiles_Call) Return(strings []string, e
 }
 
 func (_c *MockMysteryRepository_DeleteWithFiles_Call) RunAndReturn(run func(ctx context.Context, s spec.MysteryDelete, tx ...*sql.Tx) ([]string, error)) *MockMysteryRepository_DeleteWithFiles_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteWithMedia provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) DeleteWithMedia(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteWithMedia")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.OwnedDeletion, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, s, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.OwnedDeletion, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.OwnedDeletion, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_DeleteWithMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteWithMedia'
+type MockMysteryRepository_DeleteWithMedia_Call struct {
+	*mock.Call
+}
+
+// DeleteWithMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.OwnedDeletion
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) DeleteWithMedia(ctx any, s any, tx ...any) *MockMysteryRepository_DeleteWithMedia_Call {
+	return &MockMysteryRepository_DeleteWithMedia_Call{Call: _e.mock.On("DeleteWithMedia",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_DeleteWithMedia_Call) Run(run func(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx)) *MockMysteryRepository_DeleteWithMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.OwnedDeletion
+		if args[1] != nil {
+			arg1 = args[1].(spec.OwnedDeletion)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteWithMedia_Call) Return(strings []string, err error) *MockMysteryRepository_DeleteWithMedia_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteWithMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error)) *MockMysteryRepository_DeleteWithMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2615,427 +2296,6 @@ func (_c *MockMysteryRepository_GetClues_Call) RunAndReturn(run func(ctx context
 	return _c
 }
 
-// GetCommentAuthorID provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetCommentAuthorID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, commentID, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, commentID)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCommentAuthorID")
-	}
-
-	var r0 uuid.UUID
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, commentID, tx...)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
-		r0 = returnFunc(ctx, commentID, tx...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(uuid.UUID)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, commentID, tx...)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetCommentAuthorID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentAuthorID'
-type MockMysteryRepository_GetCommentAuthorID_Call struct {
-	*mock.Call
-}
-
-// GetCommentAuthorID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - commentID uuid.UUID
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) GetCommentAuthorID(ctx any, commentID any, tx ...any) *MockMysteryRepository_GetCommentAuthorID_Call {
-	return &MockMysteryRepository_GetCommentAuthorID_Call{Call: _e.mock.On("GetCommentAuthorID",
-		append([]any{ctx, commentID}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_GetCommentAuthorID_Call) Run(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetCommentAuthorID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetCommentAuthorID_Call) Return(uUID uuid.UUID, err error) *MockMysteryRepository_GetCommentAuthorID_Call {
-	_c.Call.Return(uUID, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetCommentAuthorID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)) *MockMysteryRepository_GetCommentAuthorID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetCommentEntityID provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetCommentEntityID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, commentID, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, commentID)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCommentEntityID")
-	}
-
-	var r0 uuid.UUID
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, commentID, tx...)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
-		r0 = returnFunc(ctx, commentID, tx...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(uuid.UUID)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, commentID, tx...)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetCommentEntityID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentEntityID'
-type MockMysteryRepository_GetCommentEntityID_Call struct {
-	*mock.Call
-}
-
-// GetCommentEntityID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - commentID uuid.UUID
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) GetCommentEntityID(ctx any, commentID any, tx ...any) *MockMysteryRepository_GetCommentEntityID_Call {
-	return &MockMysteryRepository_GetCommentEntityID_Call{Call: _e.mock.On("GetCommentEntityID",
-		append([]any{ctx, commentID}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_GetCommentEntityID_Call) Run(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetCommentEntityID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetCommentEntityID_Call) Return(uUID uuid.UUID, err error) *MockMysteryRepository_GetCommentEntityID_Call {
-	_c.Call.Return(uUID, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetCommentEntityID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)) *MockMysteryRepository_GetCommentEntityID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetCommentMedia provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error) {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, commentID, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, commentID)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCommentMedia")
-	}
-
-	var r0 []model.PostMediaRow
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]model.PostMediaRow, error)); ok {
-		return returnFunc(ctx, commentID, tx...)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []model.PostMediaRow); ok {
-		r0 = returnFunc(ctx, commentID, tx...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]model.PostMediaRow)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, commentID, tx...)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetCommentMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentMedia'
-type MockMysteryRepository_GetCommentMedia_Call struct {
-	*mock.Call
-}
-
-// GetCommentMedia is a helper method to define mock.On call
-//   - ctx context.Context
-//   - commentID uuid.UUID
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) GetCommentMedia(ctx any, commentID any, tx ...any) *MockMysteryRepository_GetCommentMedia_Call {
-	return &MockMysteryRepository_GetCommentMedia_Call{Call: _e.mock.On("GetCommentMedia",
-		append([]any{ctx, commentID}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_GetCommentMedia_Call) Run(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetCommentMedia_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetCommentMedia_Call) Return(postMediaRows []model.PostMediaRow, err error) *MockMysteryRepository_GetCommentMedia_Call {
-	_c.Call.Return(postMediaRows, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetCommentMedia_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error)) *MockMysteryRepository_GetCommentMedia_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetCommentMediaBatch provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error) {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, commentIDs, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, commentIDs)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCommentMediaBatch")
-	}
-
-	var r0 map[uuid.UUID][]model.PostMediaRow
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)); ok {
-		return returnFunc(ctx, commentIDs, tx...)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, ...*sql.Tx) map[uuid.UUID][]model.PostMediaRow); ok {
-		r0 = returnFunc(ctx, commentIDs, tx...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[uuid.UUID][]model.PostMediaRow)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, commentIDs, tx...)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetCommentMediaBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentMediaBatch'
-type MockMysteryRepository_GetCommentMediaBatch_Call struct {
-	*mock.Call
-}
-
-// GetCommentMediaBatch is a helper method to define mock.On call
-//   - ctx context.Context
-//   - commentIDs []uuid.UUID
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) GetCommentMediaBatch(ctx any, commentIDs any, tx ...any) *MockMysteryRepository_GetCommentMediaBatch_Call {
-	return &MockMysteryRepository_GetCommentMediaBatch_Call{Call: _e.mock.On("GetCommentMediaBatch",
-		append([]any{ctx, commentIDs}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_GetCommentMediaBatch_Call) Run(run func(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetCommentMediaBatch_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 []uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].([]uuid.UUID)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetCommentMediaBatch_Call) Return(uUIDToPostMediaRows map[uuid.UUID][]model.PostMediaRow, err error) *MockMysteryRepository_GetCommentMediaBatch_Call {
-	_c.Call.Return(uUIDToPostMediaRows, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetCommentMediaBatch_Call) RunAndReturn(run func(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)) *MockMysteryRepository_GetCommentMediaBatch_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetComments provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error) {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, q, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, q)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetComments")
-	}
-
-	var r0 []model.CommentRow
-	var r1 int
-	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) ([]model.CommentRow, int, error)); ok {
-		return returnFunc(ctx, q, tx...)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) []model.CommentRow); ok {
-		r0 = returnFunc(ctx, q, tx...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]model.CommentRow)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, q, tx...)
-	} else {
-		r1 = ret.Get(1).(int)
-	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, q, tx...)
-	} else {
-		r2 = ret.Error(2)
-	}
-	return r0, r1, r2
-}
-
-// MockMysteryRepository_GetComments_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetComments'
-type MockMysteryRepository_GetComments_Call struct {
-	*mock.Call
-}
-
-// GetComments is a helper method to define mock.On call
-//   - ctx context.Context
-//   - q spec.CommentQuery[uuid.UUID]
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) GetComments(ctx any, q any, tx ...any) *MockMysteryRepository_GetComments_Call {
-	return &MockMysteryRepository_GetComments_Call{Call: _e.mock.On("GetComments",
-		append([]any{ctx, q}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_GetComments_Call) Run(run func(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx)) *MockMysteryRepository_GetComments_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.CommentQuery[uuid.UUID]
-		if args[1] != nil {
-			arg1 = args[1].(spec.CommentQuery[uuid.UUID])
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetComments_Call) Return(commentRows []model.CommentRow, n int, err error) *MockMysteryRepository_GetComments_Call {
-	_c.Call.Return(commentRows, n, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error)) *MockMysteryRepository_GetComments_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetGMLeaderboard provides a mock function for the type MockMysteryRepository
 func (_mock *MockMysteryRepository) GetGMLeaderboard(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.GMLeaderboardEntry, error) {
 	var tmpRet mock.Arguments
@@ -3767,78 +3027,6 @@ func (_c *MockMysteryRepository_IsSolved_Call) RunAndReturn(run func(ctx context
 	return _c
 }
 
-// LikeComment provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, s, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, s)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for LikeComment")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentLike, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, s, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_LikeComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LikeComment'
-type MockMysteryRepository_LikeComment_Call struct {
-	*mock.Call
-}
-
-// LikeComment is a helper method to define mock.On call
-//   - ctx context.Context
-//   - s spec.CommentLike
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) LikeComment(ctx any, s any, tx ...any) *MockMysteryRepository_LikeComment_Call {
-	return &MockMysteryRepository_LikeComment_Call{Call: _e.mock.On("LikeComment",
-		append([]any{ctx, s}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_LikeComment_Call) Run(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx)) *MockMysteryRepository_LikeComment_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.CommentLike
-		if args[1] != nil {
-			arg1 = args[1].(spec.CommentLike)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_LikeComment_Call) Return(err error) *MockMysteryRepository_LikeComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_LikeComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error) *MockMysteryRepository_LikeComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // List provides a mock function for the type MockMysteryRepository
 func (_mock *MockMysteryRepository) List(ctx context.Context, s spec.MysteryListFilter, tx ...*sql.Tx) ([]model.MysteryRow, int, error) {
 	var tmpRet mock.Arguments
@@ -4449,78 +3637,6 @@ func (_c *MockMysteryRepository_SetPaused_Call) RunAndReturn(run func(ctx contex
 	return _c
 }
 
-// UnlikeComment provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, s, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, s)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for UnlikeComment")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentLike, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, s, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_UnlikeComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnlikeComment'
-type MockMysteryRepository_UnlikeComment_Call struct {
-	*mock.Call
-}
-
-// UnlikeComment is a helper method to define mock.On call
-//   - ctx context.Context
-//   - s spec.CommentLike
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) UnlikeComment(ctx any, s any, tx ...any) *MockMysteryRepository_UnlikeComment_Call {
-	return &MockMysteryRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment",
-		append([]any{ctx, s}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_UnlikeComment_Call) Run(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx)) *MockMysteryRepository_UnlikeComment_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.CommentLike
-		if args[1] != nil {
-			arg1 = args[1].(spec.CommentLike)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_UnlikeComment_Call) Return(err error) *MockMysteryRepository_UnlikeComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_UnlikeComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error) *MockMysteryRepository_UnlikeComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // Update provides a mock function for the type MockMysteryRepository
 func (_mock *MockMysteryRepository) Update(ctx context.Context, s spec.MysteryOwnerUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
@@ -4733,222 +3849,6 @@ func (_c *MockMysteryRepository_UpdateClue_Call) Return(err error) *MockMysteryR
 }
 
 func (_c *MockMysteryRepository_UpdateClue_Call) RunAndReturn(run func(ctx context.Context, s spec.MysteryClueUpdate, tx ...*sql.Tx) error) *MockMysteryRepository_UpdateClue_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateComment provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, s, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, s)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateComment")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, s, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_UpdateComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateComment'
-type MockMysteryRepository_UpdateComment_Call struct {
-	*mock.Call
-}
-
-// UpdateComment is a helper method to define mock.On call
-//   - ctx context.Context
-//   - s spec.CommentUpdate
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) UpdateComment(ctx any, s any, tx ...any) *MockMysteryRepository_UpdateComment_Call {
-	return &MockMysteryRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment",
-		append([]any{ctx, s}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_UpdateComment_Call) Run(run func(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx)) *MockMysteryRepository_UpdateComment_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.CommentUpdate
-		if args[1] != nil {
-			arg1 = args[1].(spec.CommentUpdate)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateComment_Call) Return(err error) *MockMysteryRepository_UpdateComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error) *MockMysteryRepository_UpdateComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateCommentMediaThumbnail provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, s, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, s)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateCommentMediaThumbnail")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, s, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_UpdateCommentMediaThumbnail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCommentMediaThumbnail'
-type MockMysteryRepository_UpdateCommentMediaThumbnail_Call struct {
-	*mock.Call
-}
-
-// UpdateCommentMediaThumbnail is a helper method to define mock.On call
-//   - ctx context.Context
-//   - s spec.MediaURLUpdate
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, s any, tx ...any) *MockMysteryRepository_UpdateCommentMediaThumbnail_Call {
-	return &MockMysteryRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail",
-		append([]any{ctx, s}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_UpdateCommentMediaThumbnail_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockMysteryRepository_UpdateCommentMediaThumbnail_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.MediaURLUpdate
-		if args[1] != nil {
-			arg1 = args[1].(spec.MediaURLUpdate)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateCommentMediaThumbnail_Call) Return(err error) *MockMysteryRepository_UpdateCommentMediaThumbnail_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateCommentMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockMysteryRepository_UpdateCommentMediaThumbnail_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateCommentMediaURL provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, s, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, s)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateCommentMediaURL")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, s, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_UpdateCommentMediaURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCommentMediaURL'
-type MockMysteryRepository_UpdateCommentMediaURL_Call struct {
-	*mock.Call
-}
-
-// UpdateCommentMediaURL is a helper method to define mock.On call
-//   - ctx context.Context
-//   - s spec.MediaURLUpdate
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) UpdateCommentMediaURL(ctx any, s any, tx ...any) *MockMysteryRepository_UpdateCommentMediaURL_Call {
-	return &MockMysteryRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL",
-		append([]any{ctx, s}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_UpdateCommentMediaURL_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockMysteryRepository_UpdateCommentMediaURL_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.MediaURLUpdate
-		if args[1] != nil {
-			arg1 = args[1].(spec.MediaURLUpdate)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateCommentMediaURL_Call) Return(err error) *MockMysteryRepository_UpdateCommentMediaURL_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockMysteryRepository_UpdateCommentMediaURL_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -112,3 +112,48 @@ describe("journal entry media uploads", () => {
         expect(formData.get("media")).toBe(file);
     });
 });
+
+describe("creating journal content with media", () => {
+    const entryPayload = { title: "first twilight", body: "six chosen by the key", is_draft: false };
+
+    it("createJournalEntry sends the entry and every file in one multipart request", async () => {
+        // given
+        const file = new File(["x"], "entry.png", { type: "image/png" });
+
+        // when
+        await api.createJournalEntry("j-1", entryPayload, [{ file, isSpoiler: true }]);
+
+        // then
+        expect(postMock).not.toHaveBeenCalled();
+        const [path, formData] = postFormDataMock.mock.calls[0];
+        expect(path).toBe("/journals/j-1/entries");
+        expect(JSON.parse(formData.get("payload") as string)).toEqual(entryPayload);
+        expect(formData.getAll("media")).toEqual([file]);
+        expect(formData.get("spoiler_indexes")).toBe("0");
+    });
+
+    it("createJournalEntry keeps the JSON body when no file is staged", async () => {
+        // when
+        await api.createJournalEntry("j-1", entryPayload, []);
+
+        // then
+        expect(postFormDataMock).not.toHaveBeenCalled();
+        expect(postMock).toHaveBeenCalledWith("/journals/j-1/entries", entryPayload);
+    });
+
+    it("createJournalComment sends an entry comment and its files in one multipart request", async () => {
+        // given
+        const file = new File(["x"], "comment.png", { type: "image/png" });
+
+        // when
+        await api.createJournalComment("j-1", "", undefined, "e-1", [{ file, isSpoiler: false }]);
+
+        // then
+        expect(postMock).not.toHaveBeenCalled();
+        const [path, formData] = postFormDataMock.mock.calls[0];
+        expect(path).toBe("/journals/j-1/comments");
+        expect(JSON.parse(formData.get("payload") as string)).toEqual({ body: "", entry_id: "e-1" });
+        expect(formData.getAll("media")).toEqual([file]);
+        expect(formData.has("spoiler_indexes")).toBe(false);
+    });
+});

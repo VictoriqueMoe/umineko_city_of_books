@@ -23,30 +23,12 @@ type (
 		GetUserProgressSummary(ctx context.Context, s spec.SecretPieceCount, tx ...*sql.Tx) (*model.SecretLeaderboardRow, error)
 		GetSolversLeaderboard(ctx context.Context, parentSecretIDs []string, tx ...*sql.Tx) ([]model.SecretSolverRow, error)
 
-		GetComments(ctx context.Context, q spec.CommentQuery[string], tx ...*sql.Tx) ([]model.CommentRow, int, error)
-		GetCommentByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.CommentRow, error)
-		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
-		GetCommentEntityID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (string, error)
-		UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error
-		DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error
-		LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
-		UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
-
-		AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)
-		UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
-		UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
-		GetCommentMedia(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error)
-		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)
-		CollectCommentMediaPaths(ctx context.Context, entityID string, tx ...*sql.Tx) ([]string, error)
-		CollectSingleCommentMediaPaths(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error)
-
 		CountCommentsBySecret(ctx context.Context, secretIDs []string, tx ...*sql.Tx) (map[string]int, error)
 		GetCommenterIDs(ctx context.Context, secretID string, tx ...*sql.Tx) ([]uuid.UUID, error)
 	}
 
 	secretDAO struct {
 		db *sql.DB
-		*commentDAO[string]
 	}
 
 	secretCommentJoinRow = sqlcgen.GetSecretCommentWithLikesRow
@@ -180,18 +162,6 @@ func (r *secretDAO) GetUserProgressSummary(ctx context.Context, s spec.SecretPie
 		Role:        row.AuthorRole,
 		Pieces:      int(row.Pieces),
 	}, nil
-}
-
-func (r *secretDAO) GetCommentByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.CommentRow, error) {
-	row, err := genQueries(r.db, tx).GetSecretCommentWithLikes(ctx, id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get secret comment by id: %w", err)
-	}
-
-	return new(toSecretCommentRow(row)), nil
 }
 
 func (r *secretDAO) GetCommenterIDs(ctx context.Context, secretID string, tx ...*sql.Tx) ([]uuid.UUID, error) {

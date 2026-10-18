@@ -174,24 +174,28 @@ describe("CreateMysteryPage", () => {
 
         // then
         expect(createAsync).toHaveBeenCalledWith({
-            title: "The sealed guest room",
-            body: "Six people died.",
-            difficulty: "medium",
-            free_for_all: false,
-            keep_open_after_solve: false,
-            knox_contract: {
-                culprit_named_early: true,
-                no_supernatural: true,
-                passages_declared: true,
-                no_unknown_poison: true,
-                no_outsider: true,
-                no_lucky_accident: true,
-                detective_not_culprit: true,
-                clues_shown: true,
-                narrator_hides_nothing: true,
-                no_unannounced_twins: true,
+            data: {
+                title: "The sealed guest room",
+                body: "Six people died.",
+                difficulty: "medium",
+                free_for_all: false,
+                keep_open_after_solve: false,
+                knox_contract: {
+                    culprit_named_early: true,
+                    no_supernatural: true,
+                    passages_declared: true,
+                    no_unknown_poison: true,
+                    no_outsider: true,
+                    no_lucky_accident: true,
+                    detective_not_culprit: true,
+                    clues_shown: true,
+                    narrator_hides_nothing: true,
+                    no_unannounced_twins: true,
+                },
+                clues: [],
             },
-            clues: [],
+            media: [],
+            attachments: [],
         });
     });
 
@@ -210,7 +214,13 @@ describe("CreateMysteryPage", () => {
 
         // then
         expect(createAsync).toHaveBeenCalledWith(
-            expect.objectContaining({ difficulty: "nightmare", free_for_all: true, keep_open_after_solve: true }),
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    difficulty: "nightmare",
+                    free_for_all: true,
+                    keep_open_after_solve: true,
+                }),
+            }),
         );
     });
 
@@ -229,7 +239,9 @@ describe("CreateMysteryPage", () => {
 
         // then
         expect(createAsync).toHaveBeenCalledWith(
-            expect.objectContaining({ clues: [{ body: "The door was chained", truth_type: "purple" }] }),
+            expect.objectContaining({
+                data: expect.objectContaining({ clues: [{ body: "The door was chained", truth_type: "purple" }] }),
+            }),
         );
     });
 
@@ -307,63 +319,76 @@ describe("CreateMysteryPage", () => {
         expect(navigate).not.toHaveBeenCalled();
     });
 
-    it("uploads every attached file against the mystery it just created", async () => {
+    it("sends every image and attachment with the new mystery in a single request", async () => {
         // given
-        const { uploadAttachmentAsync, uploadMediaAsync } = stubMystery({
+        const { createAsync, uploadAttachmentAsync, uploadMediaAsync } = stubMystery({
             create: () => Promise.resolve({ id: "mystery-5" }),
         });
         const user = userEvent.setup();
         const { container } = renderCreatePage();
         await fillScenario(user);
         const inputs = container.querySelectorAll<HTMLInputElement>("input[type='file']");
-        await user.upload(inputs[0], makeFile("scene.png", "image/png"));
-        await user.upload(inputs[1], makeFile("notes.txt", "text/plain", 2048));
+        const scene = makeFile("scene.png", "image/png");
+        const notes = makeFile("notes.txt", "text/plain", 2048);
+        await user.upload(inputs[0], scene);
+        await user.click(screen.getByRole("button", { name: "Mark as spoiler" }));
+        await user.upload(inputs[1], notes);
 
         // when
         await user.click(screen.getByRole("button", { name: "Present Mystery" }));
 
         // then
         await waitFor(() => {
-            expect(uploadAttachmentAsync).toHaveBeenCalledWith(
-                expect.objectContaining({ mysteryId: "mystery-5", file: expect.any(File) }),
-            );
+            expect(navigate).toHaveBeenCalledWith("/mystery/mystery-5");
         });
-        expect(uploadMediaAsync).toHaveBeenCalledWith(
-            expect.objectContaining({ mysteryId: "mystery-5", file: expect.any(File) }),
+        expect(createAsync).toHaveBeenCalledWith(
+            expect.objectContaining({
+                media: [{ file: scene, isSpoiler: true }],
+                attachments: [notes],
+            }),
         );
+        expect(uploadAttachmentAsync).not.toHaveBeenCalled();
+        expect(uploadMediaAsync).not.toHaveBeenCalled();
     });
 
-    it("stays on the form and names the attachment that would not upload", async () => {
+    it("keeps the whole form and shows the error when the new mystery and its files are refused", async () => {
         // given
-        stubMystery({ uploadAttachment: () => Promise.reject(new Error("the disk is full")) });
+        stubMystery({ create: () => Promise.reject(new Error("the disk is full")) });
         const user = userEvent.setup();
         const { container } = renderCreatePage();
         await fillScenario(user);
         const inputs = container.querySelectorAll<HTMLInputElement>("input[type='file']");
+        await user.upload(inputs[0], makeFile("scene.png", "image/png"));
+        await user.click(screen.getByRole("button", { name: "Mark as spoiler" }));
         await user.upload(inputs[1], makeFile("notes.txt", "text/plain", 2048));
 
         // when
         await user.click(screen.getByRole("button", { name: "Present Mystery" }));
 
         // then
-        expect(await screen.findByText("notes.txt was not saved: the disk is full")).toBeInTheDocument();
+        expect(await screen.findByText("the disk is full")).toBeInTheDocument();
         expect(navigate).not.toHaveBeenCalled();
+        expect(screen.getByPlaceholderText("Mystery title...")).toHaveValue("  The sealed guest room  ");
+        expect(screen.getByText("notes.txt")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Mark as spoiler" })).toHaveAttribute("aria-pressed", "true");
+        expect(screen.getByRole("button", { name: "Present Mystery" })).toBeEnabled();
     });
 
-    it("presents no second mystery when the refused attachment is sent again", async () => {
+    it("sends the kept form again in one request when the refused mystery is retried", async () => {
         // given
         let refuse = true;
         const { createAsync } = stubMystery({
-            create: () => Promise.resolve({ id: "mystery-5" }),
-            uploadAttachment: () => (refuse ? Promise.reject(new Error("the disk is full")) : Promise.resolve({})),
+            create: () =>
+                refuse ? Promise.reject(new Error("the disk is full")) : Promise.resolve({ id: "mystery-5" }),
         });
         const user = userEvent.setup();
         const { container } = renderCreatePage();
         await fillScenario(user);
         const inputs = container.querySelectorAll<HTMLInputElement>("input[type='file']");
-        await user.upload(inputs[1], makeFile("notes.txt", "text/plain", 2048));
+        const notes = makeFile("notes.txt", "text/plain", 2048);
+        await user.upload(inputs[1], notes);
         await user.click(screen.getByRole("button", { name: "Present Mystery" }));
-        await screen.findByText("notes.txt was not saved: the disk is full");
+        await screen.findByText("the disk is full");
 
         // when
         refuse = false;
@@ -373,7 +398,27 @@ describe("CreateMysteryPage", () => {
         await waitFor(() => {
             expect(navigate).toHaveBeenCalledWith("/mystery/mystery-5");
         });
-        expect(createAsync).toHaveBeenCalledOnce();
+        expect(createAsync).toHaveBeenCalledTimes(2);
+        expect(createAsync).toHaveBeenLastCalledWith(expect.objectContaining({ media: [], attachments: [notes] }));
+    });
+
+    it("still uploads new attachments one by one against an existing mystery when it is edited", async () => {
+        // given
+        const { uploadAttachmentAsync, createAsync } = stubMystery({ mystery: makeMysteryDetail() });
+        const user = userEvent.setup();
+        const { container } = renderEditPage();
+        const inputs = container.querySelectorAll<HTMLInputElement>("input[type='file']");
+        const notes = makeFile("notes.txt", "text/plain", 2048);
+        await user.upload(inputs[1], notes);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Save Changes" }));
+
+        // then
+        await waitFor(() => {
+            expect(uploadAttachmentAsync).toHaveBeenCalledWith({ mysteryId: "mystery-1", file: notes });
+        });
+        expect(createAsync).not.toHaveBeenCalled();
     });
 
     it("lists an attachment with a human readable size and lets it be dropped", async () => {

@@ -19,9 +19,9 @@ type (
 	mysteryCommentQuerier struct{}
 )
 
-func (mysteryCommentQuerier) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment[uuid.UUID]) (*model.CommentRow, error) {
+func (mysteryCommentQuerier) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment) (*model.CommentRow, error) {
 	row, err := q.CreateMysteryComment(ctx, sqlcgen.CreateMysteryCommentParams{
-		MysteryID: s.TargetID,
+		MysteryID: s.Target.ID,
 		ParentID:  s.ParentID,
 		UserID:    s.UserID,
 		Body:      s.Body,
@@ -50,17 +50,17 @@ func (mysteryCommentQuerier) Delete(ctx context.Context, q *sqlcgen.Queries, s s
 	})
 }
 
-func (mysteryCommentQuerier) Count(ctx context.Context, q *sqlcgen.Queries, target uuid.UUID, exclude []uuid.UUID) (int64, error) {
+func (mysteryCommentQuerier) Count(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget, exclude []uuid.UUID) (int64, error) {
 	return q.CountMysteryComments(ctx, sqlcgen.CountMysteryCommentsParams{
-		MysteryID: target,
+		MysteryID: target.ID,
 		Column2:   joinUUIDs(exclude),
 	})
 }
 
-func (mysteryCommentQuerier) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery[uuid.UUID]) ([]model.CommentRow, error) {
+func (mysteryCommentQuerier) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery) ([]model.CommentRow, error) {
 	rows, err := q.ListMysteryComments(ctx, sqlcgen.ListMysteryCommentsParams{
 		UserID:    s.ViewerID,
-		MysteryID: s.TargetID,
+		MysteryID: s.Target.ID,
 		Column3:   joinUUIDs(s.ExcludeUserIDs),
 		Limit:     int32(s.Limit),
 		Offset:    int32(s.Offset),
@@ -86,12 +86,25 @@ func (mysteryCommentQuerier) ByID(ctx context.Context, q *sqlcgen.Queries, id uu
 	return new(commentRowFromCreate(commentCreateRow(row))), nil
 }
 
-func (mysteryCommentQuerier) EntityID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error) {
-	return q.GetMysteryCommentEntityID(ctx, id)
+func (mysteryCommentQuerier) Target(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (spec.CommentTarget, error) {
+	entityID, err := q.GetMysteryCommentEntityID(ctx, id)
+	if err != nil {
+		return spec.CommentTarget{}, err
+	}
+
+	return spec.CommentTarget{ID: entityID}, nil
 }
 
 func (mysteryCommentQuerier) AuthorID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error) {
 	return q.GetMysteryCommentAuthorID(ctx, id)
+}
+
+func (mysteryCommentQuerier) MediaDir() string {
+	return "mysteries"
+}
+
+func (mysteryCommentQuerier) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
+	return q.GetMysteryCommentTargetOwner(ctx, target.ID)
 }
 
 func (mysteryCommentQuerier) Like(ctx context.Context, q *sqlcgen.Queries, s spec.CommentLike) error {
@@ -142,16 +155,16 @@ func (mysteryCommentQuerier) MediaBatch(ctx context.Context, q *sqlcgen.Queries,
 	return out, nil
 }
 
-func (mysteryCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (mysteryCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateMysteryCommentMediaURL(ctx, sqlcgen.UpdateMysteryCommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
 }
 
-func (mysteryCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (mysteryCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateMysteryCommentMediaThumbnail(ctx, sqlcgen.UpdateMysteryCommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
-func (mysteryCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target uuid.UUID) ([]string, error) {
-	rows, err := q.CollectMysteryCommentMediaPaths(ctx, target)
+func (mysteryCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {
+	rows, err := q.CollectMysteryCommentMediaPaths(ctx, target.ID)
 	if err != nil {
 		return nil, err
 	}

@@ -17,7 +17,6 @@ const {
     useDeleteFanficComment,
     useLikeFanficComment,
     useUnlikeFanficComment,
-    useUploadFanficCommentMedia,
     navigate,
 } = vi.hoisted(() => ({
     useFanfic: vi.fn(),
@@ -30,7 +29,6 @@ const {
     useDeleteFanficComment: vi.fn(),
     useLikeFanficComment: vi.fn(),
     useUnlikeFanficComment: vi.fn(),
-    useUploadFanficCommentMedia: vi.fn(),
     navigate: vi.fn(),
 }));
 
@@ -45,7 +43,6 @@ vi.mock("../../hooks/mutations/fanfic", () => ({
     useUnfavouriteFanfic,
     useUnlikeFanficComment,
     useUpdateFanficComment,
-    useUploadFanficCommentMedia,
 }));
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
@@ -153,7 +150,6 @@ function stubFanfic(options: StubOptions = {}) {
         useDeleteFanficComment,
         useLikeFanficComment,
         useUnlikeFanficComment,
-        useUploadFanficCommentMedia,
     ]) {
         hook.mockReturnValue({ mutateAsync: vi.fn(() => Promise.resolve({ id: "comment-1" })) });
     }

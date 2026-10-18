@@ -205,7 +205,7 @@ func (q *Queries) GetPostMediaURL(ctx context.Context, arg GetPostMediaURLParams
 	return media_url, err
 }
 
-const updatePostMediaThumbnail = `-- name: UpdatePostMediaThumbnail :exec
+const updatePostMediaThumbnail = `-- name: UpdatePostMediaThumbnail :execrows
 UPDATE post_media SET thumbnail_url = $1 WHERE id = $2
 `
 
@@ -214,12 +214,15 @@ type UpdatePostMediaThumbnailParams struct {
 	ID           int64
 }
 
-func (q *Queries) UpdatePostMediaThumbnail(ctx context.Context, arg UpdatePostMediaThumbnailParams) error {
-	_, err := q.db.ExecContext(ctx, updatePostMediaThumbnail, arg.ThumbnailUrl, arg.ID)
-	return err
+func (q *Queries) UpdatePostMediaThumbnail(ctx context.Context, arg UpdatePostMediaThumbnailParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updatePostMediaThumbnail, arg.ThumbnailUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const updatePostMediaURL = `-- name: UpdatePostMediaURL :exec
+const updatePostMediaURL = `-- name: UpdatePostMediaURL :execrows
 UPDATE post_media SET media_url = $1 WHERE id = $2
 `
 
@@ -228,7 +231,10 @@ type UpdatePostMediaURLParams struct {
 	ID       int64
 }
 
-func (q *Queries) UpdatePostMediaURL(ctx context.Context, arg UpdatePostMediaURLParams) error {
-	_, err := q.db.ExecContext(ctx, updatePostMediaURL, arg.MediaUrl, arg.ID)
-	return err
+func (q *Queries) UpdatePostMediaURL(ctx context.Context, arg UpdatePostMediaURLParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updatePostMediaURL, arg.MediaUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

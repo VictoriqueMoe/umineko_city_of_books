@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"strings"
 
 	"umineko_city_of_books/internal/dao"
@@ -28,20 +27,18 @@ type (
 		DeleteChapterWithCount(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error
 
 		RecordView(ctx context.Context, s spec.ViewRecord, tx ...*sql.Tx) (bool, error)
-
-		UpdateCommentBody(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error
-		DeleteCommentWithAudit(ctx context.Context, s spec.FanficCommentDelete, tx ...*sql.Tx) ([]string, error)
 	}
 )
 
 type fanficRepository struct {
 	db *sql.DB
 	dao.FanficDAO
-	audit AuditLogRepository
+	comments dao.CommentDAO
+	audit    AuditLogRepository
 }
 
-func NewFanficRepo(database *sql.DB, fanficDAO dao.FanficDAO, auditRepo AuditLogRepository) FanficRepository {
-	return &fanficRepository{db: database, FanficDAO: fanficDAO, audit: auditRepo}
+func NewFanficRepo(database *sql.DB, fanficDAO dao.FanficDAO, comments dao.CommentDAO, auditRepo AuditLogRepository) FanficRepository {
+	return &fanficRepository{db: database, FanficDAO: fanficDAO, comments: comments, audit: auditRepo}
 }
 
 func (r *fanficRepository) CreateWithDetails(ctx context.Context, s spec.NewFanficWithDetails, tx ...*sql.Tx) (*model.FanficRow, error) {
@@ -175,7 +172,7 @@ func (r *fanficRepository) DeleteFanfic(ctx context.Context, s spec.FanficDelete
 			return err
 		}
 
-		commentPaths, err := r.FanficDAO.CollectCommentMediaPaths(ctx, s.ID, tx)
+		commentPaths, err := r.comments.CollectCommentMediaPaths(ctx, spec.CommentTarget{Kind: spec.CommentKindFanfic, ID: s.ID}, tx)
 		if err != nil {
 			return err
 		}
@@ -278,36 +275,4 @@ func (r *fanficRepository) RecordView(ctx context.Context, s spec.ViewRecord, tx
 	}
 
 	return inserted, nil
-}
-
-func (r *fanficRepository) UpdateCommentBody(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error {
-	return r.FanficDAO.UpdateComment(ctx, s, tx...)
-}
-
-func (r *fanficRepository) DeleteCommentWithAudit(ctx context.Context, s spec.FanficCommentDelete, tx ...*sql.Tx) ([]string, error) {
-	var paths []string
-
-	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
-		mediaPaths, err := r.FanficDAO.CollectSingleCommentMediaPaths(ctx, s.CommentID, tx)
-		if err != nil {
-			return err
-		}
-
-		if err := r.FanficDAO.DeleteComment(ctx, s.CommentDeletion, tx); err != nil {
-			return err
-		}
-
-		if err := r.audit.Create(ctx, s.Audit, tx); err != nil {
-			return fmt.Errorf("audit comment delete: %w", err)
-		}
-
-		paths = mediaPaths
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return paths, nil
 }

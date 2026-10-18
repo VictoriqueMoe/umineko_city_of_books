@@ -1,7 +1,6 @@
 package spec
 
 import (
-	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/dto"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
 
@@ -134,11 +133,5 @@ type (
 		ID      uuid.UUID
 		UserID  uuid.UUID
 		AsAdmin bool
-	}
-
-	FanficCommentDelete struct {
-		CommentDeletion
-
-		Audit audit.NewEntry
 	}
 )

@@ -4,16 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
-	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -173,7 +170,7 @@ func (m *messagesService) ListRoomAttachments(ctx context.Context, userID, roomI
 	}, nil
 }
 
-func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest, files []FileUpload) (*dto.ChatMessageResponse, error) {
+func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest, files []upload.FileUpload) (*dto.ChatMessageResponse, error) {
 	if req.Body == "" && len(files) == 0 {
 		return nil, ErrMissingFields
 	}
@@ -223,10 +220,9 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		return nil, err
 	}
 
-	for i := range files {
-		if err := m.validateMediaFile(ctx, files[i]); err != nil {
-			return nil, err
-		}
+	validated, err := upload.ValidateMedia(ctx, m.settingsSvc, files)
+	if err != nil {
+		return nil, err
 	}
 
 	sender, err := m.userRepo.GetByID(ctx, senderID)
@@ -249,10 +245,10 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 			replyToID = req.ReplyToID
 			replyToAuthor = parent.SenderID
 			replyToPreview = &dto.ChatMessageReplyPreview{
-				ID:          parent.ID,
-				SenderID:    parent.SenderID,
-				SenderName:  resolveSenderName(parent.SenderNickname, parent.SenderDisplayName, parent.SenderUsername),
-				BodyPreview: clampReplyPreview(parent.Body),
+				ID:         parent.ID,
+				SenderID:   parent.SenderID,
+				SenderName: resolveSenderName(parent.SenderNickname, parent.SenderDisplayName, parent.SenderUsername),
+				Body:       parent.Body,
 			}
 		}
 	}
@@ -273,9 +269,26 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 
 	msgID := created.ID
 
-	mediaResponses, err := m.saveMessageMedia(ctx, msgID, files)
+	mediaResponses, err := validated.Save(ctx, m.uploader, m.uploadSvc, upload.MediaTarget{
+		SubDir: "chat",
+		Record: func(r upload.MediaRecord) (int64, error) {
+			return m.chatRepo.AddMessageMedia(ctx, spec.NewChatMessageMedia{
+				TargetID:     msgID,
+				MediaURL:     r.MediaURL,
+				MediaType:    r.MediaType,
+				ThumbnailURL: r.ThumbnailURL,
+				Filename:     r.Filename,
+				SortOrder:    r.SortOrder,
+				IsSpoiler:    r.File.IsSpoiler,
+				Width:        r.Width,
+				Height:       r.Height,
+			})
+		},
+		UpdateURL:   m.chatRepo.UpdateMessageMediaURL,
+		UpdateThumb: m.chatRepo.UpdateMessageMediaThumbnail,
+	})
 	if err != nil {
-		paths, delErr := m.chatRepo.DeleteMessageWithMedia(ctx, msgID)
+		paths, delErr := m.chatRepo.DeleteMessageWithMedia(context.WithoutCancel(ctx), msgID)
 		if delErr != nil {
 			logger.Ctx(ctx).Error().Err(delErr).Str("message_id", msgID.String()).Msg("failed to roll back message after media save failure")
 		}
@@ -738,104 +751,6 @@ func (m *messagesService) IsRoomMember(ctx context.Context, roomID, userID uuid.
 	}
 
 	return isMember, nil
-}
-
-func (m *messagesService) validateMediaFile(ctx context.Context, f FileUpload) error {
-	var maxSize int64
-	var allowed map[string]string
-	var typeErr error
-
-	switch {
-	case strings.HasPrefix(f.ContentType, "video/"):
-		maxSize = int64(m.settingsSvc.GetInt(ctx, config.SettingMaxVideoSize))
-		allowed = upload.AllowedVideoTypes
-		typeErr = upload.ErrInvalidVideoType
-	case strings.HasPrefix(f.ContentType, "audio/"):
-		maxSize = int64(m.settingsSvc.GetInt(ctx, config.SettingMaxAudioSize))
-		allowed = upload.AllowedAudioTypes
-		typeErr = upload.ErrInvalidAudioType
-	default:
-		maxSize = int64(m.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
-		allowed = upload.AllowedImageTypes
-		typeErr = upload.ErrInvalidFileType
-	}
-
-	if f.Size > maxSize {
-		return fmt.Errorf("%w: file size %dMB exceeds maximum %dMB", upload.ErrFileTooLarge, f.Size/(1024*1024), maxSize/(1024*1024))
-	}
-
-	r, err := f.Open()
-	if err != nil {
-		return fmt.Errorf("open media: %w", err)
-	}
-	defer r.Close()
-
-	sniffed, _, err := upload.DetectContentType(r)
-	if err != nil {
-		return err
-	}
-	if _, ok := allowed[upload.NormaliseSniffedType(sniffed)]; !ok {
-		return typeErr
-	}
-	return nil
-}
-
-func probeMediaDimensions(f FileUpload) (int, int) {
-	if strings.HasPrefix(f.ContentType, "video/") {
-		return 0, 0
-	}
-
-	r, err := f.Open()
-	if err != nil {
-		return 0, 0
-	}
-	defer r.Close()
-
-	return media.DecodeDimensions(r)
-}
-
-func (m *messagesService) saveMessageMedia(ctx context.Context, messageID uuid.UUID, files []FileUpload) ([]dto.PostMediaResponse, error) {
-	if len(files) == 0 {
-		return nil, nil
-	}
-
-	results := make([]dto.PostMediaResponse, 0, len(files))
-	for _, f := range files {
-		width, height := probeMediaDimensions(f)
-
-		r, err := f.Open()
-		if err != nil {
-			return nil, fmt.Errorf("open media: %w", err)
-		}
-		saved, saveErr := m.uploader.SaveAndRecord(ctx, "chat", f.ContentType, f.Filename, f.Size, r, f.IsSpoiler,
-			func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-				return m.chatRepo.AddMessageMedia(ctx, spec.NewChatMessageMedia{
-					TargetID:     messageID,
-					MediaURL:     mediaURL,
-					MediaType:    mediaType,
-					ThumbnailURL: thumbURL,
-					Filename:     filename,
-					SortOrder:    sortOrder,
-					IsSpoiler:    f.IsSpoiler,
-					Width:        width,
-					Height:       height,
-				})
-			},
-			m.chatRepo.UpdateMessageMediaURL,
-			m.chatRepo.UpdateMessageMediaThumbnail,
-		)
-		_ = r.Close()
-		if saveErr != nil {
-			return nil, saveErr
-		}
-
-		saved.Width = width
-		saved.Height = height
-		saved.IsSpoiler = f.IsSpoiler
-
-		results = append(results, *saved)
-	}
-	return results, nil
 }
 
 func (m *messagesService) EditMessage(ctx context.Context, messageID, actorID uuid.UUID, body string) (*dto.ChatMessageResponse, error) {

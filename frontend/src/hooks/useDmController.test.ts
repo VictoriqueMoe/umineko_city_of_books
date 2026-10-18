@@ -475,7 +475,7 @@ describe("useDmController url navigation", () => {
                 result.current.dm.setReplyingTo({
                     id: "m1",
                     senderName: "Battler",
-                    bodyPreview: "without love it cannot be seen",
+                    body: "without love it cannot be seen",
                 });
                 result.current.dm.showToast("the golden land");
             });

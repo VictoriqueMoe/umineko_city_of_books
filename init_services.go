@@ -15,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/chatbot"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	bannedgiphyrule "umineko_city_of_books/internal/contentfilter/rules/bannedgiphy"
@@ -79,7 +80,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	initCache(cacheManager, settingsSvc)
 
 	storageMgr, storageEngines := initStorage(settingsSvc)
-	storageSvc := storage.NewService(storageMgr, repos.StoredFile)
+	storageSvc := storage.NewService(storageMgr, repos.StoredFile, settingsSvc)
 
 	backfilled, err := storageSvc.BackfillLocal(context.Background())
 	if err != nil {
@@ -134,11 +135,21 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	overlaySvc := overlay.NewService(repos.OverlayToken, overlayHub, settingsSvc, authzSvc)
 
 	notifSvc := notification.NewService(repos.Notification, repos.User, repos.Block, hub, emailSvc, pushSvc, settingsSvc, overlaySvc)
-	if err := mention.ValidateCommentDAOs(repos.Comments); err != nil {
-		logger.Log.Fatal().Err(err).Msg("comment daos are incomplete")
-	}
 
-	mentionSvc := mention.NewService(repos.User, blockSvc, notifSvc, repos.Comments)
+	mentionSvc := mention.NewService(repos.User, blockSvc, notifSvc)
+
+	commentSvc := comment.NewService(
+		repos.Comment,
+		repos.User,
+		authzSvc,
+		blockSvc,
+		notifSvc,
+		mentionSvc,
+		uploadSvc,
+		media.NewUploader(uploadSvc, settingsSvc, mediaProc),
+		settingsSvc,
+		contentFilter,
+	)
 
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
 
@@ -215,13 +226,14 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 
 	postSvc := postsvc.NewService(
 		repos.Post,
+		repos.Comment,
 		repos.User,
 		repos.Role,
-		repos.AuditLog,
 		authzSvc,
 		blockSvc,
 		notifSvc,
 		mentionSvc,
+		commentSvc,
 		uploadSvc,
 		mediaProc,
 		settingsSvc,
@@ -240,6 +252,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		postSvc,
 		repos.Chat,
 		repos.Post,
+		repos.Comment,
 		repos.Chatbot,
 		repos.AuditLog,
 		authzSvc,
@@ -271,6 +284,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		blockSvc,
 		notifSvc,
 		mentionSvc,
+		commentSvc,
 		uploadSvc,
 		mediaProc,
 		settingsSvc,
@@ -288,6 +302,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		blockSvc,
 		notifSvc,
 		mentionSvc,
+		commentSvc,
 		uploadSvc,
 		mediaProc,
 		settingsSvc,
@@ -305,6 +320,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		blockSvc,
 		notifSvc,
 		mentionSvc,
+		commentSvc,
 		uploadSvc,
 		mediaProc,
 		settingsSvc,
@@ -323,6 +339,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		blockSvc,
 		notifSvc,
 		mentionSvc,
+		commentSvc,
 		settingsSvc,
 		uploadSvc,
 		mediaProc,
@@ -341,6 +358,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		blockSvc,
 		notifSvc,
 		mentionSvc,
+		commentSvc,
 		uploadSvc,
 		mediaProc,
 		settingsSvc,
@@ -357,6 +375,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		blockSvc,
 		notifSvc,
 		mentionSvc,
+		commentSvc,
 		uploadSvc,
 		mediaProc,
 		settingsSvc,
@@ -370,15 +389,10 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		repos.Secret,
 		repos.UserSecret,
 		repos.User,
-		authzSvc,
-		blockSvc,
+		repos.Comment,
 		notifSvc,
-		mentionSvc,
-		settingsSvc,
-		uploadSvc,
-		mediaProc,
+		commentSvc,
 		hub,
-		contentFilter,
 		hub,
 	)
 
@@ -399,19 +413,12 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		},
 	)
 
-	announcementUploader := media.NewUploader(uploadSvc, settingsSvc, mediaProc)
-
 	announcementSvc := announcementsvc.NewService(
 		repos.Announcement,
-		repos.User,
 		repos.AuditLog,
-		blockSvc,
-		notifSvc,
 		mentionSvc,
-		settingsSvc,
-		authzSvc,
+		commentSvc,
 		hub,
-		announcementUploader,
 		uploadSvc,
 		ogResolver,
 	)
@@ -523,6 +530,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		post:            postSvc,
 		follow:          followSvc,
 		art:             artSvc,
+		comment:         commentSvc,
 		ship:            shipSvc,
 		oc:              ocSvc,
 		mystery:         mysterySvc,

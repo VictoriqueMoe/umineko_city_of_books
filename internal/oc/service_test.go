@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
@@ -36,7 +37,7 @@ var (
 
 type testMocks struct {
 	ocRepo      *repository.MockOCRepository
-	ocComments  *dao.MockCommentDAO[uuid.UUID]
+	commentSvc  *comment.MockService
 	userRepo    *repository.MockUserRepository
 	auditRepo   *repository.MockAuditLogRepository
 	authz       *authz.MockService
@@ -57,16 +58,14 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := media.NewProcessor(1)
-	ocComments := dao.NewMockCommentDAO[uuid.UUID](t)
+	commentSvc := comment.NewMockService(t)
 	activity := sidebar.NewMockActivityBumper(t)
-	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, dao.CommentDAOs{
-		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindOCComment): ocComments},
-	})
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc)
 
-	svc := NewService(ocRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, nil, contentfilter.New(), nil, activity).(*service)
+	svc := NewService(ocRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc, uploadSvc, mediaProc, settingsSvc, nil, contentfilter.New(), nil, activity).(*service)
 	return svc, &testMocks{
 		ocRepo:      ocRepo,
-		ocComments:  ocComments,
+		commentSvc:  commentSvc,
 		userRepo:    userRepo,
 		auditRepo:   auditRepo,
 		authz:       authzSvc,
@@ -248,16 +247,9 @@ func TestGetOC_OK(t *testing.T) {
 	authorID := uuid.New()
 	row := &model.OCRow{ID: id, UserID: authorID, Name: "Linda", Series: "umineko"}
 	m.ocRepo.EXPECT().GetByID(mock.Anything, spec.OCByID{ID: id, ViewerID: uuid.Nil}).Return(row, nil)
+	thread := []dto.CommentResponse{{ID: uuid.New(), Body: "she would win"}}
 	m.ocRepo.EXPECT().GetGallery(mock.Anything, id).Return(nil, nil)
-	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, uuid.Nil).Return(nil, nil)
-	m.ocRepo.EXPECT().GetComments(mock.Anything, spec.CommentQuery[uuid.UUID]{
-		TargetID:       id,
-		ViewerID:       uuid.Nil,
-		Limit:          500,
-		Offset:         0,
-		ExcludeUserIDs: nil,
-	}).Return(nil, 0, nil)
-	m.ocRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
+	m.commentSvc.EXPECT().Thread(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindOC, ID: id}, uuid.Nil).Return(thread, nil).Once()
 
 	// when
 	got, err := svc.GetOC(context.Background(), id, uuid.Nil)
@@ -266,6 +258,7 @@ func TestGetOC_OK(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, "Linda", got.Name)
+	assert.Equal(t, thread, got.Comments)
 }
 
 func TestUpdateOC_EmptyNameRejected(t *testing.T) {
@@ -426,24 +419,6 @@ func TestDeleteOC_RepoErrorSkipsUnlink(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestDeleteComment_UnlinksCommentMedia(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	commentID := uuid.New()
-	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
-	m.ocRepo.EXPECT().
-		DeleteCommentWithMedia(mock.Anything, spec.CommentDeletion{CommentID: commentID, UserID: userID}).
-		Return([]string{"/uploads/ocs/c.png", "/uploads/ocs/c-thumb.png"}, nil)
-	m.uploadSvc.EXPECT().Delete([]string{"/uploads/ocs/c.png", "/uploads/ocs/c-thumb.png"}).Return()
-
-	// when
-	err := svc.DeleteComment(context.Background(), commentID, userID)
-
-	// then
-	require.NoError(t, err)
-}
-
 func TestVote_BlockedReturnsError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -516,93 +491,6 @@ func TestToggleFavourite_RemovesFavourite(t *testing.T) {
 	assert.False(t, favourited)
 }
 
-func TestCreateComment_EmptyBodyRejected(t *testing.T) {
-	// given
-	svc, _ := newTestService(t)
-	req := dto.CreateCommentRequest{Body: "  "}
-
-	// when
-	_, err := svc.CreateComment(context.Background(), uuid.New(), uuid.New(), req)
-
-	// then
-	require.ErrorIs(t, err, ErrEmptyBody)
-}
-
-func TestCreateComment_BlockedReturnsError(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	id := uuid.New()
-	userID := uuid.New()
-	authorID := uuid.New()
-	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(authorID, nil)
-	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(true, nil)
-
-	// when
-	_, err := svc.CreateComment(context.Background(), id, userID, dto.CreateCommentRequest{Body: "hi"})
-
-	// then
-	require.ErrorIs(t, err, block.ErrUserBlocked)
-}
-
-func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	ocID := uuid.New()
-	userID := uuid.New()
-	authorID := uuid.New()
-	commentID := uuid.New()
-	mentionedID := uuid.New()
-
-	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, ocID).Return(authorID, nil)
-	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.ocComments.EXPECT().
-		CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{
-			TargetID: ocID,
-			ParentID: nil,
-			UserID:   userID,
-			Body:     "look at this @alice",
-		}).
-		Return(&model.CommentRow{ID: commentID}, nil)
-	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
-	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
-	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	var mentioned dto.NotifyParams
-	m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
-		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
-			if p.Type == dto.NotifMention {
-				mentioned = p
-			}
-			wg.Done()
-
-			return nil
-		})
-
-	// when
-	_, err := svc.CreateComment(context.Background(), ocID, userID, dto.CreateCommentRequest{Body: "look at this @alice"})
-
-	// then
-	require.NoError(t, err)
-	wg.Wait()
-	assert.Equal(t, mentionedID, mentioned.RecipientID)
-	assert.Equal(t, "oc_comment:"+commentID.String(), mentioned.ReferenceType)
-	assert.Equal(t, "/oc/"+ocID.String()+"#comment-"+commentID.String(), mentioned.EmailLink)
-}
-
-func TestUpdateComment_EmptyBodyRejected(t *testing.T) {
-	// given
-	svc, _ := newTestService(t)
-
-	// when
-	err := svc.UpdateComment(context.Background(), uuid.New(), uuid.New(), dto.UpdateCommentRequest{Body: " "})
-
-	// then
-	require.ErrorIs(t, err, ErrEmptyBody)
-}
-
 func TestOCLookupFailures(t *testing.T) {
 	boom := errors.New("boom")
 	ctx := context.Background()
@@ -627,18 +515,6 @@ func TestOCLookupFailures(t *testing.T) {
 		{name: "vote", lookup: expectOCAuthor, call: func(s *service, id, userID uuid.UUID) error { return s.Vote(ctx, userID, id, 1) }},
 		{name: "favourite", lookup: expectOCAuthor, call: func(s *service, id, userID uuid.UUID) error {
 			_, err := s.ToggleFavourite(ctx, userID, id)
-			return err
-		}},
-		{name: "comment", lookup: expectOCAuthor, call: func(s *service, id, userID uuid.UUID) error {
-			_, err := s.CreateComment(ctx, id, userID, dto.CreateCommentRequest{Body: "hi"})
-			return err
-		}},
-		{name: "edit a comment", lookup: expectOCCommentAuthor, call: func(s *service, id, userID uuid.UUID) error {
-			return s.UpdateComment(ctx, id, userID, dto.UpdateCommentRequest{Body: "hi"})
-		}},
-		{name: "like a comment", lookup: expectOCCommentAuthor, call: func(s *service, id, userID uuid.UUID) error { return s.LikeComment(ctx, userID, id) }},
-		{name: "attach media to a comment", lookup: expectOCCommentAuthor, call: func(s *service, id, userID uuid.UUID) error {
-			_, err := s.UploadCommentMedia(ctx, id, userID, "image/png", "p.png", 3, strings.NewReader("img"), false)
 			return err
 		}},
 	}
@@ -711,10 +587,6 @@ func expectOCAuthor(m *testMocks, id uuid.UUID, err error) {
 	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(uuid.Nil, err)
 }
 
-func expectOCCommentAuthor(m *testMocks, id uuid.UUID, err error) {
-	m.ocRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(uuid.Nil, err)
-}
-
 func TestOCBlockCheckFailuresRefuseTheAction(t *testing.T) {
 	boom := errors.New("boom")
 	ctx := context.Background()
@@ -728,11 +600,6 @@ func TestOCBlockCheckFailuresRefuseTheAction(t *testing.T) {
 			_, err := s.ToggleFavourite(ctx, userID, id)
 			return err
 		}},
-		{name: "comment", lookup: expectOCOwnedBy, call: func(s *service, id, userID uuid.UUID) error {
-			_, err := s.CreateComment(ctx, id, userID, dto.CreateCommentRequest{Body: "hi"})
-			return err
-		}},
-		{name: "like a comment", lookup: expectOCCommentOwnedBy, call: func(s *service, id, userID uuid.UUID) error { return s.LikeComment(ctx, userID, id) }},
 	}
 
 	for _, tc := range cases {
@@ -758,12 +625,8 @@ func expectOCOwnedBy(m *testMocks, id, authorID uuid.UUID) {
 	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(authorID, nil)
 }
 
-func expectOCCommentOwnedBy(m *testMocks, id, authorID uuid.UUID) {
-	m.ocRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
-}
-
 func TestGetOC_AFailedReadIsSurfacedInsteadOfRenderingAnEmptySection(t *testing.T) {
-	steps := []string{"gallery", "blocked users", "comments", "comment media", "viewer block"}
+	steps := []string{"gallery", "comments", "viewer block"}
 
 	for _, failAt := range steps {
 		t.Run("the "+failAt+" read failing", func(t *testing.T) {
@@ -781,9 +644,7 @@ func TestGetOC_AFailedReadIsSurfacedInsteadOfRenderingAnEmptySection(t *testing.
 			}
 			m.ocRepo.EXPECT().GetByID(mock.Anything, spec.OCByID{ID: id, ViewerID: viewerID}).Return(&model.OCRow{ID: id, UserID: uuid.New()}, nil)
 			m.ocRepo.EXPECT().GetGallery(mock.Anything, id).Return(nil, errAt("gallery")).Maybe()
-			m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewerID).Return(nil, errAt("blocked users")).Maybe()
-			m.ocRepo.EXPECT().GetComments(mock.Anything, mock.Anything).Return([]model.CommentRow{{ID: uuid.New()}}, 1, errAt("comments")).Maybe()
-			m.ocRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, errAt("comment media")).Maybe()
+			m.commentSvc.EXPECT().Thread(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindOC, ID: id}, viewerID).Return(nil, errAt("comments")).Maybe()
 			m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, viewerID, mock.Anything).Return(false, errAt("viewer block")).Maybe()
 
 			// when
@@ -844,78 +705,6 @@ func TestAddGalleryImage_AFailedGalleryLookupRefusesBeforeAnythingIsSaved(t *tes
 	// then no file is left behind for a gallery row that was never written
 	require.ErrorIs(t, err, boom)
 	m.uploadSvc.AssertNotCalled(t, "SaveImage", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-}
-
-func TestUpdateComment_AdminEditAudited(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	commentID := uuid.New()
-	userID := uuid.New()
-	authorID := uuid.New()
-	m.ocRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
-	m.ocRepo.EXPECT().UpdateComment(mock.Anything, spec.CommentUpdate{
-		CommentID: commentID,
-		UserID:    userID,
-		Body:      "moderated",
-		AsAdmin:   true,
-	}).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
-		ActorID:    userID,
-		Action:     audit.ActionOCCommentUpdateAdmin,
-		TargetType: audit.TargetOCComment,
-		TargetID:   commentID.String(),
-		SubjectID:  authorID,
-	}).Return(nil)
-
-	// when
-	err := svc.UpdateComment(context.Background(), commentID, userID, dto.UpdateCommentRequest{Body: " moderated "})
-
-	// then
-	require.NoError(t, err)
-}
-
-func TestUpdateComment_ModeratorEditingOwnCommentWritesNoAdminRow(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	commentID := uuid.New()
-	userID := uuid.New()
-	m.ocRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
-	m.ocRepo.EXPECT().UpdateComment(mock.Anything, spec.CommentUpdate{
-		CommentID: commentID,
-		UserID:    userID,
-		Body:      "mine",
-		AsAdmin:   true,
-	}).Return(nil)
-
-	// when
-	err := svc.UpdateComment(context.Background(), commentID, userID, dto.UpdateCommentRequest{Body: "mine"})
-
-	// then
-	require.NoError(t, err)
-	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
-}
-
-func TestUpdateComment_AsOwner(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	commentID := uuid.New()
-	userID := uuid.New()
-	m.ocRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
-	m.ocRepo.EXPECT().UpdateComment(mock.Anything, spec.CommentUpdate{
-		CommentID: commentID,
-		UserID:    userID,
-		Body:      "edited",
-	}).Return(nil)
-
-	// when
-	err := svc.UpdateComment(context.Background(), commentID, userID, dto.UpdateCommentRequest{Body: "edited"})
-
-	// then
-	require.NoError(t, err)
-	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 }
 
 func TestValidateSeries_AllVariants(t *testing.T) {

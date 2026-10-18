@@ -27,12 +27,6 @@ func (s *Service) getAllOCRoutes() []FSetupRoute {
 		s.setupDeleteOCGalleryImage,
 		s.setupVoteOC,
 		s.setupFavouriteOC,
-		s.setupCreateOCComment,
-		s.setupUpdateOCComment,
-		s.setupDeleteOCComment,
-		s.setupLikeOCComment,
-		s.setupUnlikeOCComment,
-		s.setupUploadOCCommentMedia,
 		s.setupListUserOCs,
 		s.setupListUserOCSummaries,
 	}
@@ -80,30 +74,6 @@ func (s *Service) setupVoteOC(r fiber.Router) {
 
 func (s *Service) setupFavouriteOC(r fiber.Router) {
 	r.Post("/ocs/:id/favourite", s.requireAuth(), s.favouriteOC)
-}
-
-func (s *Service) setupCreateOCComment(r fiber.Router) {
-	r.Post("/ocs/:id/comments", s.requireAuth(), s.createOCComment)
-}
-
-func (s *Service) setupUpdateOCComment(r fiber.Router) {
-	r.Put("/oc-comments/:id", s.requireAuth(), s.updateOCComment)
-}
-
-func (s *Service) setupDeleteOCComment(r fiber.Router) {
-	r.Delete("/oc-comments/:id", s.requireAuth(), s.deleteOCComment)
-}
-
-func (s *Service) setupLikeOCComment(r fiber.Router) {
-	r.Post("/oc-comments/:id/like", s.requireAuth(), s.likeOCComment)
-}
-
-func (s *Service) setupUnlikeOCComment(r fiber.Router) {
-	r.Delete("/oc-comments/:id/like", s.requireAuth(), s.unlikeOCComment)
-}
-
-func (s *Service) setupUploadOCCommentMedia(r fiber.Router) {
-	r.Post("/oc-comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadOCCommentMedia)
 }
 
 func (s *Service) setupListUserOCs(r fiber.Router) {
@@ -373,83 +343,6 @@ func (s *Service) favouriteOC(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to favourite oc", err)
 	}
 	return ctx.JSON(fiber.Map{"favourited": favourited})
-}
-
-func (s *Service) createOCComment(ctx fiber.Ctx) error {
-	ocID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	req, ok := utils.BindJSON[dto.CreateCommentRequest](ctx)
-	if !ok {
-		return nil
-	}
-
-	id, err := s.OCService.CreateComment(ctx.Context(), ocID, userID, req)
-	if err != nil {
-		if utils.MapFilterError(ctx, err) {
-			return nil
-		}
-		if errors.Is(err, block.ErrUserBlocked) {
-			return utils.Forbidden(ctx, "user is blocked")
-		}
-		if errors.Is(err, oc.ErrEmptyBody) {
-			return utils.BadRequest(ctx, err.Error())
-		}
-		if errors.Is(err, oc.ErrNotFound) {
-			return utils.NotFound(ctx, "oc not found")
-		}
-		return utils.InternalError(ctx, "failed to create comment", err)
-	}
-	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
-}
-
-func (s *Service) updateOCComment(ctx fiber.Ctx) error {
-	id, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	req, ok := utils.BindJSON[dto.UpdateCommentRequest](ctx)
-	if !ok {
-		return nil
-	}
-
-	if err := s.OCService.UpdateComment(ctx.Context(), id, userID, req); err != nil {
-		if utils.MapFilterError(ctx, err) {
-			return nil
-		}
-		if errors.Is(err, oc.ErrEmptyBody) {
-			return utils.BadRequest(ctx, err.Error())
-		}
-		if errors.Is(err, oc.ErrNotFound) {
-			return utils.NotFound(ctx, "comment not found")
-		}
-		if errors.Is(err, dao.ErrNotFound) {
-			return utils.Forbidden(ctx, "cannot update this comment")
-		}
-		return utils.InternalError(ctx, "failed to update comment", err)
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
-}
-
-func (s *Service) deleteOCComment(ctx fiber.Ctx) error {
-	return s.handleDeleteComment(ctx, s.OCService.DeleteComment)
-}
-
-func (s *Service) likeOCComment(ctx fiber.Ctx) error {
-	return s.handleLikeComment(ctx, s.OCService.LikeComment)
-}
-
-func (s *Service) unlikeOCComment(ctx fiber.Ctx) error {
-	return s.handleUnlikeComment(ctx, s.OCService.UnlikeComment)
-}
-
-func (s *Service) uploadOCCommentMedia(ctx fiber.Ctx) error {
-	return handleUploadCommentMedia(ctx, s.OCService.UploadCommentMedia)
 }
 
 func (s *Service) listUserOCs(ctx fiber.Ctx) error {

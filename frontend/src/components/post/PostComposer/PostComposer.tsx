@@ -69,22 +69,19 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
                     duration_seconds: pollDuration,
                 };
             }
-            const { id, failedUploads } = await createPostMutation.mutateAsync({
+            const { id } = await createPostMutation.mutateAsync({
                 body: body.trim(),
                 corner,
                 poll: pollPayload,
                 media: media.staged,
             });
+
             setBody("");
-            media.keepOnly(failedUploads.map(failed => failed.file));
+            media.reset();
             setShowPoll(false);
             setPollOptions(["", ""]);
             setPollDuration(86400);
-            if (failedUploads.length > 0) {
-                setError(failedUploads.map(failed => failed.message).join(", "));
-            } else {
-                navigate(`/game-board/${id}`);
-            }
+            navigate(`/game-board/${id}`);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create post");
         } finally {

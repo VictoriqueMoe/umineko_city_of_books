@@ -248,7 +248,10 @@ describe("JournalEntryEditorPage", () => {
         await user.click(screen.getByRole("button", { name: "Publish entry" }));
 
         // then
-        expect(createAsync).toHaveBeenCalledWith({ title: "Arrival", body: "Beato laughed.", is_draft: false });
+        expect(createAsync).toHaveBeenCalledWith({
+            payload: { title: "Arrival", body: "Beato laughed.", is_draft: false },
+            media: [],
+        });
         await waitFor(() => {
             expect(navigate).toHaveBeenCalledWith("/journals/journal-1/entry/4");
         });
@@ -265,7 +268,10 @@ describe("JournalEntryEditorPage", () => {
         await user.click(screen.getByRole("button", { name: "Save as draft" }));
 
         // then
-        expect(createAsync).toHaveBeenCalledWith({ title: "", body: "Beato laughed.", is_draft: true });
+        expect(createAsync).toHaveBeenCalledWith({
+            payload: { title: "", body: "Beato laughed.", is_draft: true },
+            media: [],
+        });
         await waitFor(() => {
             expect(navigate).toHaveBeenCalledWith("/journals/journal-1");
         });
@@ -440,41 +446,73 @@ describe("JournalEntryEditorPage", () => {
         });
     });
 
-    it("uploads the newly attached files after the entry is created", async () => {
+    it("sends the newly attached files with the new entry in a single request", async () => {
         // given
-        const { uploadAsync } = stubEditor({ create: () => Promise.resolve({ id: "entry-new", entry_number: 4 }) });
+        const { createAsync, uploadAsync } = stubEditor({
+            create: () => Promise.resolve({ id: "entry-new", entry_number: 4 }),
+        });
         const user = userEvent.setup();
         const { container } = renderNew(author);
         const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]')!;
 
         // when
         await user.upload(fileInput, new File(["beato"], "beato.png", { type: "image/png" }));
+        await user.click(screen.getByRole("button", { name: "Mark as spoiler" }));
         await user.click(screen.getByRole("button", { name: "Publish entry" }));
 
         // then
         await waitFor(() => {
-            expect(uploadAsync).toHaveBeenCalledWith({
-                entryId: "entry-new",
-                file: expect.objectContaining({ name: "beato.png" }),
-                isSpoiler: false,
-            });
+            expect(navigate).toHaveBeenCalledWith("/journals/journal-1/entry/4");
         });
+        expect(createAsync).toHaveBeenCalledWith({
+            payload: { title: "", body: "", is_draft: false },
+            media: [{ file: expect.objectContaining({ name: "beato.png" }), isSpoiler: true }],
+        });
+        expect(uploadAsync).not.toHaveBeenCalled();
     });
 
-    it("stays on the editor and says so when an attachment could not be uploaded", async () => {
+    it("keeps the whole form and says so when the new entry and its attachments are refused", async () => {
         // given
-        stubEditor({ upload: () => Promise.reject(new Error("The upload was refused")) });
+        stubEditor({ create: () => Promise.reject(new Error("The upload was refused")) });
         const user = userEvent.setup();
         const { container } = renderNew(author);
         const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+        await user.type(screen.getByPlaceholderText("Leave empty to use 'Entry N'"), "Arrival");
+        await user.type(screen.getByPlaceholderText(/Write your entry\./), "Beato laughed.");
+        await user.upload(fileInput, new File(["beato"], "beato.png", { type: "image/png" }));
+        await user.click(screen.getByRole("button", { name: "Mark as spoiler" }));
 
         // when
-        await user.upload(fileInput, new File(["beato"], "beato.png", { type: "image/png" }));
         await user.click(screen.getByRole("button", { name: "Publish entry" }));
 
         // then
         expect(await screen.findByText("The upload was refused")).toBeInTheDocument();
         expect(navigate).not.toHaveBeenCalled();
+        expect(screen.getByPlaceholderText("Leave empty to use 'Entry N'")).toHaveValue("Arrival");
+        expect(screen.getByPlaceholderText(/Write your entry\./)).toHaveValue("Beato laughed.");
+        expect(screen.getByRole("button", { name: "Mark as spoiler" })).toHaveAttribute("aria-pressed", "true");
+        expect(screen.getByRole("button", { name: "Publish entry" })).toBeEnabled();
+    });
+
+    it("still uploads newly attached files one by one when an existing entry is edited", async () => {
+        // given
+        const { uploadAsync } = stubEditor({ entry: makeEntry({ id: "entry-9", entry_number: 2 }) });
+        const user = userEvent.setup();
+        const { container } = renderEdit(author);
+        const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+
+        // when
+        await user.upload(fileInput, new File(["beato"], "beato.png", { type: "image/png" }));
+        await user.click(screen.getByRole("button", { name: "Save entry" }));
+
+        // then
+        await waitFor(() => {
+            expect(uploadAsync).toHaveBeenCalledWith({
+                entryId: "entry-9",
+                file: expect.objectContaining({ name: "beato.png" }),
+                isSpoiler: false,
+            });
+        });
     });
 
     it("stays on the editor and says so when a marked attachment could not be removed", async () => {

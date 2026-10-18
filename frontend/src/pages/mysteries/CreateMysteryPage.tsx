@@ -53,7 +53,6 @@ export function CreateMysteryPage() {
     const attachmentInputRef = useRef<HTMLInputElement>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
-    const [createdMysteryId, setCreatedMysteryId] = useState("");
     const { mystery: editMystery, loading: editFetchLoading } = useMystery(isEdit ? (editId ?? "") : "");
     const editLoading = isEdit && editFetchLoading;
     const createMutation = useCreateMystery();
@@ -156,14 +155,18 @@ export function CreateMysteryPage() {
                 clues: validClues,
             };
 
-            let targetId = editId ?? createdMysteryId;
-            if (isEdit && editId) {
-                await updateMutation.mutateAsync(payload);
-            } else if (!createdMysteryId) {
-                const result = await createMutation.mutateAsync(payload);
-                targetId = result.id;
-                setCreatedMysteryId(targetId);
+            if (!editId) {
+                const result = await createMutation.mutateAsync({
+                    data: payload,
+                    media: media.staged,
+                    attachments,
+                });
+
+                navigate(`/mystery/${result.id}`);
+                return;
             }
+
+            await updateMutation.mutateAsync(payload);
 
             const failures: UploadFailure[] = [];
 
@@ -181,7 +184,7 @@ export function CreateMysteryPage() {
             const unsentAttachments: File[] = [];
             for (const file of attachments) {
                 try {
-                    await uploadAttachmentMutation.mutateAsync({ mysteryId: targetId, file });
+                    await uploadAttachmentMutation.mutateAsync({ mysteryId: editId, file });
                 } catch (thrown) {
                     unsentAttachments.push(file);
                     failures.push(uploadFailure(file.name, thrown));
@@ -193,7 +196,7 @@ export function CreateMysteryPage() {
             for (const item of media.staged) {
                 try {
                     await uploadMediaMutation.mutateAsync({
-                        mysteryId: targetId,
+                        mysteryId: editId,
                         file: item.file,
                         isSpoiler: item.isSpoiler,
                     });
@@ -209,7 +212,7 @@ export function CreateMysteryPage() {
                 return;
             }
 
-            navigate(`/mystery/${targetId}`);
+            navigate(`/mystery/${editId}`);
         } catch (err) {
             setError(
                 err instanceof Error ? err.message : isEdit ? "Failed to update mystery" : "Failed to create mystery",

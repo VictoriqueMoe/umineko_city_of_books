@@ -205,7 +205,7 @@ func (q *Queries) GetJournalEntryMediaURL(ctx context.Context, arg GetJournalEnt
 	return media_url, err
 }
 
-const updateJournalEntryMediaThumbnail = `-- name: UpdateJournalEntryMediaThumbnail :exec
+const updateJournalEntryMediaThumbnail = `-- name: UpdateJournalEntryMediaThumbnail :execrows
 UPDATE journal_entry_media SET thumbnail_url = $1 WHERE id = $2
 `
 
@@ -214,12 +214,15 @@ type UpdateJournalEntryMediaThumbnailParams struct {
 	ID           int64
 }
 
-func (q *Queries) UpdateJournalEntryMediaThumbnail(ctx context.Context, arg UpdateJournalEntryMediaThumbnailParams) error {
-	_, err := q.db.ExecContext(ctx, updateJournalEntryMediaThumbnail, arg.ThumbnailUrl, arg.ID)
-	return err
+func (q *Queries) UpdateJournalEntryMediaThumbnail(ctx context.Context, arg UpdateJournalEntryMediaThumbnailParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateJournalEntryMediaThumbnail, arg.ThumbnailUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const updateJournalEntryMediaURL = `-- name: UpdateJournalEntryMediaURL :exec
+const updateJournalEntryMediaURL = `-- name: UpdateJournalEntryMediaURL :execrows
 UPDATE journal_entry_media SET media_url = $1 WHERE id = $2
 `
 
@@ -228,7 +231,10 @@ type UpdateJournalEntryMediaURLParams struct {
 	ID       int64
 }
 
-func (q *Queries) UpdateJournalEntryMediaURL(ctx context.Context, arg UpdateJournalEntryMediaURLParams) error {
-	_, err := q.db.ExecContext(ctx, updateJournalEntryMediaURL, arg.MediaUrl, arg.ID)
-	return err
+func (q *Queries) UpdateJournalEntryMediaURL(ctx context.Context, arg UpdateJournalEntryMediaURLParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateJournalEntryMediaURL, arg.MediaUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

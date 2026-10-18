@@ -47,7 +47,7 @@ function fileInput(container: HTMLElement): HTMLInputElement {
 }
 
 beforeEach(() => {
-    mocks.createPost.mockResolvedValue({ id: newPostId, failedUploads: [] });
+    mocks.createPost.mockResolvedValue({ id: newPostId });
 });
 
 describe("PostComposer", () => {
@@ -289,37 +289,18 @@ describe("PostComposer", () => {
         );
     });
 
-    it("reports a failed upload instead of leaving for the new post", async () => {
-        // given
-        const user = userEvent.setup();
-        const file = makeImage();
-        mocks.createPost.mockResolvedValue({
-            id: newPostId,
-            failedUploads: [{ file, message: "the media room is sealed" }],
-        });
-        const { container } = renderWithProviders(<PostComposer />);
-        fireEvent.change(fileInput(container), { target: { files: [file] } });
-
-        // when
-        await user.type(bodyField(), "look at this");
-        await user.click(postButton());
-
-        // then
-        expect(await screen.findByText("the media room is sealed")).toBeInTheDocument();
-        expect(mocks.navigate).not.toHaveBeenCalled();
-    });
-
-    it("keeps only the attachments that failed to upload so they are not lost", async () => {
+    it("keeps the whole draft and shows the error instead of leaving when the post and its media are refused", async () => {
         // given
         const user = userEvent.setup();
         const good = makeImage("good.png");
         const bad = makeImage("bad.png");
-        mocks.createPost.mockResolvedValue({
-            id: newPostId,
-            failedUploads: [{ file: bad, message: "the media room is sealed" }],
-        });
+        mocks.createPost.mockRejectedValue(new Error("the media room is sealed"));
         const { container } = renderWithProviders(<PostComposer />);
         fireEvent.change(fileInput(container), { target: { files: [good, bad] } });
+        await user.click(screen.getAllByRole("button", { name: "Mark as spoiler" })[1]);
+        await user.click(screen.getByRole("button", { name: "+ Poll" }));
+        await user.type(screen.getByPlaceholderText("Option 1"), "Beatrice");
+        await user.type(screen.getByPlaceholderText("Option 2"), "Battler");
 
         // when
         await user.type(bodyField(), "look at these");
@@ -327,8 +308,40 @@ describe("PostComposer", () => {
 
         // then
         expect(await screen.findByText("the media room is sealed")).toBeInTheDocument();
-        expect(screen.getAllByRole("button", { name: "Remove" })).toHaveLength(1);
-        expect(bodyField()).toHaveValue("");
+        expect(mocks.navigate).not.toHaveBeenCalled();
+        expect(bodyField()).toHaveValue("look at these");
+        expect(screen.getAllByRole("button", { name: "Remove" })).toHaveLength(2);
+        const spoilerToggles = screen.getAllByRole("button", { name: "Mark as spoiler" });
+        expect(spoilerToggles[0]).toHaveAttribute("aria-pressed", "false");
+        expect(spoilerToggles[1]).toHaveAttribute("aria-pressed", "true");
+        expect(screen.getByPlaceholderText("Option 1")).toHaveValue("Beatrice");
+        expect(screen.getByPlaceholderText("Option 2")).toHaveValue("Battler");
+        expect(postButton()).toBeEnabled();
+    });
+
+    it("sends the kept draft again in one request when the refused post is retried", async () => {
+        // given
+        const user = userEvent.setup();
+        const file = makeImage();
+        mocks.createPost.mockRejectedValueOnce(new Error("storage is unavailable"));
+        const { container } = renderWithProviders(<PostComposer />);
+        fireEvent.change(fileInput(container), { target: { files: [file] } });
+        await user.type(bodyField(), "look at this");
+        await user.click(postButton());
+        await screen.findByText("storage is unavailable");
+
+        // when
+        await user.click(postButton());
+
+        // then
+        expect(mocks.createPost).toHaveBeenCalledTimes(2);
+        expect(mocks.createPost).toHaveBeenLastCalledWith({
+            body: "look at this",
+            corner: "general",
+            poll: undefined,
+            media: [{ file, isSpoiler: false }],
+        });
+        expect(mocks.navigate).toHaveBeenCalledWith(`/game-board/${newPostId}`);
     });
 
     it("lets a post go out with only an attachment and no words", async () => {
@@ -428,10 +441,10 @@ describe("PostComposer", () => {
     it("locks the composer while the post is in flight", async () => {
         // given
         const user = userEvent.setup();
-        let release: (result: { id: string; failedUploads: [] }) => void = () => {};
+        let release: (result: { id: string }) => void = () => {};
         mocks.createPost.mockImplementation(
             () =>
-                new Promise<{ id: string; failedUploads: [] }>(resolve => {
+                new Promise<{ id: string }>(resolve => {
                     release = resolve;
                 }),
         );
@@ -445,7 +458,7 @@ describe("PostComposer", () => {
         expect(screen.getByRole("button", { name: "Posting..." })).toBeDisabled();
         expect(screen.getByRole("button", { name: "+ GIF" })).toBeDisabled();
         await act(async () => {
-            release({ id: newPostId, failedUploads: [] });
+            release({ id: newPostId });
         });
         expect(mocks.createPost).toHaveBeenCalledOnce();
     });

@@ -1,16 +1,18 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 func (s *Service) getAllFanficRoutes() []FSetupRoute {
@@ -29,11 +31,6 @@ func (s *Service) getAllFanficRoutes() []FSetupRoute {
 		s.setupFavouriteFanfic,
 		s.setupUnfavouriteFanfic,
 		s.setupCreateFanficComment,
-		s.setupUpdateFanficComment,
-		s.setupDeleteFanficComment,
-		s.setupLikeFanficComment,
-		s.setupUnlikeFanficComment,
-		s.setupUploadFanficCommentMedia,
 		s.setupGetFanficLanguages,
 		s.setupGetFanficSeries,
 		s.setupSearchOCCharacters,
@@ -95,27 +92,7 @@ func (s *Service) setupUnfavouriteFanfic(r fiber.Router) {
 }
 
 func (s *Service) setupCreateFanficComment(r fiber.Router) {
-	r.Post("/fanfics/:id/comments", s.requireAuth(), s.createFanficComment)
-}
-
-func (s *Service) setupUpdateFanficComment(r fiber.Router) {
-	r.Put("/fanfic-comments/:id", s.requireAuth(), s.updateFanficComment)
-}
-
-func (s *Service) setupDeleteFanficComment(r fiber.Router) {
-	r.Delete("/fanfic-comments/:id", s.requireAuth(), s.deleteFanficComment)
-}
-
-func (s *Service) setupLikeFanficComment(r fiber.Router) {
-	r.Post("/fanfic-comments/:id/like", s.requireAuth(), s.likeFanficComment)
-}
-
-func (s *Service) setupUnlikeFanficComment(r fiber.Router) {
-	r.Delete("/fanfic-comments/:id/like", s.requireAuth(), s.unlikeFanficComment)
-}
-
-func (s *Service) setupUploadFanficCommentMedia(r fiber.Router) {
-	r.Post("/fanfic-comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadFanficCommentMedia)
+	r.Post("/fanfics/:id/comments", s.requireAuth(), s.requireEstablished(), s.createFanficComment)
 }
 
 func (s *Service) setupGetFanficLanguages(r fiber.Router) {
@@ -440,74 +417,11 @@ func (s *Service) createFanficComment(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	req, ok := utils.BindJSON[dto.CreateCommentRequest](ctx)
-	if !ok {
-		return nil
-	}
-
-	id, err := s.FanficService.CreateComment(ctx.Context(), fanficID, userID, req)
-	if err != nil {
-		if utils.MapFilterError(ctx, err) {
-			return nil
-		}
-		if errors.Is(err, block.ErrUserBlocked) {
-			return utils.Forbidden(ctx, "user is blocked")
-		}
-		if errors.Is(err, fanficsvc.ErrEmptyBody) {
-			return utils.BadRequest(ctx, err.Error())
-		}
-		if errors.Is(err, fanficsvc.ErrNotFound) {
-			return utils.NotFound(ctx, "fanfic not found")
-		}
-		return utils.InternalError(ctx, "failed to create comment", err)
-	}
-	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
-}
-
-func (s *Service) updateFanficComment(ctx fiber.Ctx) error {
-	id, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	req, ok := utils.BindJSON[dto.UpdateCommentRequest](ctx)
-	if !ok {
-		return nil
-	}
-
-	if err := s.FanficService.UpdateComment(ctx.Context(), id, userID, req); err != nil {
-		if utils.MapFilterError(ctx, err) {
-			return nil
-		}
-		if errors.Is(err, fanficsvc.ErrEmptyBody) {
-			return utils.BadRequest(ctx, err.Error())
-		}
-		if errors.Is(err, fanficsvc.ErrNotFound) {
-			return utils.NotFound(ctx, "comment not found")
-		}
-		if errors.Is(err, dao.ErrNotFound) {
-			return utils.Forbidden(ctx, "cannot update this comment")
-		}
-		return utils.InternalError(ctx, "failed to update comment", err)
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
-}
-
-func (s *Service) deleteFanficComment(ctx fiber.Ctx) error {
-	return s.handleDeleteComment(ctx, s.FanficService.DeleteComment)
-}
-
-func (s *Service) likeFanficComment(ctx fiber.Ctx) error {
-	return s.handleLikeComment(ctx, s.FanficService.LikeComment)
-}
-
-func (s *Service) unlikeFanficComment(ctx fiber.Ctx) error {
-	return s.handleUnlikeComment(ctx, s.FanficService.UnlikeComment)
-}
-
-func (s *Service) uploadFanficCommentMedia(ctx fiber.Ctx) error {
-	return handleUploadCommentMedia(ctx, s.FanficService.UploadCommentMedia)
+	return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
+		return s.FanficService.CreateComment(c, fanficID, userID, req, files)
+	}, []errorResponse{
+		{err: fanficsvc.ErrNotFound, respond: utils.NotFound, message: "fanfic not found"},
+	})
 }
 
 func (s *Service) getFanficLanguages(ctx fiber.Ctx) error {
