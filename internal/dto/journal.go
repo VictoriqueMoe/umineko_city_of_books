@@ -26,9 +26,9 @@ type (
 
 	JournalDetailResponse struct {
 		JournalResponse
-		Entries     []JournalEntrySummary    `json:"entries"`
-		LatestEntry *JournalEntryResponse    `json:"latest_entry,omitempty"`
-		Comments    []JournalCommentResponse `json:"comments"`
+		Entries     []JournalEntrySummary `json:"entries"`
+		LatestEntry *JournalEntryResponse `json:"latest_entry,omitempty"`
+		Comments    []CommentResponse     `json:"comments"`
 	}
 
 	JournalListResponse struct {
@@ -81,18 +81,9 @@ type (
 		IsDraft bool   `json:"is_draft"`
 	}
 
-	JournalCommentResponse struct {
-		ID        uuid.UUID                `json:"id"`
-		ParentID  *uuid.UUID               `json:"parent_id,omitempty"`
-		EntryID   *uuid.UUID               `json:"entry_id,omitempty"`
-		Author    UserResponse             `json:"author"`
-		Body      string                   `json:"body"`
-		Media     []PostMediaResponse      `json:"media"`
-		LikeCount int                      `json:"like_count"`
-		UserLiked bool                     `json:"user_liked"`
-		IsAuthor  bool                     `json:"is_author"`
-		Replies   []JournalCommentResponse `json:"replies,omitempty"`
-		CreatedAt string                   `json:"created_at"`
-		UpdatedAt *string                  `json:"updated_at,omitempty"`
+	CreateJournalCommentRequest struct {
+		Body     string     `json:"body"`
+		ParentID *uuid.UUID `json:"parent_id,omitempty"`
+		EntryID  *uuid.UUID `json:"entry_id,omitempty"`
 	}
 )

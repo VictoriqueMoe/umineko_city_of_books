@@ -78,11 +78,9 @@ export function FanficDetailPage() {
     const unfavouriteMutation = useUnfavouriteFanfic();
     const deleteFanficMutation = useDeleteFanfic();
     const deleteChapterMutation = useDeleteFanficChapter(fanficId);
-    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn, uploadMediaFn } = useCommentHandlers(
-        "fanfic",
-        fanficId,
-        { enabled: ["create", "update", "delete", "like", "unlike", "uploadMedia"] },
-    );
+    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn } = useCommentHandlers("fanfic", fanficId, {
+        enabled: ["create", "update", "delete", "like", "unlike"],
+    });
 
     async function handleFavourite() {
         if (!fanfic || favouriting) {
@@ -358,7 +356,6 @@ export function FanficDetailPage() {
                 deleteFn={deleteFn}
                 updateFn={updateFn}
                 createCommentFn={createCommentFn}
-                uploadMediaFn={uploadMediaFn}
             />
 
             {lightboxOpen && fanfic.cover_image_url && (

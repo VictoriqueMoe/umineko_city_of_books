@@ -19,9 +19,9 @@ type (
 	secretCommentQuerier struct{}
 )
 
-func (secretCommentQuerier) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment[string]) (*model.CommentRow, error) {
+func (secretCommentQuerier) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment) (*model.CommentRow, error) {
 	row, err := q.CreateSecretComment(ctx, sqlcgen.CreateSecretCommentParams{
-		SecretID: s.TargetID,
+		SecretID: s.Target.Key,
 		ParentID: s.ParentID,
 		UserID:   s.UserID,
 		Body:     s.Body,
@@ -50,17 +50,17 @@ func (secretCommentQuerier) Delete(ctx context.Context, q *sqlcgen.Queries, s sp
 	})
 }
 
-func (secretCommentQuerier) Count(ctx context.Context, q *sqlcgen.Queries, target string, exclude []uuid.UUID) (int64, error) {
+func (secretCommentQuerier) Count(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget, exclude []uuid.UUID) (int64, error) {
 	return q.CountSecretComments(ctx, sqlcgen.CountSecretCommentsParams{
-		SecretID: target,
+		SecretID: target.Key,
 		Column2:  joinUUIDs(exclude),
 	})
 }
 
-func (secretCommentQuerier) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery[string]) ([]model.CommentRow, error) {
+func (secretCommentQuerier) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery) ([]model.CommentRow, error) {
 	rows, err := q.ListSecretComments(ctx, sqlcgen.ListSecretCommentsParams{
 		UserID:   s.ViewerID,
-		SecretID: s.TargetID,
+		SecretID: s.Target.Key,
 		Column3:  joinUUIDs(s.ExcludeUserIDs),
 		Limit:    int32(s.Limit),
 		Offset:   int32(s.Offset),
@@ -86,12 +86,25 @@ func (secretCommentQuerier) ByID(ctx context.Context, q *sqlcgen.Queries, id uui
 	return new(commentRowFromCreate(commentCreateRow(row))), nil
 }
 
-func (secretCommentQuerier) EntityID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (string, error) {
-	return q.GetSecretCommentEntityID(ctx, id)
+func (secretCommentQuerier) Target(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (spec.CommentTarget, error) {
+	entityID, err := q.GetSecretCommentEntityID(ctx, id)
+	if err != nil {
+		return spec.CommentTarget{}, err
+	}
+
+	return spec.CommentTarget{Key: entityID}, nil
 }
 
 func (secretCommentQuerier) AuthorID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error) {
 	return q.GetSecretCommentAuthorID(ctx, id)
+}
+
+func (secretCommentQuerier) MediaDir() string {
+	return "secrets"
+}
+
+func (secretCommentQuerier) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
+	return uuid.Nil, nil
 }
 
 func (secretCommentQuerier) Like(ctx context.Context, q *sqlcgen.Queries, s spec.CommentLike) error {
@@ -142,16 +155,16 @@ func (secretCommentQuerier) MediaBatch(ctx context.Context, q *sqlcgen.Queries, 
 	return out, nil
 }
 
-func (secretCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (secretCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateSecretCommentMediaURL(ctx, sqlcgen.UpdateSecretCommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
 }
 
-func (secretCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (secretCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateSecretCommentMediaThumbnail(ctx, sqlcgen.UpdateSecretCommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
-func (secretCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target string) ([]string, error) {
-	rows, err := q.CollectSecretCommentMediaPaths(ctx, target)
+func (secretCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {
+	rows, err := q.CollectSecretCommentMediaPaths(ctx, target.Key)
 	if err != nil {
 		return nil, err
 	}

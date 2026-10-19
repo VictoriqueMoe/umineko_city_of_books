@@ -266,18 +266,13 @@ func (s *service) SaveAudio(ctx context.Context, subDir string, id uuid.UUID, fi
 }
 
 func (s *service) SaveAttachment(ctx context.Context, subDir string, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
-	if fileSize > maxSize {
-		return "", fmt.Errorf("%w: file size %dMB exceeds maximum %dMB", ErrFileTooLarge, fileSize/(1024*1024), maxSize/(1024*1024))
-	}
-
-	sniffed, wrapped, err := DetectContentType(reader)
-	if err != nil {
+	if err := checkAttachmentSize(fileSize, maxSize); err != nil {
 		return "", err
 	}
 
-	ext, ok := AllowedAttachmentTypes[NormaliseSniffedType(sniffed)]
-	if !ok {
-		return "", ErrInvalidAttachmentType
+	ext, wrapped, err := sniffAttachment(reader)
+	if err != nil {
+		return "", err
 	}
 
 	return s.SaveFile(ctx, subDir, uuid.New().String()+ext, wrapped)

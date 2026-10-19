@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/corner"
@@ -35,7 +36,7 @@ import (
 type (
 	testMocks struct {
 		artRepo     *repository.MockArtRepository
-		artComments *dao.MockCommentDAO[uuid.UUID]
+		commentSvc  *comment.MockService
 		userRepo    *repository.MockUserRepository
 		auditRepo   *repository.MockAuditLogRepository
 		authz       *authz.MockService
@@ -58,7 +59,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 
 	m := &testMocks{
 		artRepo:     repository.NewMockArtRepository(t),
-		artComments: dao.NewMockCommentDAO[uuid.UUID](t),
+		commentSvc:  comment.NewMockService(t),
 		userRepo:    repository.NewMockUserRepository(t),
 		auditRepo:   repository.NewMockAuditLogRepository(t),
 		authz:       authz.NewMockService(t),
@@ -69,11 +70,9 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		activity:    sidebar.NewMockActivityBumper(t),
 	}
 
-	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifSvc, dao.CommentDAOs{
-		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindArtComment): m.artComments},
-	})
+	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifSvc)
 
-	svc := NewService(m.artRepo, repository.NewMockPostRepository(t), m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.uploadSvc, media.NewProcessor(1), m.settingsSvc, contentfilter.New(), nil, nil, m.activity).(*service)
+	svc := NewService(m.artRepo, repository.NewMockPostRepository(t), m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.commentSvc, m.uploadSvc, media.NewProcessor(1), m.settingsSvc, contentfilter.New(), nil, nil, m.activity).(*service)
 
 	return svc, m
 }
@@ -90,18 +89,12 @@ func expectArtAuthorNotBlocked(m *testMocks, artID uuid.UUID, userID uuid.UUID, 
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 }
 
-func expectCommentAuthorNotBlocked(m *testMocks, commentID uuid.UUID, userID uuid.UUID, authorID uuid.UUID) {
-	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
-	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-}
-
 func expectArtDetailReads(m *testMocks, id uuid.UUID, viewerID uuid.UUID, blocked []uuid.UUID) {
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewerID).Return(blocked, nil)
 	m.artRepo.EXPECT().GetTags(mock.Anything, id).Return([]string{"tag"}, nil)
-	m.artRepo.EXPECT().
-		GetComments(mock.Anything, spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: viewerID, Limit: 500, ExcludeUserIDs: blocked}).
-		Return(nil, 0, nil)
-	m.artRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
+	m.commentSvc.EXPECT().
+		Thread(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindArt, ID: id}, viewerID).
+		Return([]dto.CommentResponse{{ID: uuid.New(), Body: "lovely brushwork"}}, nil)
 	m.artRepo.EXPECT().GetLikedBy(mock.Anything, spec.LikedByQuery{TargetID: id, ExcludeUserIDs: blocked}).Return(nil, nil)
 }
 
@@ -382,6 +375,8 @@ func TestGetArt_OK_WithViewerHashAndBlocked(t *testing.T) {
 	assert.True(t, got.ViewerBlocked)
 	assert.NotEmpty(t, got.ThumbnailURL)
 	assert.Equal(t, []string{"tag"}, got.Tags)
+	require.Len(t, got.Comments, 1)
+	assert.Equal(t, "lovely brushwork", got.Comments[0].Body)
 }
 
 func TestGetArt_SurfacesAFailedLookup(t *testing.T) {
@@ -391,10 +386,9 @@ func TestGetArt_SurfacesAFailedLookup(t *testing.T) {
 	}{
 		{name: "the viewer's block list", failAt: 0},
 		{name: "the tags", failAt: 1},
-		{name: "the comments", failAt: 2},
-		{name: "the comment media", failAt: 3},
-		{name: "the likes", failAt: 4},
-		{name: "the block check against the author", failAt: 5},
+		{name: "the comment thread", failAt: 2},
+		{name: "the likes", failAt: 3},
+		{name: "the block check against the author", failAt: 4},
 	}
 
 	for _, tc := range cases {
@@ -412,16 +406,13 @@ func TestGetArt_SurfacesAFailedLookup(t *testing.T) {
 				m.artRepo.EXPECT().GetTags(mock.Anything, id).Return(nil, artFailAt(tc.failAt, 1))
 			}
 			if tc.failAt >= 2 {
-				m.artRepo.EXPECT().GetComments(mock.Anything, mock.Anything).Return(nil, 0, artFailAt(tc.failAt, 2))
+				m.commentSvc.EXPECT().Thread(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindArt, ID: id}, viewerID).Return(nil, artFailAt(tc.failAt, 2))
 			}
 			if tc.failAt >= 3 {
-				m.artRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, artFailAt(tc.failAt, 3))
+				m.artRepo.EXPECT().GetLikedBy(mock.Anything, mock.Anything).Return(nil, artFailAt(tc.failAt, 3))
 			}
 			if tc.failAt >= 4 {
-				m.artRepo.EXPECT().GetLikedBy(mock.Anything, mock.Anything).Return(nil, artFailAt(tc.failAt, 4))
-			}
-			if tc.failAt >= 5 {
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, viewerID, authorID).Return(false, artFailAt(tc.failAt, 5))
+				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, viewerID, authorID).Return(false, artFailAt(tc.failAt, 4))
 			}
 
 			// when
@@ -591,10 +582,6 @@ func TestArtAuthorLookupFailures(t *testing.T) {
 	}{
 		{name: "delete", call: func(s *service, id uuid.UUID) error { return s.DeleteArt(ctx, id, uuid.New()) }},
 		{name: "like", call: func(s *service, id uuid.UUID) error { return s.LikeArt(ctx, uuid.New(), id) }},
-		{name: "comment", call: func(s *service, id uuid.UUID) error {
-			_, err := s.CreateComment(ctx, id, uuid.New(), dto.CreateCommentRequest{Body: "hi"})
-			return err
-		}},
 	}
 	outcomes := []struct {
 		name      string
@@ -966,453 +953,6 @@ func TestGetPopularTags(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 		})
 	}
-}
-
-func TestCreateComment_EmptyBodyRejected(t *testing.T) {
-	// given
-	svc, _ := newTestService(t)
-
-	// when
-	_, err := svc.CreateComment(context.Background(), uuid.New(), uuid.New(), dto.CreateCommentRequest{Body: "  "})
-
-	// then
-	require.ErrorIs(t, err, ErrEmptyBody)
-}
-
-func TestCreateComment(t *testing.T) {
-	artID := uuid.New()
-	userID := uuid.New()
-	authorID := uuid.New()
-	parentID := uuid.New()
-	commentID := uuid.New()
-
-	cases := []struct {
-		name    string
-		req     dto.CreateCommentRequest
-		given   func(m *testMocks)
-		wantID  uuid.UUID
-		wantErr error
-	}{
-		{
-			name: "art author lookup failure propagates",
-			req:  dto.CreateCommentRequest{Body: "hi"},
-			given: func(m *testMocks) {
-				m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, artID).Return(uuid.Nil, errDB)
-			},
-			wantErr: errDB,
-		},
-		{
-			name: "a block in either direction refuses the comment",
-			req:  dto.CreateCommentRequest{Body: "hi"},
-			given: func(m *testMocks) {
-				m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, artID).Return(authorID, nil)
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(true, nil)
-			},
-			wantErr: block.ErrUserBlocked,
-		},
-		{
-			name: "a failed block lookup refuses the comment",
-			req:  dto.CreateCommentRequest{Body: "hi"},
-			given: func(m *testMocks) {
-				m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, artID).Return(authorID, nil)
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, errDB)
-			},
-			wantErr: errDB,
-		},
-		{
-			name: "trims the body and propagates a write failure",
-			req:  dto.CreateCommentRequest{Body: "  hi  "},
-			given: func(m *testMocks) {
-				expectArtAuthorNotBlocked(m, artID, userID, authorID)
-				m.artComments.EXPECT().
-					CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: artID, ParentID: nil, UserID: userID, Body: "hi"}).
-					Return(nil, errDB)
-			},
-			wantErr: errDB,
-		},
-		{
-			name: "reply carries the parent id",
-			req:  dto.CreateCommentRequest{Body: "hi", ParentID: &parentID},
-			given: func(m *testMocks) {
-				expectArtAuthorNotBlocked(m, artID, userID, authorID)
-				m.artComments.EXPECT().
-					CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: artID, ParentID: &parentID, UserID: userID, Body: "hi"}).
-					Return(&model.CommentRow{ID: commentID}, nil)
-				m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, errStop).Maybe()
-			},
-			wantID: commentID,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			tc.given(m)
-
-			// when
-			id, err := svc.CreateComment(context.Background(), artID, userID, tc.req)
-
-			// then
-			require.ErrorIs(t, err, tc.wantErr)
-			assert.Equal(t, tc.wantID, id)
-		})
-	}
-}
-
-func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	artID := uuid.New()
-	userID := uuid.New()
-	authorID := uuid.New()
-	commentID := uuid.New()
-	mentionedID := uuid.New()
-
-	expectArtAuthorNotBlocked(m, artID, userID, authorID)
-	m.artComments.EXPECT().
-		CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: artID, ParentID: nil, UserID: userID, Body: "look at this @alice"}).
-		Return(&model.CommentRow{ID: commentID}, nil)
-	sent, mentioned := expectMentionOfAlice(m, userID, mentionedID, 2)
-
-	// when
-	id, err := svc.CreateComment(context.Background(), artID, userID, dto.CreateCommentRequest{Body: "look at this @alice"})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, commentID, id)
-	sent.Wait()
-	assert.Equal(t, mentionedID, mentioned.RecipientID)
-	assert.Equal(t, artID, mentioned.ReferenceID)
-	assert.Equal(t, "art_comment:"+commentID.String(), mentioned.ReferenceType)
-	assert.Equal(t, "/gallery/art/"+artID.String()+"#comment-"+commentID.String(), mentioned.EmailLink)
-}
-
-func TestUpdateComment_EmptyBodyRejected(t *testing.T) {
-	// given
-	svc, _ := newTestService(t)
-
-	// when
-	err := svc.UpdateComment(context.Background(), uuid.New(), uuid.New(), dto.UpdateCommentRequest{Body: "  "})
-
-	// then
-	require.ErrorIs(t, err, ErrEmptyBody)
-}
-
-func TestUpdateComment_AuthorLookupFailures(t *testing.T) {
-	cases := []struct {
-		name      string
-		lookupErr error
-		wantErr   error
-	}{
-		{name: "a missing comment is not found", lookupErr: errMissingRow, wantErr: ErrNotFound},
-		{name: "a failed lookup is surfaced", lookupErr: errDB, wantErr: errDB},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			commentID := uuid.New()
-			m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.Nil, tc.lookupErr)
-
-			// when
-			err := svc.UpdateComment(context.Background(), commentID, uuid.New(), dto.UpdateCommentRequest{Body: "hi"})
-
-			// then
-			require.ErrorIs(t, err, tc.wantErr)
-		})
-	}
-}
-
-func TestUpdateComment(t *testing.T) {
-	commentID := uuid.New()
-	userID := uuid.New()
-	otherID := uuid.New()
-
-	cases := []struct {
-		name       string
-		authorID   uuid.UUID
-		canEditAny bool
-		repoErr    error
-		audited    bool
-		notifies   bool
-	}{
-		{name: "admin editing someone else's comment is audited", authorID: otherID, canEditAny: true, audited: true, notifies: true},
-		{name: "moderator editing own comment is not audited", authorID: userID, canEditAny: true, notifies: true},
-		{name: "admin edit failure propagates", authorID: otherID, canEditAny: true, repoErr: errDB},
-		{name: "owner edit", authorID: userID},
-		{name: "owner edit failure propagates", authorID: userID, repoErr: errDB},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(tc.authorID, nil)
-			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(tc.canEditAny)
-			m.artRepo.EXPECT().
-				UpdateCommentWithDetails(mock.Anything, spec.CommentUpdate{CommentID: commentID, UserID: userID, Body: "hi", AsAdmin: tc.canEditAny}).
-				Return(tc.repoErr)
-
-			if tc.audited {
-				m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
-					ActorID:    userID,
-					Action:     audit.ActionArtCommentUpdateAdmin,
-					TargetType: audit.TargetArtComment,
-					TargetID:   commentID.String(),
-					SubjectID:  otherID,
-				}).Return(nil)
-			}
-
-			if tc.notifies {
-				m.artRepo.EXPECT().GetCommentEntityID(mock.Anything, commentID).Return(uuid.Nil, errStop).Maybe()
-			}
-
-			// when
-			err := svc.UpdateComment(context.Background(), commentID, userID, dto.UpdateCommentRequest{Body: "  hi  "})
-
-			// then
-			require.ErrorIs(t, err, tc.repoErr)
-
-			if !tc.audited {
-				m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
-			}
-		})
-	}
-}
-
-func TestDeleteComment(t *testing.T) {
-	commentID := uuid.New()
-	userID := uuid.New()
-	otherID := uuid.New()
-
-	cases := []struct {
-		name         string
-		authorID     uuid.UUID
-		canDeleteAny bool
-		wantAction   audit.Action
-		paths        []string
-		repoErr      error
-	}{
-		{name: "admin deletes someone else's comment", authorID: otherID, canDeleteAny: true, wantAction: audit.ActionArtCommentDeleteAdmin, paths: []string{"/u/c.png", "/u/c-thumb.png"}},
-		{name: "moderator deleting own comment is not an admin action", authorID: userID, canDeleteAny: true, wantAction: audit.ActionArtCommentDelete, paths: []string{"/u/c.png"}},
-		{name: "owner delete failure propagates", authorID: userID, wantAction: audit.ActionArtCommentDelete, repoErr: errDB},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(tc.authorID, nil)
-			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(tc.canDeleteAny)
-			m.artRepo.EXPECT().
-				DeleteCommentWithAudit(mock.Anything, spec.ArtCommentDeletion{
-					CommentID: commentID, UserID: userID, AsAdmin: tc.canDeleteAny,
-					Audit: audit.NewEntry{
-						ActorID:    userID,
-						Action:     tc.wantAction,
-						TargetType: audit.TargetArtComment,
-						TargetID:   commentID.String(),
-						SubjectID:  tc.authorID,
-					},
-				}).
-				Return(tc.paths, tc.repoErr)
-
-			if tc.repoErr == nil {
-				m.uploadSvc.EXPECT().Delete(tc.paths).Return()
-			}
-
-			// when
-			err := svc.DeleteComment(context.Background(), commentID, userID)
-
-			// then
-			require.ErrorIs(t, err, tc.repoErr)
-		})
-	}
-}
-
-func TestDeleteComment_AuthorLookupError(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	commentID := uuid.New()
-	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.Nil, errDB)
-
-	// when
-	err := svc.DeleteComment(context.Background(), commentID, uuid.New())
-
-	// then
-	require.ErrorIs(t, err, errDB)
-}
-
-func TestLikeComment(t *testing.T) {
-	commentID := uuid.New()
-	userID := uuid.New()
-	authorID := uuid.New()
-
-	cases := []struct {
-		name    string
-		given   func(m *testMocks)
-		wantErr error
-	}{
-		{
-			name: "comment author lookup failure propagates",
-			given: func(m *testMocks) {
-				m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.Nil, errDB)
-			},
-			wantErr: errDB,
-		},
-		{
-			name: "a block in either direction refuses the like",
-			given: func(m *testMocks) {
-				m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(true, nil)
-			},
-			wantErr: block.ErrUserBlocked,
-		},
-		{
-			name: "a failed block lookup refuses the like",
-			given: func(m *testMocks) {
-				m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, errDB)
-			},
-			wantErr: errDB,
-		},
-		{
-			name: "like write failure propagates",
-			given: func(m *testMocks) {
-				expectCommentAuthorNotBlocked(m, commentID, userID, authorID)
-				m.artRepo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(errDB)
-			},
-			wantErr: errDB,
-		},
-		{
-			name: "records the like",
-			given: func(m *testMocks) {
-				expectCommentAuthorNotBlocked(m, commentID, userID, authorID)
-				m.artRepo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(nil)
-				m.artRepo.EXPECT().GetCommentEntityID(mock.Anything, commentID).Return(uuid.Nil, errStop).Maybe()
-			},
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			tc.given(m)
-
-			// when
-			err := svc.LikeComment(context.Background(), userID, commentID)
-
-			// then
-			require.ErrorIs(t, err, tc.wantErr)
-		})
-	}
-}
-
-func TestUnlikeComment(t *testing.T) {
-	cases := []struct {
-		name    string
-		repoErr error
-	}{
-		{name: "removes the like"},
-		{name: "repo failure propagates", repoErr: errDB},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			commentID := uuid.New()
-			userID := uuid.New()
-			m.artRepo.EXPECT().UnlikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(tc.repoErr)
-
-			// when
-			err := svc.UnlikeComment(context.Background(), userID, commentID)
-
-			// then
-			require.ErrorIs(t, err, tc.repoErr)
-		})
-	}
-}
-
-func TestUploadCommentMedia(t *testing.T) {
-	commentID := uuid.New()
-	userID := uuid.New()
-	uploaded := "/uploads/art/x.png"
-	mediaRow := spec.NewMedia{TargetID: commentID, MediaURL: uploaded, MediaType: "image", Filename: "photo.png"}
-
-	cases := []struct {
-		name     string
-		given    func(m *testMocks)
-		wantResp *dto.PostMediaResponse
-		wantErr  error
-	}{
-		{
-			name: "comment lookup failure maps to not found",
-			given: func(m *testMocks) {
-				m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.Nil, errDB)
-			},
-			wantErr: ErrNotFound,
-		},
-		{
-			name: "image save failure propagates",
-			given: func(m *testMocks) {
-				m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
-				expectImageSave(m, "", errDB)
-			},
-			wantErr: errDB,
-		},
-		{
-			name: "media row failure propagates",
-			given: func(m *testMocks) {
-				m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
-				expectImageSave(m, uploaded, nil)
-				m.artRepo.EXPECT().AddCommentMedia(mock.Anything, mediaRow).Return(int64(0), errDB)
-				m.uploadSvc.EXPECT().Delete([]string{uploaded}).Once()
-			},
-			wantErr: errDB,
-		},
-		{
-			name: "records the media row",
-			given: func(m *testMocks) {
-				m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
-				expectImageSave(m, uploaded, nil)
-				m.artRepo.EXPECT().AddCommentMedia(mock.Anything, mediaRow).Return(int64(42), nil)
-			},
-			wantResp: &dto.PostMediaResponse{ID: 42, MediaURL: uploaded, MediaType: "image", Filename: "photo.png"},
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			tc.given(m)
-
-			// when
-			resp, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", "photo.png", 10, bytes.NewReader(nil), false)
-
-			// then
-			require.ErrorIs(t, err, tc.wantErr)
-			assert.Equal(t, tc.wantResp, resp)
-		})
-	}
-}
-
-func TestUploadCommentMedia_NotAuthor(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	commentID := uuid.New()
-	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.New(), nil)
-
-	// when
-	_, err := svc.UploadCommentMedia(context.Background(), commentID, uuid.New(), "image/png", "photo.png", 10, bytes.NewReader(nil), false)
-
-	// then
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not the comment author")
 }
 
 func TestCreateGallery(t *testing.T) {

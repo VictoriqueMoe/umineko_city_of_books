@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
-	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
@@ -176,9 +175,7 @@ func TestSearchDAO_PostComment_HasParentID(t *testing.T) {
 	post, err := repos.Post.Create(context.Background(), spec.NewPost{UserID: user.ID, Corner: "umineko", Body: "the parent post body"})
 	require.NoError(t, err)
 	postID := post.ID
-	comment, err := repos.Comments.ByID[string(mention.KindPostComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: postID, ParentID: nil, UserID: user.ID, Body: "I think this kinzo theory is right"})
-	require.NoError(t, err)
-	commentID := comment.ID
+	commentID := createComment(t, repos, spec.CommentTarget{Kind: spec.CommentKindPost, ID: postID}, user.ID, nil, "I think this kinzo theory is right")
 
 	// when
 	results := searchRepoOnce(t, repos, "kinzo", []model.SearchEntityType{model.SearchEntityPostComment})

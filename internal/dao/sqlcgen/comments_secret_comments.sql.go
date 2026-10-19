@@ -524,7 +524,7 @@ func (q *Queries) UpdateSecretComment(ctx context.Context, arg UpdateSecretComme
 	return result.RowsAffected()
 }
 
-const updateSecretCommentMediaThumbnail = `-- name: UpdateSecretCommentMediaThumbnail :exec
+const updateSecretCommentMediaThumbnail = `-- name: UpdateSecretCommentMediaThumbnail :execrows
 UPDATE secret_comment_media SET thumbnail_url = $1 WHERE id = $2
 `
 
@@ -533,12 +533,15 @@ type UpdateSecretCommentMediaThumbnailParams struct {
 	ID           int64
 }
 
-func (q *Queries) UpdateSecretCommentMediaThumbnail(ctx context.Context, arg UpdateSecretCommentMediaThumbnailParams) error {
-	_, err := q.db.ExecContext(ctx, updateSecretCommentMediaThumbnail, arg.ThumbnailUrl, arg.ID)
-	return err
+func (q *Queries) UpdateSecretCommentMediaThumbnail(ctx context.Context, arg UpdateSecretCommentMediaThumbnailParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateSecretCommentMediaThumbnail, arg.ThumbnailUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const updateSecretCommentMediaURL = `-- name: UpdateSecretCommentMediaURL :exec
+const updateSecretCommentMediaURL = `-- name: UpdateSecretCommentMediaURL :execrows
 UPDATE secret_comment_media SET media_url = $1 WHERE id = $2
 `
 
@@ -547,7 +550,10 @@ type UpdateSecretCommentMediaURLParams struct {
 	ID       int64
 }
 
-func (q *Queries) UpdateSecretCommentMediaURL(ctx context.Context, arg UpdateSecretCommentMediaURLParams) error {
-	_, err := q.db.ExecContext(ctx, updateSecretCommentMediaURL, arg.MediaUrl, arg.ID)
-	return err
+func (q *Queries) UpdateSecretCommentMediaURL(ctx context.Context, arg UpdateSecretCommentMediaURLParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateSecretCommentMediaURL, arg.MediaUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

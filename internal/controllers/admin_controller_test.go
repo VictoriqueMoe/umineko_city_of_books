@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -13,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/settings"
 	usersvc "umineko_city_of_books/internal/user"
 
 	"github.com/google/uuid"
@@ -354,6 +357,7 @@ func TestAdminSettingsRoutes(t *testing.T) {
 		{name: "update settings malformed body", route: updateSettings, malformedBody: true, wantCode: http.StatusBadRequest, wantBody: "invalid request body"},
 		{name: "update settings", route: updateSettings, body: dto.UpdateSettingsRequest{Settings: siteName}, expect: expectUpdateSettings(siteName), wantCode: http.StatusOK},
 		{name: "update settings internal error", route: updateSettings, body: dto.UpdateSettingsRequest{Settings: other}, expect: expectUpdateSettings(other), err: assert.AnError, wantCode: http.StatusInternalServerError},
+		{name: "update settings rejected says why", route: updateSettings, body: dto.UpdateSettingsRequest{Settings: other}, expect: expectUpdateSettings(other), err: fmt.Errorf("update settings: %w", &settings.RejectedError{Err: errors.New("s3 storage requires region, bucket, access key ID and secret access key")}), wantCode: http.StatusBadRequest, wantBody: "s3 storage requires region, bucket, access key ID and secret access key"},
 		{name: "send test email", route: testEmail, expect: expectTestEmail, wantCode: http.StatusOK},
 		{name: "send test email without an address", route: testEmail, expect: expectTestEmail, err: adminsvc.ErrNoEmailAddress, wantCode: http.StatusBadRequest, wantBody: "your account has no email address set"},
 		{name: "send test email internal error", route: testEmail, expect: expectTestEmail, err: assert.AnError, wantCode: http.StatusInternalServerError},

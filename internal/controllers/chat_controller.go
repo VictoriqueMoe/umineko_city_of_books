@@ -2,11 +2,8 @@ package controllers
 
 import (
 	"errors"
-	"io"
 	"mime/multipart"
 	"net/url"
-	"strconv"
-	"strings"
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/chat"
@@ -161,7 +158,7 @@ func messageSendError(ctx fiber.Ctx, err error) error {
 	if errors.Is(err, chat.ErrLockedNonStaffDM) {
 		return utils.Forbidden(ctx, "your account is locked and can only message site staff")
 	}
-	if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) || errors.Is(err, upload.ErrInvalidVideoType) {
+	if utils.IsUploadRejection(err) {
 		return utils.BadRequest(ctx, err.Error())
 	}
 	return utils.InternalError(ctx, "failed to send message")
@@ -193,16 +190,16 @@ func (s *Service) sendFirstDM(ctx fiber.Ctx) error {
 		return utils.BadRequest(ctx, "invalid form data")
 	}
 
-	spoilers, ok := parseSpoilerIndexes(form)
+	spoilers, ok := utils.SpoilerIndexes(form)
 	if !ok {
 		return utils.BadRequest(ctx, "invalid spoiler_indexes")
 	}
 
 	req := dto.SendDMRequest{
-		Body:        formValue(form, "body"),
-		ClientNonce: formValue(form, "client_nonce"),
+		Body:        utils.FormValue(form, "body"),
+		ClientNonce: utils.FormValue(form, "client_nonce"),
 	}
-	files := collectChatFileUploads(form, spoilers)
+	files := utils.FormFiles(form, utils.MediaField, spoilers)
 
 	resp, err := s.ChatService.SendDMMessage(ctx.Context(), userID, recipientID, req, files)
 	if errors.Is(err, chat.ErrDmsDisabled) || errors.Is(err, chat.ErrUserNotFound) || errors.Is(err, chat.ErrCannotDMSelf) {
@@ -319,17 +316,17 @@ func (s *Service) sendMessage(ctx fiber.Ctx) error {
 		return utils.BadRequest(ctx, "invalid reply_to_id")
 	}
 
-	spoilers, ok := parseSpoilerIndexes(form)
+	spoilers, ok := utils.SpoilerIndexes(form)
 	if !ok {
 		return utils.BadRequest(ctx, "invalid spoiler_indexes")
 	}
 
 	req := dto.SendMessageRequest{
-		Body:        formValue(form, "body"),
+		Body:        utils.FormValue(form, "body"),
 		ReplyToID:   replyToID,
-		ClientNonce: formValue(form, "client_nonce"),
+		ClientNonce: utils.FormValue(form, "client_nonce"),
 	}
-	files := collectChatFileUploads(form, spoilers)
+	files := utils.FormFiles(form, utils.MediaField, spoilers)
 
 	resp, err := s.ChatService.SendMessage(ctx.Context(), userID, roomID, req, files)
 	if err != nil {
@@ -1147,79 +1144,16 @@ func (s *Service) removeReaction(ctx fiber.Ctx) error {
 	return utils.OK(ctx)
 }
 
-func collectChatFileUploads(form *multipart.Form, spoilers map[int]struct{}) []chat.FileUpload {
-	if form == nil {
-		return nil
-	}
-
-	headers := form.File["media"]
-	if len(headers) == 0 {
-		return nil
-	}
-
-	uploads := make([]chat.FileUpload, 0, len(headers))
-	for i, h := range headers {
-		_, isSpoiler := spoilers[i]
-
-		uploads = append(uploads, chat.FileUpload{
-			ContentType: h.Header.Get("Content-Type"),
-			Filename:    h.Filename,
-			Size:        h.Size,
-			IsSpoiler:   isSpoiler,
-			Open: func() (io.ReadCloser, error) {
-				return h.Open()
-			},
-		})
-	}
-
-	return uploads
-}
-
-func parseSpoilerIndexes(form *multipart.Form) (map[int]struct{}, bool) {
-	if form == nil {
-		return nil, true
-	}
-
-	values := form.Value["spoiler_indexes"]
-	if len(values) == 0 || values[0] == "" {
-		return nil, true
-	}
-
-	indexes := make(map[int]struct{})
-	for token := range strings.SplitSeq(values[0], ",") {
-		i, err := strconv.Atoi(strings.TrimSpace(token))
-		if err != nil || i < 0 {
-			return nil, false
-		}
-
-		indexes[i] = struct{}{}
-	}
-
-	return indexes, true
-}
-
 func parseReplyToID(form *multipart.Form) (*uuid.UUID, bool) {
-	if form == nil {
+	raw := utils.FormValue(form, "reply_to_id")
+	if raw == "" {
 		return nil, true
 	}
-	values := form.Value["reply_to_id"]
-	if len(values) == 0 || values[0] == "" {
-		return nil, true
-	}
-	id, err := uuid.Parse(values[0])
+
+	id, err := uuid.Parse(raw)
 	if err != nil {
 		return nil, false
 	}
-	return &id, true
-}
 
-func formValue(form *multipart.Form, key string) string {
-	if form == nil {
-		return ""
-	}
-	values := form.Value[key]
-	if len(values) == 0 {
-		return ""
-	}
-	return values[0]
+	return &id, true
 }

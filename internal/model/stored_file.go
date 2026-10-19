@@ -13,5 +13,6 @@ type (
 		Location  string
 		Size      int64
 		CreatedAt time.Time
+		Fallback  bool
 	}
 )

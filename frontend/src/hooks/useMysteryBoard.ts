@@ -61,9 +61,7 @@ const NO_ATTEMPTS: MysteryAttempt[] = [];
 
 const NO_IDS: ReadonlySet<string> = new Set();
 
-export type MysteryCommentHandlers = CommentHandlers<
-    "create" | "update" | "delete" | "like" | "unlike" | "uploadMedia"
->;
+export type MysteryCommentHandlers = CommentHandlers<"create" | "update" | "delete" | "like" | "unlike">;
 
 export interface MysteryBoard {
     mystery: MysteryDetail | null;
@@ -150,7 +148,7 @@ export function useMysteryBoard(mysteryId: string): MysteryBoard {
     const deleteMediaMutation = useDeleteMysteryMedia(mysteryId);
 
     const comments = useCommentHandlers("mystery", mysteryId, {
-        enabled: ["create", "update", "delete", "like", "unlike", "uploadMedia"],
+        enabled: ["create", "update", "delete", "like", "unlike"],
     });
 
     const [attemptBody, setAttemptBody] = useState("");

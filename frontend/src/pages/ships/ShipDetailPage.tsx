@@ -69,11 +69,9 @@ export function ShipDetailPage() {
     const voteShipMutation = useVoteShip(ship?.id ?? "");
     const deleteShipMutation = useDeleteShip();
     const updateShipMutation = useUpdateShip(ship?.id ?? "");
-    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn, uploadMediaFn } = useCommentHandlers(
-        "ship",
-        ship?.id ?? "",
-        { enabled: ["create", "update", "delete", "like", "unlike", "uploadMedia"] },
-    );
+    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn } = useCommentHandlers("ship", ship?.id ?? "", {
+        enabled: ["create", "update", "delete", "like", "unlike"],
+    });
 
     const fetchShip = () => {
         refresh();
@@ -317,7 +315,6 @@ export function ShipDetailPage() {
                 deleteFn={deleteFn}
                 updateFn={updateFn}
                 createCommentFn={createCommentFn}
-                uploadMediaFn={uploadMediaFn}
             />
 
             {lightboxOpen && (ship.image_url || ship.thumbnail_url) && (

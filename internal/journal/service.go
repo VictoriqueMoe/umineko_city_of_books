@@ -13,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dao"
@@ -30,7 +31,6 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
-	"umineko_city_of_books/internal/utils"
 
 	"github.com/google/uuid"
 )
@@ -50,17 +50,12 @@ type (
 		DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		SetJournalPaused(ctx context.Context, id uuid.UUID, userID uuid.UUID, paused bool) error
 
-		CreateEntry(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalEntryRequest) (uuid.UUID, int, error)
-		GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber int, viewerID uuid.UUID) (*dto.JournalEntryResponse, []dto.JournalCommentResponse, error)
+		CreateEntry(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalEntryRequest, files []upload.FileUpload) (uuid.UUID, int, error)
+		GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber int, viewerID uuid.UUID) (*dto.JournalEntryResponse, []dto.CommentResponse, error)
 		UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, req dto.UpdateJournalEntryRequest) error
 		DeleteEntry(ctx context.Context, entryID uuid.UUID, userID uuid.UUID) error
 
-		CreateComment(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, entryID *uuid.UUID, parentID *uuid.UUID, body string) (uuid.UUID, error)
-		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error
-		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		LikeComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		UnlikeComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
+		CreateComment(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalCommentRequest, files []upload.FileUpload) (uuid.UUID, error)
 		UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
 		DeleteEntryMedia(ctx context.Context, entryID uuid.UUID, mediaID int64, userID uuid.UUID) error
 
@@ -78,9 +73,10 @@ type (
 		blockSvc      block.Service
 		notifService  notification.Service
 		mentionSvc    mention.Service
+		commentSvc    comment.Service
 		settingsSvc   settings.Service
 		uploadSvc     upload.Service
-		uploader      *media.Uploader
+		uploader      upload.MediaRecorder
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
 		echoCache     homefeed.Service
@@ -96,6 +92,7 @@ func NewService(
 	blockSvc block.Service,
 	notifService notification.Service,
 	mentionSvc mention.Service,
+	commentSvc comment.Service,
 	uploadSvc upload.Service,
 	mediaProc *media.Processor,
 	settingsSvc settings.Service,
@@ -112,6 +109,7 @@ func NewService(
 		blockSvc:      blockSvc,
 		notifService:  notifService,
 		mentionSvc:    mentionSvc,
+		commentSvc:    commentSvc,
 		settingsSvc:   settingsSvc,
 		uploadSvc:     uploadSvc,
 		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
@@ -243,41 +241,10 @@ func (s *service) GetJournalDetail(ctx context.Context, id uuid.UUID, viewerID u
 		return nil, err
 	}
 
-	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	comments, err := s.commentSvc.Thread(ctx, spec.CommentTarget{Kind: spec.CommentKindJournal, ID: id}, viewerID)
 	if err != nil {
-		return nil, fmt.Errorf("blocked users: %w", err)
+		return nil, fmt.Errorf("journal comments: %w", err)
 	}
-
-	commentRows, _, err := s.repo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
-		TargetID:       id,
-		ViewerID:       viewerID,
-		Limit:          500,
-		Offset:         0,
-		ExcludeUserIDs: blockedIDs,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	commentIDs := make([]uuid.UUID, len(commentRows))
-	for i, c := range commentRows {
-		commentIDs[i] = c.ID
-	}
-	mediaMap, err := s.repo.GetCommentMediaBatch(ctx, commentIDs)
-	if err != nil {
-		return nil, fmt.Errorf("comment media: %w", err)
-	}
-
-	flatComments := make([]dto.JournalCommentResponse, len(commentRows))
-	for i, c := range commentRows {
-		flatComments[i] = model.JournalCommentToDTO(c, mediaMap[c.ID], journal.Author.ID)
-	}
-
-	tree := utils.BuildTree(flatComments,
-		func(c dto.JournalCommentResponse) uuid.UUID { return c.ID },
-		func(c dto.JournalCommentResponse) *uuid.UUID { return c.ParentID },
-		func(c *dto.JournalCommentResponse, replies []dto.JournalCommentResponse) { c.Replies = replies },
-	)
 
 	entryRows, err := s.repo.ListEntries(ctx, id)
 	if err != nil {
@@ -314,7 +281,7 @@ func (s *service) GetJournalDetail(ctx context.Context, id uuid.UUID, viewerID u
 		JournalResponse: *journal,
 		Entries:         entries,
 		LatestEntry:     latestEntry,
-		Comments:        tree,
+		Comments:        comments,
 	}, nil
 }
 
@@ -502,9 +469,9 @@ func (s *service) SetJournalPaused(ctx context.Context, id uuid.UUID, userID uui
 	return s.repo.SetPaused(ctx, spec.JournalPause{ID: id, UserID: userID, Paused: paused})
 }
 
-func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalEntryRequest) (uuid.UUID, int, error) {
+func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalEntryRequest, files []upload.FileUpload) (uuid.UUID, int, error) {
 	body := strings.TrimSpace(req.Body)
-	if body == "" {
+	if body == "" && len(files) == 0 {
 		return uuid.Nil, 0, ErrEmptyBody
 	}
 	titleTrim := strings.TrimSpace(req.Title)
@@ -525,6 +492,11 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 		return uuid.Nil, 0, ErrNotAuthor
 	}
 
+	validated, err := upload.ValidateMedia(ctx, s.settingsSvc, files)
+	if err != nil {
+		return uuid.Nil, 0, err
+	}
+
 	nextNumber, err := s.repo.GetNextEntryNumber(ctx, journalID)
 	if err != nil {
 		return uuid.Nil, 0, err
@@ -535,16 +507,25 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 		titlePtr = &titleTrim
 	}
 
+	hasMedia := len(files) > 0
+
 	created, err := s.repo.CreateEntry(ctx, spec.NewJournalEntry{
-		JournalID:   journalID,
-		EntryNumber: nextNumber,
-		Title:       titlePtr,
-		Body:        body,
-		WordCount:   countWords(body),
-		IsDraft:     req.IsDraft,
+		JournalID:            journalID,
+		EntryNumber:          nextNumber,
+		Title:                titlePtr,
+		Body:                 body,
+		WordCount:            countWords(body),
+		IsDraft:              req.IsDraft,
+		RecordAuthorActivity: !hasMedia,
 	})
 	if err != nil {
 		return uuid.Nil, 0, err
+	}
+
+	if hasMedia {
+		if err := s.attachEntryMedia(ctx, validated, journalID, created.ID); err != nil {
+			return uuid.Nil, 0, err
+		}
 	}
 
 	if asAdmin {
@@ -567,6 +548,29 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 	}
 
 	return created.ID, nextNumber, nil
+}
+
+func (s *service) attachEntryMedia(ctx context.Context, validated upload.ValidatedMedia, journalID uuid.UUID, entryID uuid.UUID) error {
+	if err := validated.SaveToEntity(ctx, s.uploader, s.uploadSvc, "journals", s.repo, entryID); err != nil {
+		return errors.Join(err, s.rollbackEntry(ctx, entryID))
+	}
+
+	if err := s.repo.UpdateLastAuthorActivity(ctx, journalID); err != nil {
+		return errors.Join(fmt.Errorf("record journal author activity: %w", err), s.rollbackEntry(ctx, entryID))
+	}
+
+	return nil
+}
+
+func (s *service) rollbackEntry(ctx context.Context, entryID uuid.UUID) error {
+	paths, err := s.repo.DeleteEntryWithMedia(context.WithoutCancel(ctx), entryID)
+	if err != nil {
+		return fmt.Errorf("roll back journal entry %s: %w", entryID, err)
+	}
+
+	s.uploadSvc.Delete(paths...)
+
+	return nil
 }
 
 func (s *service) notifyEntryMentions(ctx context.Context, journalID uuid.UUID, entryNumber int, authorID uuid.UUID, body string) {
@@ -639,7 +643,7 @@ func (s *service) notifyEntryPublished(journalID uuid.UUID, entryNumber int, aut
 	s.notifService.NotifyMany(bgCtx, notifyParams)
 }
 
-func (s *service) GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber int, viewerID uuid.UUID) (*dto.JournalEntryResponse, []dto.JournalCommentResponse, error) {
+func (s *service) GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber int, viewerID uuid.UUID) (*dto.JournalEntryResponse, []dto.CommentResponse, error) {
 	entry, err := s.repo.GetEntry(ctx, spec.JournalEntryLookup{
 		JournalID:   journalID,
 		EntryNumber: entryNumber,
@@ -663,48 +667,18 @@ func (s *service) GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber
 		return nil, nil, ErrEntryNotFound
 	}
 
-	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	target := spec.CommentTarget{Kind: spec.CommentKindJournalEntry, ID: journalID, EntryNumber: entryNumber}
+	comments, err := s.commentSvc.Thread(ctx, target, viewerID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("blocked users: %w", err)
+		return nil, nil, fmt.Errorf("journal entry comments: %w", err)
 	}
-
-	commentRows, _, err := s.repo.GetEntryComments(ctx, spec.CommentQuery[uuid.UUID]{
-		TargetID:       entry.ID,
-		ViewerID:       viewerID,
-		Limit:          500,
-		Offset:         0,
-		ExcludeUserIDs: blockedIDs,
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	commentIDs := make([]uuid.UUID, len(commentRows))
-	for i, c := range commentRows {
-		commentIDs[i] = c.ID
-	}
-	mediaMap, err := s.repo.GetCommentMediaBatch(ctx, commentIDs)
-	if err != nil {
-		return nil, nil, fmt.Errorf("comment media: %w", err)
-	}
-
-	flatComments := make([]dto.JournalCommentResponse, len(commentRows))
-	for i, c := range commentRows {
-		flatComments[i] = model.JournalCommentToDTO(c, mediaMap[c.ID], authorID)
-	}
-
-	tree := utils.BuildTree(flatComments,
-		func(c dto.JournalCommentResponse) uuid.UUID { return c.ID },
-		func(c dto.JournalCommentResponse) *uuid.UUID { return c.ParentID },
-		func(c *dto.JournalCommentResponse, replies []dto.JournalCommentResponse) { c.Replies = replies },
-	)
 
 	entryMediaMap, err := s.repo.GetMediaBatch(ctx, []uuid.UUID{entry.ID})
 	if err != nil {
 		return nil, nil, fmt.Errorf("entry media: %w", err)
 	}
 
-	return new(model.JournalEntryToDTO(entry, entryMediaMap[entry.ID])), tree, nil
+	return new(model.JournalEntryToDTO(entry, entryMediaMap[entry.ID])), comments, nil
 }
 
 func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, req dto.UpdateJournalEntryRequest) error {
@@ -814,15 +788,7 @@ func (s *service) DeleteEntry(ctx context.Context, entryID uuid.UUID, userID uui
 	return nil
 }
 
-func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, entryID *uuid.UUID, parentID *uuid.UUID, body string) (uuid.UUID, error) {
-	body = strings.TrimSpace(body)
-	if body == "" {
-		return uuid.Nil, ErrEmptyBody
-	}
-	if err := s.contentFilter.Check(ctx, body); err != nil {
-		return uuid.Nil, err
-	}
-
+func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
 	authorID, err := s.repo.GetAuthorID(ctx, journalID)
 	if errors.Is(err, dao.ErrNotFound) {
 		return uuid.Nil, ErrNotFound
@@ -839,308 +805,83 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 		return uuid.Nil, ErrArchived
 	}
 
-	if entryID != nil {
-		entryJournalID, err := s.repo.GetEntryJournalID(ctx, *entryID)
-		if errors.Is(err, dao.ErrNotFound) {
-			return uuid.Nil, ErrEntryNotFound
-		}
-		if err != nil {
-			return uuid.Nil, err
-		}
-		if entryJournalID != journalID {
-			return uuid.Nil, ErrEntryMismatch
-		}
-	}
-
-	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("block check: %w", err)
-	}
-	if blocked {
-		return uuid.Nil, block.ErrUserBlocked
-	}
-
-	var entryNumber *int
-	if entryID != nil {
-		entry, err := s.repo.GetEntryByID(ctx, *entryID)
+	target := spec.CommentTarget{Kind: spec.CommentKindJournal, ID: journalID}
+	if req.EntryID != nil {
+		entry, err := s.repo.GetEntryByID(ctx, *req.EntryID)
 		if err != nil {
 			return uuid.Nil, fmt.Errorf("comment entry: %w", err)
 		}
-		if entry != nil {
-			entryNumber = new(entry.EntryNumber)
+		if entry == nil {
+			return uuid.Nil, ErrEntryNotFound
 		}
+		if entry.JournalID != journalID {
+			return uuid.Nil, ErrEntryMismatch
+		}
+
+		target.Kind = spec.CommentKindJournalEntry
+		target.EntryNumber = entry.EntryNumber
 	}
 
-	isAuthorComment := userID == authorID
-
-	commentSpec := mention.CommentSpec{
-		Kind:                 mention.KindJournalComment,
-		EntityID:             journalID,
-		EntryID:              entryID,
-		ParentID:             parentID,
-		AuthorID:             userID,
-		Body:                 body,
-		RecordAuthorActivity: isAuthorComment,
-	}
-	if entryNumber != nil {
-		commentSpec.Kind = mention.KindJournalEntryComment
-		commentSpec.EntryNumber = *entryNumber
-	}
-
-	commentID, err := s.mentionSvc.CreateComment(ctx, commentSpec)
+	commentID, err := s.commentSvc.Create(ctx, target, userID, dto.CreateCommentRequest{ParentID: req.ParentID, Body: req.Body}, files)
 	if err != nil {
 		return uuid.Nil, err
 	}
 
-	refType := journalCommentRefType(entryNumber, commentID)
+	if userID != authorID {
+		return commentID, nil
+	}
 
-	go func() {
-		bgCtx := context.Background()
-		title, err := s.repo.GetTitle(bgCtx, journalID)
-		if err != nil {
-			logger.Ctx(bgCtx).Warn().Err(err).Str("journal_id", journalID.String()).Msg("comment notifications skipped, title lookup failed")
-			return
-		}
-		linkURL := commentLinkURL("", journalID, entryNumber, commentID)
-		actor := s.actorName(bgCtx, userID)
-
-		if isAuthorComment {
-			followerIDs, err := s.eligibleFollowerIDs(bgCtx, journalID, userID)
-			if err != nil {
-				logger.Ctx(bgCtx).Error().Err(err).Msg("get follower ids failed")
-				return
-			}
-
-			notifyParams := make([]dto.NotifyParams, 0, len(followerIDs))
-			for _, followerID := range followerIDs {
-				notifyParams = append(notifyParams, dto.NotifyParams{
-					RecipientID:   followerID,
-					Type:          dto.NotifJournalUpdate,
-					ReferenceID:   journalID,
-					ReferenceType: refType,
-					ActorID:       userID,
-					EmailActor:    actor,
-					EmailAction:   "posted a new update on",
-					EmailTitle:    title,
-					EmailLink:     linkURL,
-				})
-			}
-			s.notifService.NotifyMany(bgCtx, notifyParams)
-		} else {
-			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
-				RecipientID:   authorID,
-				Type:          dto.NotifJournalCommented,
-				ReferenceID:   journalID,
-				ReferenceType: refType,
-				ActorID:       userID,
-				EmailActor:    actor,
-				EmailAction:   "commented on your journal",
-				EmailTitle:    title,
-				EmailLink:     linkURL,
-			})
+	if err := s.repo.UpdateLastAuthorActivity(ctx, journalID); err != nil {
+		activityErr := fmt.Errorf("record journal author activity: %w", err)
+		ref := spec.CommentRef{Kind: target.Kind, CommentID: commentID}
+		if deleteErr := s.commentSvc.Delete(context.WithoutCancel(ctx), ref, userID); deleteErr != nil {
+			return uuid.Nil, errors.Join(activityErr, fmt.Errorf("roll back comment %s: %w", commentID, deleteErr))
 		}
 
-		if parentID != nil {
-			parentAuthor, err := s.repo.GetCommentAuthorID(bgCtx, *parentID)
-			if err != nil {
-				logger.Ctx(bgCtx).Warn().Err(err).Str("journal_id", journalID.String()).Msg("reply notification skipped, parent author lookup failed")
-				return
-			}
-			if parentAuthor != userID {
-				_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
-					RecipientID:   parentAuthor,
-					Type:          dto.NotifJournalCommentReply,
-					ReferenceID:   journalID,
-					ReferenceType: refType,
-					ActorID:       userID,
-					EmailActor:    actor,
-					EmailAction:   "replied to your comment",
-					EmailTitle:    title,
-					EmailLink:     linkURL,
-				})
-			}
-		}
-	}()
+		return uuid.Nil, activityErr
+	}
+
+	go s.notifyAuthorComment(context.WithoutCancel(ctx), target, commentID, userID)
 
 	return commentID, nil
 }
 
-func journalCommentRefType(entryNumber *int, commentID uuid.UUID) string {
-	if entryNumber != nil {
-		return fmt.Sprintf("journal_entry_comment:%d:%s", *entryNumber, commentID)
-	}
-	return fmt.Sprintf("journal_comment:%s", commentID)
-}
-
-func commentLinkURL(baseURL string, journalID uuid.UUID, entryNumber *int, commentID uuid.UUID) string {
-	if entryNumber != nil {
-		return fmt.Sprintf("%s/journals/%s/entry/%d#comment-%s", baseURL, journalID, *entryNumber, commentID)
-	}
-	return fmt.Sprintf("%s/journals/%s#comment-%s", baseURL, journalID, commentID)
-}
-
-func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error {
-	body = strings.TrimSpace(body)
-	if body == "" {
-		return ErrEmptyBody
-	}
-	if err := s.contentFilter.Check(ctx, body); err != nil {
-		return err
-	}
-
-	authorID, err := s.repo.GetCommentAuthorID(ctx, id)
-	if errors.Is(err, dao.ErrNotFound) {
-		return ErrNotFound
-	}
+func (s *service) notifyAuthorComment(ctx context.Context, target spec.CommentTarget, commentID uuid.UUID, authorID uuid.UUID) {
+	title, err := s.repo.GetTitle(ctx, target.ID)
 	if err != nil {
-		return err
+		logger.Ctx(ctx).Warn().Err(err).Str("journal_id", target.ID.String()).Msg("journal update notifications skipped, title lookup failed")
+		return
 	}
 
-	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermEditAnyComment)
-
-	if err := s.repo.UpdateComment(ctx, spec.CommentUpdate{
-		CommentID: id,
-		UserID:    userID,
-		Body:      body,
-		AsAdmin:   asAdmin,
-	}); err != nil {
-		return err
-	}
-
-	if asAdmin {
-		s.writeAudit(ctx, audit.NewEntry{
-			ActorID:    userID,
-			Action:     audit.ActionJournalCommentUpdateAdmin,
-			TargetType: audit.TargetJournalComment,
-			TargetID:   id.String(),
-			SubjectID:  authorID,
-		})
-	}
-
-	return nil
-}
-
-func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	authorID, err := s.repo.GetCommentAuthorID(ctx, id)
-	if errors.Is(err, dao.ErrNotFound) {
-		return ErrNotFound
-	}
+	followerIDs, err := s.eligibleFollowerIDs(ctx, target.ID, authorID)
 	if err != nil {
-		return err
+		logger.Ctx(ctx).Error().Err(err).Str("journal_id", target.ID.String()).Msg("get follower ids failed on author comment")
+		return
 	}
 
-	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
-
-	paths, err := s.repo.DeleteCommentWithAudit(ctx, spec.CommentDeletion{
-		CommentID: id,
-		UserID:    userID,
-		AsAdmin:   asAdmin,
-	})
-	if err != nil {
-		return err
+	refType := fmt.Sprintf("journal_comment:%s", commentID)
+	link := fmt.Sprintf("/journals/%s#comment-%s", target.ID, commentID)
+	if target.Kind == spec.CommentKindJournalEntry {
+		refType = fmt.Sprintf("journal_entry_comment:%d:%s", target.EntryNumber, commentID)
+		link = fmt.Sprintf("/journals/%s/entry/%d#comment-%s", target.ID, target.EntryNumber, commentID)
 	}
 
-	s.uploadSvc.Delete(paths...)
-
-	return nil
-}
-
-func (s *service) LikeComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	commentAuthorID, err := s.repo.GetCommentAuthorID(ctx, id)
-	if errors.Is(err, dao.ErrNotFound) {
-		return ErrNotFound
-	}
-	if err != nil {
-		return err
-	}
-
-	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID)
-	if err != nil {
-		return fmt.Errorf("block check: %w", err)
-	}
-	if blocked {
-		return block.ErrUserBlocked
-	}
-	if err := s.repo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: id}); err != nil {
-		return err
-	}
-
-	if commentAuthorID == userID {
-		return nil
-	}
-
-	go func() {
-		bgCtx := context.Background()
-		journalID, err := s.repo.GetCommentEntityID(bgCtx, id)
-		if err != nil {
-			logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", id.String()).Msg("comment like notification skipped, journal lookup failed")
-			return
-		}
-		entryNumber, err := s.repo.GetCommentEntryNumber(bgCtx, id)
-		if err != nil {
-			logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", id.String()).Msg("comment like notification skipped, entry lookup failed")
-			return
-		}
-		title, err := s.repo.GetTitle(bgCtx, journalID)
-		if err != nil {
-			logger.Ctx(bgCtx).Warn().Err(err).Str("journal_id", journalID.String()).Msg("comment like notification skipped, title lookup failed")
-			return
-		}
-		linkURL := commentLinkURL("", journalID, entryNumber, id)
-		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
-			RecipientID:   commentAuthorID,
-			Type:          dto.NotifJournalCommentLiked,
-			ReferenceID:   journalID,
-			ReferenceType: journalCommentRefType(entryNumber, id),
-			ActorID:       userID,
-			EmailActor:    s.actorName(bgCtx, userID),
-			EmailAction:   "liked your comment",
+	actor := s.actorName(ctx, authorID)
+	notifyParams := make([]dto.NotifyParams, 0, len(followerIDs))
+	for _, followerID := range followerIDs {
+		notifyParams = append(notifyParams, dto.NotifyParams{
+			RecipientID:   followerID,
+			Type:          dto.NotifJournalUpdate,
+			ReferenceID:   target.ID,
+			ReferenceType: refType,
+			ActorID:       authorID,
+			EmailActor:    actor,
+			EmailAction:   "posted a new update on",
 			EmailTitle:    title,
-			EmailLink:     linkURL,
+			EmailLink:     link,
 		})
-	}()
-
-	return nil
-}
-
-func (s *service) UnlikeComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	return s.repo.UnlikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: id})
-}
-
-func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
-	authorID, err := s.repo.GetCommentAuthorID(ctx, commentID)
-	if errors.Is(err, dao.ErrNotFound) {
-		return nil, ErrNotFound
 	}
-	if err != nil {
-		return nil, err
-	}
-	if authorID != userID {
-		return nil, ErrNotAuthor
-	}
-
-	return s.uploader.SaveAndRecord(
-		ctx,
-		"journals",
-		contentType,
-		filename,
-		fileSize,
-		reader,
-		isSpoiler,
-		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-			return s.repo.AddCommentMedia(ctx, spec.NewMedia{
-				TargetID:     commentID,
-				MediaURL:     mediaURL,
-				MediaType:    mediaType,
-				ThumbnailURL: thumbURL,
-				Filename:     filename,
-				SortOrder:    sortOrder,
-				IsSpoiler:    isSpoiler,
-			})
-		},
-		s.repo.UpdateCommentMediaURL,
-		s.repo.UpdateCommentMediaThumbnail,
-	)
+	s.notifService.NotifyMany(ctx, notifyParams)
 }
 
 func (s *service) UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {

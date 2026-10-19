@@ -9,10 +9,10 @@ SELECT media_url FROM {{.Table}} WHERE id = $1 AND {{.FK}} = $2;
 -- name: Delete{{.Entity}}MediaRow :exec
 DELETE FROM {{.Table}} WHERE id = $1 AND {{.FK}} = $2;
 
--- name: Update{{.Entity}}MediaURL :exec
+-- name: Update{{.Entity}}MediaURL :execrows
 UPDATE {{.Table}} SET media_url = $1 WHERE id = $2;
 
--- name: Update{{.Entity}}MediaThumbnail :exec
+-- name: Update{{.Entity}}MediaThumbnail :execrows
 UPDATE {{.Table}} SET thumbnail_url = $1 WHERE id = $2;
 
 -- name: Get{{.Entity}}Media :many

@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
-import { useCreateComment, useUploadCommentMedia } from "../../../hooks/mutations/post";
+import { useCreateComment } from "../../../hooks/mutations/post";
+import type { CreateCommentHandler } from "../../../hooks/useCommentHandlers";
 import { useResetOnChange } from "../../../hooks/useResetOnChange";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
@@ -10,18 +11,14 @@ import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker"
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import styles from "./CommentComposer.module.css";
 
-type CreateCommentFn = (postId: string, body: string, parentId?: string) => Promise<{ id: string }>;
-type UploadMediaFn = (commentId: string, file: File, isSpoiler: boolean) => Promise<unknown>;
-
 interface CommentComposerProps {
     postId: string;
     parentId?: string;
     onCreated: () => void;
-    createCommentFn?: CreateCommentFn;
-    uploadMediaFn?: UploadMediaFn;
+    createCommentFn?: CreateCommentHandler;
 }
 
-export function CommentComposer({ postId, parentId, onCreated, createCommentFn, uploadMediaFn }: CommentComposerProps) {
+export function CommentComposer({ postId, parentId, onCreated, createCommentFn }: CommentComposerProps) {
     const siteInfo = useSiteInfo();
     const [body, setBody] = useState("");
     const media = useStagedMedia();
@@ -39,11 +36,8 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
     });
 
     const createCommentMutation = useCreateComment(postId);
-    const uploadMediaMutation = useUploadCommentMedia(postId);
-    const defaultCreate: CreateCommentFn = (_postId, b, parent) =>
-        createCommentMutation.mutateAsync({ body: b, parentId: parent });
-    const defaultUpload: UploadMediaFn = (commentId, file, isSpoiler) =>
-        uploadMediaMutation.mutateAsync({ commentId, file, isSpoiler });
+    const defaultCreate: CreateCommentHandler = (_postId, b, parent, staged) =>
+        createCommentMutation.mutateAsync({ body: b, parentId: parent, media: staged });
 
     const handlePasteFiles = useCallback(
         (pasted: File[]) => {
@@ -98,19 +92,10 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
         setError("");
         try {
             const doCreate = createCommentFn || defaultCreate;
-            const doUpload = uploadMediaFn || defaultUpload;
-            const { id } = await doCreate(postId, body.trim(), parentId);
-            const failedFiles: File[] = [];
-            for (const item of media.staged) {
-                try {
-                    await doUpload(id, item.file, item.isSpoiler);
-                } catch (err) {
-                    setError(err instanceof Error ? err.message : "Failed to upload media");
-                    failedFiles.push(item.file);
-                }
-            }
+            await doCreate(postId, body.trim(), parentId, media.staged);
+
             setBody("");
-            media.keepOnly(failedFiles);
+            media.reset();
             onCreated();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to post comment");

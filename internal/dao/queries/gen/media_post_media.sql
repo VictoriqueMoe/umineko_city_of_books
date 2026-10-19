@@ -9,10 +9,10 @@ SELECT media_url FROM post_media WHERE id = $1 AND post_id = $2;
 -- name: DeletePostMediaRow :exec
 DELETE FROM post_media WHERE id = $1 AND post_id = $2;
 
--- name: UpdatePostMediaURL :exec
+-- name: UpdatePostMediaURL :execrows
 UPDATE post_media SET media_url = $1 WHERE id = $2;
 
--- name: UpdatePostMediaThumbnail :exec
+-- name: UpdatePostMediaThumbnail :execrows
 UPDATE post_media SET thumbnail_url = $1 WHERE id = $2;
 
 -- name: GetPostMedia :many

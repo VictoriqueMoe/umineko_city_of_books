@@ -300,7 +300,7 @@ describe("MessageBubble", () => {
         const quoted = makeChatMessage({ id: "m0", body: "the earlier statement" });
         const reply = makeChatMessage({
             id: "m1",
-            reply_to: { id: "m0", sender_id: "u2", sender_name: "Battler", body_preview: "an earlier claim" },
+            reply_to: { id: "m0", sender_id: "u2", sender_name: "Battler", body: "an earlier claim" },
         });
 
         // when
@@ -320,6 +320,26 @@ describe("MessageBubble", () => {
 
         // then
         expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+    });
+
+    it("keeps a spoiler in the quoted message hidden and renders its formatting", () => {
+        // given
+        const reply = makeChatMessage({
+            id: "m1",
+            reply_to: {
+                id: "m0",
+                sender_id: "u2",
+                sender_name: "Battler",
+                body: "||Does that mean [purple]Lambdadelta[/purple] is jealous?||",
+            },
+        });
+
+        // when
+        renderWithProviders(<MessageBubble message={reply} isOwn={false} />);
+
+        // then
+        expect(screen.getByTitle("Hover to reveal")).toHaveTextContent("Does that mean Lambdadelta is jealous?");
+        expect(screen.queryByText(/\|\||\[purple\]/)).not.toBeInTheDocument();
     });
 
     it("renders uncovered image and video attachments and opens the lightbox for an image", async () => {

@@ -6,7 +6,6 @@ import * as comments from "../../api/endpoints/comments";
 import { ApiError } from "../../api/client";
 import { queryKeys } from "../../api/queryKeys";
 import {
-    type CreatedPost,
     useCreateComment,
     useCreatePost,
     useDeleteComment,
@@ -20,7 +19,6 @@ import {
     useUnresolveSuggestion,
     useUpdateComment,
     useUpdatePost,
-    useUploadCommentMedia,
     useUploadPostMedia,
     useVotePoll,
 } from "./post";
@@ -44,7 +42,6 @@ vi.mock("../../api/endpoints/comments", () => ({
     likeComment: vi.fn(),
     unlikeComment: vi.fn(),
     updateComment: vi.fn(),
-    uploadCommentMedia: vi.fn(),
 }));
 
 interface MutationCase {
@@ -91,7 +88,7 @@ describe("post mutations", () => {
                 sharedContentType: "art",
             },
             endpoint: vi.mocked(endpoints.createPost),
-            args: ["Without love it cannot be seen", "theories", undefined, "art-3", "art"],
+            args: ["Without love it cannot be seen", "theories", undefined, "art-3", "art", undefined],
             invalidations: postViews,
         },
         {
@@ -163,7 +160,15 @@ describe("post mutations", () => {
             useHook: () => useCreateComment(postId),
             variables: { body: "A fine catch", parentId: "c-parent" },
             endpoint: vi.mocked(comments.createComment),
-            args: [postId, "A fine catch", "c-parent"],
+            args: [postId, "A fine catch", "c-parent", undefined],
+            invalidations: postViews,
+        },
+        {
+            name: "useCreateComment sends the staged media in the same request",
+            useHook: () => useCreateComment(postId),
+            variables: { body: "", media: [{ file, isSpoiler: true }] },
+            endpoint: vi.mocked(comments.createComment),
+            args: [postId, "", undefined, [{ file, isSpoiler: true }]],
             invalidations: postViews,
         },
         {
@@ -196,14 +201,6 @@ describe("post mutations", () => {
             variables: "c-1",
             endpoint: vi.mocked(comments.unlikeComment),
             args: ["c-1"],
-            invalidations: detailOnly,
-        },
-        {
-            name: "useUploadCommentMedia attaches the file to the given comment and refreshes its post",
-            useHook: () => useUploadCommentMedia(postId),
-            variables: { commentId: "c-1", file },
-            endpoint: vi.mocked(comments.uploadCommentMedia),
-            args: ["c-1", file, false],
             invalidations: detailOnly,
         },
     ];
@@ -240,6 +237,7 @@ describe("useCreatePost", () => {
             undefined,
             undefined,
             undefined,
+            undefined,
         );
     });
 
@@ -254,7 +252,14 @@ describe("useCreatePost", () => {
         });
 
         // then
-        expect(endpoints.createPost).toHaveBeenCalledWith("Who is the culprit", "general", poll, undefined, undefined);
+        expect(endpoints.createPost).toHaveBeenCalledWith(
+            "Who is the culprit",
+            "general",
+            poll,
+            undefined,
+            undefined,
+            undefined,
+        );
     });
 
     it("hands the id of the freshly created post back to the caller", async () => {
@@ -263,60 +268,65 @@ describe("useCreatePost", () => {
         const { result } = setup(() => useCreatePost());
 
         // when
-        let created: CreatedPost | undefined;
+        let created: { id: string } | undefined;
         await act(async () => {
             created = await result.current.mutateAsync({ body: "A new letter" });
         });
 
         // then
-        expect(created).toEqual({ id: "p-new", failedUploads: [] });
+        expect(created).toEqual({ id: "p-new" });
     });
 
-    it("uploads each attachment to the new post in order with its spoiler flag", async () => {
+    it("sends every attachment in display order with its spoiler flag in the create request itself", async () => {
         // given
         const second = new File(["silver"], "epitaph.png", { type: "image/png" });
+        const media = [
+            { file, isSpoiler: true },
+            { file: second, isSpoiler: false },
+        ];
         const { result } = setup(() => useCreatePost());
 
         // when
         await act(async () => {
-            await result.current.mutateAsync({
-                body: "Look at these",
-                media: [
-                    { file, isSpoiler: true },
-                    { file: second, isSpoiler: false },
-                ],
-            });
+            await result.current.mutateAsync({ body: "Look at these", media });
         });
 
         // then
-        expect(endpoints.uploadPostMedia).toHaveBeenNthCalledWith(1, postId, file, true);
-        expect(endpoints.uploadPostMedia).toHaveBeenNthCalledWith(2, postId, second, false);
+        expect(endpoints.createPost).toHaveBeenCalledWith(
+            "Look at these",
+            "general",
+            undefined,
+            undefined,
+            undefined,
+            media,
+        );
+        expect(endpoints.uploadPostMedia).not.toHaveBeenCalled();
     });
 
-    it("refreshes the post lists once, only after every attachment is saved", async () => {
+    it("refreshes the post lists once, only after the post and its media are saved", async () => {
         // given
-        let finishUpload: () => void = () => {};
-        vi.mocked(endpoints.uploadPostMedia).mockImplementation(
+        let finishCreate: () => void = () => {};
+        vi.mocked(endpoints.createPost).mockImplementation(
             () =>
                 new Promise(resolve => {
-                    finishUpload = () => resolve({} as never);
+                    finishCreate = () => resolve({ id: postId });
                 }),
         );
         const { result, invalidate } = setup(() => useCreatePost());
 
-        // when the post exists but its image is still uploading
-        let pending: Promise<CreatedPost> = Promise.resolve({ id: "", failedUploads: [] });
+        // when the request carrying the image is still in flight
+        let pending: Promise<{ id: string }> = Promise.resolve({ id: "" });
         act(() => {
-            pending = result.current.mutateAsync({ body: "With an image", media: [{ file }] });
+            pending = result.current.mutateAsync({ body: "With an image", media: [{ file, isSpoiler: false }] });
         });
-        await waitFor(() => expect(endpoints.uploadPostMedia).toHaveBeenCalled());
+        await waitFor(() => expect(endpoints.createPost).toHaveBeenCalled());
 
         // then nothing has refreshed the feed yet
         expect(invalidate).not.toHaveBeenCalled();
 
-        // when the upload finishes
+        // when the request finishes
         await act(async () => {
-            finishUpload();
+            finishCreate();
             await pending;
         });
 
@@ -324,23 +334,19 @@ describe("useCreatePost", () => {
         expect(invalidate.mock.calls).toEqual(postViews.map(call => [call]));
     });
 
-    it("reports a failed attachment and still uploads the rest", async () => {
+    it("rejects the whole post when its media is refused", async () => {
         // given
-        const bad = new File(["lead"], "cursed.png", { type: "image/png" });
-        vi.mocked(endpoints.uploadPostMedia).mockImplementation((_id, upload) =>
-            upload === bad ? Promise.reject(new Error("the media room is sealed")) : Promise.resolve({} as never),
-        );
-        const { result } = setup(() => useCreatePost());
+        vi.mocked(endpoints.createPost).mockRejectedValue(new Error("the media room is sealed"));
+        const { result, invalidate } = setup(() => useCreatePost());
 
         // when
-        let created: CreatedPost | undefined;
-        await act(async () => {
-            created = await result.current.mutateAsync({ body: "Two images", media: [{ file: bad }, { file }] });
+        const attempt = act(async () => {
+            await result.current.mutateAsync({ body: "Two images", media: [{ file, isSpoiler: false }] });
         });
 
         // then
-        expect(endpoints.uploadPostMedia).toHaveBeenCalledTimes(2);
-        expect(created).toEqual({ id: postId, failedUploads: [{ file: bad, message: "the media room is sealed" }] });
+        await expect(attempt).rejects.toThrow("the media room is sealed");
+        expect(invalidate).not.toHaveBeenCalled();
     });
 
     it("leaves the feed cache alone when the post is rejected", async () => {
@@ -370,7 +376,7 @@ describe("useCreateComment", () => {
         });
 
         // then
-        expect(comments.createComment).toHaveBeenCalledWith(postId, "Top level", undefined);
+        expect(comments.createComment).toHaveBeenCalledWith(postId, "Top level", undefined, undefined);
     });
 });
 

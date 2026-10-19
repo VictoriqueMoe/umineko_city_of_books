@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { Notification, UserProfile } from "../../../types/api";
+import { invalidateReferencedViews } from "../../cache/invalidate";
 import { queryKeys } from "../../queryKeys";
 import { REALTIME_EVENTS } from "../events";
 import { useRealtimeEvent } from "../useRealtime";
@@ -20,6 +21,7 @@ export function useNotificationFeedSync({ viewer, showNotification, playSound }:
             count: (prev?.count ?? 0) + 1,
         }));
         qc.invalidateQueries({ queryKey: queryKeys.notifications.listAll() });
+        invalidateReferencedViews(qc, notif.reference_type);
         showNotification(notif);
 
         if (viewer?.private?.play_notification_sound ?? true) {

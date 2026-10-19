@@ -8,7 +8,6 @@ import {
     type SenderIdentity,
     type ThreadEntry,
 } from "../../../domain/chat/optimisticSend";
-import { replyPreview } from "../../../domain/chat/replyPreview";
 import { roomCapabilities } from "../../../domain/chat/roomPolicy";
 import { isSiteStaff } from "../../../domain/permissions";
 import type { ChatMessage, ChatRoom, UserProfile } from "../../../types/api";
@@ -101,7 +100,7 @@ function MessageListBase({
             onReply({
                 id: message.id,
                 senderName: message.sender.display_name,
-                bodyPreview: replyPreview(message.body),
+                body: message.body,
             });
         },
         [onReply],

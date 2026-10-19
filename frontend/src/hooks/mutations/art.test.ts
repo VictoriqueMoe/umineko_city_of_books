@@ -19,7 +19,6 @@ import {
     useUpdateArt,
     useUpdateArtComment,
     useUpdateGallery,
-    useUploadArtCommentMedia,
 } from "./art";
 
 const mocks = vi.hoisted(() => ({
@@ -41,7 +40,6 @@ const commentMocks = vi.hoisted(() => ({
     likeArtComment: vi.fn(),
     unlikeArtComment: vi.fn(),
     updateArtComment: vi.fn(),
-    uploadArtCommentMedia: vi.fn(),
 }));
 
 vi.mock("../../api/endpoints/art", () => mocks);
@@ -270,7 +268,7 @@ describe("art comment mutations", () => {
         const data = await runMutation(() => useCreateArtComment(artId), { body: "lovely" }, qc);
 
         // then
-        expect(commentMocks.createArtComment).toHaveBeenCalledWith(artId, "lovely", undefined);
+        expect(commentMocks.createArtComment).toHaveBeenCalledWith(artId, "lovely", undefined, undefined);
         expect(data).toEqual({ id: "c1" });
         expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.art.all });
     });
@@ -283,7 +281,19 @@ describe("art comment mutations", () => {
         await runMutation(() => useCreateArtComment(artId), { body: "agreed", parentId: "c1" }, qc);
 
         // then
-        expect(commentMocks.createArtComment).toHaveBeenCalledWith(artId, "agreed", "c1");
+        expect(commentMocks.createArtComment).toHaveBeenCalledWith(artId, "agreed", "c1", undefined);
+    });
+
+    it("sends the staged media with the comment in the same request", async () => {
+        // given
+        const { qc } = client();
+        const media = [{ file: new File(["gif"], "reaction.gif", { type: "image/gif" }), isSpoiler: false }];
+
+        // when
+        await runMutation(() => useCreateArtComment(artId), { body: "look", media }, qc);
+
+        // then
+        expect(commentMocks.createArtComment).toHaveBeenCalledWith(artId, "look", undefined, media);
     });
 
     it("edits a comment by its own id while refreshing the piece it belongs to", async () => {
@@ -331,21 +341,6 @@ describe("art comment mutations", () => {
 
         // then
         expect(commentMocks.unlikeArtComment).toHaveBeenCalledWith("c1");
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["art", "detail", artId] });
-    });
-
-    it("attaches media to a comment and returns the stored media", async () => {
-        // given
-        const { qc, invalidate } = client();
-        const file = new File(["gif"], "reaction.gif", { type: "image/gif" });
-        commentMocks.uploadArtCommentMedia.mockResolvedValue({ id: "m1", url: "/uploads/reaction.gif" });
-
-        // when
-        const data = await runMutation(() => useUploadArtCommentMedia(artId), { commentId: "c1", file }, qc);
-
-        // then
-        expect(commentMocks.uploadArtCommentMedia).toHaveBeenCalledWith("c1", file);
-        expect(data).toEqual({ id: "m1", url: "/uploads/reaction.gif" });
         expect(invalidate).toHaveBeenCalledWith({ queryKey: ["art", "detail", artId] });
     });
 });

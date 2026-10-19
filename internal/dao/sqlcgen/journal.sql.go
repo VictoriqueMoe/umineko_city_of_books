@@ -42,6 +42,45 @@ func (q *Queries) ArchiveStaleJournals(ctx context.Context, lastAuthorActivityAt
 	return items, nil
 }
 
+const collectJournalEntryCommentMediaPaths = `-- name: CollectJournalEntryCommentMediaPaths :many
+WITH RECURSIVE tree AS (
+    SELECT root.id FROM journal_comments root WHERE root.entry_id = $1::uuid
+    UNION
+    SELECT child.id FROM journal_comments child JOIN tree t ON child.parent_id = t.id
+)
+SELECT m.media_url, m.thumbnail_url
+FROM journal_comment_media m
+JOIN tree ON tree.id = m.comment_id
+`
+
+type CollectJournalEntryCommentMediaPathsRow struct {
+	MediaUrl     string
+	ThumbnailUrl string
+}
+
+func (q *Queries) CollectJournalEntryCommentMediaPaths(ctx context.Context, entryID uuid.UUID) ([]CollectJournalEntryCommentMediaPathsRow, error) {
+	rows, err := q.db.QueryContext(ctx, collectJournalEntryCommentMediaPaths, entryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CollectJournalEntryCommentMediaPathsRow{}
+	for rows.Next() {
+		var i CollectJournalEntryCommentMediaPathsRow
+		if err := rows.Scan(&i.MediaUrl, &i.ThumbnailUrl); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countFollowedJournals = `-- name: CountFollowedJournals :one
 SELECT COUNT(*) FROM journal_follows WHERE user_id = $1
 `
@@ -550,17 +589,6 @@ func (q *Queries) GetJournalEntryByID(ctx context.Context, id uuid.UUID) (GetJou
 	return i, err
 }
 
-const getJournalEntryJournalID = `-- name: GetJournalEntryJournalID :one
-SELECT journal_id FROM journal_entries WHERE id = $1
-`
-
-func (q *Queries) GetJournalEntryJournalID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
-	row := q.db.QueryRowContext(ctx, getJournalEntryJournalID, id)
-	var journal_id uuid.UUID
-	err := row.Scan(&journal_id)
-	return journal_id, err
-}
-
 const getJournalFollowerCount = `-- name: GetJournalFollowerCount :one
 SELECT COUNT(*) FROM journal_follows WHERE journal_id = $1
 `
@@ -798,42 +826,11 @@ func (q *Queries) ListJournalEntries(ctx context.Context, journalID uuid.UUID) (
 	return items, nil
 }
 
-const listJournalEntryCommentIDs = `-- name: ListJournalEntryCommentIDs :many
-WITH RECURSIVE tree AS (
-    SELECT root.id FROM journal_comments root WHERE root.entry_id = $1::uuid
-    UNION
-    SELECT child.id FROM journal_comments child JOIN tree t ON child.parent_id = t.id
-)
-SELECT t.id FROM tree t
-`
-
-func (q *Queries) ListJournalEntryCommentIDs(ctx context.Context, entryID uuid.UUID) ([]uuid.UUID, error) {
-	rows, err := q.db.QueryContext(ctx, listJournalEntryCommentIDs, entryID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []uuid.UUID{}
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listJournalEntryComments = `-- name: ListJournalEntryComments :many
 SELECT c.id, c.journal_id::text AS entity_id, c.entry_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
        u.username, u.display_name, u.avatar_url,
        COALESCE(r.role, '')::text AS author_role,
+       (u.banned_at IS NOT NULL)::boolean AS author_banned,
        (SELECT COUNT(*) FROM journal_comment_likes lc WHERE lc.comment_id = c.id) AS like_count,
        EXISTS(SELECT 1 FROM journal_comment_likes lu WHERE lu.comment_id = c.id AND lu.user_id = $1) AS user_liked
 FROM journal_comments c
@@ -854,20 +851,21 @@ type ListJournalEntryCommentsParams struct {
 }
 
 type ListJournalEntryCommentsRow struct {
-	ID          uuid.UUID
-	EntityID    string
-	EntryID     *uuid.UUID
-	ParentID    *uuid.UUID
-	UserID      uuid.UUID
-	Body        string
-	CreatedAt   time.Time
-	UpdatedAt   sql.NullTime
-	Username    string
-	DisplayName string
-	AvatarUrl   string
-	AuthorRole  string
-	LikeCount   int64
-	UserLiked   bool
+	ID           uuid.UUID
+	EntityID     string
+	EntryID      *uuid.UUID
+	ParentID     *uuid.UUID
+	UserID       uuid.UUID
+	Body         string
+	CreatedAt    time.Time
+	UpdatedAt    sql.NullTime
+	Username     string
+	DisplayName  string
+	AvatarUrl    string
+	AuthorRole   string
+	AuthorBanned bool
+	LikeCount    int64
+	UserLiked    bool
 }
 
 func (q *Queries) ListJournalEntryComments(ctx context.Context, arg ListJournalEntryCommentsParams) ([]ListJournalEntryCommentsRow, error) {
@@ -898,6 +896,7 @@ func (q *Queries) ListJournalEntryComments(ctx context.Context, arg ListJournalE
 			&i.DisplayName,
 			&i.AvatarUrl,
 			&i.AuthorRole,
+			&i.AuthorBanned,
 			&i.LikeCount,
 			&i.UserLiked,
 		); err != nil {
@@ -945,6 +944,7 @@ const listJournalRootComments = `-- name: ListJournalRootComments :many
 SELECT c.id, c.journal_id::text AS entity_id, c.entry_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
        u.username, u.display_name, u.avatar_url,
        COALESCE(r.role, '')::text AS author_role,
+       (u.banned_at IS NOT NULL)::boolean AS author_banned,
        (SELECT COUNT(*) FROM journal_comment_likes lc WHERE lc.comment_id = c.id) AS like_count,
        EXISTS(SELECT 1 FROM journal_comment_likes lu WHERE lu.comment_id = c.id AND lu.user_id = $1) AS user_liked
 FROM journal_comments c
@@ -965,20 +965,21 @@ type ListJournalRootCommentsParams struct {
 }
 
 type ListJournalRootCommentsRow struct {
-	ID          uuid.UUID
-	EntityID    string
-	EntryID     *uuid.UUID
-	ParentID    *uuid.UUID
-	UserID      uuid.UUID
-	Body        string
-	CreatedAt   time.Time
-	UpdatedAt   sql.NullTime
-	Username    string
-	DisplayName string
-	AvatarUrl   string
-	AuthorRole  string
-	LikeCount   int64
-	UserLiked   bool
+	ID           uuid.UUID
+	EntityID     string
+	EntryID      *uuid.UUID
+	ParentID     *uuid.UUID
+	UserID       uuid.UUID
+	Body         string
+	CreatedAt    time.Time
+	UpdatedAt    sql.NullTime
+	Username     string
+	DisplayName  string
+	AvatarUrl    string
+	AuthorRole   string
+	AuthorBanned bool
+	LikeCount    int64
+	UserLiked    bool
 }
 
 func (q *Queries) ListJournalRootComments(ctx context.Context, arg ListJournalRootCommentsParams) ([]ListJournalRootCommentsRow, error) {
@@ -1009,6 +1010,7 @@ func (q *Queries) ListJournalRootComments(ctx context.Context, arg ListJournalRo
 			&i.DisplayName,
 			&i.AvatarUrl,
 			&i.AuthorRole,
+			&i.AuthorBanned,
 			&i.LikeCount,
 			&i.UserLiked,
 		); err != nil {

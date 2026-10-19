@@ -61,12 +61,13 @@ type (
 	}
 
 	NewJournalEntry struct {
-		JournalID   uuid.UUID
-		EntryNumber int
-		Title       *string
-		Body        string
-		WordCount   int
-		IsDraft     bool
+		JournalID            uuid.UUID
+		EntryNumber          int
+		Title                *string
+		Body                 string
+		WordCount            int
+		IsDraft              bool
+		RecordAuthorActivity bool
 	}
 
 	JournalEntryUpdate struct {
@@ -82,14 +83,5 @@ type (
 	JournalEntryLookup struct {
 		JournalID   uuid.UUID
 		EntryNumber int
-	}
-
-	NewJournalComment struct {
-		JournalID            uuid.UUID
-		EntryID              *uuid.UUID
-		ParentID             *uuid.UUID
-		UserID               uuid.UUID
-		Body                 string
-		RecordAuthorActivity bool
 	}
 )

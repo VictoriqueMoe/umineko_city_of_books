@@ -385,6 +385,17 @@ func (q *Queries) GetMysteryCommentMediaBatch(ctx context.Context, dollar_1 stri
 	return items, nil
 }
 
+const getMysteryCommentTargetOwner = `-- name: GetMysteryCommentTargetOwner :one
+SELECT COALESCE(user_id, '00000000-0000-0000-0000-000000000000')::uuid AS owner_id FROM mysteries WHERE id = $1
+`
+
+func (q *Queries) GetMysteryCommentTargetOwner(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, getMysteryCommentTargetOwner, id)
+	var owner_id uuid.UUID
+	err := row.Scan(&owner_id)
+	return owner_id, err
+}
+
 const likeMysteryComment = `-- name: LikeMysteryComment :exec
 INSERT INTO mystery_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING
 `
@@ -524,7 +535,7 @@ func (q *Queries) UpdateMysteryComment(ctx context.Context, arg UpdateMysteryCom
 	return result.RowsAffected()
 }
 
-const updateMysteryCommentMediaThumbnail = `-- name: UpdateMysteryCommentMediaThumbnail :exec
+const updateMysteryCommentMediaThumbnail = `-- name: UpdateMysteryCommentMediaThumbnail :execrows
 UPDATE mystery_comment_media SET thumbnail_url = $1 WHERE id = $2
 `
 
@@ -533,12 +544,15 @@ type UpdateMysteryCommentMediaThumbnailParams struct {
 	ID           int64
 }
 
-func (q *Queries) UpdateMysteryCommentMediaThumbnail(ctx context.Context, arg UpdateMysteryCommentMediaThumbnailParams) error {
-	_, err := q.db.ExecContext(ctx, updateMysteryCommentMediaThumbnail, arg.ThumbnailUrl, arg.ID)
-	return err
+func (q *Queries) UpdateMysteryCommentMediaThumbnail(ctx context.Context, arg UpdateMysteryCommentMediaThumbnailParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateMysteryCommentMediaThumbnail, arg.ThumbnailUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const updateMysteryCommentMediaURL = `-- name: UpdateMysteryCommentMediaURL :exec
+const updateMysteryCommentMediaURL = `-- name: UpdateMysteryCommentMediaURL :execrows
 UPDATE mystery_comment_media SET media_url = $1 WHERE id = $2
 `
 
@@ -547,7 +561,10 @@ type UpdateMysteryCommentMediaURLParams struct {
 	ID       int64
 }
 
-func (q *Queries) UpdateMysteryCommentMediaURL(ctx context.Context, arg UpdateMysteryCommentMediaURLParams) error {
-	_, err := q.db.ExecContext(ctx, updateMysteryCommentMediaURL, arg.MediaUrl, arg.ID)
-	return err
+func (q *Queries) UpdateMysteryCommentMediaURL(ctx context.Context, arg UpdateMysteryCommentMediaURLParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateMysteryCommentMediaURL, arg.MediaUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

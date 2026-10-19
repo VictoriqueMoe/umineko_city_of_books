@@ -13,18 +13,28 @@ import (
 )
 
 type (
-	commentDAO[K comparable] struct {
+	commentDAO struct {
 		sqlcSource
-		q commentQuerier[K]
+		tables map[spec.CommentKind]commentQuerier
 	}
 )
 
-func newCommentDAO[K comparable](db *sql.DB, q commentQuerier[K]) *commentDAO[K] {
-	return &commentDAO[K]{sqlcSource: newSQLCSource(db), q: q}
+func (c *commentDAO) table(kind spec.CommentKind) (commentQuerier, error) {
+	q, ok := c.tables[kind]
+	if !ok {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownCommentKind, kind)
+	}
+
+	return q, nil
 }
 
-func (c *commentDAO[K]) CreateComment(ctx context.Context, s spec.NewComment[K], tx ...*sql.Tx) (*model.CommentRow, error) {
-	row, err := c.q.Create(ctx, c.queries(tx), s)
+func (c *commentDAO) CreateComment(ctx context.Context, s spec.NewComment, tx ...*sql.Tx) (*model.CommentRow, error) {
+	table, err := c.table(s.Target.Kind)
+	if err != nil {
+		return nil, err
+	}
+
+	row, err := table.Create(ctx, c.queries(tx), s)
 	if err != nil {
 		return nil, fmt.Errorf("create comment: %w", err)
 	}
@@ -32,8 +42,13 @@ func (c *commentDAO[K]) CreateComment(ctx context.Context, s spec.NewComment[K],
 	return row, nil
 }
 
-func (c *commentDAO[K]) UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error {
-	n, err := c.q.Update(ctx, c.queries(tx), s)
+func (c *commentDAO) UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error {
+	table, err := c.table(s.Kind)
+	if err != nil {
+		return err
+	}
+
+	n, err := table.Update(ctx, c.queries(tx), s)
 	if err != nil {
 		return fmt.Errorf("update comment: %w", err)
 	}
@@ -45,8 +60,13 @@ func (c *commentDAO[K]) UpdateComment(ctx context.Context, s spec.CommentUpdate,
 	return nil
 }
 
-func (c *commentDAO[K]) DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error {
-	n, err := c.q.Delete(ctx, c.queries(tx), s)
+func (c *commentDAO) DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error {
+	table, err := c.table(s.Kind)
+	if err != nil {
+		return err
+	}
+
+	n, err := table.Delete(ctx, c.queries(tx), s)
 	if err != nil {
 		return fmt.Errorf("delete comment: %w", err)
 	}
@@ -58,15 +78,20 @@ func (c *commentDAO[K]) DeleteComment(ctx context.Context, s spec.CommentDeletio
 	return nil
 }
 
-func (c *commentDAO[K]) GetComments(ctx context.Context, q spec.CommentQuery[K], tx ...*sql.Tx) ([]model.CommentRow, int, error) {
+func (c *commentDAO) GetComments(ctx context.Context, q spec.CommentQuery, tx ...*sql.Tx) ([]model.CommentRow, int, error) {
+	table, err := c.table(q.Target.Kind)
+	if err != nil {
+		return nil, 0, err
+	}
+
 	queries := c.queries(tx)
 
-	total, err := c.q.Count(ctx, queries, q.TargetID, q.ExcludeUserIDs)
+	total, err := table.Count(ctx, queries, q.Target, q.ExcludeUserIDs)
 	if err != nil {
 		return nil, 0, fmt.Errorf("count comments: %w", err)
 	}
 
-	rows, err := c.q.List(ctx, queries, q)
+	rows, err := table.List(ctx, queries, q)
 	if err != nil {
 		return nil, 0, fmt.Errorf("get comments: %w", err)
 	}
@@ -74,8 +99,13 @@ func (c *commentDAO[K]) GetComments(ctx context.Context, q spec.CommentQuery[K],
 	return rows, int(total), nil
 }
 
-func (c *commentDAO[K]) GetCommentByID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (*model.CommentRow, error) {
-	row, err := c.q.ByID(ctx, c.queries(tx), commentID)
+func (c *commentDAO) GetCommentByID(ctx context.Context, r spec.CommentRef, tx ...*sql.Tx) (*model.CommentRow, error) {
+	table, err := c.table(r.Kind)
+	if err != nil {
+		return nil, err
+	}
+
+	row, err := table.ByID(ctx, c.queries(tx), r.CommentID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -86,18 +116,34 @@ func (c *commentDAO[K]) GetCommentByID(ctx context.Context, commentID uuid.UUID,
 	return row, nil
 }
 
-func (c *commentDAO[K]) GetCommentEntityID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (K, error) {
-	entityID, err := c.q.EntityID(ctx, c.queries(tx), commentID)
+func (c *commentDAO) GetCommentTarget(ctx context.Context, r spec.CommentRef, tx ...*sql.Tx) (spec.CommentTarget, error) {
+	table, err := c.table(r.Kind)
 	if err != nil {
-		var zero K
-		return zero, fmt.Errorf("get comment entity id: %w", err)
+		return spec.CommentTarget{}, err
 	}
 
-	return entityID, nil
+	target, err := table.Target(ctx, c.queries(tx), r.CommentID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return spec.CommentTarget{}, fmt.Errorf("get comment target: %w", ErrNotFound)
+	}
+	if err != nil {
+		return spec.CommentTarget{}, fmt.Errorf("get comment target: %w", err)
+	}
+
+	if target.Kind == "" {
+		target.Kind = r.Kind
+	}
+
+	return target, nil
 }
 
-func (c *commentDAO[K]) GetCommentAuthorID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
-	userID, err := c.q.AuthorID(ctx, c.queries(tx), commentID)
+func (c *commentDAO) GetCommentAuthorID(ctx context.Context, r spec.CommentRef, tx ...*sql.Tx) (uuid.UUID, error) {
+	table, err := c.table(r.Kind)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	userID, err := table.AuthorID(ctx, c.queries(tx), r.CommentID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return uuid.Nil, fmt.Errorf("get comment author: %w", ErrNotFound)
 	}
@@ -108,24 +154,65 @@ func (c *commentDAO[K]) GetCommentAuthorID(ctx context.Context, commentID uuid.U
 	return userID, nil
 }
 
-func (c *commentDAO[K]) LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
-	if err := c.q.Like(ctx, c.queries(tx), s); err != nil {
+func (c *commentDAO) GetTargetOwnerID(ctx context.Context, t spec.CommentTarget, tx ...*sql.Tx) (uuid.UUID, error) {
+	table, err := c.table(t.Kind)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	ownerID, err := table.Owner(ctx, c.queries(tx), t)
+	if errors.Is(err, sql.ErrNoRows) {
+		return uuid.Nil, fmt.Errorf("get comment target owner: %w", ErrNotFound)
+	}
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("get comment target owner: %w", err)
+	}
+
+	return ownerID, nil
+}
+
+func (c *commentDAO) GetCommentMediaDir(kind spec.CommentKind) (string, error) {
+	table, err := c.table(kind)
+	if err != nil {
+		return "", err
+	}
+
+	return table.MediaDir(), nil
+}
+
+func (c *commentDAO) LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
+	table, err := c.table(s.Kind)
+	if err != nil {
+		return err
+	}
+
+	if err := table.Like(ctx, c.queries(tx), s); err != nil {
 		return fmt.Errorf("like comment: %w", err)
 	}
 
 	return nil
 }
 
-func (c *commentDAO[K]) UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
-	if err := c.q.Unlike(ctx, c.queries(tx), s); err != nil {
+func (c *commentDAO) UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
+	table, err := c.table(s.Kind)
+	if err != nil {
+		return err
+	}
+
+	if err := table.Unlike(ctx, c.queries(tx), s); err != nil {
 		return fmt.Errorf("unlike comment: %w", err)
 	}
 
 	return nil
 }
 
-func (c *commentDAO[K]) AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error) {
-	id, err := c.q.AddMedia(ctx, c.queries(tx), s)
+func (c *commentDAO) AddCommentMedia(ctx context.Context, s spec.NewCommentMedia, tx ...*sql.Tx) (int64, error) {
+	table, err := c.table(s.Kind)
+	if err != nil {
+		return 0, err
+	}
+
+	id, err := table.AddMedia(ctx, c.queries(tx), s.NewMedia)
 	if err != nil {
 		return 0, fmt.Errorf("add comment media: %w", err)
 	}
@@ -133,8 +220,13 @@ func (c *commentDAO[K]) AddCommentMedia(ctx context.Context, s spec.NewMedia, tx
 	return id, nil
 }
 
-func (c *commentDAO[K]) GetCommentMedia(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error) {
-	rows, err := c.q.Media(ctx, c.queries(tx), commentID)
+func (c *commentDAO) GetCommentMedia(ctx context.Context, r spec.CommentRef, tx ...*sql.Tx) ([]model.PostMediaRow, error) {
+	table, err := c.table(r.Kind)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := table.Media(ctx, c.queries(tx), r.CommentID)
 	if err != nil {
 		return nil, fmt.Errorf("get comment media: %w", err)
 	}
@@ -142,12 +234,17 @@ func (c *commentDAO[K]) GetCommentMedia(ctx context.Context, commentID uuid.UUID
 	return rows, nil
 }
 
-func (c *commentDAO[K]) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error) {
-	if len(commentIDs) == 0 {
+func (c *commentDAO) GetCommentMediaBatch(ctx context.Context, s spec.CommentMediaBatch, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error) {
+	if len(s.CommentIDs) == 0 {
 		return nil, nil
 	}
 
-	rows, err := c.q.MediaBatch(ctx, c.queries(tx), commentIDs)
+	table, err := c.table(s.Kind)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := table.MediaBatch(ctx, c.queries(tx), s.CommentIDs)
 	if err != nil {
 		return nil, fmt.Errorf("batch get comment media: %w", err)
 	}
@@ -155,18 +252,66 @@ func (c *commentDAO[K]) GetCommentMediaBatch(ctx context.Context, commentIDs []u
 	return rows, nil
 }
 
-func (c *commentDAO[K]) UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	if err := c.q.SetMediaURL(ctx, c.queries(tx), s); err != nil {
+func (c *commentDAO) UpdateCommentMediaURL(ctx context.Context, s spec.CommentMediaURLUpdate, tx ...*sql.Tx) error {
+	table, err := c.table(s.Kind)
+	if err != nil {
+		return err
+	}
+
+	n, err := table.SetMediaURL(ctx, c.queries(tx), s.MediaURLUpdate)
+	if err != nil {
 		return fmt.Errorf("update comment media url: %w", err)
+	}
+
+	if n == 0 {
+		return fmt.Errorf("update comment media url %d: %w", s.ID, ErrNotFound)
 	}
 
 	return nil
 }
 
-func (c *commentDAO[K]) UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	if err := c.q.SetMediaThumbnail(ctx, c.queries(tx), s); err != nil {
+func (c *commentDAO) UpdateCommentMediaThumbnail(ctx context.Context, s spec.CommentMediaURLUpdate, tx ...*sql.Tx) error {
+	table, err := c.table(s.Kind)
+	if err != nil {
+		return err
+	}
+
+	n, err := table.SetMediaThumbnail(ctx, c.queries(tx), s.MediaURLUpdate)
+	if err != nil {
 		return fmt.Errorf("update comment media thumbnail: %w", err)
 	}
 
+	if n == 0 {
+		return fmt.Errorf("update comment media thumbnail %d: %w", s.ID, ErrNotFound)
+	}
+
 	return nil
+}
+
+func (c *commentDAO) CollectCommentMediaPaths(ctx context.Context, t spec.CommentTarget, tx ...*sql.Tx) ([]string, error) {
+	table, err := c.table(t.Kind)
+	if err != nil {
+		return nil, err
+	}
+
+	paths, err := table.Paths(ctx, c.queries(tx), t)
+	if err != nil {
+		return nil, fmt.Errorf("collect comment media paths: %w", err)
+	}
+
+	return paths, nil
+}
+
+func (c *commentDAO) CollectSingleCommentMediaPaths(ctx context.Context, r spec.CommentRef, tx ...*sql.Tx) ([]string, error) {
+	table, err := c.table(r.Kind)
+	if err != nil {
+		return nil, err
+	}
+
+	paths, err := table.SinglePaths(ctx, c.queries(tx), r.CommentID)
+	if err != nil {
+		return nil, fmt.Errorf("collect comment media paths: %w", err)
+	}
+
+	return paths, nil
 }

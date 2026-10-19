@@ -26,7 +26,6 @@ const mocked = vi.hoisted(() => ({
         useUpdateMysteryClue: vi.fn(),
         useUpdateMysteryComment: vi.fn(),
         useUploadMysteryAttachment: vi.fn(),
-        useUploadMysteryCommentMedia: vi.fn(),
         useUploadMysteryMedia: vi.fn(),
     },
 }));

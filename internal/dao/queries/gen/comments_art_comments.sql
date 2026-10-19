@@ -57,6 +57,9 @@ SELECT art_id FROM art_comments WHERE id = $1;
 -- name: GetArtCommentAuthorID :one
 SELECT user_id FROM art_comments WHERE id = $1;
 
+-- name: GetArtCommentTargetOwner :one
+SELECT COALESCE(user_id, '00000000-0000-0000-0000-000000000000')::uuid AS owner_id FROM art WHERE id = $1;
+
 -- name: LikeArtComment :exec
 INSERT INTO art_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING;
 
@@ -80,10 +83,10 @@ FROM art_comment_media
 WHERE comment_id = ANY(string_to_array($1::text, ',')::uuid[])
 ORDER BY sort_order;
 
--- name: UpdateArtCommentMediaURL :exec
+-- name: UpdateArtCommentMediaURL :execrows
 UPDATE art_comment_media SET media_url = $1 WHERE id = $2;
 
--- name: UpdateArtCommentMediaThumbnail :exec
+-- name: UpdateArtCommentMediaThumbnail :execrows
 UPDATE art_comment_media SET thumbnail_url = $1 WHERE id = $2;
 
 -- name: CollectArtCommentMediaPaths :many

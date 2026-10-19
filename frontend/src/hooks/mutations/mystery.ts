@@ -24,15 +24,21 @@ import {
     likeMysteryComment,
     unlikeMysteryComment,
     updateMysteryComment,
-    uploadMysteryCommentMedia,
 } from "../../api/endpoints/comments";
+import type { MediaUpload } from "../../types/api";
 import { invalidateViews } from "../../api/cache/invalidate";
 import { commentMutations } from "./comments";
+
+type CreateMysteryInput = {
+    data: Parameters<typeof createMystery>[0];
+    media?: readonly MediaUpload[];
+    attachments?: readonly File[];
+};
 
 export function useCreateMystery() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (data: Parameters<typeof createMystery>[0]) => createMystery(data),
+        mutationFn: ({ data, media, attachments }: CreateMysteryInput) => createMystery(data, { media, attachments }),
         onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
@@ -138,8 +144,8 @@ export function useAddMysteryClue(mysteryId: string) {
 export function useCreateMysteryComment(mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ body, parentId }: { body: string; parentId?: string }) =>
-            createMysteryComment(mysteryId, body, parentId),
+        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly MediaUpload[] }) =>
+            createMysteryComment(mysteryId, body, parentId, media),
         onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
@@ -149,14 +155,12 @@ const mysteryCommentMutations = commentMutations("mystery", {
     remove: id => deleteMysteryComment(id),
     like: id => likeMysteryComment(id),
     unlike: id => unlikeMysteryComment(id),
-    uploadMedia: (commentId, file) => uploadMysteryCommentMedia(commentId, file),
 });
 
 export const useUpdateMysteryComment = mysteryCommentMutations.useUpdate;
 export const useDeleteMysteryComment = mysteryCommentMutations.useDelete;
 export const useLikeMysteryComment = mysteryCommentMutations.useLike;
 export const useUnlikeMysteryComment = mysteryCommentMutations.useUnlike;
-export const useUploadMysteryCommentMedia = mysteryCommentMutations.useUploadMedia;
 
 export function useUploadMysteryAttachment(mysteryId: string) {
     const qc = useQueryClient();

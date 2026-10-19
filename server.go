@@ -23,6 +23,7 @@ import (
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/chatbot"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/controllers"
 	"umineko_city_of_books/internal/email"
@@ -98,6 +99,7 @@ type (
 		post            postsvc.Service
 		follow          follow.Service
 		art             artsvc.Service
+		comment         comment.Service
 		ship            ship.Service
 		oc              ocsvc.Service
 		mystery         mysterysvc.Service
@@ -187,6 +189,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		CaseSensitive:        true,
 		DisableFlashMessages: true,
 		AppName:              siteName,
+		ErrorHandler:         middleware.ErrorHandler,
 	})
 
 	middleware.Setup(app, settingsSvc, svc.auth, svc.authz, svc.dronebl)
@@ -210,6 +213,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		PostService:           svc.post,
 		FollowService:         svc.follow,
 		ArtService:            svc.art,
+		CommentService:        svc.comment,
 		BlockService:          svc.block,
 		AnnouncementService:   svc.announcement,
 		MysteryService:        svc.mystery,

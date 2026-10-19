@@ -2,17 +2,16 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test-utils/render";
+import type { CreateCommentHandler } from "../../../hooks/useCommentHandlers";
 import { CommentComposer } from "./CommentComposer";
 
-const { createComment, uploadMedia, GIF_URL } = vi.hoisted(() => ({
+const { createComment, GIF_URL } = vi.hoisted(() => ({
     createComment: vi.fn(),
-    uploadMedia: vi.fn(),
     GIF_URL: "https://media.giphy.com/media/abc123/beato.gif",
 }));
 
 vi.mock("../../../hooks/mutations/post", () => ({
     useCreateComment: () => ({ mutateAsync: createComment }),
-    useUploadCommentMedia: () => ({ mutateAsync: uploadMedia }),
 }));
 
 vi.mock("../../chat/GifPicker/GifPicker", () => ({
@@ -31,8 +30,7 @@ vi.mock("../../chat/GifPicker/GifPicker", () => ({
 interface SetupOptions {
     parentId?: string;
     onCreated?: () => void;
-    createCommentFn?: (postId: string, body: string, parentId?: string) => Promise<{ id: string }>;
-    uploadMediaFn?: (commentId: string, file: File) => Promise<unknown>;
+    createCommentFn?: CreateCommentHandler;
     maxImageSize?: number;
 }
 
@@ -43,7 +41,6 @@ function setup(options: SetupOptions = {}) {
             parentId={options.parentId}
             onCreated={options.onCreated ?? (() => {})}
             createCommentFn={options.createCommentFn}
-            uploadMediaFn={options.uploadMediaFn}
         />,
         { siteInfo: options.maxImageSize === undefined ? undefined : { max_image_size: options.maxImageSize } },
     );
@@ -123,7 +120,7 @@ describe("CommentComposer", () => {
         await user.click(screen.getByRole("button", { name: "Comment" }));
 
         // then
-        expect(createCommentFn).toHaveBeenCalledWith("post-1", "the golden truth", undefined);
+        expect(createCommentFn).toHaveBeenCalledWith("post-1", "the golden truth", undefined, []);
         await waitFor(() => expect(screen.getByPlaceholderText("Write a comment...")).toHaveValue(""));
         expect(onCreated).toHaveBeenCalledOnce();
     });
@@ -139,7 +136,7 @@ describe("CommentComposer", () => {
         await user.click(screen.getByRole("button", { name: "Reply" }));
 
         // then
-        expect(createCommentFn).toHaveBeenCalledWith("post-1", "not without evidence", "comment-1");
+        expect(createCommentFn).toHaveBeenCalledWith("post-1", "not without evidence", "comment-1", []);
     });
 
     it("falls back to the create comment mutation when no handler is injected", async () => {
@@ -153,7 +150,27 @@ describe("CommentComposer", () => {
         await user.click(screen.getByRole("button", { name: "Reply" }));
 
         // then
-        expect(createComment).toHaveBeenCalledWith({ body: "a repeating tragedy", parentId: "comment-1" });
+        expect(createComment).toHaveBeenCalledWith({ body: "a repeating tragedy", parentId: "comment-1", media: [] });
+    });
+
+    it("hands the staged media and spoiler flags to the create comment mutation when no handler is injected", async () => {
+        // given
+        createComment.mockResolvedValue({ id: "comment-9" });
+        const image = makeImage("one.png");
+        const user = userEvent.setup();
+        const { container } = setup();
+        fireEvent.change(fileInput(container), { target: { files: [image] } });
+        await user.click(screen.getByRole("button", { name: "Mark as spoiler" }));
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Comment" }));
+
+        // then
+        expect(createComment).toHaveBeenCalledWith({
+            body: "",
+            parentId: undefined,
+            media: [{ file: image, isSpoiler: true }],
+        });
     });
 
     it("surfaces the reason a comment could not be posted", async () => {
@@ -172,61 +189,92 @@ describe("CommentComposer", () => {
         expect(onCreated).not.toHaveBeenCalled();
     });
 
-    it("uploads every attachment against the comment it just created", async () => {
+    it("sends every attachment with the comment in a single request", async () => {
         // given
-        const createCommentFn = vi.fn(() => Promise.resolve({ id: "comment-9" }));
-        const uploadMediaFn = vi.fn(() => Promise.resolve({}));
+        const createCommentFn = vi.fn<CreateCommentHandler>(() => Promise.resolve({ id: "comment-9" }));
         const first = makeImage("one.png");
         const second = makeImage("two.png");
         const user = userEvent.setup();
-        const { container } = setup({ createCommentFn, uploadMediaFn });
+        const { container } = setup({ createCommentFn });
 
         // when
         fireEvent.change(fileInput(container), { target: { files: [first, second] } });
         await user.click(screen.getByRole("button", { name: "Comment" }));
 
         // then
-        await waitFor(() => expect(uploadMediaFn).toHaveBeenCalledTimes(2));
-        expect(uploadMediaFn).toHaveBeenNthCalledWith(1, "comment-9", first, false);
-        expect(uploadMediaFn).toHaveBeenNthCalledWith(2, "comment-9", second, false);
+        await waitFor(() => expect(createCommentFn).toHaveBeenCalledOnce());
+        expect(createCommentFn).toHaveBeenCalledWith("post-1", "", undefined, [
+            { file: first, isSpoiler: false },
+            { file: second, isSpoiler: false },
+        ]);
     });
 
-    it("reports a failed upload but still finishes posting the comment", async () => {
+    it("clears the text and every attachment once the comment and its media are stored", async () => {
         // given
         const onCreated = vi.fn();
-        const createCommentFn = vi.fn(() => Promise.resolve({ id: "comment-9" }));
-        const uploadMediaFn = vi.fn(() => Promise.reject(new Error("the image was rejected")));
+        const createCommentFn = vi.fn<CreateCommentHandler>(() => Promise.resolve({ id: "comment-9" }));
         const user = userEvent.setup();
-        const { container } = setup({ onCreated, createCommentFn, uploadMediaFn });
+        const { container } = setup({ onCreated, createCommentFn });
+        await user.type(screen.getByPlaceholderText("Write a comment..."), "look at this");
+        fireEvent.change(fileInput(container), { target: { files: [makeImage("one.png")] } });
 
         // when
-        fireEvent.change(fileInput(container), { target: { files: [makeImage("one.png")] } });
         await user.click(screen.getByRole("button", { name: "Comment" }));
 
         // then
-        expect(await screen.findByText("the image was rejected")).toBeInTheDocument();
-        expect(onCreated).toHaveBeenCalledOnce();
+        await waitFor(() => expect(onCreated).toHaveBeenCalledOnce());
+        expect(screen.getByPlaceholderText("Write a comment...")).toHaveValue("");
+        expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
     });
 
-    it("keeps only the attachments that failed to upload so they are not lost", async () => {
+    it("keeps the text, every attachment and its spoiler flag, and shows the error when the comment is refused", async () => {
         // given
-        const createCommentFn = vi.fn(() => Promise.resolve({ id: "comment-9" }));
-        const uploadMediaFn = vi.fn((_commentId: string, file: File) =>
-            file.name === "bad.png" ? Promise.reject(new Error("the image was rejected")) : Promise.resolve({}),
-        );
+        const onCreated = vi.fn();
+        const createCommentFn = vi.fn<CreateCommentHandler>(() => Promise.reject(new Error("the image was rejected")));
         const user = userEvent.setup();
-        const { container } = setup({ createCommentFn, uploadMediaFn });
-
-        // when
+        const { container } = setup({ onCreated, createCommentFn });
+        await user.type(screen.getByPlaceholderText("Write a comment..."), "look at this");
         fireEvent.change(fileInput(container), {
             target: { files: [makeImage("good.png"), makeImage("bad.png")] },
         });
+        await user.click(screen.getAllByRole("button", { name: "Mark as spoiler" })[1]);
+
+        // when
         await user.click(screen.getByRole("button", { name: "Comment" }));
 
         // then
         expect(await screen.findByText("the image was rejected")).toBeInTheDocument();
-        expect(screen.getAllByRole("button", { name: "Remove" })).toHaveLength(1);
-        expect(screen.getByPlaceholderText("Write a comment...")).toHaveValue("");
+        expect(onCreated).not.toHaveBeenCalled();
+        expect(screen.getByPlaceholderText("Write a comment...")).toHaveValue("look at this");
+        expect(screen.getAllByRole("button", { name: "Remove" })).toHaveLength(2);
+        const spoilerToggles = screen.getAllByRole("button", { name: "Mark as spoiler" });
+        expect(spoilerToggles[0]).toHaveAttribute("aria-pressed", "false");
+        expect(spoilerToggles[1]).toHaveAttribute("aria-pressed", "true");
+        expect(screen.getByRole("button", { name: "Comment" })).toBeEnabled();
+    });
+
+    it("sends the kept draft again unchanged when the refused comment is retried", async () => {
+        // given
+        const good = makeImage("good.png");
+        const createCommentFn = vi
+            .fn<CreateCommentHandler>()
+            .mockRejectedValueOnce(new Error("storage is unavailable"))
+            .mockResolvedValueOnce({ id: "comment-9" });
+        const user = userEvent.setup();
+        const { container } = setup({ createCommentFn });
+        await user.type(screen.getByPlaceholderText("Write a comment..."), "second try");
+        fireEvent.change(fileInput(container), { target: { files: [good] } });
+        await user.click(screen.getByRole("button", { name: "Comment" }));
+        await screen.findByText("storage is unavailable");
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Comment" }));
+
+        // then
+        await waitFor(() => expect(createCommentFn).toHaveBeenCalledTimes(2));
+        expect(createCommentFn).toHaveBeenLastCalledWith("post-1", "second try", undefined, [
+            { file: good, isSpoiler: false },
+        ]);
     });
 
     it("refuses an attachment that is over the site image limit", async () => {
@@ -270,14 +318,13 @@ describe("CommentComposer", () => {
         expect(screen.getByRole("button", { name: "Comment" })).toBeDisabled();
     });
 
-    it("uploads reordered attachments in their new order", async () => {
+    it("sends reordered attachments in their new order", async () => {
         // given
-        const createCommentFn = vi.fn(() => Promise.resolve({ id: "comment-9" }));
-        const uploadMediaFn = vi.fn(() => Promise.resolve({}));
+        const createCommentFn = vi.fn<CreateCommentHandler>(() => Promise.resolve({ id: "comment-9" }));
         const first = makeImage("one.png");
         const second = makeImage("two.png");
         const user = userEvent.setup();
-        const { container } = setup({ createCommentFn, uploadMediaFn });
+        const { container } = setup({ createCommentFn });
         fireEvent.change(fileInput(container), { target: { files: [first, second] } });
 
         // when
@@ -285,9 +332,11 @@ describe("CommentComposer", () => {
         await user.click(screen.getByRole("button", { name: "Comment" }));
 
         // then
-        await waitFor(() => expect(uploadMediaFn).toHaveBeenCalledTimes(2));
-        expect(uploadMediaFn).toHaveBeenNthCalledWith(1, "comment-9", second, false);
-        expect(uploadMediaFn).toHaveBeenNthCalledWith(2, "comment-9", first, false);
+        await waitFor(() => expect(createCommentFn).toHaveBeenCalledOnce());
+        expect(createCommentFn).toHaveBeenCalledWith("post-1", "", undefined, [
+            { file: second, isSpoiler: false },
+            { file: first, isSpoiler: false },
+        ]);
     });
 
     it("posts a picked GIF as a comment of its own and closes the picker", async () => {

@@ -2,6 +2,7 @@ package settings
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -117,11 +118,11 @@ func (s *service) validateChanged(ctx context.Context, changed map[config.SiteSe
 	for key, value := range changed {
 		def, ok := config.SettingByKey(key)
 		if !ok {
-			return fmt.Errorf("unknown setting: %s", key)
+			return &RejectedError{Err: fmt.Errorf("unknown setting: %s", key)}
 		}
 
 		if err := config.ValidateSettingValue(def, value); err != nil {
-			return err
+			return &RejectedError{Err: err}
 		}
 
 		validate := s.validatorFor(key)
@@ -129,7 +130,12 @@ func (s *service) validateChanged(ctx context.Context, changed map[config.SiteSe
 			continue
 		}
 
-		if err := validate(ctx, value); err != nil {
+		err := validate(ctx, value)
+		if rejected, ok := errors.AsType[*RejectedError](err); ok {
+			return &RejectedError{Err: fmt.Errorf("%s: %w", key, rejected.Err)}
+		}
+
+		if err != nil {
 			return fmt.Errorf("%s: %w", key, err)
 		}
 	}
@@ -232,7 +238,7 @@ func (s *service) Set(ctx context.Context, setting *config.SiteSettingDef, value
 	merged[setting.Key] = value
 
 	if err := config.ValidateSettings(merged); err != nil {
-		return err
+		return &RejectedError{Err: err}
 	}
 
 	if changed {
@@ -266,7 +272,7 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 
 	for k, v := range values {
 		if _, ok := config.SettingByKey(k); !ok {
-			return fmt.Errorf("unknown setting: %s", k)
+			return &RejectedError{Err: fmt.Errorf("unknown setting: %s", k)}
 		}
 
 		if merged[k] != v {
@@ -278,7 +284,7 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 	maps.Copy(merged, values)
 
 	if err := config.ValidateSettings(merged); err != nil {
-		return err
+		return &RejectedError{Err: err}
 	}
 
 	if err := s.validateChanged(ctx, changed); err != nil {

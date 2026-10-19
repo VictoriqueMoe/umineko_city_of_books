@@ -526,7 +526,6 @@ export function MysteryDetailPage() {
                     deleteFn={board.comments.deleteFn}
                     updateFn={board.comments.updateFn}
                     createCommentFn={board.comments.createCommentFn}
-                    uploadMediaFn={board.comments.uploadMediaFn}
                 />
             )}
         </div>

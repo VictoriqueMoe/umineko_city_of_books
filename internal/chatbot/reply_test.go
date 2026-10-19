@@ -13,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/openai"
 	"umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -143,7 +144,7 @@ func TestReply_IncompleteTextIsDeliveredNotBinned(t *testing.T) {
 			postSvc := post.NewMockService(t)
 			postSvc.EXPECT().CreateComment(mock.Anything, postID, botUserID, mock.MatchedBy(func(req dto.CreateCommentRequest) bool {
 				return req.Body == tc.wantBody
-			})).Return(uuid.New(), nil).Once()
+			}), []upload.FileUpload(nil)).Return(uuid.New(), nil).Once()
 
 			svc := &service{openaiSvc: openaiSvc, botRepo: botRepo, postSvc: postSvc, quit: make(chan struct{})}
 			j := job{
@@ -215,7 +216,7 @@ func TestReply_EmptyTextBecomesAnExplainableOutcome(t *testing.T) {
 			assert.Equal(t, reasonEmptyReply, out.reason)
 			assert.Equal(t, stagePostModel, out.stage)
 			assert.Equal(t, tc.reason, out.detail, "the provider's reason must survive for the message and the log")
-			postSvc.AssertNotCalled(t, "CreateComment", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+			postSvc.AssertNotCalled(t, "CreateComment", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -244,7 +245,7 @@ func TestSettle_EveryOutcomeReachesTheMember(t *testing.T) {
 			postSvc := post.NewMockService(t)
 			postSvc.EXPECT().CreateComment(mock.Anything, postID, botUserID, mock.MatchedBy(func(req dto.CreateCommentRequest) bool {
 				return req.Body == tc.wantBody
-			})).Return(uuid.New(), nil).Once()
+			}), []upload.FileUpload(nil)).Return(uuid.New(), nil).Once()
 
 			svc := &service{postSvc: postSvc, quit: make(chan struct{})}
 			j := job{
@@ -267,7 +268,7 @@ func TestSettle_ErrorOutcomesAreNeverSuppressedByTheNoticeCooldown(t *testing.T)
 	senderID := uuid.New()
 
 	postSvc := post.NewMockService(t)
-	postSvc.EXPECT().CreateComment(mock.Anything, postID, botUserID, mock.Anything).Return(uuid.New(), nil).Times(3)
+	postSvc.EXPECT().CreateComment(mock.Anything, postID, botUserID, mock.Anything, []upload.FileUpload(nil)).Return(uuid.New(), nil).Times(3)
 
 	svc := &service{postSvc: postSvc, quit: make(chan struct{})}
 	j := job{

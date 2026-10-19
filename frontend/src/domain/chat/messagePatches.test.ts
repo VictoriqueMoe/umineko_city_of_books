@@ -202,7 +202,7 @@ describe("applyChatMemberUpdateToMessages", () => {
             makeMessage({
                 id: "m2",
                 sender: { id: "u2", username: "ange", display_name: "Ange" },
-                reply_to: { id: "m1", sender_id: "u1", sender_name: "Beatrice", body_preview: "hello" },
+                reply_to: { id: "m1", sender_id: "u1", sender_name: "Beatrice", body: "hello" },
             }),
         ];
 
@@ -220,7 +220,7 @@ describe("applyChatMemberUpdateToMessages", () => {
             makeMessage({
                 id: "m2",
                 sender: { id: "u2", username: "ange", display_name: "Ange" },
-                reply_to: { id: "m1", sender_id: "u1", sender_name: "stale", body_preview: "hello" },
+                reply_to: { id: "m1", sender_id: "u1", sender_name: "stale", body: "hello" },
             }),
         ];
 
@@ -237,7 +237,7 @@ describe("applyChatMemberUpdateToMessages", () => {
             makeMessage({
                 id: "m2",
                 sender: { id: "u2", username: "ange", display_name: "Ange" },
-                reply_to: { id: "m1", sender_id: "u1", sender_name: "stale", body_preview: "hello" },
+                reply_to: { id: "m1", sender_id: "u1", sender_name: "stale", body: "hello" },
             }),
         ];
 

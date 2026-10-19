@@ -2,8 +2,10 @@ package post
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 	"testing"
@@ -14,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/corner"
@@ -28,6 +31,7 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
+	"umineko_city_of_books/internal/upload/uploadtest"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -38,18 +42,18 @@ import (
 
 type (
 	testMocks struct {
-		postRepo     *repository.MockPostRepository
-		postComments *dao.MockCommentDAO[uuid.UUID]
-		userRepo     *repository.MockUserRepository
-		roleRepo     *repository.MockRoleRepository
-		auditRepo    *repository.MockAuditLogRepository
-		authz        *authz.MockService
-		blockSvc     *block.MockService
-		notifSvc     *notification.MockService
-		uploadSvc    *upload.MockService
-		settingsSvc  *settings.MockService
-		hub          *ws.Hub
-		activity     *sidebar.MockActivityBumper
+		postRepo    *repository.MockPostRepository
+		commentRepo *repository.MockCommentRepository
+		commentSvc  *comment.MockService
+		userRepo    *repository.MockUserRepository
+		roleRepo    *repository.MockRoleRepository
+		authz       *authz.MockService
+		blockSvc    *block.MockService
+		notifSvc    *notification.MockService
+		uploadSvc   *upload.MockService
+		settingsSvc *settings.MockService
+		hub         *ws.Hub
+		activity    *sidebar.MockActivityBumper
 	}
 
 	authorGuard struct {
@@ -62,15 +66,15 @@ type (
 	}
 )
 
+const (
+	testMediaLimit = 1024 * 1024
+)
+
 var (
+	errStoreFailed = errors.New("store failed")
+
 	uploadPostMedia = func(svc *service, ctx context.Context, postID uuid.UUID, userID uuid.UUID) error {
 		_, err := svc.UploadPostMedia(ctx, postID, userID, "image/png", "photo.png", 10, strings.NewReader("x"), false)
-
-		return err
-	}
-
-	uploadCommentMedia = func(svc *service, ctx context.Context, commentID uuid.UUID, userID uuid.UUID) error {
-		_, err := svc.UploadCommentMedia(ctx, commentID, userID, "image/png", "photo.png", 10, strings.NewReader("x"), false)
 
 		return err
 	}
@@ -82,7 +86,6 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	postRepo := repository.NewMockPostRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
 	roleRepo := repository.NewMockRoleRepository(t)
-	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	blockSvc := block.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
@@ -92,26 +95,25 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	hub := ws.NewHub()
 	activity := sidebar.NewMockActivityBumper(t)
 
-	postComments := dao.NewMockCommentDAO[uuid.UUID](t)
-	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, dao.CommentDAOs{
-		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindPostComment): postComments},
-	})
+	commentRepo := repository.NewMockCommentRepository(t)
+	commentSvc := comment.NewMockService(t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc)
 
-	svc := NewService(postRepo, userRepo, roleRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, hub, contentfilter.New(), nil, nil, activity).(*service)
+	svc := NewService(postRepo, commentRepo, userRepo, roleRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc, uploadSvc, mediaProc, settingsSvc, hub, contentfilter.New(), nil, nil, activity).(*service)
 
 	return svc, &testMocks{
-		postRepo:     postRepo,
-		postComments: postComments,
-		userRepo:     userRepo,
-		roleRepo:     roleRepo,
-		auditRepo:    auditRepo,
-		authz:        authzSvc,
-		blockSvc:     blockSvc,
-		notifSvc:     notifSvc,
-		uploadSvc:    uploadSvc,
-		settingsSvc:  settingsSvc,
-		hub:          hub,
-		activity:     activity,
+		postRepo:    postRepo,
+		commentRepo: commentRepo,
+		commentSvc:  commentSvc,
+		userRepo:    userRepo,
+		roleRepo:    roleRepo,
+		authz:       authzSvc,
+		blockSvc:    blockSvc,
+		notifSvc:    notifSvc,
+		uploadSvc:   uploadSvc,
+		settingsSvc: settingsSvc,
+		hub:         hub,
+		activity:    activity,
 	}
 }
 
@@ -121,24 +123,12 @@ func expectBackgroundSocial(m *testMocks) {
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
 	m.postRepo.EXPECT().GetSharedContentAuthor(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
 	m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
-	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
-	m.postRepo.EXPECT().GetCommentEntityID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
 	m.userRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, errors.New("ignored")).Maybe()
 	m.userRepo.EXPECT().GetByUsernames(mock.Anything, mock.Anything).Return(nil, errors.New("ignored")).Maybe()
 	m.settingsSvc.EXPECT().Get(mock.Anything, mock.Anything).Return("http://base").Maybe()
 	m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	m.roleRepo.EXPECT().GetUsersByRoles(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
-}
-
-func expectAuthorLookup(m *testMocks, ofComment bool, targetID uuid.UUID, authorID uuid.UUID, err error) {
-	if ofComment {
-		m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, targetID).Return(authorID, err)
-
-		return
-	}
-
-	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, targetID).Return(authorID, err)
 }
 
 func expectUnlinked(m *testMocks, paths []string) {
@@ -211,26 +201,6 @@ func postDeleteSpec(id uuid.UUID, userID uuid.UUID, authorID uuid.UUID, asAdmin 
 	}
 }
 
-func postCommentDeleteSpec(id uuid.UUID, userID uuid.UUID, authorID uuid.UUID, asAdmin bool) spec.PostCommentDelete {
-	action := audit.ActionPostCommentDelete
-	if authorID != userID {
-		action = audit.ActionPostCommentDeleteAdmin
-	}
-
-	return spec.PostCommentDelete{
-		CommentID: id,
-		UserID:    userID,
-		AsAdmin:   asAdmin,
-		Audit: audit.NewEntry{
-			ActorID:    userID,
-			Action:     action,
-			TargetType: audit.TargetPostComment,
-			TargetID:   id.String(),
-			SubjectID:  authorID,
-		},
-	}
-}
-
 func TestBlankBodyIsRejected(t *testing.T) {
 	cases := []struct {
 		name string
@@ -239,7 +209,7 @@ func TestBlankBodyIsRejected(t *testing.T) {
 		{
 			name: "CreatePost without a share",
 			call: func(svc *service) error {
-				_, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{Corner: "general", Body: "   "})
+				_, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{Corner: "general", Body: "   "}, nil)
 
 				return err
 			},
@@ -248,20 +218,6 @@ func TestBlankBodyIsRejected(t *testing.T) {
 			name: "UpdatePost",
 			call: func(svc *service) error {
 				return svc.UpdatePost(context.Background(), uuid.New(), uuid.New(), dto.UpdatePostRequest{Body: "  "})
-			},
-		},
-		{
-			name: "CreateComment",
-			call: func(svc *service) error {
-				_, err := svc.CreateComment(context.Background(), uuid.New(), uuid.New(), dto.CreateCommentRequest{Body: "  "})
-
-				return err
-			},
-		},
-		{
-			name: "UpdateComment",
-			call: func(svc *service) error {
-				return svc.UpdateComment(context.Background(), uuid.New(), uuid.New(), dto.UpdateCommentRequest{Body: " "})
 			},
 		},
 	}
@@ -316,7 +272,7 @@ func TestCreatePost_Rejected(t *testing.T) {
 			}
 
 			// when
-			_, err := svc.CreatePost(context.Background(), userID, tc.req)
+			_, err := svc.CreatePost(context.Background(), userID, tc.req, nil)
 
 			// then
 			require.ErrorIs(t, err, tc.wantErr)
@@ -332,7 +288,7 @@ func TestCreatePost_RejectedByContentFilter(t *testing.T) {
 	svc.contentFilter = contentfilter.New(rule)
 
 	// when
-	_, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{Corner: "general", Body: "https://giphy.com/gifs/abc123"})
+	_, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{Corner: "general", Body: "https://giphy.com/gifs/abc123"}, nil)
 
 	// then
 	var rej *contentfilter.RejectedError
@@ -385,7 +341,7 @@ func TestCreatePost(t *testing.T) {
 			}
 
 			// when
-			id, err := svc.CreatePost(context.Background(), userID, tc.req)
+			id, err := svc.CreatePost(context.Background(), userID, tc.req, nil)
 
 			// then
 			if tc.createErr != nil {
@@ -428,7 +384,7 @@ func TestCreatePost_EveryRealCornerIsStoredAndBumped(t *testing.T) {
 			expectBackgroundSocial(m)
 
 			// when
-			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: tc.corner, Body: "hello"})
+			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: tc.corner, Body: "hello"}, nil)
 
 			// then
 			require.NoError(t, err)
@@ -481,7 +437,7 @@ func TestCreatePost_MentionNotifiesTheNamedUserOutsideSuggestions(t *testing.T) 
 			}
 
 			// when
-			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: string(tt.corner), Body: "look at this @alice"})
+			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: string(tt.corner), Body: "look at this @alice"}, nil)
 
 			// then
 			require.NoError(t, err)
@@ -556,6 +512,7 @@ func TestGetPost(t *testing.T) {
 			if tc.anonymous {
 				viewer = uuid.Nil
 			}
+			thread := []dto.CommentResponse{{ID: uuid.New(), Body: "first!"}}
 
 			m.postRepo.EXPECT().GetByID(mock.Anything, spec.PostLookup{ID: id, ViewerID: viewer}).Return(&model.PostRow{ID: id, UserID: authorID}, nil)
 			if tc.viewHash != "" {
@@ -563,8 +520,7 @@ func TestGetPost(t *testing.T) {
 			}
 			m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
 			m.postRepo.EXPECT().GetMedia(mock.Anything, id).Return(nil, nil)
-			m.postRepo.EXPECT().GetComments(mock.Anything, spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: viewer, Limit: 500}).Return(nil, 0, nil)
-			m.postRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
+			m.commentSvc.EXPECT().Thread(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindPost, ID: id}, viewer).Return(thread, nil).Once()
 			m.postRepo.EXPECT().GetLikedBy(mock.Anything, spec.LikedByQuery{TargetID: id}).Return(nil, nil)
 			if !tc.anonymous {
 				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, viewer, authorID).Return(false, nil)
@@ -581,6 +537,7 @@ func TestGetPost(t *testing.T) {
 			assert.Equal(t, tc.wantViewCount, got.ViewCount)
 			assert.Equal(t, tc.shareCount, got.ShareCount)
 			assert.False(t, got.ViewerBlocked)
+			assert.Equal(t, thread, got.Comments)
 		})
 	}
 }
@@ -594,13 +551,12 @@ func TestGetPost_SurfacesAFailedLookup(t *testing.T) {
 	}{
 		{name: "the viewer's block list", failAt: 0},
 		{name: "the post media", failAt: 1},
-		{name: "the comments", failAt: 2},
-		{name: "the comment media", failAt: 3},
-		{name: "the likes", failAt: 4},
-		{name: "the block check against the author", failAt: 5},
-		{name: "the poll", failAt: 6},
-		{name: "the shared content preview", failAt: 7},
-		{name: "the share count", failAt: 8},
+		{name: "the comment thread", failAt: 2},
+		{name: "the likes", failAt: 3},
+		{name: "the block check against the author", failAt: 4},
+		{name: "the poll", failAt: 5},
+		{name: "the shared content preview", failAt: 6},
+		{name: "the share count", failAt: 7},
 	}
 
 	for _, tc := range cases {
@@ -619,25 +575,22 @@ func TestGetPost_SurfacesAFailedLookup(t *testing.T) {
 				m.postRepo.EXPECT().GetMedia(mock.Anything, id).Return(nil, postFailAt(tc.failAt, 1, boom))
 			}
 			if tc.failAt >= 2 {
-				m.postRepo.EXPECT().GetComments(mock.Anything, mock.Anything).Return(nil, 0, postFailAt(tc.failAt, 2, boom))
+				m.commentSvc.EXPECT().Thread(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindPost, ID: id}, viewer).Return(nil, postFailAt(tc.failAt, 2, boom))
 			}
 			if tc.failAt >= 3 {
-				m.postRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, postFailAt(tc.failAt, 3, boom))
+				m.postRepo.EXPECT().GetLikedBy(mock.Anything, mock.Anything).Return(nil, postFailAt(tc.failAt, 3, boom))
 			}
 			if tc.failAt >= 4 {
-				m.postRepo.EXPECT().GetLikedBy(mock.Anything, mock.Anything).Return(nil, postFailAt(tc.failAt, 4, boom))
+				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, viewer, authorID).Return(false, postFailAt(tc.failAt, 4, boom))
 			}
 			if tc.failAt >= 5 {
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, viewer, authorID).Return(false, postFailAt(tc.failAt, 5, boom))
+				m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: id, ViewerID: viewer}).Return(nil, nil, nil, postFailAt(tc.failAt, 5, boom))
 			}
 			if tc.failAt >= 6 {
-				m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: id, ViewerID: viewer}).Return(nil, nil, nil, postFailAt(tc.failAt, 6, boom))
+				m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything, []model.SharedContentRef{{ID: sharedID, Type: sharedType}}).Return(nil, postFailAt(tc.failAt, 6, boom))
 			}
 			if tc.failAt >= 7 {
-				m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything, []model.SharedContentRef{{ID: sharedID, Type: sharedType}}).Return(nil, postFailAt(tc.failAt, 7, boom))
-			}
-			if tc.failAt >= 8 {
-				m.postRepo.EXPECT().GetShareCount(mock.Anything, model.SharedContentRef{ID: id.String(), Type: "post"}).Return(0, postFailAt(tc.failAt, 8, boom))
+				m.postRepo.EXPECT().GetShareCount(mock.Anything, model.SharedContentRef{ID: id.String(), Type: "post"}).Return(0, postFailAt(tc.failAt, 7, boom))
 			}
 
 			// when
@@ -659,8 +612,7 @@ func TestGetPost_AFailedViewRecordStillRendersThePost(t *testing.T) {
 	m.postRepo.EXPECT().RecordView(mock.Anything, spec.ViewRecord{TargetID: id, ViewerHash: "hash"}).Return(false, errors.New("boom"))
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
 	m.postRepo.EXPECT().GetMedia(mock.Anything, id).Return(nil, nil)
-	m.postRepo.EXPECT().GetComments(mock.Anything, mock.Anything).Return(nil, 0, nil)
-	m.postRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
+	m.commentSvc.EXPECT().Thread(mock.Anything, mock.Anything, viewer).Return([]dto.CommentResponse{}, nil)
 	m.postRepo.EXPECT().GetLikedBy(mock.Anything, mock.Anything).Return(nil, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
 	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, mock.Anything).Return(nil, nil, nil, nil)
@@ -973,10 +925,9 @@ func TestAuthorGuards(t *testing.T) {
 	notPostAuthor := authorGuard{name: "refuses anyone but the post author", wantMsg: "not the post author"}
 
 	cases := []struct {
-		name      string
-		ofComment bool
-		call      func(svc *service, ctx context.Context, targetID uuid.UUID, userID uuid.UUID) error
-		guards    []authorGuard
+		name   string
+		call   func(svc *service, ctx context.Context, targetID uuid.UUID, userID uuid.UUID) error
+		guards []authorGuard
 	}{
 		{
 			name:   "DeletePost",
@@ -996,50 +947,9 @@ func TestAuthorGuards(t *testing.T) {
 			guards: []authorGuard{vanishedIsNotFound, notPostAuthor},
 		},
 		{
-			name:      "UploadCommentMedia",
-			ofComment: true,
-			call:      uploadCommentMedia,
-			guards: []authorGuard{
-				lookupFailureSurfaced,
-				vanishedIsNotFound,
-				{name: "refuses anyone but the comment author", wantMsg: "not the comment author"},
-			},
-		},
-		{
 			name: "LikePost",
 			call: func(svc *service, ctx context.Context, postID uuid.UUID, userID uuid.UUID) error {
 				return svc.LikePost(ctx, userID, postID)
-			},
-			guards: []authorGuard{lookupFailureSurfaced, vanishedIsNotFound, blockedEitherWay, blockLookupFails},
-		},
-		{
-			name: "CreateComment",
-			call: func(svc *service, ctx context.Context, postID uuid.UUID, userID uuid.UUID) error {
-				_, err := svc.CreateComment(ctx, postID, userID, dto.CreateCommentRequest{Body: "hi"})
-
-				return err
-			},
-			guards: []authorGuard{lookupFailureSurfaced, vanishedIsNotFound, blockedEitherWay, blockLookupFails},
-		},
-		{
-			name:      "UpdateComment",
-			ofComment: true,
-			call: func(svc *service, ctx context.Context, commentID uuid.UUID, userID uuid.UUID) error {
-				return svc.UpdateComment(ctx, commentID, userID, dto.UpdateCommentRequest{Body: "body"})
-			},
-			guards: []authorGuard{lookupFailureSurfaced, vanishedIsNotFound},
-		},
-		{
-			name:      "DeleteComment",
-			ofComment: true,
-			call:      (*service).DeleteComment,
-			guards:    []authorGuard{lookupFailureSurfaced, vanishedIsNotFound},
-		},
-		{
-			name:      "LikeComment",
-			ofComment: true,
-			call: func(svc *service, ctx context.Context, commentID uuid.UUID, userID uuid.UUID) error {
-				return svc.LikeComment(ctx, userID, commentID)
 			},
 			guards: []authorGuard{lookupFailureSurfaced, vanishedIsNotFound, blockedEitherWay, blockLookupFails},
 		},
@@ -1057,7 +967,7 @@ func TestAuthorGuards(t *testing.T) {
 					authorID = uuid.Nil
 				}
 
-				expectAuthorLookup(m, tc.ofComment, targetID, authorID, guard.lookupErr)
+				m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, targetID).Return(authorID, guard.lookupErr)
 				if guard.blocked || guard.blockErr != nil {
 					m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(guard.blocked, guard.blockErr)
 				}
@@ -1080,34 +990,21 @@ func TestAuthorGuards(t *testing.T) {
 	}
 }
 
-func TestUploadMedia_SaveFailureIsSurfaced(t *testing.T) {
-	cases := []struct {
-		name      string
-		ofComment bool
-		upload    func(svc *service, ctx context.Context, targetID uuid.UUID, userID uuid.UUID) error
-	}{
-		{name: "post media", upload: uploadPostMedia},
-		{name: "comment media", ofComment: true, upload: uploadCommentMedia},
-	}
+func TestUploadPostMedia_SaveFailureIsSurfaced(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	postID := uuid.New()
+	userID := uuid.New()
+	saveErr := errors.New("upload fail")
+	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(userID, nil)
+	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
+	m.uploadSvc.EXPECT().SaveImage(mock.Anything, "posts", mock.Anything, int64(10), int64(1000), mock.Anything).Return("", saveErr)
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			targetID := uuid.New()
-			userID := uuid.New()
-			saveErr := errors.New("upload fail")
-			expectAuthorLookup(m, tc.ofComment, targetID, userID, nil)
-			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
-			m.uploadSvc.EXPECT().SaveImage(mock.Anything, "posts", mock.Anything, int64(10), int64(1000), mock.Anything).Return("", saveErr)
+	// when
+	err := uploadPostMedia(svc, context.Background(), postID, userID)
 
-			// when
-			err := tc.upload(svc, context.Background(), targetID, userID)
-
-			// then
-			require.ErrorIs(t, err, saveErr)
-		})
-	}
+	// then
+	require.ErrorIs(t, err, saveErr)
 }
 
 func TestDeletePostMedia(t *testing.T) {
@@ -1167,26 +1064,6 @@ func TestLikeAndUnlike(t *testing.T) {
 			},
 			call: (*service).UnlikePost,
 		},
-		{
-			name: "LikeComment",
-			given: func(m *testMocks, userID uuid.UUID, commentID uuid.UUID, repoErr error) {
-				authorID := uuid.New()
-				m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-				m.postRepo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(repoErr)
-				if repoErr == nil {
-					expectBackgroundSocial(m)
-				}
-			},
-			call: (*service).LikeComment,
-		},
-		{
-			name: "UnlikeComment",
-			given: func(m *testMocks, userID uuid.UUID, commentID uuid.UUID, repoErr error) {
-				m.postRepo.EXPECT().UnlikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(repoErr)
-			},
-			call: (*service).UnlikeComment,
-		},
 	}
 
 	outcomes := []struct {
@@ -1219,197 +1096,32 @@ func TestLikeAndUnlike(t *testing.T) {
 func TestCreateComment(t *testing.T) {
 	cases := []struct {
 		name      string
-		reply     bool
 		createErr error
 	}{
-		{name: "a reply is created under its parent", reply: true},
-		{name: "a create failure is surfaced", createErr: errors.New("boom")},
+		{name: "a comment the comment service creates is returned"},
+		{name: "a comment the comment service refuses is surfaced", createErr: errors.New("boom")},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			svc, m := newTestService(t)
-			postID := uuid.New()
-			userID := uuid.New()
-			authorID := uuid.New()
-			commentID := uuid.New()
+			postID, userID, commentID := uuid.New(), uuid.New(), uuid.New()
+			parentID := new(uuid.New())
+			req := dto.CreateCommentRequest{Body: "hi", ParentID: parentID}
 
-			var parentID *uuid.UUID
-			if tc.reply {
-				parentID = new(uuid.New())
-			}
-
-			var created *model.CommentRow
-			if tc.createErr == nil {
-				created = &model.CommentRow{ID: commentID}
-			}
-
-			m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
-			m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-			m.postComments.EXPECT().CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: postID, ParentID: parentID, UserID: userID, Body: "hi"}).Return(created, tc.createErr)
-			if tc.createErr == nil {
-				expectBackgroundSocial(m)
-			}
-
-			// when
-			id, err := svc.CreateComment(context.Background(), postID, userID, dto.CreateCommentRequest{Body: "hi", ParentID: parentID})
-
-			// then
+			returned := commentID
 			if tc.createErr != nil {
-				require.ErrorIs(t, err, tc.createErr)
-
-				return
+				returned = uuid.Nil
 			}
-
-			require.NoError(t, err)
-			assert.Equal(t, commentID, id)
-		})
-	}
-}
-
-func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	postID := uuid.New()
-	userID := uuid.New()
-	authorID := uuid.New()
-	commentID := uuid.New()
-	mentionedID := uuid.New()
-
-	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
-	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postComments.EXPECT().
-		CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: postID, ParentID: nil, UserID: userID, Body: "look at this @alice"}).
-		Return(&model.CommentRow{ID: commentID}, nil)
-	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
-	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
-	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	var mentioned dto.NotifyParams
-	m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
-		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
-			if p.Type == dto.NotifMention {
-				mentioned = p
-			}
-			wg.Done()
-
-			return nil
-		})
-
-	// when
-	id, err := svc.CreateComment(context.Background(), postID, userID, dto.CreateCommentRequest{Body: "look at this @alice"})
-
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, commentID, id)
-	wg.Wait()
-	assert.Equal(t, mentionedID, mentioned.RecipientID)
-	assert.Equal(t, postID, mentioned.ReferenceID)
-	assert.Equal(t, "post_comment:"+commentID.String(), mentioned.ReferenceType)
-	assert.Equal(t, "/game-board/"+postID.String()+"#comment-"+commentID.String(), mentioned.EmailLink)
-}
-
-func TestUpdateComment(t *testing.T) {
-	updateErr := errors.New("boom")
-
-	cases := []struct {
-		name       string
-		byAuthor   bool
-		canEditAny bool
-		updateErr  error
-		wantAudit  bool
-	}{
-		{name: "an admin editing someone else's comment is audited", canEditAny: true, wantAudit: true},
-		{name: "a moderator editing their own comment is not audited", byAuthor: true, canEditAny: true},
-		{name: "an admin update failure is surfaced", canEditAny: true, updateErr: updateErr},
-		{name: "an owner edits their own comment", byAuthor: true},
-		{name: "an owner update failure is surfaced", byAuthor: true, updateErr: updateErr},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			id := uuid.New()
-			userID := uuid.New()
-			authorID := uuid.New()
-			if tc.byAuthor {
-				authorID = userID
-			}
-
-			m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
-			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(tc.canEditAny)
-			m.postRepo.EXPECT().UpdateCommentWithDetails(mock.Anything, spec.CommentUpdate{CommentID: id, UserID: userID, Body: "body", AsAdmin: tc.canEditAny}).Return(tc.updateErr)
-			if tc.wantAudit {
-				m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
-					ActorID:    userID,
-					Action:     audit.ActionPostCommentUpdateAdmin,
-					TargetType: audit.TargetPostComment,
-					TargetID:   id.String(),
-					SubjectID:  authorID,
-				}).Return(nil)
-			}
-			if tc.updateErr == nil {
-				expectBackgroundSocial(m)
-			}
+			m.commentSvc.EXPECT().Create(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindPost, ID: postID}, userID, req, []upload.FileUpload(nil)).Return(returned, tc.createErr).Once()
 
 			// when
-			err := svc.UpdateComment(context.Background(), id, userID, dto.UpdateCommentRequest{Body: "body"})
+			id, err := svc.CreateComment(context.Background(), postID, userID, req, nil)
 
 			// then
-			require.ErrorIs(t, err, tc.updateErr)
-			if !tc.wantAudit {
-				m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
-			}
-		})
-	}
-}
-
-func TestDeleteComment(t *testing.T) {
-	cases := []struct {
-		name         string
-		byAuthor     bool
-		canDeleteAny bool
-		paths        []string
-		deleteErr    error
-	}{
-		{name: "an admin deletes someone else's comment as an admin action", canDeleteAny: true},
-		{name: "a moderator deleting their own comment is not an admin action", byAuthor: true, canDeleteAny: true},
-		{name: "an owner deletes their own comment", byAuthor: true},
-		{name: "the media paths the repo returns are unlinked", byAuthor: true, paths: []string{"/uploads/posts/c.webp", "/uploads/posts/c_thumb.webp"}},
-		{name: "a repo failure unlinks nothing", byAuthor: true, paths: []string{"/uploads/posts/c.webp"}, deleteErr: errors.New("boom")},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			id := uuid.New()
-			userID := uuid.New()
-			authorID := uuid.New()
-			if tc.byAuthor {
-				authorID = userID
-			}
-
-			m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
-			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(tc.canDeleteAny)
-			m.postRepo.EXPECT().DeleteCommentWithAudit(mock.Anything, postCommentDeleteSpec(id, userID, authorID, tc.canDeleteAny)).Return(tc.paths, tc.deleteErr)
-			if tc.deleteErr == nil {
-				expectUnlinked(m, tc.paths)
-			}
-
-			// when
-			err := svc.DeleteComment(context.Background(), id, userID)
-
-			// then
-			require.ErrorIs(t, err, tc.deleteErr)
-			if tc.deleteErr != nil {
-				m.uploadSvc.AssertNotCalled(t, "Delete", mock.Anything)
-			}
+			require.ErrorIs(t, err, tc.createErr)
+			assert.Equal(t, returned, id)
 		})
 	}
 }
@@ -1647,6 +1359,219 @@ func TestUnresolveSuggestion(t *testing.T) {
 			}
 
 			require.ErrorIs(t, err, tc.repoErr)
+		})
+	}
+}
+
+func storeAs(urlPath string) func(context.Context, string, string, string, int64, io.Reader, bool, media.AddFn, media.UpdateURLFn, media.UpdateURLFn) (*dto.PostMediaResponse, error) {
+	return func(_ context.Context, _ string, _ string, filename string, _ int64, _ io.Reader, isSpoiler bool, addFn media.AddFn, _ media.UpdateURLFn, _ media.UpdateURLFn) (*dto.PostMediaResponse, error) {
+		id, err := addFn(urlPath, media.MediaTypeImage, "", filename, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		return &dto.PostMediaResponse{ID: int(id), MediaURL: urlPath, MediaType: media.MediaTypeImage, Filename: filename, IsSpoiler: isSpoiler}, nil
+	}
+}
+
+func expectStored(recorder *upload.MockMediaRecorder, f upload.FileUpload, urlPath string) {
+	recorder.EXPECT().
+		SaveAndRecord(mock.Anything, "posts", f.ContentType, f.Filename, f.Size, mock.Anything, f.IsSpoiler, mock.Anything, mock.Anything, mock.Anything).
+		RunAndReturn(storeAs(urlPath)).
+		Once()
+}
+
+func TestCreatePost_SavesEveryFileInDisplayOrderBeforeAnySideEffect(t *testing.T) {
+	// given a post carrying two images, the second marked as a spoiler
+	svc, m := newTestService(t)
+	recorder := upload.NewMockMediaRecorder(t)
+	svc.uploader = recorder
+	userID := uuid.New()
+	postID := uuid.New()
+	files := []upload.FileUpload{uploadtest.PNGUpload(t, "one.png", false), uploadtest.PNGUpload(t, "two.png", true)}
+
+	var order []string
+
+	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
+	uploadtest.ExpectMediaLimits(m.settingsSvc, testMediaLimit)
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: "general", Body: "hello"}).Return(&model.PostRow{ID: postID}, nil)
+	expectStored(recorder, files[0], "/uploads/posts/one.png")
+	expectStored(recorder, files[1], "/uploads/posts/two.png")
+	m.postRepo.EXPECT().
+		AddMedia(mock.Anything, spec.NewMedia{TargetID: postID, MediaURL: "/uploads/posts/one.png", MediaType: media.MediaTypeImage, Filename: "one.png", SortOrder: 0}).
+		Run(func(_ context.Context, _ spec.NewMedia, _ ...*sql.Tx) { order = append(order, "one.png") }).
+		Return(1, nil).
+		Once()
+	m.postRepo.EXPECT().
+		AddMedia(mock.Anything, spec.NewMedia{TargetID: postID, MediaURL: "/uploads/posts/two.png", MediaType: media.MediaTypeImage, Filename: "two.png", SortOrder: 1, IsSpoiler: true}).
+		Run(func(_ context.Context, _ spec.NewMedia, _ ...*sql.Tx) { order = append(order, "two.png") }).
+		Return(2, nil).
+		Once()
+	m.activity.EXPECT().
+		BumpSidebarActivity(sidebar.GameBoardKey(corner.GameBoardGeneral)).
+		Run(func(_ sidebar.Key) { order = append(order, "bump") }).
+		Return().
+		Once()
+	expectBackgroundSocial(m)
+
+	// when
+	id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: "general", Body: "hello"}, files)
+
+	// then each file is recorded against the post at its position with its own spoiler flag, and only then is the board bumped
+	require.NoError(t, err)
+	assert.Equal(t, postID, id)
+	assert.Equal(t, []string{"one.png", "two.png", "bump"}, order)
+}
+
+func TestCreatePost_FilesWithoutText(t *testing.T) {
+	// given a post with no words but one picture
+	svc, m := newTestService(t)
+	recorder := upload.NewMockMediaRecorder(t)
+	svc.uploader = recorder
+	userID := uuid.New()
+	postID := uuid.New()
+	files := []upload.FileUpload{uploadtest.PNGUpload(t, "one.png", false)}
+
+	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
+	uploadtest.ExpectMediaLimits(m.settingsSvc, testMediaLimit)
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: "general"}).Return(&model.PostRow{ID: postID}, nil)
+	expectStored(recorder, files[0], "/uploads/posts/one.png")
+	m.postRepo.EXPECT().
+		AddMedia(mock.Anything, spec.NewMedia{TargetID: postID, MediaURL: "/uploads/posts/one.png", MediaType: media.MediaTypeImage, Filename: "one.png", SortOrder: 0}).
+		Return(1, nil).
+		Once()
+	m.activity.EXPECT().BumpSidebarActivity(sidebar.GameBoardKey(corner.GameBoardGeneral)).Return().Once()
+	expectBackgroundSocial(m)
+
+	// when
+	id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: "general", Body: "   "}, files)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, postID, id)
+}
+
+func TestCreatePost_NoTextAndNoFilesIsEmpty(t *testing.T) {
+	// given
+	svc, _ := newTestService(t)
+
+	// when
+	id, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{Corner: "general", Body: "   "}, nil)
+
+	// then
+	require.ErrorIs(t, err, ErrEmptyBody)
+	assert.Equal(t, uuid.Nil, id)
+}
+
+func TestCreatePost_AFailedSaveRollsThePostBackAndFiresNothing(t *testing.T) {
+	rollbackErr := errors.New("db down")
+
+	cases := []struct {
+		name          string
+		failOn        int
+		rollbackPaths []string
+		rollbackErr   error
+		hangUp        bool
+	}{
+		{name: "a first-file failure deletes the post"},
+		{name: "a second-file failure deletes the post and every stored object", failOn: 1, rollbackPaths: []string{"/uploads/posts/one.png"}},
+		{name: "a failed rollback is reported alongside the store failure", rollbackErr: rollbackErr},
+		{name: "a client hanging up mid-upload still rolls the post back", hangUp: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a shared post that mentions someone, and a store that fails part-way
+			svc, m := newTestService(t)
+			recorder := upload.NewMockMediaRecorder(t)
+			svc.uploader = recorder
+			obs := newCaptureObserver()
+			svc.SetCommentObserver(obs)
+			userID := uuid.New()
+			postID := uuid.New()
+			files := []upload.FileUpload{uploadtest.PNGUpload(t, "one.png", false), uploadtest.PNGUpload(t, "two.png", false)}
+			req := dto.CreatePostRequest{Corner: "general", Body: "look at this @alice", SharedContentID: uuid.NewString(), SharedContentType: "theory"}
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
+			uploadtest.ExpectMediaLimits(m.settingsSvc, testMediaLimit)
+			m.postRepo.EXPECT().CreateWithDetails(mock.Anything, mock.Anything).Return(&model.PostRow{ID: postID}, nil)
+
+			if tc.failOn == 1 {
+				expectStored(recorder, files[0], "/uploads/posts/one.png")
+				m.postRepo.EXPECT().AddMedia(mock.Anything, mock.Anything).Return(1, nil).Once()
+			}
+			recorder.EXPECT().
+				SaveAndRecord(mock.Anything, "posts", "image/png", files[tc.failOn].Filename, mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
+				RunAndReturn(func(context.Context, string, string, string, int64, io.Reader, bool, media.AddFn, media.UpdateURLFn, media.UpdateURLFn) (*dto.PostMediaResponse, error) {
+					if tc.hangUp {
+						cancel()
+					}
+
+					return nil, errStoreFailed
+				}).
+				Once()
+
+			var rollbackCtxErr error
+			m.postRepo.EXPECT().
+				DeleteWithMedia(mock.Anything, spec.OwnedDeletion{ID: postID, UserID: userID}).
+				Run(func(ctx context.Context, _ spec.OwnedDeletion, _ ...*sql.Tx) { rollbackCtxErr = ctx.Err() }).
+				Return(tc.rollbackPaths, tc.rollbackErr).
+				Once()
+			expectUnlinked(m, tc.rollbackPaths)
+
+			// when
+			id, err := svc.CreatePost(ctx, userID, req, files)
+
+			// then the post is gone, and the strict mocks prove no share count, mention, notification or board bump fired
+			require.ErrorIs(t, err, errStoreFailed)
+			if tc.rollbackErr != nil {
+				require.ErrorIs(t, err, tc.rollbackErr)
+			}
+			assert.Equal(t, uuid.Nil, id)
+			require.NoError(t, rollbackCtxErr)
+			assert.Empty(t, obs.captured())
+		})
+	}
+}
+
+func TestCreatePost_ARefusedFileWritesNothing(t *testing.T) {
+	cases := []struct {
+		name         string
+		file         upload.FileUpload
+		maxImageSize int
+		wantErr      error
+	}{
+		{
+			name:         "an image over the size limit",
+			file:         uploadtest.PNGUpload(t, "big.png", false),
+			maxImageSize: 1,
+			wantErr:      upload.ErrFileTooLarge,
+		},
+		{
+			name:         "a file that is not the image it claims to be",
+			file:         uploadtest.MemoryUpload("image/png", "fake.png", []byte("not an image at all"), false),
+			maxImageSize: testMediaLimit,
+			wantErr:      upload.ErrInvalidFileType,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given strict repo and recorder mocks that expect no write at all
+			svc, m := newTestService(t)
+			svc.uploader = upload.NewMockMediaRecorder(t)
+			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
+			uploadtest.ExpectMediaLimits(m.settingsSvc, tc.maxImageSize)
+
+			// when
+			id, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{Corner: "general", Body: "hello"}, []upload.FileUpload{uploadtest.PNGUpload(t, "fine.png", false), tc.file})
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+			assert.Equal(t, uuid.Nil, id)
 		})
 	}
 }

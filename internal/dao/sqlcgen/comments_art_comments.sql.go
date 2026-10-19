@@ -385,6 +385,17 @@ func (q *Queries) GetArtCommentMediaBatch(ctx context.Context, dollar_1 string) 
 	return items, nil
 }
 
+const getArtCommentTargetOwner = `-- name: GetArtCommentTargetOwner :one
+SELECT COALESCE(user_id, '00000000-0000-0000-0000-000000000000')::uuid AS owner_id FROM art WHERE id = $1
+`
+
+func (q *Queries) GetArtCommentTargetOwner(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, getArtCommentTargetOwner, id)
+	var owner_id uuid.UUID
+	err := row.Scan(&owner_id)
+	return owner_id, err
+}
+
 const likeArtComment = `-- name: LikeArtComment :exec
 INSERT INTO art_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING
 `
@@ -524,7 +535,7 @@ func (q *Queries) UpdateArtComment(ctx context.Context, arg UpdateArtCommentPara
 	return result.RowsAffected()
 }
 
-const updateArtCommentMediaThumbnail = `-- name: UpdateArtCommentMediaThumbnail :exec
+const updateArtCommentMediaThumbnail = `-- name: UpdateArtCommentMediaThumbnail :execrows
 UPDATE art_comment_media SET thumbnail_url = $1 WHERE id = $2
 `
 
@@ -533,12 +544,15 @@ type UpdateArtCommentMediaThumbnailParams struct {
 	ID           int64
 }
 
-func (q *Queries) UpdateArtCommentMediaThumbnail(ctx context.Context, arg UpdateArtCommentMediaThumbnailParams) error {
-	_, err := q.db.ExecContext(ctx, updateArtCommentMediaThumbnail, arg.ThumbnailUrl, arg.ID)
-	return err
+func (q *Queries) UpdateArtCommentMediaThumbnail(ctx context.Context, arg UpdateArtCommentMediaThumbnailParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateArtCommentMediaThumbnail, arg.ThumbnailUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const updateArtCommentMediaURL = `-- name: UpdateArtCommentMediaURL :exec
+const updateArtCommentMediaURL = `-- name: UpdateArtCommentMediaURL :execrows
 UPDATE art_comment_media SET media_url = $1 WHERE id = $2
 `
 
@@ -547,7 +561,10 @@ type UpdateArtCommentMediaURLParams struct {
 	ID       int64
 }
 
-func (q *Queries) UpdateArtCommentMediaURL(ctx context.Context, arg UpdateArtCommentMediaURLParams) error {
-	_, err := q.db.ExecContext(ctx, updateArtCommentMediaURL, arg.MediaUrl, arg.ID)
-	return err
+func (q *Queries) UpdateArtCommentMediaURL(ctx context.Context, arg UpdateArtCommentMediaURLParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateArtCommentMediaURL, arg.MediaUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

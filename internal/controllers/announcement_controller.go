@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"errors"
-	"strings"
 
 	announcementsvc "umineko_city_of_books/internal/announcement"
 	"umineko_city_of_books/internal/authz"
@@ -21,37 +20,7 @@ func (s *Service) getAllAnnouncementRoutes() []FSetupRoute {
 		s.setupUpdateAnnouncement,
 		s.setupDeleteAnnouncement,
 		s.setupPinAnnouncement,
-		s.setupCreateAnnouncementComment,
-		s.setupUpdateAnnouncementComment,
-		s.setupDeleteAnnouncementComment,
-		s.setupLikeAnnouncementComment,
-		s.setupUnlikeAnnouncementComment,
-		s.setupUploadAnnouncementCommentMedia,
 	}
-}
-
-func (s *Service) setupCreateAnnouncementComment(r fiber.Router) {
-	r.Post("/announcements/:id/comments", s.requireAuth(), s.createAnnouncementComment)
-}
-
-func (s *Service) setupUpdateAnnouncementComment(r fiber.Router) {
-	r.Put("/announcement-comments/:id", s.requireAuth(), s.updateAnnouncementComment)
-}
-
-func (s *Service) setupDeleteAnnouncementComment(r fiber.Router) {
-	r.Delete("/announcement-comments/:id", s.requireAuth(), s.deleteAnnouncementComment)
-}
-
-func (s *Service) setupLikeAnnouncementComment(r fiber.Router) {
-	r.Post("/announcement-comments/:id/like", s.requireAuth(), s.likeAnnouncementComment)
-}
-
-func (s *Service) setupUnlikeAnnouncementComment(r fiber.Router) {
-	r.Delete("/announcement-comments/:id/like", s.requireAuth(), s.unlikeAnnouncementComment)
-}
-
-func (s *Service) setupUploadAnnouncementCommentMedia(r fiber.Router) {
-	r.Post("/announcement-comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadAnnouncementCommentMedia)
 }
 
 func (s *Service) setupListAnnouncements(r fiber.Router) {
@@ -203,144 +172,4 @@ func (s *Service) pinAnnouncement(ctx fiber.Ctx) error {
 	}
 
 	return ctrlutils.OK(ctx)
-}
-
-func (s *Service) createAnnouncementComment(ctx fiber.Ctx) error {
-	announcementID, ok := ctrlutils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := ctrlutils.UserID(ctx)
-
-	req, ok := ctrlutils.BindJSON[dto.CreateCommentRequest](ctx)
-	if !ok {
-		return nil
-	}
-
-	id, err := s.AnnouncementService.CreateComment(ctx.Context(), announcementID, userID, req.ParentID, strings.TrimSpace(req.Body))
-	if err != nil {
-		switch {
-		case errors.Is(err, announcementsvc.ErrEmptyBody):
-			return ctrlutils.BadRequest(ctx, "body is required")
-		case errors.Is(err, announcementsvc.ErrNotFound):
-			return ctrlutils.NotFound(ctx, "announcement not found")
-		case errors.Is(err, announcementsvc.ErrBlocked):
-			return ctrlutils.Forbidden(ctx, "user is blocked")
-		}
-		return ctrlutils.InternalError(ctx, "failed to create comment", err)
-	}
-
-	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
-}
-
-func (s *Service) updateAnnouncementComment(ctx fiber.Ctx) error {
-	id, ok := ctrlutils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := ctrlutils.UserID(ctx)
-
-	req, ok := ctrlutils.BindJSON[dto.UpdateCommentRequest](ctx)
-	if !ok {
-		return nil
-	}
-
-	if err := s.AnnouncementService.UpdateComment(ctx.Context(), id, userID, strings.TrimSpace(req.Body)); err != nil {
-		switch {
-		case errors.Is(err, announcementsvc.ErrEmptyBody):
-			return ctrlutils.BadRequest(ctx, "body is required")
-		case errors.Is(err, announcementsvc.ErrForbidden):
-			return ctrlutils.Forbidden(ctx, "cannot update this comment")
-		case errors.Is(err, announcementsvc.ErrCommentNotFound):
-			return ctrlutils.NotFound(ctx, "comment not found")
-		}
-		return ctrlutils.InternalError(ctx, "failed to update comment", err)
-	}
-
-	return ctx.SendStatus(fiber.StatusNoContent)
-}
-
-func (s *Service) deleteAnnouncementComment(ctx fiber.Ctx) error {
-	id, ok := ctrlutils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := ctrlutils.UserID(ctx)
-
-	if err := s.AnnouncementService.DeleteComment(ctx.Context(), id, userID); err != nil {
-		if errors.Is(err, announcementsvc.ErrForbidden) {
-			return ctrlutils.Forbidden(ctx, "cannot delete this comment")
-		}
-		if errors.Is(err, announcementsvc.ErrCommentNotFound) {
-			return ctrlutils.NotFound(ctx, "comment not found")
-		}
-		return ctrlutils.InternalError(ctx, "failed to delete comment", err)
-	}
-
-	return ctx.SendStatus(fiber.StatusNoContent)
-}
-
-func (s *Service) likeAnnouncementComment(ctx fiber.Ctx) error {
-	commentID, ok := ctrlutils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := ctrlutils.UserID(ctx)
-
-	if err := s.AnnouncementService.LikeComment(ctx.Context(), userID, commentID); err != nil {
-		switch {
-		case errors.Is(err, announcementsvc.ErrCommentNotFound):
-			return ctrlutils.NotFound(ctx, "comment not found")
-		case errors.Is(err, announcementsvc.ErrBlocked):
-			return ctrlutils.Forbidden(ctx, "user is blocked")
-		}
-		return ctrlutils.InternalError(ctx, "failed to like comment", err)
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
-}
-
-func (s *Service) unlikeAnnouncementComment(ctx fiber.Ctx) error {
-	commentID, ok := ctrlutils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := ctrlutils.UserID(ctx)
-
-	if err := s.AnnouncementService.UnlikeComment(ctx.Context(), userID, commentID); err != nil {
-		return ctrlutils.InternalError(ctx, "failed to unlike comment", err)
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
-}
-
-func (s *Service) uploadAnnouncementCommentMedia(ctx fiber.Ctx) error {
-	commentID, ok := ctrlutils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := ctrlutils.UserID(ctx)
-
-	file, err := ctx.FormFile("media")
-	if err != nil {
-		return ctrlutils.BadRequest(ctx, "no media file provided")
-	}
-	reader, err := file.Open()
-	if err != nil {
-		return ctrlutils.InternalError(ctx, "failed to read file", err)
-	}
-	defer reader.Close()
-
-	resp, err := s.AnnouncementService.UploadCommentMedia(ctx.Context(), commentID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader, isSpoilerUpload(ctx))
-	if err != nil {
-		switch {
-		case errors.Is(err, announcementsvc.ErrCommentNotFound):
-			return ctrlutils.NotFound(ctx, "comment not found")
-		case errors.Is(err, announcementsvc.ErrForbidden):
-			return ctrlutils.Forbidden(ctx, "not the comment author")
-		case ctrlutils.IsUploadRejection(err):
-			return ctrlutils.BadRequest(ctx, err.Error())
-		}
-		return ctrlutils.InternalError(ctx, "failed to upload media", err)
-	}
-
-	return ctx.Status(fiber.StatusCreated).JSON(resp)
 }

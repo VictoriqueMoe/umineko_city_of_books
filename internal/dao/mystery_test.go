@@ -5,12 +5,9 @@ import (
 	"database/sql"
 	"testing"
 
-	"umineko_city_of_books/internal/audit"
-	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
@@ -21,13 +18,6 @@ import (
 )
 
 type (
-	mysteryMediaSurface struct {
-		name      string
-		onComment bool
-		add       func(repository.MysteryRepository, context.Context, spec.NewMedia, ...*sql.Tx) (int64, error)
-		get       func(repository.MysteryRepository, context.Context, uuid.UUID, ...*sql.Tx) ([]model.PostMediaRow, error)
-	}
-
 	mysteryClueFixture struct {
 		repos     *repository.Repositories
 		mysteryID uuid.UUID
@@ -38,23 +28,6 @@ type (
 	mysteryVote struct {
 		voter int
 		value int
-	}
-
-	mysteryLikeAction func(repository.MysteryRepository, context.Context, spec.CommentLike, ...*sql.Tx) error
-)
-
-var (
-	mysteryEntityMedia = mysteryMediaSurface{
-		name:      "mystery media",
-		onComment: false,
-		add:       repository.MysteryRepository.AddMedia,
-		get:       repository.MysteryRepository.GetMedia,
-	}
-	mysteryCommentMedia = mysteryMediaSurface{
-		name:      "comment media",
-		onComment: true,
-		add:       repository.MysteryRepository.AddCommentMedia,
-		get:       repository.MysteryRepository.GetCommentMedia,
 	}
 )
 
@@ -81,19 +54,6 @@ func createAttempt(t *testing.T, repos *repository.Repositories, mysteryID, user
 		UserID:    userID,
 		ParentID:  parent,
 		Body:      body,
-	})
-	require.NoError(t, err)
-
-	return created.ID
-}
-
-func createMysteryComment(t *testing.T, repos *repository.Repositories, mysteryID uuid.UUID, parent *uuid.UUID, userID uuid.UUID, body string) uuid.UUID {
-	t.Helper()
-	created, err := repos.Comments.ByID[string(mention.KindMysteryComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{
-		TargetID: mysteryID,
-		ParentID: parent,
-		UserID:   userID,
-		Body:     body,
 	})
 	require.NoError(t, err)
 
@@ -190,28 +150,6 @@ func mysteryAttempts(t *testing.T, repos *repository.Repositories, mysteryID, vi
 	return byID
 }
 
-func mysteryComments(t *testing.T, repos *repository.Repositories, mysteryID, viewerID uuid.UUID) map[uuid.UUID]model.CommentRow {
-	t.Helper()
-	rows, _, err := repos.Mystery.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: mysteryID, ViewerID: viewerID, Limit: 500, Offset: 0})
-	require.NoError(t, err)
-
-	byID := make(map[uuid.UUID]model.CommentRow, len(rows))
-	for _, row := range rows {
-		byID[row.ID] = row
-	}
-	require.Len(t, byID, len(rows))
-
-	return byID
-}
-
-func mysteryAddCommentMedia(t *testing.T, repos *repository.Repositories, commentID uuid.UUID, mediaURL, thumbnailURL string) int64 {
-	t.Helper()
-	id, err := repos.Mystery.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: mediaURL, MediaType: "image", ThumbnailURL: thumbnailURL})
-	require.NoError(t, err)
-
-	return id
-}
-
 func mysteryAddUploads(t *testing.T, repos *repository.Repositories, mysteryID, commenterID uuid.UUID, thumbnails bool) {
 	t.Helper()
 	ctx := context.Background()
@@ -229,8 +167,8 @@ func mysteryAddUploads(t *testing.T, repos *repository.Repositories, mysteryID, 
 	_, err = repos.Mystery.AddAttachment(ctx, spec.NewMysteryAttachment{MysteryID: mysteryID, FileURL: "/uploads/mystery/case.pdf", FileName: "case.pdf", FileSize: 42})
 	require.NoError(t, err)
 
-	commentID := createMysteryComment(t, repos, mysteryID, nil, commenterID, "a clue")
-	mysteryAddCommentMedia(t, repos, commentID, "/uploads/mystery/reply.png", replyThumbnail)
+	commentID := createComment(t, repos, spec.CommentTarget{Kind: spec.CommentKindMystery, ID: mysteryID}, commenterID, nil, "a clue")
+	addCommentMedia(t, repos, spec.CommentKindMystery, commentID, "/uploads/mystery/reply.png", replyThumbnail)
 }
 
 func mysteryCheckErr(t *testing.T, wantErr bool, err error) {
@@ -242,15 +180,6 @@ func mysteryCheckErr(t *testing.T, wantErr bool, err error) {
 	}
 
 	require.NoError(t, err)
-}
-
-func (s mysteryMediaSurface) target(t *testing.T, repos *repository.Repositories, mysteryID, userID uuid.UUID) uuid.UUID {
-	t.Helper()
-	if !s.onComment {
-		return mysteryID
-	}
-
-	return createMysteryComment(t, repos, mysteryID, nil, userID, "x")
 }
 
 func TestMysteryDAO_Create(t *testing.T) {
@@ -983,275 +912,48 @@ func TestMysteryDAO_GetGMLeaderboard(t *testing.T) {
 	assert.Equal(t, []string{gm.ID.String()}, topIDs)
 }
 
-func TestMysteryDAO_CreateComment(t *testing.T) {
-	// given
-	repos, gm, id := mysteryByGM(t)
-	ctx := context.Background()
-	commenter := daotest.CreateUser(t, repos)
-
-	// when
-	parentID := createMysteryComment(t, repos, id, nil, commenter.ID, "nice mystery")
-	replyID := createMysteryComment(t, repos, id, &parentID, gm.ID, "reply")
-
-	// then
-	comments := mysteryComments(t, repos, id, commenter.ID)
-	require.Len(t, comments, 2)
-	assert.Equal(t, "nice mystery", comments[parentID].Body)
-	assert.Nil(t, comments[parentID].ParentID)
-	require.NotNil(t, comments[replyID].ParentID)
-	assert.Equal(t, parentID, *comments[replyID].ParentID)
-
-	entityID, err := repos.Mystery.GetCommentEntityID(ctx, parentID)
-	require.NoError(t, err)
-	assert.Equal(t, id, entityID)
-
-	authorID, err := repos.Mystery.GetCommentAuthorID(ctx, parentID)
-	require.NoError(t, err)
-	assert.Equal(t, commenter.ID, authorID)
-}
-
-func TestMysteryDAO_GetComments_ExcludeUsers(t *testing.T) {
-	// given
-	repos, gm, id := mysteryByGM(t)
-	c1 := daotest.CreateUser(t, repos)
-	c2 := daotest.CreateUser(t, repos)
-	createMysteryComment(t, repos, id, nil, c1.ID, "A")
-	keepID := createMysteryComment(t, repos, id, nil, c2.ID, "B")
-
-	// when
-	comments, total, err := repos.Mystery.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
-		TargetID:       id,
-		ViewerID:       gm.ID,
-		Limit:          500,
-		Offset:         0,
-		ExcludeUserIDs: []uuid.UUID{c1.ID},
-	})
-
-	// then
-	require.NoError(t, err)
-	require.Len(t, comments, 1)
-	assert.Equal(t, keepID, comments[0].ID)
-	assert.Equal(t, 1, total)
-}
-
-func TestMysteryDAO_UpdateComment(t *testing.T) {
-	cases := []struct {
-		name     string
-		byAuthor bool
-		asAdmin  bool
-		wantErr  bool
-		wantBody string
-	}{
-		{name: "the author can edit their comment and it is stamped as edited", byAuthor: true, asAdmin: false, wantErr: false, wantBody: "new body"},
-		{name: "a stranger cannot edit someone else's comment", byAuthor: false, asAdmin: false, wantErr: true, wantBody: "old"},
-		{name: "an admin can edit anyone's comment", byAuthor: false, asAdmin: true, wantErr: false, wantBody: "new body"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			repos, _, id := mysteryByGM(t)
-			commenter := daotest.CreateUser(t, repos)
-			commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "old")
-
-			editor := commenter
-			if !tc.byAuthor {
-				editor = daotest.CreateUser(t, repos)
-			}
-
-			// when
-			err := repos.Mystery.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: commentID, UserID: editor.ID, Body: "new body", AsAdmin: tc.asAdmin})
-
-			// then
-			mysteryCheckErr(t, tc.wantErr, err)
-
-			comments := mysteryComments(t, repos, id, commenter.ID)
-			require.Len(t, comments, 1)
-			assert.Equal(t, tc.wantBody, comments[commentID].Body)
-			assert.Equal(t, !tc.wantErr, comments[commentID].UpdatedAt != nil)
-		})
-	}
-}
-
-func TestMysteryRepo_DeleteCommentWithAudit(t *testing.T) {
-	cases := []struct {
-		name       string
-		asAdmin    bool
-		wantAction audit.Action
-	}{
-		{name: "the owner deleting their own comment", asAdmin: false, wantAction: audit.ActionMysteryCommentDelete},
-		{name: "a moderator deleting someone else's comment", asAdmin: true, wantAction: audit.ActionMysteryCommentDeleteAdmin},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			repos, gm, id := mysteryByGM(t)
-			ctx := context.Background()
-			commenter := daotest.CreateUser(t, repos)
-			commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "a clue")
-			mysteryAddCommentMedia(t, repos, commentID, "/uploads/mystery/reply.png", "/uploads/mystery/reply_thumb.png")
-			keptID := createMysteryComment(t, repos, id, nil, commenter.ID, "another clue")
-			mysteryAddCommentMedia(t, repos, keptID, "/uploads/mystery/keep.png", "")
-
-			actor := commenter
-			if tc.asAdmin {
-				actor = gm
-			}
-
-			// when
-			paths, err := repos.Mystery.DeleteCommentWithAudit(ctx, spec.CommentDeletion{
-				CommentID: commentID,
-				UserID:    actor.ID,
-				AsAdmin:   tc.asAdmin,
-			})
-
-			// then
-			require.NoError(t, err)
-			assert.ElementsMatch(t, []string{"/uploads/mystery/reply.png", "/uploads/mystery/reply_thumb.png"}, paths)
-
-			comments := mysteryComments(t, repos, id, commenter.ID)
-			assert.Len(t, comments, 1)
-			assert.Contains(t, comments, keptID)
-
-			media, err := repos.Mystery.GetCommentMedia(ctx, keptID)
-			require.NoError(t, err)
-			require.Len(t, media, 1)
-			assert.Equal(t, "/uploads/mystery/keep.png", media[0].MediaURL)
-
-			entries, total, err := repos.AuditLog.List(ctx, spec.AuditLogListing{Action: tc.wantAction, Page: bounds.NewPage(10, 0)})
-			require.NoError(t, err)
-			assert.Equal(t, 1, total)
-			require.Len(t, entries, 1)
-			assert.Equal(t, actor.ID, entries[0].ActorID)
-			assert.Equal(t, audit.TargetMysteryComment, entries[0].TargetType)
-			assert.Equal(t, commentID.String(), entries[0].TargetID)
-		})
-	}
-}
-
-func TestMysteryRepo_DeleteCommentWithAudit_NotOwnedLeavesEverythingInPlace(t *testing.T) {
+func TestMysteryDAO_Media(t *testing.T) {
 	// given
 	repos, _, id := mysteryByGM(t)
 	ctx := context.Background()
-	commenter := daotest.CreateUser(t, repos)
-	stranger := daotest.CreateUser(t, repos)
-	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "a clue")
-	mysteryAddCommentMedia(t, repos, commentID, "/uploads/mystery/reply.png", "/uploads/mystery/reply_thumb.png")
 
 	// when
-	paths, err := repos.Mystery.DeleteCommentWithAudit(ctx, spec.CommentDeletion{CommentID: commentID, UserID: stranger.ID})
+	firstID, errFirst := repos.Mystery.AddMedia(ctx, spec.NewMedia{TargetID: id, MediaURL: "/a.png", MediaType: "image", ThumbnailURL: "/t.png"})
+	_, errSecond := repos.Mystery.AddMedia(ctx, spec.NewMedia{TargetID: id, MediaURL: "/b.png", MediaType: "image"})
 
-	// then
-	require.Error(t, err)
-	assert.Empty(t, paths)
+	// then mystery media reads back in the order it was added
+	require.NoError(t, errFirst)
+	require.NoError(t, errSecond)
+	assert.NotZero(t, firstID)
 
-	comments := mysteryComments(t, repos, id, commenter.ID)
-	assert.Len(t, comments, 1)
-	assert.Contains(t, comments, commentID)
-
-	media, err := repos.Mystery.GetCommentMedia(ctx, commentID)
+	media, err := repos.Mystery.GetMedia(ctx, id)
 	require.NoError(t, err)
-	require.Len(t, media, 1)
-	assert.Equal(t, "/uploads/mystery/reply.png", media[0].MediaURL)
-	assert.Equal(t, "/uploads/mystery/reply_thumb.png", media[0].ThumbnailURL)
-
-	_, total, err := repos.AuditLog.List(ctx, spec.AuditLogListing{Action: "", Page: bounds.NewPage(10, 0)})
-	require.NoError(t, err)
-	assert.Equal(t, 0, total)
-}
-
-func TestMysteryDAO_LikeComment(t *testing.T) {
-	like := repository.MysteryRepository.LikeComment
-	unlike := repository.MysteryRepository.UnlikeComment
-
-	cases := []struct {
-		name      string
-		actions   []mysteryLikeAction
-		wantCount int
-		wantLiked bool
-	}{
-		{name: "a like is counted and marked as the viewer's own", actions: []mysteryLikeAction{like}, wantCount: 1, wantLiked: true},
-		{name: "liking twice is idempotent", actions: []mysteryLikeAction{like, like}, wantCount: 1, wantLiked: true},
-		{name: "unliking removes the like", actions: []mysteryLikeAction{like, unlike}, wantCount: 0, wantLiked: false},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			repos, _, id := mysteryByGM(t)
-			ctx := context.Background()
-			commenter := daotest.CreateUser(t, repos)
-			liker := daotest.CreateUser(t, repos)
-			commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "x")
-
-			// when
-			for _, act := range tc.actions {
-				require.NoError(t, act(repos.Mystery, ctx, spec.CommentLike{UserID: liker.ID, CommentID: commentID}))
-			}
-
-			// then
-			comments := mysteryComments(t, repos, id, liker.ID)
-			require.Len(t, comments, 1)
-			assert.Equal(t, tc.wantCount, comments[commentID].LikeCount)
-			assert.Equal(t, tc.wantLiked, comments[commentID].UserLiked)
-		})
-	}
-}
-
-func TestMysteryDAO_Media(t *testing.T) {
-	cases := []mysteryMediaSurface{mysteryEntityMedia, mysteryCommentMedia}
-
-	for _, tc := range cases {
-		t.Run(tc.name+" reads back in the order it was added", func(t *testing.T) {
-			// given
-			repos, gm, id := mysteryByGM(t)
-			ctx := context.Background()
-			targetID := tc.target(t, repos, id, gm.ID)
-
-			// when
-			firstID, errFirst := tc.add(repos.Mystery, ctx, spec.NewMedia{TargetID: targetID, MediaURL: "/a.png", MediaType: "image", ThumbnailURL: "/t.png"})
-			_, errSecond := tc.add(repos.Mystery, ctx, spec.NewMedia{TargetID: targetID, MediaURL: "/b.png", MediaType: "image"})
-
-			// then
-			require.NoError(t, errFirst)
-			require.NoError(t, errSecond)
-			assert.NotZero(t, firstID)
-
-			media, err := tc.get(repos.Mystery, ctx, targetID)
-			require.NoError(t, err)
-			require.Len(t, media, 2)
-			assert.Equal(t, "/a.png", media[0].MediaURL)
-			assert.Equal(t, "image", media[0].MediaType)
-			assert.Equal(t, "/t.png", media[0].ThumbnailURL)
-			assert.Equal(t, 0, media[0].SortOrder)
-			assert.Equal(t, "/b.png", media[1].MediaURL)
-			assert.Equal(t, 1, media[1].SortOrder)
-		})
-	}
+	require.Len(t, media, 2)
+	assert.Equal(t, "/a.png", media[0].MediaURL)
+	assert.Equal(t, "image", media[0].MediaType)
+	assert.Equal(t, "/t.png", media[0].ThumbnailURL)
+	assert.Equal(t, 0, media[0].SortOrder)
+	assert.Equal(t, "/b.png", media[1].MediaURL)
+	assert.Equal(t, 1, media[1].SortOrder)
 }
 
 func TestMysteryDAO_UpdateMedia(t *testing.T) {
 	cases := []struct {
 		name          string
-		surface       mysteryMediaSurface
 		update        func(repository.MysteryRepository, context.Context, spec.MediaURLUpdate, ...*sql.Tx) error
 		wantURL       string
 		wantThumbnail string
 	}{
-		{name: "UpdateMediaURL swaps a mystery image's url and keeps its thumbnail", surface: mysteryEntityMedia, update: repository.MysteryRepository.UpdateMediaURL, wantURL: "/new.png", wantThumbnail: "/old.png"},
-		{name: "UpdateMediaThumbnail swaps a mystery image's thumbnail and keeps its url", surface: mysteryEntityMedia, update: repository.MysteryRepository.UpdateMediaThumbnail, wantURL: "/a.png", wantThumbnail: "/new.png"},
-		{name: "UpdateCommentMediaURL swaps a comment image's url and keeps its thumbnail", surface: mysteryCommentMedia, update: repository.MysteryRepository.UpdateCommentMediaURL, wantURL: "/new.png", wantThumbnail: "/old.png"},
-		{name: "UpdateCommentMediaThumbnail swaps a comment image's thumbnail and keeps its url", surface: mysteryCommentMedia, update: repository.MysteryRepository.UpdateCommentMediaThumbnail, wantURL: "/a.png", wantThumbnail: "/new.png"},
+		{name: "UpdateMediaURL swaps a mystery image's url and keeps its thumbnail", update: repository.MysteryRepository.UpdateMediaURL, wantURL: "/new.png", wantThumbnail: "/old.png"},
+		{name: "UpdateMediaThumbnail swaps a mystery image's thumbnail and keeps its url", update: repository.MysteryRepository.UpdateMediaThumbnail, wantURL: "/a.png", wantThumbnail: "/new.png"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			repos, gm, id := mysteryByGM(t)
+			repos, _, id := mysteryByGM(t)
 			ctx := context.Background()
-			targetID := tc.surface.target(t, repos, id, gm.ID)
-			mediaID, err := tc.surface.add(repos.Mystery, ctx, spec.NewMedia{TargetID: targetID, MediaURL: "/a.png", MediaType: "image", ThumbnailURL: "/old.png"})
+			mediaID, err := repos.Mystery.AddMedia(ctx, spec.NewMedia{TargetID: id, MediaURL: "/a.png", MediaType: "image", ThumbnailURL: "/old.png"})
 			require.NoError(t, err)
 
 			// when
@@ -1260,48 +962,11 @@ func TestMysteryDAO_UpdateMedia(t *testing.T) {
 			// then
 			require.NoError(t, err)
 
-			media, err := tc.surface.get(repos.Mystery, ctx, targetID)
+			media, err := repos.Mystery.GetMedia(ctx, id)
 			require.NoError(t, err)
 			require.Len(t, media, 1)
 			assert.Equal(t, tc.wantURL, media[0].MediaURL)
 			assert.Equal(t, tc.wantThumbnail, media[0].ThumbnailURL)
-		})
-	}
-}
-
-func TestMysteryDAO_GetCommentMediaBatch(t *testing.T) {
-	// given
-	repos, gm, id := mysteryByGM(t)
-	ctx := context.Background()
-	c1 := createMysteryComment(t, repos, id, nil, gm.ID, "a")
-	c2 := createMysteryComment(t, repos, id, nil, gm.ID, "b")
-	m1 := mysteryAddCommentMedia(t, repos, c1, "/c1.png", "")
-	m2 := mysteryAddCommentMedia(t, repos, c2, "/c2.png", "")
-
-	cases := []struct {
-		name string
-		ids  []uuid.UUID
-		want map[uuid.UUID][]model.PostMediaRow
-	}{
-		{
-			name: "each requested comment maps to its own media",
-			ids:  []uuid.UUID{c1, c2},
-			want: map[uuid.UUID][]model.PostMediaRow{
-				c1: {{ID: int(m1), PostID: c1, MediaURL: "/c1.png", MediaType: "image"}},
-				c2: {{ID: int(m2), PostID: c2, MediaURL: "/c2.png", MediaType: "image"}},
-			},
-		},
-		{name: "an empty id list short-circuits to nil", ids: nil, want: nil},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// when
-			result, err := repos.Mystery.GetCommentMediaBatch(ctx, tc.ids)
-
-			// then
-			require.NoError(t, err)
-			assert.Equal(t, tc.want, result)
 		})
 	}
 }

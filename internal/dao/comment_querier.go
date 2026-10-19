@@ -12,23 +12,25 @@ import (
 )
 
 type (
-	commentQuerier[K comparable] interface {
-		Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment[K]) (*model.CommentRow, error)
+	commentQuerier interface {
+		Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment) (*model.CommentRow, error)
 		Update(ctx context.Context, q *sqlcgen.Queries, s spec.CommentUpdate) (int64, error)
 		Delete(ctx context.Context, q *sqlcgen.Queries, s spec.CommentDeletion) (int64, error)
-		Count(ctx context.Context, q *sqlcgen.Queries, target K, exclude []uuid.UUID) (int64, error)
-		List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery[K]) ([]model.CommentRow, error)
+		Count(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget, exclude []uuid.UUID) (int64, error)
+		List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery) ([]model.CommentRow, error)
 		ByID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (*model.CommentRow, error)
-		EntityID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (K, error)
+		Target(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (spec.CommentTarget, error)
 		AuthorID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error)
+		Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error)
+		MediaDir() string
 		Like(ctx context.Context, q *sqlcgen.Queries, s spec.CommentLike) error
 		Unlike(ctx context.Context, q *sqlcgen.Queries, s spec.CommentLike) error
 		AddMedia(ctx context.Context, q *sqlcgen.Queries, s spec.NewMedia) (int64, error)
 		Media(ctx context.Context, q *sqlcgen.Queries, commentID uuid.UUID) ([]model.PostMediaRow, error)
 		MediaBatch(ctx context.Context, q *sqlcgen.Queries, ids []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error)
-		SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error
-		SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error
-		Paths(ctx context.Context, q *sqlcgen.Queries, target K) ([]string, error)
+		SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error)
+		SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error)
+		Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error)
 		SinglePaths(ctx context.Context, q *sqlcgen.Queries, commentID uuid.UUID) ([]string, error)
 	}
 

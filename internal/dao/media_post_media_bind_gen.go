@@ -39,11 +39,11 @@ func (postMediaQuerier) DeleteRow(ctx context.Context, q *sqlcgen.Queries, s spe
 	return q.DeletePostMediaRow(ctx, sqlcgen.DeletePostMediaRowParams{ID: s.ID, PostID: s.TargetID})
 }
 
-func (postMediaQuerier) SetURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (postMediaQuerier) SetURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdatePostMediaURL(ctx, sqlcgen.UpdatePostMediaURLParams{MediaUrl: s.URL, ID: s.ID})
 }
 
-func (postMediaQuerier) SetThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (postMediaQuerier) SetThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdatePostMediaThumbnail(ctx, sqlcgen.UpdatePostMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 

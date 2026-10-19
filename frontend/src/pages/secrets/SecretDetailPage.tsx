@@ -16,8 +16,8 @@ export function SecretDetailPage() {
     const { user } = useAuth();
     const { detail, loading, refresh, solvedByName, dismissSolved } = useSecretRoom(id);
 
-    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn, uploadMediaFn } = useCommentHandlers("secret", id, {
-        enabled: ["create", "update", "delete", "like", "unlike", "uploadMedia"],
+    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn } = useCommentHandlers("secret", id, {
+        enabled: ["create", "update", "delete", "like", "unlike"],
     });
 
     if (loading) {
@@ -116,7 +116,6 @@ export function SecretDetailPage() {
                 deleteFn={deleteFn}
                 updateFn={updateFn}
                 createCommentFn={createCommentFn}
-                uploadMediaFn={uploadMediaFn}
             />
 
             {solvedByName && (

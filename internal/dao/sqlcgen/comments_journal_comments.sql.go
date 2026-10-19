@@ -385,6 +385,17 @@ func (q *Queries) GetJournalCommentMediaBatch(ctx context.Context, dollar_1 stri
 	return items, nil
 }
 
+const getJournalCommentTargetOwner = `-- name: GetJournalCommentTargetOwner :one
+SELECT COALESCE(user_id, '00000000-0000-0000-0000-000000000000')::uuid AS owner_id FROM journals WHERE id = $1
+`
+
+func (q *Queries) GetJournalCommentTargetOwner(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, getJournalCommentTargetOwner, id)
+	var owner_id uuid.UUID
+	err := row.Scan(&owner_id)
+	return owner_id, err
+}
+
 const likeJournalComment = `-- name: LikeJournalComment :exec
 INSERT INTO journal_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING
 `
@@ -524,7 +535,7 @@ func (q *Queries) UpdateJournalComment(ctx context.Context, arg UpdateJournalCom
 	return result.RowsAffected()
 }
 
-const updateJournalCommentMediaThumbnail = `-- name: UpdateJournalCommentMediaThumbnail :exec
+const updateJournalCommentMediaThumbnail = `-- name: UpdateJournalCommentMediaThumbnail :execrows
 UPDATE journal_comment_media SET thumbnail_url = $1 WHERE id = $2
 `
 
@@ -533,12 +544,15 @@ type UpdateJournalCommentMediaThumbnailParams struct {
 	ID           int64
 }
 
-func (q *Queries) UpdateJournalCommentMediaThumbnail(ctx context.Context, arg UpdateJournalCommentMediaThumbnailParams) error {
-	_, err := q.db.ExecContext(ctx, updateJournalCommentMediaThumbnail, arg.ThumbnailUrl, arg.ID)
-	return err
+func (q *Queries) UpdateJournalCommentMediaThumbnail(ctx context.Context, arg UpdateJournalCommentMediaThumbnailParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateJournalCommentMediaThumbnail, arg.ThumbnailUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const updateJournalCommentMediaURL = `-- name: UpdateJournalCommentMediaURL :exec
+const updateJournalCommentMediaURL = `-- name: UpdateJournalCommentMediaURL :execrows
 UPDATE journal_comment_media SET media_url = $1 WHERE id = $2
 `
 
@@ -547,7 +561,10 @@ type UpdateJournalCommentMediaURLParams struct {
 	ID       int64
 }
 
-func (q *Queries) UpdateJournalCommentMediaURL(ctx context.Context, arg UpdateJournalCommentMediaURLParams) error {
-	_, err := q.db.ExecContext(ctx, updateJournalCommentMediaURL, arg.MediaUrl, arg.ID)
-	return err
+func (q *Queries) UpdateJournalCommentMediaURL(ctx context.Context, arg UpdateJournalCommentMediaURLParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateJournalCommentMediaURL, arg.MediaUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

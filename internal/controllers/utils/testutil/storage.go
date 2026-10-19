@@ -38,7 +38,7 @@ func NewLocalStorage(t *testing.T) *LocalStorage {
 	repo := repository.NewMockStoredFileRepository(t)
 	manager := storage.NewProviderManager(storage.NewFactory(engines.NewLocal(settingsSvc)), settingsSvc)
 
-	return &LocalStorage{t: t, Service: storage.NewService(manager, repo), Repo: repo, Dir: dir}
+	return &LocalStorage{t: t, Service: storage.NewService(manager, repo, settingsSvc), Repo: repo, Dir: dir}
 }
 
 func (l *LocalStorage) Put(key string, content string, modTime time.Time) {

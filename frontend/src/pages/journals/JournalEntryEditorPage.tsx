@@ -145,15 +145,9 @@ export function JournalEntryEditorPage() {
                 }
             } else {
                 const result = await createMutation.mutateAsync({
-                    title: title.trim(),
-                    body: body.trim(),
-                    is_draft: asDraft,
+                    payload: { title: title.trim(), body: body.trim(), is_draft: asDraft },
+                    media: media.staged,
                 });
-                const uploaded = await uploadAllTo(result.id);
-                if (!uploaded) {
-                    setSubmitting(false);
-                    return;
-                }
 
                 if (asDraft) {
                     navigate(`/journals/${journalId}`);

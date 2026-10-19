@@ -24,11 +24,9 @@ export function OCDetailPage() {
 
     const voteMutation = useVoteOC(id ?? "");
     const favouriteMutation = useFavouriteOC();
-    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn, uploadMediaFn } = useCommentHandlers(
-        "oc",
-        id ?? "",
-        { enabled: ["create", "update", "delete", "like", "unlike", "uploadMedia"] },
-    );
+    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn } = useCommentHandlers("oc", id ?? "", {
+        enabled: ["create", "update", "delete", "like", "unlike"],
+    });
     const [error, setError] = useState("");
     const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
     const hash = location.hash;
@@ -188,7 +186,6 @@ export function OCDetailPage() {
                 deleteFn={deleteFn}
                 updateFn={updateFn}
                 createCommentFn={createCommentFn}
-                uploadMediaFn={uploadMediaFn}
             />
 
             <div style={{ marginTop: "1rem" }}>

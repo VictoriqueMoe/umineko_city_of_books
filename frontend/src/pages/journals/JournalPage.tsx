@@ -53,11 +53,9 @@ export function JournalPage() {
     const unfollowMutation = useUnfollowJournal();
     const deleteJournalMutation = useDeleteJournal();
     const setPausedMutation = useSetJournalPaused();
-    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn, uploadMediaFn } = useCommentHandlers(
-        "journal",
-        id ?? "",
-        { enabled: ["create", "update", "delete", "like", "unlike", "uploadMedia"] },
-    );
+    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn } = useCommentHandlers("journal", id ?? "", {
+        enabled: ["create", "update", "delete", "like", "unlike"],
+    });
 
     useScrollToHash(!loading && !!journal, highlightedComment ? `comment-${highlightedComment}` : null);
 
@@ -283,7 +281,6 @@ export function JournalPage() {
                 deleteFn={deleteFn}
                 updateFn={updateFn}
                 createCommentFn={createCommentFn}
-                uploadMediaFn={uploadMediaFn}
             />
         </div>
     );

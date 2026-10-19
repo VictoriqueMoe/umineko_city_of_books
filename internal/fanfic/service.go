@@ -13,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dao"
@@ -26,12 +27,10 @@ import (
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/upload"
-	"umineko_city_of_books/internal/utils"
 
 	"github.com/google/uuid"
 )
@@ -69,12 +68,7 @@ type (
 		GetSeries(ctx context.Context) ([]string, error)
 		SearchOCCharacters(ctx context.Context, query string) ([]string, error)
 
-		CreateComment(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)
-		UpdateComment(ctx context.Context, id, userID uuid.UUID, req dto.UpdateCommentRequest) error
-		DeleteComment(ctx context.Context, id, userID uuid.UUID) error
-		LikeComment(ctx context.Context, userID, commentID uuid.UUID) error
-		UnlikeComment(ctx context.Context, userID, commentID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
+		CreateComment(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error)
 	}
 
 	fanficFields struct {
@@ -93,9 +87,10 @@ type (
 		blockSvc      block.Service
 		notifSvc      notification.Service
 		mentionSvc    mention.Service
+		commentSvc    comment.Service
 		uploadSvc     upload.Service
 		mediaProc     *media.Processor
-		uploader      *media.Uploader
+		uploader      upload.MediaRecorder
 		settingsSvc   settings.Service
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
@@ -112,6 +107,7 @@ func NewService(
 	blockSvc block.Service,
 	notifSvc notification.Service,
 	mentionSvc mention.Service,
+	commentSvc comment.Service,
 	uploadSvc upload.Service,
 	mediaProc *media.Processor,
 	settingsSvc settings.Service,
@@ -128,6 +124,7 @@ func NewService(
 		blockSvc:      blockSvc,
 		notifSvc:      notifSvc,
 		mentionSvc:    mentionSvc,
+		commentSvc:    commentSvc,
 		uploadSvc:     uploadSvc,
 		mediaProc:     mediaProc,
 		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
@@ -379,42 +376,9 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 		}
 	}
 
-	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	if err != nil {
-		return nil, fmt.Errorf("blocked users: %w", err)
-	}
-
-	comments, _, err := s.fanficRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
-		TargetID:       id,
-		ViewerID:       viewerID,
-		Limit:          500,
-		Offset:         0,
-		ExcludeUserIDs: blockedIDs,
-	})
+	comments, err := s.commentSvc.Thread(ctx, spec.CommentTarget{Kind: spec.CommentKindFanfic, ID: id}, viewerID)
 	if err != nil {
 		return nil, fmt.Errorf("fanfic comments: %w", err)
-	}
-
-	var threaded []dto.FanficCommentResponse
-	if len(comments) > 0 {
-		commentIDs := make([]uuid.UUID, len(comments))
-		for i, c := range comments {
-			commentIDs[i] = c.ID
-		}
-		commentMediaMap, err := s.fanficRepo.GetCommentMediaBatch(ctx, commentIDs)
-		if err != nil {
-			return nil, fmt.Errorf("comment media: %w", err)
-		}
-
-		flatComments := make([]dto.FanficCommentResponse, len(comments))
-		for i, c := range comments {
-			flatComments[i] = fanficCommentToResponse(c, commentMediaMap[c.ID])
-		}
-		threaded = utils.BuildTree(flatComments,
-			func(c dto.FanficCommentResponse) uuid.UUID { return c.ID },
-			func(c dto.FanficCommentResponse) *uuid.UUID { return c.ParentID },
-			func(c *dto.FanficCommentResponse, replies []dto.FanficCommentResponse) { c.Replies = replies },
-		)
 	}
 
 	viewerBlocked := false
@@ -433,7 +397,7 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 	return &dto.FanficDetailResponse{
 		FanficResponse:  row.ToResponse(genres, tags, characters),
 		Chapters:        chapters,
-		Comments:        threaded,
+		Comments:        comments,
 		ReadingProgress: readingProgress,
 		ViewerBlocked:   viewerBlocked,
 	}, nil
@@ -951,15 +915,7 @@ func (s *service) SearchOCCharacters(ctx context.Context, query string) ([]strin
 	return s.fanficRepo.SearchOCCharacters(ctx, strings.TrimSpace(query))
 }
 
-func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
-	body := strings.TrimSpace(req.Body)
-	if body == "" {
-		return uuid.Nil, ErrEmptyBody
-	}
-	if err := s.contentFilter.Check(ctx, body); err != nil {
-		return uuid.Nil, err
-	}
-
+func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
 	fanfic, err := s.fanficRepo.GetByID(ctx, spec.FanficLookup{ID: fanficID, ViewerID: userID})
 	if err != nil {
 		return uuid.Nil, err
@@ -968,251 +924,5 @@ func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID,
 		return uuid.Nil, ErrNotFound
 	}
 
-	authorID := fanfic.UserID
-	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("block check: %w", err)
-	}
-	if blocked {
-		return uuid.Nil, block.ErrUserBlocked
-	}
-
-	id, err := s.mentionSvc.CreateComment(ctx, mention.CommentSpec{
-		Kind:     mention.KindFanficComment,
-		EntityID: fanficID,
-		ParentID: req.ParentID,
-		AuthorID: userID,
-		Body:     body,
-	})
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	go func() {
-		bgCtx := context.Background()
-		actor, err := s.userRepo.GetByID(bgCtx, userID)
-		if err != nil {
-			logger.Ctx(bgCtx).Warn().Err(err).Str("fanfic_id", fanficID.String()).Msg("comment notifications skipped, actor lookup failed")
-			return
-		}
-		if actor == nil {
-			return
-		}
-		_ = s.notifSvc.Notify(bgCtx, dto.NotifyParams{
-			RecipientID:   authorID,
-			Type:          dto.NotifFanficCommented,
-			ReferenceID:   fanficID,
-			ReferenceType: fmt.Sprintf("fanfic_comment:%s", id),
-			ActorID:       userID,
-			EmailActor:    actor.DisplayName,
-			EmailAction:   "commented on your fanfic",
-			EmailLink:     fmt.Sprintf("/fanfiction/%s#comment-%s", fanficID, id),
-		})
-
-		if req.ParentID != nil {
-			parentAuthor, err := s.fanficRepo.GetCommentAuthorID(bgCtx, *req.ParentID)
-			if err != nil {
-				logger.Ctx(bgCtx).Warn().Err(err).Str("fanfic_id", fanficID.String()).Msg("reply notification skipped, parent author lookup failed")
-				return
-			}
-			if parentAuthor != authorID {
-				_ = s.notifSvc.Notify(bgCtx, dto.NotifyParams{
-					RecipientID:   parentAuthor,
-					Type:          dto.NotifFanficCommentReply,
-					ReferenceID:   fanficID,
-					ReferenceType: fmt.Sprintf("fanfic_comment:%s", id),
-					ActorID:       userID,
-					EmailActor:    actor.DisplayName,
-					EmailAction:   "replied to your comment",
-					EmailLink:     fmt.Sprintf("/fanfiction/%s#comment-%s", fanficID, id),
-				})
-			}
-		}
-	}()
-
-	return id, nil
-}
-
-func (s *service) UpdateComment(ctx context.Context, id, userID uuid.UUID, req dto.UpdateCommentRequest) error {
-	body := strings.TrimSpace(req.Body)
-	if body == "" {
-		return ErrEmptyBody
-	}
-	if err := s.contentFilter.Check(ctx, body); err != nil {
-		return err
-	}
-
-	authorID, err := s.fanficRepo.GetCommentAuthorID(ctx, id)
-	if errors.Is(err, dao.ErrNotFound) {
-		return ErrNotFound
-	}
-	if err != nil {
-		return err
-	}
-
-	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermEditAnyComment)
-
-	commentUpdate := spec.CommentUpdate{
-		CommentID: id,
-		UserID:    userID,
-		Body:      body,
-		AsAdmin:   asAdmin,
-	}
-
-	if err := s.fanficRepo.UpdateCommentBody(ctx, commentUpdate); err != nil {
-		return err
-	}
-
-	if asAdmin {
-		s.writeAudit(ctx, audit.NewEntry{
-			ActorID:    userID,
-			Action:     audit.ActionFanficCommentUpdateAdmin,
-			TargetType: audit.TargetFanficComment,
-			TargetID:   id.String(),
-			SubjectID:  authorID,
-		})
-	}
-
-	return nil
-}
-
-func (s *service) DeleteComment(ctx context.Context, id, userID uuid.UUID) error {
-	authorID, err := s.fanficRepo.GetCommentAuthorID(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
-
-	action := audit.ActionFanficCommentDelete
-	if asAdmin {
-		action = audit.ActionFanficCommentDeleteAdmin
-	}
-
-	commentDelete := spec.FanficCommentDelete{
-		CommentID: id,
-		UserID:    userID,
-		AsAdmin:   asAdmin,
-		Audit: audit.NewEntry{
-			ActorID:    userID,
-			Action:     action,
-			TargetType: audit.TargetFanficComment,
-			TargetID:   id.String(),
-			SubjectID:  authorID,
-		},
-	}
-
-	paths, err := s.fanficRepo.DeleteCommentWithAudit(ctx, commentDelete)
-	if err != nil {
-		return err
-	}
-
-	s.uploadSvc.Delete(paths...)
-
-	return nil
-}
-
-func (s *service) LikeComment(ctx context.Context, userID, commentID uuid.UUID) error {
-	commentAuthorID, err := s.fanficRepo.GetCommentAuthorID(ctx, commentID)
-	if err != nil {
-		return err
-	}
-
-	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID)
-	if err != nil {
-		return fmt.Errorf("block check: %w", err)
-	}
-	if blocked {
-		return block.ErrUserBlocked
-	}
-
-	if err := s.fanficRepo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID}); err != nil {
-		return err
-	}
-
-	go func() {
-		if commentAuthorID == userID {
-			return
-		}
-		bgCtx := context.Background()
-		fanficID, err := s.fanficRepo.GetCommentEntityID(bgCtx, commentID)
-		if err != nil {
-			logger.Ctx(bgCtx).Warn().Err(err).Str("comment_id", commentID.String()).Msg("comment like notification skipped, fanfic lookup failed")
-			return
-		}
-		_ = s.notifSvc.Notify(bgCtx, dto.NotifyParams{
-			RecipientID:   commentAuthorID,
-			Type:          dto.NotifFanficCommentLiked,
-			ReferenceID:   fanficID,
-			ReferenceType: fmt.Sprintf("fanfic_comment:%s", commentID),
-			ActorID:       userID,
-			EmailActor:    "Someone",
-			EmailAction:   "liked your comment",
-			EmailLink:     fmt.Sprintf("/fanfiction/%s#comment-%s", fanficID, commentID),
-		})
-	}()
-
-	return nil
-}
-
-func (s *service) UnlikeComment(ctx context.Context, userID, commentID uuid.UUID) error {
-	return s.fanficRepo.UnlikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID})
-}
-
-func (s *service) UploadCommentMedia(
-	ctx context.Context,
-	commentID uuid.UUID,
-	userID uuid.UUID,
-	contentType string,
-	filename string,
-	fileSize int64,
-	reader io.Reader,
-	isSpoiler bool,
-) (*dto.PostMediaResponse, error) {
-	authorID, err := s.fanficRepo.GetCommentAuthorID(ctx, commentID)
-	if errors.Is(err, dao.ErrNotFound) {
-		return nil, ErrNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-	if authorID != userID {
-		return nil, authz.ErrNotCommentAuthor
-	}
-
-	return s.uploader.SaveAndRecord(ctx, "fanfics", contentType, filename, fileSize, reader, isSpoiler,
-		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-			return s.fanficRepo.AddCommentMedia(ctx, spec.NewMedia{
-				TargetID:     commentID,
-				MediaURL:     mediaURL,
-				MediaType:    mediaType,
-				ThumbnailURL: thumbURL,
-				Filename:     filename,
-				SortOrder:    sortOrder,
-				IsSpoiler:    isSpoiler,
-			})
-		},
-		s.fanficRepo.UpdateCommentMediaURL,
-		s.fanficRepo.UpdateCommentMediaThumbnail,
-	)
-}
-
-func fanficCommentToResponse(c model.CommentRow, media []model.PostMediaRow) dto.FanficCommentResponse {
-	return dto.FanficCommentResponse{
-		ID:       c.ID,
-		ParentID: c.ParentID,
-		Author: dto.UserResponse{
-			ID:          c.UserID,
-			Username:    c.AuthorUsername,
-			DisplayName: c.AuthorDisplayName,
-			AvatarURL:   c.AuthorAvatarURL,
-			Role:        role.Role(c.AuthorRole),
-		},
-		Body:      c.Body,
-		Media:     model.MediaRowsToResponse(media),
-		LikeCount: c.LikeCount,
-		UserLiked: c.UserLiked,
-		CreatedAt: c.CreatedAt,
-		UpdatedAt: c.UpdatedAt,
-	}
+	return s.commentSvc.Create(ctx, spec.CommentTarget{Kind: spec.CommentKindFanfic, ID: fanficID}, userID, req, files)
 }

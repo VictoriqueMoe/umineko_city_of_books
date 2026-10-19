@@ -19,9 +19,9 @@ type (
 	announcementCommentQuerier struct{}
 )
 
-func (announcementCommentQuerier) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment[uuid.UUID]) (*model.CommentRow, error) {
+func (announcementCommentQuerier) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment) (*model.CommentRow, error) {
 	row, err := q.CreateAnnouncementComment(ctx, sqlcgen.CreateAnnouncementCommentParams{
-		AnnouncementID: s.TargetID,
+		AnnouncementID: s.Target.ID,
 		ParentID:       s.ParentID,
 		UserID:         s.UserID,
 		Body:           s.Body,
@@ -50,17 +50,17 @@ func (announcementCommentQuerier) Delete(ctx context.Context, q *sqlcgen.Queries
 	})
 }
 
-func (announcementCommentQuerier) Count(ctx context.Context, q *sqlcgen.Queries, target uuid.UUID, exclude []uuid.UUID) (int64, error) {
+func (announcementCommentQuerier) Count(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget, exclude []uuid.UUID) (int64, error) {
 	return q.CountAnnouncementComments(ctx, sqlcgen.CountAnnouncementCommentsParams{
-		AnnouncementID: target,
+		AnnouncementID: target.ID,
 		Column2:        joinUUIDs(exclude),
 	})
 }
 
-func (announcementCommentQuerier) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery[uuid.UUID]) ([]model.CommentRow, error) {
+func (announcementCommentQuerier) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery) ([]model.CommentRow, error) {
 	rows, err := q.ListAnnouncementComments(ctx, sqlcgen.ListAnnouncementCommentsParams{
 		UserID:         s.ViewerID,
-		AnnouncementID: s.TargetID,
+		AnnouncementID: s.Target.ID,
 		Column3:        joinUUIDs(s.ExcludeUserIDs),
 		Limit:          int32(s.Limit),
 		Offset:         int32(s.Offset),
@@ -86,12 +86,25 @@ func (announcementCommentQuerier) ByID(ctx context.Context, q *sqlcgen.Queries, 
 	return new(commentRowFromCreate(commentCreateRow(row))), nil
 }
 
-func (announcementCommentQuerier) EntityID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error) {
-	return q.GetAnnouncementCommentEntityID(ctx, id)
+func (announcementCommentQuerier) Target(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (spec.CommentTarget, error) {
+	entityID, err := q.GetAnnouncementCommentEntityID(ctx, id)
+	if err != nil {
+		return spec.CommentTarget{}, err
+	}
+
+	return spec.CommentTarget{ID: entityID}, nil
 }
 
 func (announcementCommentQuerier) AuthorID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error) {
 	return q.GetAnnouncementCommentAuthorID(ctx, id)
+}
+
+func (announcementCommentQuerier) MediaDir() string {
+	return "announcements"
+}
+
+func (announcementCommentQuerier) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
+	return q.GetAnnouncementCommentTargetOwner(ctx, target.ID)
 }
 
 func (announcementCommentQuerier) Like(ctx context.Context, q *sqlcgen.Queries, s spec.CommentLike) error {
@@ -142,16 +155,16 @@ func (announcementCommentQuerier) MediaBatch(ctx context.Context, q *sqlcgen.Que
 	return out, nil
 }
 
-func (announcementCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (announcementCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateAnnouncementCommentMediaURL(ctx, sqlcgen.UpdateAnnouncementCommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
 }
 
-func (announcementCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (announcementCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateAnnouncementCommentMediaThumbnail(ctx, sqlcgen.UpdateAnnouncementCommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
-func (announcementCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target uuid.UUID) ([]string, error) {
-	rows, err := q.CollectAnnouncementCommentMediaPaths(ctx, target)
+func (announcementCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {
+	rows, err := q.CollectAnnouncementCommentMediaPaths(ctx, target.ID)
 	if err != nil {
 		return nil, err
 	}

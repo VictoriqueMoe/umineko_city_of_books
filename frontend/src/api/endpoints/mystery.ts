@@ -1,5 +1,5 @@
 import { apiDelete, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "../client";
-import { mediaFormData } from "./mediaFormData";
+import { type CreateUploads, mediaFormData, postCreate } from "./mediaFormData";
 import type {
     GMLeaderboardResponse,
     KnoxContract,
@@ -29,16 +29,19 @@ export async function getMystery(id: string): Promise<MysteryDetail> {
     return apiFetch<MysteryDetail>(`/mysteries/${id}`);
 }
 
-export async function createMystery(data: {
-    title: string;
-    body: string;
-    difficulty: string;
-    free_for_all: boolean;
-    keep_open_after_solve: boolean;
-    knox_contract: KnoxContract;
-    clues: { body: string; truth_type: string }[];
-}): Promise<{ id: string }> {
-    return apiPost<{ id: string }, typeof data>("/mysteries", data);
+export async function createMystery(
+    data: {
+        title: string;
+        body: string;
+        difficulty: string;
+        free_for_all: boolean;
+        keep_open_after_solve: boolean;
+        knox_contract: KnoxContract;
+        clues: { body: string; truth_type: string }[];
+    },
+    uploads: CreateUploads = {},
+): Promise<{ id: string }> {
+    return postCreate<{ id: string }, typeof data>("/mysteries", data, uploads);
 }
 
 export async function updateMystery(

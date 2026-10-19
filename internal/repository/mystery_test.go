@@ -24,25 +24,26 @@ import (
 type (
 	mysteryWriterCase struct {
 		name   string
-		expect func(mysteryDAO *dao.MockMysteryDAO, err error)
+		expect func(mysteryDAO *dao.MockMysteryDAO, comments *dao.MockCommentDAO, err error)
 		call   func(repo MysteryRepository) error
 	}
 )
 
-func newCachedMysteryRepo(t *testing.T) (MysteryRepository, *dao.MockMysteryDAO, *valkeymock.Client) {
+func newCachedMysteryRepo(t *testing.T) (MysteryRepository, *dao.MockMysteryDAO, *dao.MockCommentDAO, *valkeymock.Client) {
 	t.Helper()
 
 	client := valkeymock.NewClient(gomock.NewController(t))
 	mysteryDAO := dao.NewMockMysteryDAO(t)
+	comments := dao.NewMockCommentDAO(t)
 
-	return NewMysteryRepo(nil, mysteryDAO, NewMockAuditLogRepository(t), cache.NewManager(engines.NewValkeyWithClient(client))), mysteryDAO, client
+	return NewMysteryRepo(nil, mysteryDAO, comments, NewMockAuditLogRepository(t), cache.NewManager(engines.NewValkeyWithClient(client))), mysteryDAO, comments, client
 }
 
 func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mysteryWriterCase {
 	return []mysteryWriterCase{
 		{
 			name: "update",
-			expect: func(mysteryDAO *dao.MockMysteryDAO, err error) {
+			expect: func(mysteryDAO *dao.MockMysteryDAO, _ *dao.MockCommentDAO, err error) {
 				mysteryDAO.EXPECT().Update(mock.Anything, spec.MysteryOwnerUpdate{ID: mysteryID, UserID: userID, Title: "t", Body: "b", Difficulty: "hard"}).Return(err)
 			},
 			call: func(repo MysteryRepository) error {
@@ -51,7 +52,7 @@ func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mystery
 		},
 		{
 			name: "update as admin",
-			expect: func(mysteryDAO *dao.MockMysteryDAO, err error) {
+			expect: func(mysteryDAO *dao.MockMysteryDAO, _ *dao.MockCommentDAO, err error) {
 				mysteryDAO.EXPECT().UpdateAsAdmin(mock.Anything, spec.MysteryUpdate{ID: mysteryID, Title: "t", Body: "b", Difficulty: "nightmare", FreeForAll: true, KeepOpenAfterSolve: false, Knox: dto.DefaultKnoxContract()}).Return(err)
 			},
 			call: func(repo MysteryRepository) error {
@@ -60,7 +61,7 @@ func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mystery
 		},
 		{
 			name: "delete",
-			expect: func(mysteryDAO *dao.MockMysteryDAO, err error) {
+			expect: func(mysteryDAO *dao.MockMysteryDAO, _ *dao.MockCommentDAO, err error) {
 				mysteryDAO.EXPECT().Delete(mock.Anything, spec.OwnedDeletion{ID: mysteryID, UserID: userID}).Return(err)
 			},
 			call: func(repo MysteryRepository) error {
@@ -68,8 +69,22 @@ func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mystery
 			},
 		},
 		{
+			name: "delete with media",
+			expect: func(mysteryDAO *dao.MockMysteryDAO, comments *dao.MockCommentDAO, err error) {
+				mysteryDAO.EXPECT().CollectMediaPaths(mock.Anything, mysteryID, mock.Anything).Return(nil, nil)
+				mysteryDAO.EXPECT().GetAttachmentPaths(mock.Anything, mysteryID, mock.Anything).Return(nil, nil)
+				comments.EXPECT().CollectCommentMediaPaths(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindMystery, ID: mysteryID}, mock.Anything).Return(nil, nil)
+				mysteryDAO.EXPECT().Delete(mock.Anything, spec.OwnedDeletion{ID: mysteryID, UserID: userID}, mock.Anything).Return(err)
+			},
+			call: func(repo MysteryRepository) error {
+				_, err := repo.DeleteWithMedia(context.Background(), spec.OwnedDeletion{ID: mysteryID, UserID: userID}, new(sql.Tx))
+
+				return err
+			},
+		},
+		{
 			name: "delete as admin",
-			expect: func(mysteryDAO *dao.MockMysteryDAO, err error) {
+			expect: func(mysteryDAO *dao.MockMysteryDAO, _ *dao.MockCommentDAO, err error) {
 				mysteryDAO.EXPECT().DeleteAsAdmin(mock.Anything, mysteryID).Return(err)
 			},
 			call: func(repo MysteryRepository) error {
@@ -78,7 +93,7 @@ func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mystery
 		},
 		{
 			name: "delete attempt",
-			expect: func(mysteryDAO *dao.MockMysteryDAO, err error) {
+			expect: func(mysteryDAO *dao.MockMysteryDAO, _ *dao.MockCommentDAO, err error) {
 				mysteryDAO.EXPECT().DeleteAttempt(mock.Anything, spec.MysteryAttemptDeletion{ID: attemptID, UserID: userID}).Return(err)
 			},
 			call: func(repo MysteryRepository) error {
@@ -87,7 +102,7 @@ func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mystery
 		},
 		{
 			name: "delete attempt as admin",
-			expect: func(mysteryDAO *dao.MockMysteryDAO, err error) {
+			expect: func(mysteryDAO *dao.MockMysteryDAO, _ *dao.MockCommentDAO, err error) {
 				mysteryDAO.EXPECT().DeleteAttemptAsAdmin(mock.Anything, attemptID).Return(err)
 			},
 			call: func(repo MysteryRepository) error {
@@ -96,7 +111,7 @@ func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mystery
 		},
 		{
 			name: "mark solved",
-			expect: func(mysteryDAO *dao.MockMysteryDAO, err error) {
+			expect: func(mysteryDAO *dao.MockMysteryDAO, _ *dao.MockCommentDAO, err error) {
 				mysteryDAO.EXPECT().GetAttemptOwner(mock.Anything, attemptID, mock.Anything).Return(userID, mysteryID, nil)
 				mysteryDAO.EXPECT().SetAttemptWinner(mock.Anything, attemptID, mock.Anything).Return(err)
 			},
@@ -106,7 +121,7 @@ func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mystery
 		},
 		{
 			name: "close for good",
-			expect: func(mysteryDAO *dao.MockMysteryDAO, err error) {
+			expect: func(mysteryDAO *dao.MockMysteryDAO, _ *dao.MockCommentDAO, err error) {
 				mysteryDAO.EXPECT().MarkPermanentlySolved(mock.Anything, mysteryID).Return(err)
 			},
 			call: func(repo MysteryRepository) error {
@@ -122,8 +137,8 @@ func TestMysteryRepository_AFailedInvalidationDoesNotFailACommittedWrite(t *test
 	for _, tc := range mysteryLeaderboardWriters(mysteryID, attemptID, userID) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given a write that commits while the cache is unreachable
-			repo, mysteryDAO, client := newCachedMysteryRepo(t)
-			tc.expect(mysteryDAO, nil)
+			repo, mysteryDAO, comments, client := newCachedMysteryRepo(t)
+			tc.expect(mysteryDAO, comments, nil)
 			client.EXPECT().Do(gomock.Any(), gomock.Any()).Return(valkeymock.ErrorResult(errors.New("valkey down"))).Times(1)
 
 			// when
@@ -141,8 +156,8 @@ func TestMysteryRepository_LeaderboardWritersInvalidateBothCrowns(t *testing.T) 
 	for _, tc := range mysteryLeaderboardWriters(mysteryID, attemptID, userID) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			repo, mysteryDAO, client := newCachedMysteryRepo(t)
-			tc.expect(mysteryDAO, nil)
+			repo, mysteryDAO, comments, client := newCachedMysteryRepo(t)
+			tc.expect(mysteryDAO, comments, nil)
 
 			var commands []string
 			captureDel(client, &commands)
@@ -163,8 +178,8 @@ func TestMysteryRepository_LeaderboardWritersSkipInvalidationOnDaoError(t *testi
 	for _, tc := range mysteryLeaderboardWriters(mysteryID, attemptID, userID) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			repo, mysteryDAO, client := newCachedMysteryRepo(t)
-			tc.expect(mysteryDAO, errors.New("db down"))
+			repo, mysteryDAO, comments, client := newCachedMysteryRepo(t)
+			tc.expect(mysteryDAO, comments, errors.New("db down"))
 			client.EXPECT().Do(gomock.Any(), gomock.Any()).Times(0)
 
 			// when

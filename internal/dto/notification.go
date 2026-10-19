@@ -65,6 +65,7 @@ const (
 	NotifMysteryGmAway            NotificationType = "mystery_gm_away_notif"
 	NotifMysteryGmBack            NotificationType = "mystery_gm_back_notif"
 	NotifMysterySolvedAll         NotificationType = "mystery_solved_all"
+	NotifMysteryCommented         NotificationType = "mystery_commented"
 	NotifMysteryCommentReply      NotificationType = "mystery_comment_reply"
 	NotifMysteryPrivateClue       NotificationType = "mystery_private_clue"
 	NotifJournalUpdate            NotificationType = "journal_update"

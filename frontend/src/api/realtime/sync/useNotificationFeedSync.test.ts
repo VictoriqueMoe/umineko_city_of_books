@@ -8,13 +8,13 @@ import { queryKeys } from "../../queryKeys";
 import { dispatch } from "../bus";
 import { useNotificationFeedSync, type NotificationFeedSyncDeps } from "./useNotificationFeedSync";
 
-function makeNotification(id: number): Notification {
-    return { id, type: "chat_mention" } as Notification;
+function makeNotification(id: number, referenceType = "chat_room"): Notification {
+    return { id, type: "chat_mention", reference_type: referenceType } as Notification;
 }
 
-function emitNotification(id: number): void {
+function emitNotification(id: number, referenceType?: string): void {
     act(() => {
-        dispatch({ type: "notification", data: makeNotification(id) });
+        dispatch({ type: "notification", data: makeNotification(id, referenceType) });
     });
 }
 
@@ -38,6 +38,23 @@ describe("useNotificationFeedSync", () => {
         // then
         expect(queryClient.getQueryData(queryKeys.notifications.unreadCount())).toEqual({ count: 3 });
         expectInvalidated(queryClient, queryKeys.notifications.listAll());
+    });
+
+    it("refreshes the content the notification points at, so following it shows the new comment", () => {
+        // given
+        const queryClient = createTestQueryClient();
+        const entryKey = queryKeys.journal.entry("journal-1", 2);
+        queryClient.setQueryDefaults(entryKey, { gcTime: Infinity });
+        queryClient.setQueryData(entryKey, {});
+        renderHook(() => useNotificationFeedSync(makeDeps(makeUser())), {
+            wrapper: providerWrapper({ queryClient }),
+        });
+
+        // when
+        emitNotification(4, "journal_entry_comment:2:c-1");
+
+        // then
+        expect(queryClient.getQueryState(entryKey)?.isInvalidated).toBe(true);
     });
 
     it("treats a missing unread count as zero", () => {

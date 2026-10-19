@@ -39,11 +39,11 @@ func (mysteryMediaQuerier) DeleteRow(ctx context.Context, q *sqlcgen.Queries, s 
 	return q.DeleteMysteryMediaRow(ctx, sqlcgen.DeleteMysteryMediaRowParams{ID: s.ID, MysteryID: s.TargetID})
 }
 
-func (mysteryMediaQuerier) SetURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (mysteryMediaQuerier) SetURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateMysteryMediaURL(ctx, sqlcgen.UpdateMysteryMediaURLParams{MediaUrl: s.URL, ID: s.ID})
 }
 
-func (mysteryMediaQuerier) SetThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (mysteryMediaQuerier) SetThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateMysteryMediaThumbnail(ctx, sqlcgen.UpdateMysteryMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 

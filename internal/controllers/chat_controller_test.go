@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"testing"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/cache/engines"
 	chatsvc "umineko_city_of_books/internal/chat"
@@ -270,7 +271,7 @@ func TestChatRoutes_Success(t *testing.T) {
 			name: "send first dm",
 			req:  chatCtlMessageForm(t, chatCtlDMPath+"/messages", nil),
 			expect: func(m *chatsvc.MockService) {
-				m.EXPECT().SendDMMessage(mock.Anything, chatCtlUserID, chatCtlTargetID, dto.SendDMRequest{Body: "hi"}, []chatsvc.FileUpload(nil)).Return(&dto.SendDMResponse{}, nil)
+				m.EXPECT().SendDMMessage(mock.Anything, chatCtlUserID, chatCtlTargetID, dto.SendDMRequest{Body: "hi"}, []upload.FileUpload(nil)).Return(&dto.SendDMResponse{}, nil)
 			},
 			wantCode: http.StatusCreated,
 		},
@@ -278,7 +279,7 @@ func TestChatRoutes_Success(t *testing.T) {
 			name: "send first dm passes the client nonce through and echoes the stored message back",
 			req:  chatCtlMessageForm(t, chatCtlDMPath+"/messages", map[string]string{"client_nonce": "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}),
 			expect: func(m *chatsvc.MockService) {
-				m.EXPECT().SendDMMessage(mock.Anything, chatCtlUserID, chatCtlTargetID, dto.SendDMRequest{Body: "hi", ClientNonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}, []chatsvc.FileUpload(nil)).
+				m.EXPECT().SendDMMessage(mock.Anything, chatCtlUserID, chatCtlTargetID, dto.SendDMRequest{Body: "hi", ClientNonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}, []upload.FileUpload(nil)).
 					Return(&dto.SendDMResponse{
 						Room:    dto.ChatRoomResponse{ID: chatCtlRoomID},
 						Message: dto.ChatMessageResponse{ID: chatCtlMessageID, RoomID: chatCtlRoomID, ClientNonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0"},
@@ -446,7 +447,7 @@ func TestChatRoutes_Success(t *testing.T) {
 			name: "send message",
 			req:  chatCtlMessageForm(t, chatCtlRoomPath+"/messages", nil),
 			expect: func(m *chatsvc.MockService) {
-				m.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}, []chatsvc.FileUpload(nil)).
+				m.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}, []upload.FileUpload(nil)).
 					Return(&dto.ChatMessageResponse{ID: uuid.New()}, nil)
 			},
 			wantCode: http.StatusCreated,
@@ -455,7 +456,7 @@ func TestChatRoutes_Success(t *testing.T) {
 			name: "send message passes the client nonce through and echoes it back",
 			req:  chatCtlMessageForm(t, chatCtlRoomPath+"/messages", map[string]string{"client_nonce": "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}),
 			expect: func(m *chatsvc.MockService) {
-				m.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi", ClientNonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}, []chatsvc.FileUpload(nil)).
+				m.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi", ClientNonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}, []upload.FileUpload(nil)).
 					Return(&dto.ChatMessageResponse{ID: chatCtlMessageID, ClientNonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}, nil)
 			},
 			wantCode: http.StatusCreated,
@@ -667,7 +668,7 @@ func TestChatRoutes_ServiceErrors(t *testing.T) {
 			name: "send first dm",
 			req:  chatCtlMessageForm(t, chatCtlDMPath+"/messages", nil),
 			expect: func(m *chatsvc.MockService, err error) {
-				m.EXPECT().SendDMMessage(mock.Anything, chatCtlUserID, chatCtlTargetID, dto.SendDMRequest{Body: "hi"}, []chatsvc.FileUpload(nil)).Return(nil, err)
+				m.EXPECT().SendDMMessage(mock.Anything, chatCtlUserID, chatCtlTargetID, dto.SendDMRequest{Body: "hi"}, []upload.FileUpload(nil)).Return(nil, err)
 			},
 			cases: []chatCtlErrCase{
 				{"missing fields", chatsvc.ErrMissingFields, http.StatusBadRequest, "message body is required"},
@@ -862,7 +863,7 @@ func TestChatRoutes_ServiceErrors(t *testing.T) {
 			name: "send message",
 			req:  chatCtlMessageForm(t, chatCtlRoomPath+"/messages", nil),
 			expect: func(m *chatsvc.MockService, err error) {
-				m.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}, []chatsvc.FileUpload(nil)).Return(nil, err)
+				m.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}, []upload.FileUpload(nil)).Return(nil, err)
 			},
 			cases: []chatCtlErrCase{
 				{"blocked", chatsvc.ErrUserBlocked, http.StatusForbidden, "cannot message"},
@@ -872,6 +873,8 @@ func TestChatRoutes_ServiceErrors(t *testing.T) {
 				{"client nonce reused in another room", chatsvc.ErrClientNonceReused, http.StatusConflict, chatsvc.ErrClientNonceReused.Error()},
 				{"not member", chatsvc.ErrNotMember, http.StatusForbidden, "not a member"},
 				{"invalid file type", upload.ErrInvalidFileType, http.StatusBadRequest, upload.ErrInvalidFileType.Error()},
+				{"invalid audio type", upload.ErrInvalidAudioType, http.StatusBadRequest, upload.ErrInvalidAudioType.Error()},
+				{"image past the pixel budget", bounds.ErrImageBounds, http.StatusBadRequest, bounds.ErrImageBounds.Error()},
 				{"internal", boom, http.StatusInternalServerError, "failed to send message"},
 			},
 		},
@@ -1136,12 +1139,12 @@ func TestChatSendRoutes_ShareOneRateLimitBudget(t *testing.T) {
 			h.ExpectValidSession(chatCtlCookie, chatCtlUserID)
 
 			if tc.roomSends > 0 {
-				chatMock.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}, []chatsvc.FileUpload(nil)).
+				chatMock.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}, []upload.FileUpload(nil)).
 					Return(&dto.ChatMessageResponse{ID: uuid.New()}, nil).
 					Times(tc.roomSends)
 			}
 			if tc.dmSends > 0 {
-				chatMock.EXPECT().SendDMMessage(mock.Anything, chatCtlUserID, chatCtlTargetID, dto.SendDMRequest{Body: "hi"}, []chatsvc.FileUpload(nil)).
+				chatMock.EXPECT().SendDMMessage(mock.Anything, chatCtlUserID, chatCtlTargetID, dto.SendDMRequest{Body: "hi"}, []upload.FileUpload(nil)).
 					Return(&dto.SendDMResponse{}, nil).
 					Times(tc.dmSends)
 			}
@@ -1180,10 +1183,10 @@ func TestChatSendRoutes_EachUserHasTheirOwnBudget(t *testing.T) {
 	otherUserID := uuid.New()
 	h.ExpectValidSession(otherCookie, otherUserID)
 
-	chatMock.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}, []chatsvc.FileUpload(nil)).
+	chatMock.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}, []upload.FileUpload(nil)).
 		Return(&dto.ChatMessageResponse{ID: uuid.New()}, nil).
 		Times(5)
-	chatMock.EXPECT().SendMessage(mock.Anything, otherUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}, []chatsvc.FileUpload(nil)).
+	chatMock.EXPECT().SendMessage(mock.Anything, otherUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}, []upload.FileUpload(nil)).
 		Return(&dto.ChatMessageResponse{ID: uuid.New()}, nil).
 		Once()
 
@@ -1227,57 +1230,4 @@ func TestUpdateRoom_BotsWillBeKickedIs409WithTheBotList(t *testing.T) {
 	require.Len(t, got.Bots, 1)
 	assert.Equal(t, botID, got.Bots[0].ID)
 	assert.Equal(t, "Beatrice", got.Bots[0].DisplayName)
-}
-
-func TestParseSpoilerIndexes(t *testing.T) {
-	tests := []struct {
-		name   string
-		form   *multipart.Form
-		want   map[int]struct{}
-		wantOK bool
-	}{
-		{"no form means no spoilers", nil, nil, true},
-		{"an absent field means no spoilers", &multipart.Form{Value: map[string][]string{}}, nil, true},
-		{"an empty field means no spoilers", &multipart.Form{Value: map[string][]string{"spoiler_indexes": {""}}}, nil, true},
-		{"a single index", &multipart.Form{Value: map[string][]string{"spoiler_indexes": {"0"}}}, map[int]struct{}{0: {}}, true},
-		{"several indexes", &multipart.Form{Value: map[string][]string{"spoiler_indexes": {"0,2"}}}, map[int]struct{}{0: {}, 2: {}}, true},
-		{"surrounding space is tolerated", &multipart.Form{Value: map[string][]string{"spoiler_indexes": {" 1 , 3 "}}}, map[int]struct{}{1: {}, 3: {}}, true},
-		{"a negative index is refused", &multipart.Form{Value: map[string][]string{"spoiler_indexes": {"-1"}}}, nil, false},
-		{"a non-numeric token is refused", &multipart.Form{Value: map[string][]string{"spoiler_indexes": {"0,beatrice"}}}, nil, false},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			// given a multipart form carrying the sender's spoiler choices
-
-			// when it is parsed
-			got, ok := parseSpoilerIndexes(tc.form)
-
-			// then only a well-formed list is accepted
-			assert.Equal(t, tc.wantOK, ok)
-			assert.Equal(t, tc.want, got)
-		})
-	}
-}
-
-func TestCollectChatFileUploads_MarksOnlyTheChosenFiles(t *testing.T) {
-	// given two attachments where only the second was marked
-	form := &multipart.Form{
-		File: map[string][]*multipart.FileHeader{
-			"media": {
-				{Filename: "one.png"},
-				{Filename: "two.png"},
-			},
-		},
-	}
-
-	// when they are collected
-	uploads := collectChatFileUploads(form, map[int]struct{}{1: {}})
-
-	// then the flag lands on the file the sender picked, and the filename is carried
-	require.Len(t, uploads, 2)
-	assert.False(t, uploads[0].IsSpoiler)
-	assert.True(t, uploads[1].IsSpoiler)
-	assert.Equal(t, "one.png", uploads[0].Filename)
-	assert.Equal(t, "two.png", uploads[1].Filename)
 }

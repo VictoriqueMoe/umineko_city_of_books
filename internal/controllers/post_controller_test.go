@@ -4,17 +4,18 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"testing"
+	"time"
 
-	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/follow"
+	"umineko_city_of_books/internal/model"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/upload"
 
@@ -78,11 +79,12 @@ func newPostHarness(t *testing.T) (*testutil.Harness, postDeps) {
 	}
 
 	s := &Service{
-		PostService:   deps.post,
-		FollowService: deps.follow,
-		AuthSession:   h.SessionManager,
-		AuthService:   h.AuthService,
-		AuthzService:  h.AuthzService,
+		PostService:     deps.post,
+		FollowService:   deps.follow,
+		SettingsService: h.SettingsService,
+		AuthSession:     h.SessionManager,
+		AuthService:     h.AuthService,
+		AuthzService:    h.AuthzService,
 	}
 	for _, setup := range s.getAllPostRoutes() {
 		setup(h.App)
@@ -124,11 +126,6 @@ func TestPostController_AuthFailures(t *testing.T) {
 		{"like post", "POST", "/posts/" + uuid.NewString() + "/like", nil},
 		{"unlike post", "DELETE", "/posts/" + uuid.NewString() + "/like", nil},
 		{"create comment", "POST", "/posts/" + uuid.NewString() + "/comments", dto.CreateCommentRequest{Body: "hi"}},
-		{"update comment", "PUT", "/comments/" + uuid.NewString(), dto.UpdateCommentRequest{Body: "x"}},
-		{"delete comment", "DELETE", "/comments/" + uuid.NewString(), nil},
-		{"upload comment media", "POST", "/comments/" + uuid.NewString() + "/media", nil},
-		{"like comment", "POST", "/comments/" + uuid.NewString() + "/like", nil},
-		{"unlike comment", "DELETE", "/comments/" + uuid.NewString() + "/like", nil},
 		{"follow user", "POST", "/users/" + uuid.NewString() + "/follow", nil},
 		{"unfollow user", "DELETE", "/users/" + uuid.NewString() + "/follow", nil},
 		{"vote poll", "POST", "/posts/" + uuid.NewString() + "/poll/vote", dto.VotePollRequest{OptionID: 1}},
@@ -167,13 +164,6 @@ func TestPostController_RejectsMalformedRequests(t *testing.T) {
 		{name: "unlike post invalid id", method: "DELETE", path: "/posts/not-a-uuid/like", wantBody: "invalid id"},
 		{name: "create comment invalid id", method: "POST", path: "/posts/not-a-uuid/comments", jsonBody: dto.CreateCommentRequest{Body: "hi"}, wantBody: "invalid id"},
 		{name: "create comment bad json", method: "POST", path: "/posts/" + id + "/comments", rawBody: "not json", contentType: postCtlJSON, wantBody: "invalid request body"},
-		{name: "update comment invalid id", method: "PUT", path: "/comments/not-a-uuid", jsonBody: dto.UpdateCommentRequest{Body: "x"}, wantBody: "invalid id"},
-		{name: "update comment bad json", method: "PUT", path: "/comments/" + id, rawBody: "not json", contentType: postCtlJSON, wantBody: "invalid request body"},
-		{name: "delete comment invalid id", method: "DELETE", path: "/comments/not-a-uuid", wantBody: "invalid id"},
-		{name: "upload comment media invalid id", method: "POST", path: "/comments/not-a-uuid/media", wantBody: "invalid id"},
-		{name: "upload comment media no file", method: "POST", path: "/comments/" + id + "/media", contentType: postCtlMultipart, wantBody: "no media file provided"},
-		{name: "like comment invalid id", method: "POST", path: "/comments/not-a-uuid/like", wantBody: "invalid id"},
-		{name: "unlike comment invalid id", method: "DELETE", path: "/comments/not-a-uuid/like", wantBody: "invalid id"},
 		{name: "list user posts invalid id", method: "GET", path: "/users/not-a-uuid/posts", anonymous: true, wantBody: "invalid id"},
 		{name: "follow user invalid id", method: "POST", path: "/users/not-a-uuid/follow", wantBody: "invalid id"},
 		{name: "unfollow user invalid id", method: "DELETE", path: "/users/not-a-uuid/follow", wantBody: "invalid id"},
@@ -276,14 +266,15 @@ func TestCreatePost(t *testing.T) {
 		{"invalid share type", postsvc.ErrInvalidShareType, http.StatusBadRequest, "invalid shared content type"},
 		{"unknown corner", fmt.Errorf("%w %q", corner.ErrInvalidCorner, "phantom"), http.StatusBadRequest, "invalid corner"},
 		{"rate limited", postsvc.ErrRateLimited, http.StatusTooManyRequests, "daily post limit"},
-		{"internal error", errors.New("boom"), http.StatusInternalServerError, "failed to create post"},
+		{"a refused file", fmt.Errorf("%w: file size 9MB exceeds maximum 5MB", upload.ErrFileTooLarge), http.StatusBadRequest, "exceeds maximum 5MB"},
+		{"internal error", errors.New("pq: connection refused"), http.StatusInternalServerError, "failed to create post"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// given
+			// given an old client posting plain json with no media
 			h, deps, userID := postCtlSignedIn(t)
 			req := dto.CreatePostRequest{Body: "hello"}
-			deps.post.EXPECT().CreatePost(mock.Anything, userID, req).Return(postID, tc.err)
+			deps.post.EXPECT().CreatePost(mock.Anything, userID, req, []upload.FileUpload(nil)).Return(postID, tc.err)
 
 			// when
 			status, body := h.NewRequest("POST", "/posts").WithCookie(postCtlCookie).WithJSONBody(req).Do()
@@ -291,6 +282,62 @@ func TestCreatePost(t *testing.T) {
 			// then
 			require.Equal(t, tc.wantCode, status)
 			assert.Contains(t, string(body), tc.wantBody)
+			assert.NotContains(t, string(body), "pq:")
+		})
+	}
+}
+
+func postCtlOneSpoileredPic(files []upload.FileUpload) bool {
+	return len(files) == 1 && files[0].Filename == "pic.png" && files[0].ContentType == "image/png" && files[0].IsSpoiler
+}
+
+func TestCreatePost_MultipartCarriesThePayloadAndItsMedia(t *testing.T) {
+	// given a form carrying the json payload and one image marked as a spoiler
+	h, deps, userID := postCtlSignedIn(t)
+	postID := uuid.New()
+	form, contentType := testutil.MediaForm(t, "media", map[string]string{"payload": `{"corner":"umineko","body":"hello"}`, "spoiler_indexes": "0"})
+	deps.post.EXPECT().CreatePost(mock.Anything, userID, dto.CreatePostRequest{Corner: "umineko", Body: "hello"}, mock.MatchedBy(postCtlOneSpoileredPic)).Return(postID, nil)
+
+	// when
+	status, body := h.NewRequest("POST", "/posts").WithCookie(postCtlCookie).WithRawBody(form, contentType).Do()
+
+	// then
+	require.Equal(t, http.StatusCreated, status)
+	assert.Contains(t, string(body), `{"id":"`+postID.String()+`"}`)
+}
+
+func TestPostCreateRoutes_NewAccountsCannotAttachFiles(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+	}{
+		{name: "a post", path: "/posts"},
+		{name: "a comment", path: "/posts/" + uuid.NewString() + "/comments"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, _ := newPostHarness(t)
+			userID := uuid.New()
+			h.AuthService.EXPECT().
+				Authenticate(mock.Anything, "new-cookie").
+				Return(model.SessionAuthState{UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}, nil).
+				Maybe()
+			h.SessionRepo.EXPECT().GetUserID(mock.Anything, "new-cookie").Return(userID, time.Now().Add(time.Hour), nil).Maybe()
+			h.AuthzService.EXPECT().IsBanned(mock.Anything, userID).Return(false).Maybe()
+			h.AuthzService.EXPECT().IsRestrictedNewAccount(mock.Anything, userID).Return(true)
+			form, contentType := testutil.MediaForm(t, "media", map[string]string{"payload": `{"corner":"umineko","body":"hi"}`})
+
+			// when
+			status, body := h.NewRequest("POST", tc.path).
+				WithCookie("new-cookie").
+				WithRawBody(form, contentType).
+				Do()
+
+			// then
+			require.Equal(t, http.StatusForbidden, status)
+			assert.Contains(t, string(body), "new accounts cannot post attachments")
 		})
 	}
 }
@@ -369,54 +416,30 @@ func TestDeletePost(t *testing.T) {
 	}
 }
 
-func TestUploadPostAndCommentMedia(t *testing.T) {
-	shared := []postCtlOutcome{
+func TestUploadPostMedia(t *testing.T) {
+	cases := []postCtlOutcome{
+		{"not the post author", postsvc.ErrNotAuthor, http.StatusForbidden, "not the post author"},
 		{"not found", postsvc.ErrNotFound, http.StatusNotFound, "not found"},
 		{"too large", fmt.Errorf("%w: file size 9MB exceeds maximum 5MB", upload.ErrFileTooLarge), http.StatusBadRequest, "exceeds maximum 5MB"},
 		{"a server failure is not echoed back as a bad request", errors.New("pq: connection refused"), http.StatusInternalServerError, "failed to upload media"},
 	}
-	routes := []struct {
-		name     string
-		path     string
-		expect   func(deps postDeps, id, userID uuid.UUID, err error)
-		outcomes []postCtlOutcome
-	}{
-		{
-			name: "post media",
-			path: "/posts/:id/media",
-			expect: func(deps postDeps, id, userID uuid.UUID, err error) {
-				deps.post.EXPECT().UploadPostMedia(mock.Anything, id, userID, "image/png", "pic.png", mock.AnythingOfType("int64"), mock.Anything, false).Return(nil, err)
-			},
-			outcomes: append([]postCtlOutcome{{"not the post author", postsvc.ErrNotAuthor, http.StatusForbidden, "not the post author"}}, shared...),
-		},
-		{
-			name: "comment media",
-			path: "/comments/:id/media",
-			expect: func(deps postDeps, id, userID uuid.UUID, err error) {
-				deps.post.EXPECT().UploadCommentMedia(mock.Anything, id, userID, "image/png", "pic.png", mock.AnythingOfType("int64"), mock.Anything, false).Return(nil, err)
-			},
-			outcomes: append([]postCtlOutcome{{"not the comment author", authz.ErrNotCommentAuthor, http.StatusForbidden, "not the comment author"}}, shared...),
-		},
-	}
 
-	for _, route := range routes {
-		for _, tc := range route.outcomes {
-			t.Run(route.name+": "+tc.name, func(t *testing.T) {
-				// given
-				h, deps, userID := postCtlSignedIn(t)
-				id := uuid.New()
-				form, contentType := testutil.MediaForm(t, "media", nil)
-				route.expect(deps, id, userID, tc.err)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, deps, userID := postCtlSignedIn(t)
+			id := uuid.New()
+			form, contentType := testutil.MediaForm(t, "media", nil)
+			deps.post.EXPECT().UploadPostMedia(mock.Anything, id, userID, "image/png", "pic.png", mock.AnythingOfType("int64"), mock.Anything, false).Return(nil, tc.err)
 
-				// when
-				status, body := h.NewRequest("POST", strings.ReplaceAll(route.path, ":id", id.String())).WithCookie(postCtlCookie).WithRawBody(form, contentType).Do()
+			// when
+			status, body := h.NewRequest("POST", "/posts/"+id.String()+"/media").WithCookie(postCtlCookie).WithRawBody(form, contentType).Do()
 
-				// then
-				require.Equal(t, tc.wantCode, status)
-				assert.Contains(t, string(body), tc.wantBody)
-				assert.NotContains(t, string(body), "pq:")
-			})
-		}
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+			assert.NotContains(t, string(body), "pq:")
+		})
 	}
 }
 
@@ -494,16 +517,19 @@ func TestCreateComment(t *testing.T) {
 	cases := []postCtlOutcome{
 		{"ok", nil, http.StatusCreated, `{"id":"` + commentID.String() + `"}`},
 		{"blocked", block.ErrUserBlocked, http.StatusForbidden, "user is blocked"},
-		{"empty body", postsvc.ErrEmptyBody, http.StatusBadRequest, "empty"},
-		{"internal error", errors.New("boom"), http.StatusInternalServerError, "failed to create comment"},
+		{"empty body", comment.ErrEmptyBody, http.StatusBadRequest, comment.ErrEmptyBody.Error()},
+		{"post not found", comment.ErrTargetNotFound, http.StatusNotFound, comment.ErrTargetNotFound.Error()},
+		{"a refused file", upload.ErrInvalidFileType, http.StatusBadRequest, upload.ErrInvalidFileType.Error()},
+		{"a refused file whose rollback failed hides the rollback", errors.Join(upload.ErrInvalidFileType, errors.New("roll back comment: pq: connection refused")), http.StatusBadRequest, `{"error":"` + upload.ErrInvalidFileType.Error() + `"}`},
+		{"internal error", errors.New("pq: connection refused"), http.StatusInternalServerError, "failed to create comment"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// given
+			// given an old client posting plain json with no media
 			h, deps, userID := postCtlSignedIn(t)
 			postID := uuid.New()
 			req := dto.CreateCommentRequest{Body: "hello"}
-			deps.post.EXPECT().CreateComment(mock.Anything, postID, userID, req).Return(commentID, tc.err)
+			deps.post.EXPECT().CreateComment(mock.Anything, postID, userID, req, []upload.FileUpload(nil)).Return(commentID, tc.err)
 
 			// when
 			status, body := h.NewRequest("POST", "/posts/"+postID.String()+"/comments").WithCookie(postCtlCookie).WithJSONBody(req).Do()
@@ -511,100 +537,25 @@ func TestCreateComment(t *testing.T) {
 			// then
 			require.Equal(t, tc.wantCode, status)
 			assert.Contains(t, string(body), tc.wantBody)
+			assert.NotContains(t, string(body), "pq:")
 		})
 	}
 }
 
-func TestUpdateComment(t *testing.T) {
-	cases := []postCtlOutcome{
-		{"ok", nil, http.StatusNoContent, ""},
-		{"empty body", postsvc.ErrEmptyBody, http.StatusBadRequest, "empty"},
-		{"internal error", errors.New("boom"), http.StatusInternalServerError, "failed to update comment"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			h, deps, userID := postCtlSignedIn(t)
-			commentID := uuid.New()
-			req := dto.UpdateCommentRequest{Body: "new"}
-			deps.post.EXPECT().UpdateComment(mock.Anything, commentID, userID, req).Return(tc.err)
+func TestCreateComment_MultipartCarriesABlankBodyAndItsMedia(t *testing.T) {
+	// given a form carrying a blank comment and one image marked as a spoiler
+	h, deps, userID := postCtlSignedIn(t)
+	postID := uuid.New()
+	commentID := uuid.New()
+	form, contentType := testutil.MediaForm(t, "media", map[string]string{"payload": `{"body":""}`, "spoiler_indexes": "0"})
+	deps.post.EXPECT().CreateComment(mock.Anything, postID, userID, dto.CreateCommentRequest{}, mock.MatchedBy(postCtlOneSpoileredPic)).Return(commentID, nil)
 
-			// when
-			status, body := h.NewRequest("PUT", "/comments/"+commentID.String()).WithCookie(postCtlCookie).WithJSONBody(req).Do()
+	// when
+	status, body := h.NewRequest("POST", "/posts/"+postID.String()+"/comments").WithCookie(postCtlCookie).WithRawBody(form, contentType).Do()
 
-			// then
-			require.Equal(t, tc.wantCode, status)
-			assert.Contains(t, string(body), tc.wantBody)
-		})
-	}
-}
-
-func TestDeleteComment(t *testing.T) {
-	cases := []postCtlOutcome{
-		{"ok", nil, http.StatusNoContent, ""},
-		{"internal error", errors.New("boom"), http.StatusInternalServerError, "failed to delete comment"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			h, deps, userID := postCtlSignedIn(t)
-			commentID := uuid.New()
-			deps.post.EXPECT().DeleteComment(mock.Anything, commentID, userID).Return(tc.err)
-
-			// when
-			status, body := h.NewRequest("DELETE", "/comments/"+commentID.String()).WithCookie(postCtlCookie).Do()
-
-			// then
-			require.Equal(t, tc.wantCode, status)
-			assert.Contains(t, string(body), tc.wantBody)
-		})
-	}
-}
-
-func TestLikeComment(t *testing.T) {
-	cases := []postCtlOutcome{
-		{"ok", nil, http.StatusNoContent, ""},
-		{"blocked", block.ErrUserBlocked, http.StatusForbidden, "user is blocked"},
-		{"not found", postsvc.ErrNotFound, http.StatusNotFound, "comment not found"},
-		{"internal error", errors.New("boom"), http.StatusInternalServerError, "failed to like comment"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			h, deps, userID := postCtlSignedIn(t)
-			commentID := uuid.New()
-			deps.post.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(tc.err)
-
-			// when
-			status, body := h.NewRequest("POST", "/comments/"+commentID.String()+"/like").WithCookie(postCtlCookie).Do()
-
-			// then
-			require.Equal(t, tc.wantCode, status)
-			assert.Contains(t, string(body), tc.wantBody)
-		})
-	}
-}
-
-func TestUnlikeComment(t *testing.T) {
-	cases := []postCtlOutcome{
-		{"ok", nil, http.StatusNoContent, ""},
-		{"internal error", errors.New("boom"), http.StatusInternalServerError, "failed to unlike comment"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			h, deps, userID := postCtlSignedIn(t)
-			commentID := uuid.New()
-			deps.post.EXPECT().UnlikeComment(mock.Anything, userID, commentID).Return(tc.err)
-
-			// when
-			status, body := h.NewRequest("DELETE", "/comments/"+commentID.String()+"/like").WithCookie(postCtlCookie).Do()
-
-			// then
-			require.Equal(t, tc.wantCode, status)
-			assert.Contains(t, string(body), tc.wantBody)
-		})
-	}
+	// then
+	require.Equal(t, http.StatusCreated, status)
+	assert.Contains(t, string(body), `{"id":"`+commentID.String()+`"}`)
 }
 
 func TestListUserPosts(t *testing.T) {

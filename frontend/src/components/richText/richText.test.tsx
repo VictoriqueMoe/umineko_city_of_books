@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders, type ProviderOptions } from "../../test-utils/render";
-import { renderRich } from "./richText";
+import { renderRich, renderRichInline } from "./richText";
 
 function renderRichText(text: string, options: ProviderOptions = {}) {
     return renderWithProviders(<div>{renderRich(text)}</div>, options);
@@ -342,5 +342,35 @@ describe("renderRich", () => {
         // then
         expect(container.querySelector("em")).toBeNull();
         expect(container.textContent).toBe("@ao_no_kanata said so");
+    });
+});
+
+describe("renderRichInline", () => {
+    it("hides a spoiler and renders the formatting inside it", () => {
+        // given
+        const text = "||Does that mean [purple]Lambdadelta[/purple] is **jealous**?||";
+
+        // when
+        const { container } = renderWithProviders(<div>{renderRichInline(text)}</div>);
+
+        // then
+        expect(screen.getByTitle("Hover to reveal")).toHaveTextContent("Does that mean Lambdadelta is jealous?");
+        expect(container.querySelector("strong")).toHaveTextContent("jealous");
+        expect(container.textContent).not.toMatch(/\|\||\[purple\]|\*\*/);
+    });
+
+    it("flattens quotes, code blocks and line breaks onto one line", () => {
+        // given
+        const text = "> the witch said\n\nfirst line\nsecond line\n```\nlet x = 1\nlet y = 2\n```";
+
+        // when
+        const { container } = renderWithProviders(<div>{renderRichInline(text)}</div>);
+
+        // then
+        expect(container.querySelector("blockquote")).toBeNull();
+        expect(container.querySelector("pre")).toBeNull();
+        expect(container.querySelector("code")).toHaveTextContent("let x = 1 let y = 2");
+        expect(container.textContent).not.toContain("\n");
+        expect(container.textContent).toContain("the witch said first line second line");
     });
 });

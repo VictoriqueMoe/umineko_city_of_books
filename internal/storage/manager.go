@@ -2,17 +2,12 @@ package storage
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/storage/engine"
-)
-
-var (
-	ErrBackendUnavailable = errors.New("storage: backend is not enabled")
 )
 
 type (

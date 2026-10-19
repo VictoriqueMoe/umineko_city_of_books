@@ -92,7 +92,7 @@ export interface ChatMessageReplyPreview {
     id: string;
     sender_id: string;
     sender_name: string;
-    body_preview: string;
+    body: string;
 }
 
 export interface ReactionGroup {

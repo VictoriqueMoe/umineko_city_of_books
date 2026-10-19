@@ -14,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dao"
@@ -38,7 +39,7 @@ import (
 type (
 	testMocks struct {
 		fanficRepo      *repository.MockFanficRepository
-		fanficComments  *dao.MockCommentDAO[uuid.UUID]
+		commentSvc      *comment.MockService
 		userRepo        *repository.MockUserRepository
 		followRepo      *repository.MockFollowRepository
 		auditRepo       *repository.MockAuditLogRepository
@@ -77,7 +78,7 @@ var (
 func newTestService(t *testing.T) (*service, *testMocks) {
 	m := &testMocks{
 		fanficRepo:      repository.NewMockFanficRepository(t),
-		fanficComments:  dao.NewMockCommentDAO[uuid.UUID](t),
+		commentSvc:      comment.NewMockService(t),
 		userRepo:        repository.NewMockUserRepository(t),
 		followRepo:      repository.NewMockFollowRepository(t),
 		auditRepo:       repository.NewMockAuditLogRepository(t),
@@ -91,10 +92,8 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		followerNotices: make(chan []dto.NotifyParams, 8),
 	}
 
-	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifSvc, dao.CommentDAOs{
-		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindFanficComment): m.fanficComments},
-	})
-	svc := NewService(m.fanficRepo, m.userRepo, m.followRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.uploadSvc, media.NewProcessor(1), m.settingsSvc, contentfilter.New(), nil, m.activity).(*service)
+	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifSvc)
+	svc := NewService(m.fanficRepo, m.userRepo, m.followRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.commentSvc, m.uploadSvc, media.NewProcessor(1), m.settingsSvc, contentfilter.New(), nil, m.activity).(*service)
 
 	m.followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Return([]uuid.UUID{m.followerID}, nil).Maybe()
 	m.notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Run(func(_ context.Context, params []dto.NotifyParams) {
@@ -168,13 +167,6 @@ func expectFailingActorLookup(m *testMocks, userID uuid.UUID) <-chan struct{} {
 		})
 
 	return looked
-}
-
-func fanficCommentDelete(id, actorID, authorID uuid.UUID, asAdmin bool, action audit.Action) spec.FanficCommentDelete {
-	return spec.FanficCommentDelete{
-		CommentID: id, UserID: actorID, AsAdmin: asAdmin,
-		Audit: audit.NewEntry{ActorID: actorID, Action: action, TargetType: audit.TargetFanficComment, TargetID: id.String(), SubjectID: authorID},
-	}
 }
 
 func TestFanficFieldValidation(t *testing.T) {
@@ -428,11 +420,9 @@ func TestGetFanfic_SurfacesAFailedLookup(t *testing.T) {
 		{name: "the tags", failAt: 1},
 		{name: "the characters", failAt: 2},
 		{name: "the chapters", failAt: 3},
-		{name: "the viewer's block list", failAt: 4},
-		{name: "the comments", failAt: 5},
-		{name: "the comment media", failAt: 6},
-		{name: "the block check against the author", failAt: 7},
-		{name: "the reading progress", failAt: 8},
+		{name: "the comment thread", failAt: 4},
+		{name: "the block check against the author", failAt: 5},
+		{name: "the reading progress", failAt: 6},
 	}
 
 	for _, tc := range cases {
@@ -442,7 +432,6 @@ func TestGetFanfic_SurfacesAFailedLookup(t *testing.T) {
 			id := uuid.New()
 			authorID := uuid.New()
 			viewerID := uuid.New()
-			commentID := uuid.New()
 			m.fanficRepo.EXPECT().GetByID(mock.Anything, spec.FanficLookup{ID: id, ViewerID: viewerID}).Return(&model.FanficRow{ID: id, UserID: authorID, Status: "complete"}, nil)
 
 			m.fanficRepo.EXPECT().GetGenres(mock.Anything, id).Return(nil, fanficFailAt(tc.failAt, 0))
@@ -456,19 +445,13 @@ func TestGetFanfic_SurfacesAFailedLookup(t *testing.T) {
 				m.fanficRepo.EXPECT().ListChapters(mock.Anything, id).Return(nil, fanficFailAt(tc.failAt, 3))
 			}
 			if tc.failAt >= 4 {
-				m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewerID).Return(nil, fanficFailAt(tc.failAt, 4))
+				m.commentSvc.EXPECT().Thread(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindFanfic, ID: id}, viewerID).Return(nil, fanficFailAt(tc.failAt, 4))
 			}
 			if tc.failAt >= 5 {
-				m.fanficRepo.EXPECT().GetComments(mock.Anything, mock.Anything).Return([]model.CommentRow{{ID: commentID, UserID: authorID}}, 1, fanficFailAt(tc.failAt, 5))
+				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, viewerID, authorID).Return(false, fanficFailAt(tc.failAt, 5))
 			}
 			if tc.failAt >= 6 {
-				m.fanficRepo.EXPECT().GetCommentMediaBatch(mock.Anything, []uuid.UUID{commentID}).Return(nil, fanficFailAt(tc.failAt, 6))
-			}
-			if tc.failAt >= 7 {
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, viewerID, authorID).Return(false, fanficFailAt(tc.failAt, 7))
-			}
-			if tc.failAt >= 8 {
-				m.fanficRepo.EXPECT().GetReadingProgress(mock.Anything, spec.FanficUserRef{UserID: viewerID, FanficID: id}).Return(0, fanficFailAt(tc.failAt, 8))
+				m.fanficRepo.EXPECT().GetReadingProgress(mock.Anything, spec.FanficUserRef{UserID: viewerID, FanficID: id}).Return(0, fanficFailAt(tc.failAt, 6))
 			}
 
 			// when
@@ -520,11 +503,9 @@ func TestGetFanfic_BuildsDetail(t *testing.T) {
 				chapters = []model.FanficChapterSummaryRow{{ID: uuid.New(), ChapterNum: 1, Title: "Ch1"}}
 			}
 
-			var comments []model.CommentRow
+			comments := []dto.CommentResponse{}
 			if tc.withComment {
-				commentID := uuid.New()
-				comments = []model.CommentRow{{ID: commentID, UserID: authorID, Body: "hi"}}
-				m.fanficRepo.EXPECT().GetCommentMediaBatch(mock.Anything, []uuid.UUID{commentID}).Return(nil, nil)
+				comments = []dto.CommentResponse{{ID: uuid.New(), Body: "hi", IsAuthor: true}}
 			}
 
 			if tc.viewerHash != "" {
@@ -541,10 +522,7 @@ func TestGetFanfic_BuildsDetail(t *testing.T) {
 			m.fanficRepo.EXPECT().GetTags(mock.Anything, id).Return(nil, nil)
 			m.fanficRepo.EXPECT().GetCharacters(mock.Anything, id).Return(nil, nil)
 			m.fanficRepo.EXPECT().ListChapters(mock.Anything, id).Return(chapters, nil)
-			m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewerID).Return(nil, nil)
-			m.fanficRepo.EXPECT().
-				GetComments(mock.Anything, spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: viewerID, Limit: 500, Offset: 0, ExcludeUserIDs: []uuid.UUID(nil)}).
-				Return(comments, 0, nil)
+			m.commentSvc.EXPECT().Thread(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindFanfic, ID: id}, viewerID).Return(comments, nil).Once()
 			m.fanficRepo.EXPECT().GetReadingProgress(mock.Anything, spec.FanficUserRef{UserID: viewerID, FanficID: id}).Return(tc.progress, nil)
 
 			// when
@@ -556,7 +534,7 @@ func TestGetFanfic_BuildsDetail(t *testing.T) {
 			assert.Equal(t, tc.progress, got.ReadingProgress)
 			assert.False(t, got.ViewerBlocked)
 			assert.Len(t, got.Chapters, len(chapters))
-			assert.Len(t, got.Comments, len(comments))
+			assert.Equal(t, comments, got.Comments)
 		})
 	}
 }
@@ -1680,16 +1658,13 @@ func TestFavourite(t *testing.T) {
 	}
 }
 
-func TestUnfavouriteAndUnlikeComment(t *testing.T) {
+func TestUnfavourite(t *testing.T) {
 	cases := []struct {
 		name    string
-		unlike  bool
 		repoErr error
 	}{
 		{name: "unfavourite removes the favourite"},
 		{name: "an unfavourite repo error propagates", repoErr: errDB},
-		{name: "unlike removes the like", unlike: true},
-		{name: "an unlike repo error propagates", unlike: true, repoErr: errDB},
 	}
 
 	for _, tc := range cases {
@@ -1698,17 +1673,10 @@ func TestUnfavouriteAndUnlikeComment(t *testing.T) {
 			svc, m := newTestService(t)
 			userID := uuid.New()
 			targetID := uuid.New()
-
-			undo := svc.Unfavourite
-			if tc.unlike {
-				undo = svc.UnlikeComment
-				m.fanficRepo.EXPECT().UnlikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: targetID}).Return(tc.repoErr)
-			} else {
-				m.fanficRepo.EXPECT().Unfavourite(mock.Anything, spec.FanficUserRef{UserID: userID, FanficID: targetID}).Return(tc.repoErr)
-			}
+			m.fanficRepo.EXPECT().Unfavourite(mock.Anything, spec.FanficUserRef{UserID: userID, FanficID: targetID}).Return(tc.repoErr)
 
 			// when
-			err := undo(context.Background(), userID, targetID)
+			err := svc.Unfavourite(context.Background(), userID, targetID)
 
 			// then
 			require.ErrorIs(t, err, tc.repoErr)
@@ -1740,111 +1708,56 @@ func TestLookupsDelegateToTheRepo(t *testing.T) {
 
 func TestCreateComment(t *testing.T) {
 	cases := []struct {
-		name     string
-		body     string
-		fanfic   fanficState
-		blocked  bool
-		writes   bool
-		writeErr error
-		notifies bool
-		wantErr  error
+		name      string
+		fanfic    fanficState
+		lookupErr error
+		createErr error
+		wantErr   error
 	}{
-		{name: "a blank body is rejected", body: " ", fanfic: fanficNotLookedUp, wantErr: ErrEmptyBody},
-		{name: "a missing fanfic is not found", body: "hi", fanfic: fanficMissing, wantErr: ErrNotFound},
-		{name: "someone else's hidden draft is not found", body: "hi", fanfic: fanficHiddenDraft, wantErr: ErrNotFound},
-		{name: "a blocked pair is refused", body: "hi", fanfic: fanficOthers, blocked: true, wantErr: block.ErrUserBlocked},
-		{name: "a failed block lookup refuses the comment", body: "hi", fanfic: fanficOthersBlockLookupFails, wantErr: errDB},
-		{name: "a comment write error propagates", body: "hi", fanfic: fanficOthers, writes: true, writeErr: errDB, wantErr: errDB},
-		{name: "the new comment's id is returned and the actor looked up to notify the author", body: "hi", fanfic: fanficOthers, writes: true, notifies: true},
+		{name: "a missing fanfic is not found", fanfic: fanficMissing, wantErr: ErrNotFound},
+		{name: "someone else's hidden draft is not found", fanfic: fanficHiddenDraft, wantErr: ErrNotFound},
+		{name: "a failed fanfic lookup is surfaced", lookupErr: errDB, wantErr: errDB},
+		{name: "a visible fanfic hands the comment to the comment service", fanfic: fanficOthers},
+		{name: "a refused comment bubbles", fanfic: fanficOthers, createErr: errDB, wantErr: errDB},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			svc, m := newTestService(t)
-			fanficID := uuid.New()
-			userID := uuid.New()
-			commentID := uuid.New()
-			expectFanficState(m, tc.fanfic, fanficID, userID, tc.blocked)
+			fanficID, userID, commentID := uuid.New(), uuid.New(), uuid.New()
+			req := dto.CreateCommentRequest{Body: "hi"}
+			lookup := spec.FanficLookup{ID: fanficID, ViewerID: userID}
 
-			if tc.writes {
-				var created *model.CommentRow
-				if tc.writeErr == nil {
-					created = &model.CommentRow{ID: commentID}
-				}
-				m.fanficComments.EXPECT().
-					CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: fanficID, ParentID: nil, UserID: userID, Body: tc.body}).
-					Return(created, tc.writeErr)
+			switch {
+			case tc.lookupErr != nil:
+				m.fanficRepo.EXPECT().GetByID(mock.Anything, lookup).Return(nil, tc.lookupErr)
+			case tc.fanfic == fanficMissing:
+				m.fanficRepo.EXPECT().GetByID(mock.Anything, lookup).Return(nil, nil)
+			case tc.fanfic == fanficHiddenDraft:
+				expectHiddenDraft(m, fanficID, userID)
+			default:
+				m.fanficRepo.EXPECT().GetByID(mock.Anything, lookup).Return(&model.FanficRow{ID: fanficID, UserID: uuid.New(), Status: "in_progress"}, nil)
 			}
 
-			var actorLooked <-chan struct{}
-			if tc.notifies {
-				actorLooked = expectFailingActorLookup(m, userID)
+			wantID := uuid.Nil
+			if tc.fanfic == fanficOthers && tc.lookupErr == nil {
+				returned := commentID
+				if tc.createErr != nil {
+					returned = uuid.Nil
+				}
+				m.commentSvc.EXPECT().Create(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindFanfic, ID: fanficID}, userID, req, []upload.FileUpload(nil)).Return(returned, tc.createErr).Once()
+				wantID = returned
 			}
 
 			// when
-			id, err := svc.CreateComment(context.Background(), fanficID, userID, dto.CreateCommentRequest{Body: tc.body})
+			id, err := svc.CreateComment(context.Background(), fanficID, userID, req, nil)
 
 			// then
 			require.ErrorIs(t, err, tc.wantErr)
-			if !tc.writes {
-				m.fanficComments.AssertNotCalled(t, "CreateComment", mock.Anything, mock.Anything)
-			}
-			if tc.notifies {
-				assert.Equal(t, commentID, id)
-				<-actorLooked
-			}
+			assert.Equal(t, wantID, id)
 		})
 	}
-}
-
-func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	fanficID := uuid.New()
-	userID := uuid.New()
-	commentID := uuid.New()
-	mentionedID := uuid.New()
-
-	expectFanficState(m, fanficOthers, fanficID, userID, false)
-	m.fanficComments.EXPECT().
-		CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: fanficID, ParentID: nil, UserID: userID, Body: "look at this @alice"}).
-		Return(&model.CommentRow{ID: commentID}, nil)
-	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
-	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
-	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	var mentioned dto.NotifyParams
-	var commented dto.NotifyParams
-	var mu sync.Mutex
-	m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
-		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
-			mu.Lock()
-			if p.Type == dto.NotifMention {
-				mentioned = p
-			}
-			if p.Type == dto.NotifFanficCommented {
-				commented = p
-			}
-			mu.Unlock()
-			wg.Done()
-
-			return nil
-		})
-
-	// when
-	_, err := svc.CreateComment(context.Background(), fanficID, userID, dto.CreateCommentRequest{Body: "look at this @alice"})
-
-	// then
-	require.NoError(t, err)
-	wg.Wait()
-	assert.Equal(t, mentionedID, mentioned.RecipientID)
-	assert.Equal(t, "fanfic_comment:"+commentID.String(), mentioned.ReferenceType)
-	assert.Equal(t, "/fanfiction/"+fanficID.String()+"#comment-"+commentID.String(), mentioned.EmailLink)
-	assert.Equal(t, "/fanfiction/"+fanficID.String()+"#comment-"+commentID.String(), commented.EmailLink, "the author's email must open the fanfiction page, not the API route")
 }
 
 func TestFavourite_EmailLinkOpensTheFanfictionPage(t *testing.T) {
@@ -1871,333 +1784,4 @@ func TestFavourite_EmailLinkOpensTheFanfictionPage(t *testing.T) {
 	got := <-sent
 	assert.Equal(t, dto.NotifFanficFavourited, got.Type)
 	assert.Equal(t, "/fanfiction/"+fanficID.String(), got.EmailLink)
-}
-
-func TestLikeComment_EmailLinkOpensTheFanfictionPage(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	fanficID := uuid.New()
-	userID := uuid.New()
-	authorID := uuid.New()
-	commentID := uuid.New()
-	m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
-	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.fanficRepo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(nil)
-	m.fanficRepo.EXPECT().GetCommentEntityID(mock.Anything, commentID).Return(fanficID, nil)
-	sent := make(chan dto.NotifyParams, 1)
-	m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
-		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
-			sent <- p
-
-			return nil
-		})
-
-	// when
-	err := svc.LikeComment(context.Background(), userID, commentID)
-
-	// then
-	require.NoError(t, err)
-	got := <-sent
-	assert.Equal(t, dto.NotifFanficCommentLiked, got.Type)
-	assert.Equal(t, "/fanfiction/"+fanficID.String()+"#comment-"+commentID.String(), got.EmailLink)
-}
-
-func TestCreateComment_ReplyEmailLinkOpensTheFanfictionPage(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	fanficID := uuid.New()
-	userID := uuid.New()
-	parentID := uuid.New()
-	parentAuthorID := uuid.New()
-	commentID := uuid.New()
-	expectFanficState(m, fanficOthers, fanficID, userID, false)
-	m.fanficComments.EXPECT().
-		CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: fanficID, ParentID: &parentID, UserID: userID, Body: "hi"}).
-		Return(&model.CommentRow{ID: commentID}, nil)
-	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
-	m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, parentID).Return(parentAuthorID, nil)
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-	var replied dto.NotifyParams
-	var mu sync.Mutex
-	m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
-		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
-			mu.Lock()
-			if p.Type == dto.NotifFanficCommentReply {
-				replied = p
-			}
-			mu.Unlock()
-			wg.Done()
-
-			return nil
-		})
-
-	// when
-	_, err := svc.CreateComment(context.Background(), fanficID, userID, dto.CreateCommentRequest{Body: "hi", ParentID: &parentID})
-
-	// then
-	require.NoError(t, err)
-	wg.Wait()
-	assert.Equal(t, parentAuthorID, replied.RecipientID)
-	assert.Equal(t, "/fanfiction/"+fanficID.String()+"#comment-"+commentID.String(), replied.EmailLink)
-}
-
-func TestUpdateComment(t *testing.T) {
-	cases := []struct {
-		name    string
-		body    string
-		given   givenFunc
-		audited bool
-		wantErr error
-	}{
-		{name: "a blank body is rejected", body: "  ", wantErr: ErrEmptyBody},
-		{
-			name: "an admin edit is audited",
-			body: "hi",
-			given: func(m *testMocks, id, userID uuid.UUID) {
-				authorID := uuid.New()
-				m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
-				m.fanficRepo.EXPECT().UpdateCommentBody(mock.Anything, spec.CommentUpdate{CommentID: id, UserID: userID, Body: "hi", AsAdmin: true}).Return(nil)
-				m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: userID, Action: audit.ActionFanficCommentUpdateAdmin, TargetType: audit.TargetFanficComment, TargetID: id.String(), SubjectID: authorID}).Return(nil)
-			},
-			audited: true,
-		},
-		{
-			name: "the author's edit writes no audit row",
-			body: "hi",
-			given: func(m *testMocks, id, userID uuid.UUID) {
-				m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
-				m.fanficRepo.EXPECT().UpdateCommentBody(mock.Anything, spec.CommentUpdate{CommentID: id, UserID: userID, Body: "hi"}).Return(nil)
-			},
-		},
-		{
-			name: "someone else without edit rights gets the repo's refusal",
-			body: "hi",
-			given: func(m *testMocks, id, userID uuid.UUID) {
-				m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(uuid.New(), nil)
-				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
-				m.fanficRepo.EXPECT().UpdateCommentBody(mock.Anything, spec.CommentUpdate{CommentID: id, UserID: userID, Body: "hi"}).Return(errDB)
-			},
-			wantErr: errDB,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			id := uuid.New()
-			userID := uuid.New()
-			if tc.given != nil {
-				tc.given(m, id, userID)
-			}
-
-			// when
-			err := svc.UpdateComment(context.Background(), id, userID, dto.UpdateCommentRequest{Body: tc.body})
-
-			// then
-			require.ErrorIs(t, err, tc.wantErr)
-			if !tc.audited {
-				m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
-			}
-		})
-	}
-}
-
-func TestDeleteComment(t *testing.T) {
-	paths := []string{"/uploads/images/comment.png", "/uploads/images/comment_thumb.png"}
-
-	cases := []struct {
-		name    string
-		given   givenFunc
-		wantErr error
-	}{
-		{
-			name: "an admin delete is recorded as an admin action",
-			given: func(m *testMocks, id, userID uuid.UUID) {
-				authorID := uuid.New()
-				m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
-				m.fanficRepo.EXPECT().DeleteCommentWithAudit(mock.Anything, fanficCommentDelete(id, userID, authorID, true, audit.ActionFanficCommentDeleteAdmin)).Return(nil, nil)
-				m.uploadSvc.EXPECT().Delete().Once()
-			},
-		},
-		{
-			name: "deleting your own comment is not an admin action and unlinks the returned paths",
-			given: func(m *testMocks, id, userID uuid.UUID) {
-				m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
-				m.fanficRepo.EXPECT().DeleteCommentWithAudit(mock.Anything, fanficCommentDelete(id, userID, userID, false, audit.ActionFanficCommentDelete)).Return(paths, nil)
-				m.uploadSvc.EXPECT().Delete(paths).Once()
-			},
-		},
-		{
-			name: "someone else without delete rights gets the repo's refusal",
-			given: func(m *testMocks, id, userID uuid.UUID) {
-				authorID := uuid.New()
-				m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
-				m.fanficRepo.EXPECT().DeleteCommentWithAudit(mock.Anything, fanficCommentDelete(id, userID, authorID, false, audit.ActionFanficCommentDelete)).Return(nil, errDB)
-			},
-			wantErr: errDB,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			id := uuid.New()
-			userID := uuid.New()
-			tc.given(m, id, userID)
-
-			// when
-			err := svc.DeleteComment(context.Background(), id, userID)
-
-			// then
-			require.ErrorIs(t, err, tc.wantErr)
-			m.uploadSvc.AssertExpectations(t)
-			if tc.wantErr != nil {
-				m.uploadSvc.AssertNotCalled(t, "Delete", mock.Anything)
-			}
-		})
-	}
-}
-
-func TestLikeComment(t *testing.T) {
-	cases := []struct {
-		name       string
-		lookupErr  error
-		ownComment bool
-		blocked    bool
-		blockErr   error
-		likes      bool
-		likeErr    error
-		notifies   bool
-		wantErr    error
-	}{
-		{name: "an author lookup error propagates", lookupErr: errDB, wantErr: errDB},
-		{name: "a blocked pair is refused", blocked: true, wantErr: block.ErrUserBlocked},
-		{name: "a failed block lookup refuses the like", blockErr: errDB, wantErr: errDB},
-		{name: "a like error propagates", likes: true, likeErr: errDB, wantErr: errDB},
-		{name: "liking your own comment notifies nobody", ownComment: true, likes: true},
-		{name: "liking someone else's comment looks up the fanfic to notify the author", likes: true, notifies: true},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			commentID := uuid.New()
-			userID := uuid.New()
-
-			authorID := uuid.New()
-			if tc.ownComment {
-				authorID = userID
-			}
-			m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, tc.lookupErr)
-
-			if tc.lookupErr == nil {
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(tc.blocked, tc.blockErr)
-			}
-
-			if tc.likes {
-				m.fanficRepo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(tc.likeErr)
-			}
-
-			fanficLooked := make(chan struct{})
-			if tc.notifies {
-				m.fanficRepo.EXPECT().GetCommentEntityID(mock.Anything, commentID).
-					RunAndReturn(func(context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, error) {
-						close(fanficLooked)
-
-						return uuid.Nil, errors.New("stop goroutine")
-					})
-			}
-
-			// when
-			err := svc.LikeComment(context.Background(), userID, commentID)
-
-			// then
-			require.ErrorIs(t, err, tc.wantErr)
-			if tc.notifies {
-				<-fanficLooked
-			}
-		})
-	}
-}
-
-func TestUploadCommentMedia(t *testing.T) {
-	cases := []struct {
-		name         string
-		lookupErr    error
-		otherAuthor  bool
-		saves        bool
-		saveErr      error
-		records      bool
-		recordErr    error
-		cancelledCtx bool
-		wantResp     *dto.PostMediaResponse
-		wantErr      error
-		wantErrText  string
-	}{
-		{name: "a missing comment is not found", lookupErr: fanficMissingRow, wantErr: ErrNotFound},
-		{name: "a comment author lookup failure is surfaced, not reported as not found", lookupErr: errDB, wantErr: errDB},
-		{name: "someone other than the comment author is refused", otherAuthor: true, wantErrText: "not the comment author"},
-		{name: "a failed save propagates", saves: true, saveErr: errDB, wantErr: errDB},
-		{name: "a failed media row insert propagates", saves: true, records: true, recordErr: errDB, wantErr: errDB},
-		{
-			name:         "the media is recorded even when the request context is already cancelled",
-			saves:        true,
-			records:      true,
-			cancelledCtx: true,
-			wantResp:     &dto.PostMediaResponse{ID: 42, MediaURL: savedImageURL, MediaType: "image", Filename: "photo.png"},
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			commentID := uuid.New()
-			userID := uuid.New()
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			if tc.cancelledCtx {
-				cancel()
-			}
-
-			authorID := userID
-			if tc.otherAuthor {
-				authorID = uuid.New()
-			}
-			m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, tc.lookupErr)
-
-			if tc.saves {
-				expectImageSave(m, tc.saveErr)
-			}
-
-			if tc.records {
-				m.fanficRepo.EXPECT().
-					AddCommentMedia(mock.Anything, spec.NewMedia{TargetID: commentID, MediaURL: savedImageURL, MediaType: "image", Filename: "photo.png"}).
-					Return(int64(42), tc.recordErr)
-			}
-
-			if tc.recordErr != nil {
-				m.uploadSvc.EXPECT().Delete([]string{savedImageURL}).Once()
-			}
-
-			// when
-			resp, err := svc.UploadCommentMedia(ctx, commentID, userID, "image/png", "photo.png", 100, bytes.NewReader(nil), false)
-
-			// then
-			if tc.wantErrText != "" {
-				require.ErrorContains(t, err, tc.wantErrText)
-			} else {
-				require.ErrorIs(t, err, tc.wantErr)
-			}
-			assert.Equal(t, tc.wantResp, resp)
-		})
-	}
 }

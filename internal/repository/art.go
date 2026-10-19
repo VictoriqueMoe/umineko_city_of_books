@@ -20,8 +20,6 @@ type (
 		CreateWithTags(ctx context.Context, s spec.NewArtWithTags, tx ...*sql.Tx) (*model.ArtRow, error)
 		UpdateWithTags(ctx context.Context, s spec.ArtUpdateWithTags, tx ...*sql.Tx) error
 		DeleteWithImage(ctx context.Context, s spec.ArtDelete, tx ...*sql.Tx) ([]string, error)
-		UpdateCommentWithDetails(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error
-		DeleteCommentWithAudit(ctx context.Context, s spec.ArtCommentDeletion, tx ...*sql.Tx) ([]string, error)
 		DeleteGallery(ctx context.Context, s spec.GalleryRef, tx ...*sql.Tx) ([]string, error)
 		RecordView(ctx context.Context, s spec.ViewRecord, tx ...*sql.Tx) (bool, error)
 	}
@@ -29,14 +27,15 @@ type (
 	artRepository struct {
 		db *sql.DB
 		dao.ArtDAO
-		posts PostRepository
-		audit AuditLogRepository
-		cache *cache.Manager
+		comments dao.CommentDAO
+		posts    PostRepository
+		audit    AuditLogRepository
+		cache    *cache.Manager
 	}
 )
 
-func NewArtRepo(database *sql.DB, artDAO dao.ArtDAO, posts PostRepository, auditRepo AuditLogRepository, c *cache.Manager) ArtRepository {
-	return &artRepository{db: database, ArtDAO: artDAO, posts: posts, audit: auditRepo, cache: c}
+func NewArtRepo(database *sql.DB, artDAO dao.ArtDAO, comments dao.CommentDAO, posts PostRepository, auditRepo AuditLogRepository, c *cache.Manager) ArtRepository {
+	return &artRepository{db: database, ArtDAO: artDAO, comments: comments, posts: posts, audit: auditRepo, cache: c}
 }
 
 func (r *artRepository) GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (map[string]int, error) {
@@ -98,7 +97,7 @@ func (r *artRepository) DeleteWithImage(ctx context.Context, s spec.ArtDelete, t
 			return err
 		}
 
-		commentPaths, err := r.ArtDAO.CollectCommentMediaPaths(ctx, s.ID, tx)
+		commentPaths, err := r.comments.CollectCommentMediaPaths(ctx, spec.CommentTarget{Kind: spec.CommentKindArt, ID: s.ID}, tx)
 		if err != nil {
 			return err
 		}
@@ -129,40 +128,6 @@ func (r *artRepository) DeleteWithImage(ctx context.Context, s spec.ArtDelete, t
 	return paths, nil
 }
 
-func (r *artRepository) UpdateCommentWithDetails(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error {
-	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
-		return r.ArtDAO.UpdateComment(ctx, s, tx)
-	})
-}
-
-func (r *artRepository) DeleteCommentWithAudit(ctx context.Context, s spec.ArtCommentDeletion, tx ...*sql.Tx) ([]string, error) {
-	var paths []string
-
-	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
-		mediaPaths, err := r.ArtDAO.CollectSingleCommentMediaPaths(ctx, s.CommentID, tx)
-		if err != nil {
-			return err
-		}
-
-		paths = dedupePaths(mediaPaths)
-
-		if err := r.ArtDAO.DeleteComment(ctx, s.CommentDeletion, tx); err != nil {
-			return err
-		}
-
-		if err := r.audit.Create(ctx, s.Audit, tx); err != nil {
-			return fmt.Errorf("audit comment delete: %w", err)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return paths, nil
-}
-
 func (r *artRepository) DeleteGallery(ctx context.Context, s spec.GalleryRef, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
@@ -183,7 +148,7 @@ func (r *artRepository) DeleteGallery(ctx context.Context, s spec.GalleryRef, tx
 				collected = append(collected, image.ThumbnailURL)
 			}
 
-			commentPaths, commentErr := r.ArtDAO.CollectCommentMediaPaths(ctx, image.ArtID, tx)
+			commentPaths, commentErr := r.comments.CollectCommentMediaPaths(ctx, spec.CommentTarget{Kind: spec.CommentKindArt, ID: image.ArtID}, tx)
 			if commentErr != nil {
 				return commentErr
 			}

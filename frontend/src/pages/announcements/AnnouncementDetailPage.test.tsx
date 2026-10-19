@@ -13,8 +13,8 @@ const {
     useDeleteAnnouncementComment,
     useLikeAnnouncementComment,
     useUnlikeAnnouncementComment,
-    useUploadAnnouncementCommentMedia,
     navigate,
+    stagedImage,
 } = vi.hoisted(() => ({
     useAnnouncement: vi.fn(),
     useCreateAnnouncementComment: vi.fn(),
@@ -22,8 +22,8 @@ const {
     useDeleteAnnouncementComment: vi.fn(),
     useLikeAnnouncementComment: vi.fn(),
     useUnlikeAnnouncementComment: vi.fn(),
-    useUploadAnnouncementCommentMedia: vi.fn(),
     navigate: vi.fn(),
+    stagedImage: new File(["x"], "note.png", { type: "image/png" }),
 }));
 
 vi.mock("../../hooks/queries/announcement", () => ({ useAnnouncement }));
@@ -33,7 +33,6 @@ vi.mock("../../hooks/mutations/announcement", () => ({
     useDeleteAnnouncementComment,
     useLikeAnnouncementComment,
     useUnlikeAnnouncementComment,
-    useUploadAnnouncementCommentMedia,
 }));
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
@@ -51,8 +50,12 @@ vi.mock("../../components/post/CommentsSection/CommentsSection", () => ({
         unlikeFn?: (id: string) => Promise<unknown>;
         deleteFn?: (id: string) => Promise<unknown>;
         updateFn?: (id: string, body: string) => Promise<unknown>;
-        createCommentFn?: (targetId: string, body: string, parentId?: string) => Promise<unknown>;
-        uploadMediaFn?: (commentId: string, file: File) => Promise<unknown>;
+        createCommentFn?: (
+            targetId: string,
+            body: string,
+            parentId?: string,
+            media?: readonly { file: File; isSpoiler: boolean }[],
+        ) => Promise<unknown>;
     }) => (
         <section
             data-testid="comments-section"
@@ -68,7 +71,13 @@ vi.mock("../../components/post/CommentsSection/CommentsSection", () => ({
             <button onClick={() => props.deleteFn?.("comment-9")}>stub delete</button>
             <button onClick={() => props.updateFn?.("comment-9", "edited body")}>stub update</button>
             <button onClick={() => props.createCommentFn?.("ignored", "new body", "parent-1")}>stub create</button>
-            <button onClick={() => props.uploadMediaFn?.("comment-9", new File(["x"], "note.png"))}>stub upload</button>
+            <button
+                onClick={() =>
+                    props.createCommentFn?.("ignored", "", undefined, [{ file: stagedImage, isSpoiler: true }])
+                }
+            >
+                stub create with media
+            </button>
         </section>
     ),
 }));
@@ -111,16 +120,14 @@ function stubAnnouncement(options: StubOptions = {}) {
     const deleteAsync = vi.fn(() => Promise.resolve(undefined));
     const likeAsync = vi.fn(() => Promise.resolve(undefined));
     const unlikeAsync = vi.fn(() => Promise.resolve(undefined));
-    const uploadAsync = vi.fn(() => Promise.resolve(undefined));
 
     useCreateAnnouncementComment.mockReturnValue({ mutateAsync: createAsync });
     useUpdateAnnouncementComment.mockReturnValue({ mutateAsync: updateAsync });
     useDeleteAnnouncementComment.mockReturnValue({ mutateAsync: deleteAsync });
     useLikeAnnouncementComment.mockReturnValue({ mutateAsync: likeAsync });
     useUnlikeAnnouncementComment.mockReturnValue({ mutateAsync: unlikeAsync });
-    useUploadAnnouncementCommentMedia.mockReturnValue({ mutateAsync: uploadAsync });
 
-    return { refresh, createAsync, updateAsync, deleteAsync, likeAsync, unlikeAsync, uploadAsync };
+    return { refresh, createAsync, updateAsync, deleteAsync, likeAsync, unlikeAsync };
 }
 
 function renderPage(user: UserProfile | null = null, route = "/announcements/announcement-1") {
@@ -303,7 +310,7 @@ describe("AnnouncementDetailPage", () => {
         await user.click(screen.getByRole("button", { name: "stub create" }));
 
         // then
-        expect(createAsync).toHaveBeenCalledWith({ body: "new body", parentId: "parent-1" });
+        expect(createAsync).toHaveBeenCalledWith({ body: "new body", parentId: "parent-1", media: undefined });
     });
 
     it("edits a comment through the announcement's own mutation", async () => {
@@ -336,17 +343,21 @@ describe("AnnouncementDetailPage", () => {
         expect(deleteAsync).toHaveBeenCalledWith("comment-9");
     });
 
-    it("uploads an attachment against the comment it belongs to", async () => {
+    it("posts a comment and its media through the announcement's own mutation in one call", async () => {
         // given
-        const { uploadAsync } = stubAnnouncement();
+        const { createAsync } = stubAnnouncement();
         const user = userEvent.setup();
         renderPage(reader);
 
         // when
-        await user.click(screen.getByRole("button", { name: "stub upload" }));
+        await user.click(screen.getByRole("button", { name: "stub create with media" }));
 
         // then
-        expect(uploadAsync).toHaveBeenCalledWith({ commentId: "comment-9", file: expect.any(File) });
+        expect(createAsync).toHaveBeenCalledWith({
+            body: "",
+            parentId: undefined,
+            media: [{ file: stagedImage, isSpoiler: true }],
+        });
     });
 
     it("refetches the announcement after a comment changes", async () => {

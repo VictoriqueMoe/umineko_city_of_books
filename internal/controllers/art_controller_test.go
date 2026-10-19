@@ -45,10 +45,11 @@ func newArtHarness(t *testing.T) (*testutil.Harness, *artsvc.MockService) {
 	as := artsvc.NewMockService(t)
 
 	s := &Service{
-		ArtService:   as,
-		AuthSession:  h.SessionManager,
-		AuthService:  h.AuthService,
-		AuthzService: h.AuthzService,
+		ArtService:      as,
+		SettingsService: h.SettingsService,
+		AuthSession:     h.SessionManager,
+		AuthService:     h.AuthService,
+		AuthzService:    h.AuthzService,
 	}
 	for _, setup := range s.getAllArtRoutes() {
 		setup(h.App)
@@ -90,12 +91,6 @@ func TestArtRoutes_AuthFailures(t *testing.T) {
 		{"delete art", "DELETE", "/art/" + id, nil},
 		{"like art", "POST", "/art/" + id + "/like", nil},
 		{"unlike art", "DELETE", "/art/" + id + "/like", nil},
-		{"create art comment", "POST", "/art/" + id + "/comments", dto.CreateCommentRequest{Body: "hi"}},
-		{"update art comment", "PUT", "/art-comments/" + id, dto.UpdateCommentRequest{Body: "x"}},
-		{"delete art comment", "DELETE", "/art-comments/" + id, nil},
-		{"like art comment", "POST", "/art-comments/" + id + "/like", nil},
-		{"unlike art comment", "DELETE", "/art-comments/" + id + "/like", nil},
-		{"upload art comment media", "POST", "/art-comments/" + id + "/media", nil},
 		{"create gallery", "POST", "/galleries", dto.CreateGalleryRequest{Name: "g"}},
 		{"update gallery", "PUT", "/galleries/" + id, dto.UpdateGalleryRequest{Name: "g"}},
 		{"set gallery cover", "PUT", "/galleries/" + id + "/cover", map[string]any{}},
@@ -122,12 +117,6 @@ func TestArtRoutes_InvalidID(t *testing.T) {
 		{"delete art", "DELETE", "/art/not-a-uuid", nil, true},
 		{"like art", "POST", "/art/not-a-uuid/like", nil, true},
 		{"unlike art", "DELETE", "/art/not-a-uuid/like", nil, true},
-		{"create art comment", "POST", "/art/not-a-uuid/comments", dto.CreateCommentRequest{Body: "hi"}, true},
-		{"update art comment", "PUT", "/art-comments/not-a-uuid", dto.UpdateCommentRequest{Body: "x"}, true},
-		{"delete art comment", "DELETE", "/art-comments/not-a-uuid", nil, true},
-		{"like art comment", "POST", "/art-comments/not-a-uuid/like", nil, true},
-		{"unlike art comment", "DELETE", "/art-comments/not-a-uuid/like", nil, true},
-		{"upload art comment media", "POST", "/art-comments/not-a-uuid/media", nil, true},
 		{"list user art", "GET", "/users/not-a-uuid/art", nil, false},
 		{"update gallery", "PUT", "/galleries/not-a-uuid", dto.UpdateGalleryRequest{Name: "g"}, true},
 		{"set gallery cover", "PUT", "/galleries/not-a-uuid/cover", map[string]any{}, true},
@@ -160,8 +149,6 @@ func TestArtRoutes_BadJSON(t *testing.T) {
 		path   string
 	}{
 		{"update art", "PUT", "/art/" + id},
-		{"create art comment", "POST", "/art/" + id + "/comments"},
-		{"update art comment", "PUT", "/art-comments/" + id},
 		{"create gallery", "POST", "/galleries"},
 		{"update gallery", "PUT", "/galleries/" + id},
 		{"set gallery cover", "PUT", "/galleries/" + id + "/cover"},
@@ -190,8 +177,6 @@ func TestArtRoutes_Writes(t *testing.T) {
 	newID := uuid.New()
 	created := `{"id":"` + newID.String() + `"}`
 	updateArt := dto.UpdateArtRequest{Title: "Updated", Description: "new desc"}
-	createComment := dto.CreateCommentRequest{Body: "hi"}
-	updateComment := dto.UpdateCommentRequest{Body: "updated"}
 	createGallery := dto.CreateGalleryRequest{Name: "My Gallery", Description: "desc"}
 	updateGallery := dto.UpdateGalleryRequest{Name: "Updated"}
 	cases := []struct {
@@ -255,75 +240,6 @@ func TestArtRoutes_Writes(t *testing.T) {
 			outcomes: []artCtlOutcome{
 				{"unliked", nil, http.StatusNoContent, ""},
 				{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to unlike art"},
-			},
-		},
-		{
-			name:   "create art comment",
-			method: "POST",
-			path:   "/art/:id/comments",
-			body:   createComment,
-			expect: func(as *artsvc.MockService, id, userID uuid.UUID, err error) {
-				as.EXPECT().CreateComment(mock.Anything, id, userID, createComment).Return(newID, err)
-			},
-			outcomes: []artCtlOutcome{
-				{"created", nil, http.StatusCreated, created},
-				{"blocked", block.ErrUserBlocked, http.StatusForbidden, "user is blocked"},
-				{"empty body", artsvc.ErrEmptyBody, http.StatusBadRequest, artsvc.ErrEmptyBody.Error()},
-				{"not found", artsvc.ErrNotFound, http.StatusNotFound, "art not found"},
-				{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to create comment"},
-			},
-		},
-		{
-			name:   "update art comment",
-			method: "PUT",
-			path:   "/art-comments/:id",
-			body:   updateComment,
-			expect: func(as *artsvc.MockService, id, userID uuid.UUID, err error) {
-				as.EXPECT().UpdateComment(mock.Anything, id, userID, updateComment).Return(err)
-			},
-			outcomes: []artCtlOutcome{
-				{"updated", nil, http.StatusNoContent, ""},
-				{"empty body", artsvc.ErrEmptyBody, http.StatusBadRequest, artsvc.ErrEmptyBody.Error()},
-				{"not found", artsvc.ErrNotFound, http.StatusNotFound, "comment not found"},
-				{"not owned", artCtlNotOwned, http.StatusForbidden, "cannot update this comment"},
-				{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to update comment"},
-			},
-		},
-		{
-			name:   "delete art comment",
-			method: "DELETE",
-			path:   "/art-comments/:id",
-			expect: func(as *artsvc.MockService, id, userID uuid.UUID, err error) {
-				as.EXPECT().DeleteComment(mock.Anything, id, userID).Return(err)
-			},
-			outcomes: []artCtlOutcome{
-				{"deleted", nil, http.StatusNoContent, ""},
-				{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to delete comment"},
-			},
-		},
-		{
-			name:   "like art comment",
-			method: "POST",
-			path:   "/art-comments/:id/like",
-			expect: func(as *artsvc.MockService, id, userID uuid.UUID, err error) {
-				as.EXPECT().LikeComment(mock.Anything, userID, id).Return(err)
-			},
-			outcomes: []artCtlOutcome{
-				{"liked", nil, http.StatusNoContent, ""},
-				{"blocked", block.ErrUserBlocked, http.StatusForbidden, "user is blocked"},
-				{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to like comment"},
-			},
-		},
-		{
-			name:   "unlike art comment",
-			method: "DELETE",
-			path:   "/art-comments/:id/like",
-			expect: func(as *artsvc.MockService, id, userID uuid.UUID, err error) {
-				as.EXPECT().UnlikeComment(mock.Anything, userID, id).Return(err)
-			},
-			outcomes: []artCtlOutcome{
-				{"unliked", nil, http.StatusNoContent, ""},
-				{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to unlike comment"},
 			},
 		},
 		{
@@ -642,21 +558,6 @@ func TestCreateArt_ServiceOutcomes(t *testing.T) {
 			assert.NotContains(t, string(body), "pq:")
 		})
 	}
-}
-
-func TestUploadArtCommentMedia_NoFile_BadRequest(t *testing.T) {
-	// given: skip happy-path multipart test; cover auth/UUID/no-file branches only.
-	h, _ := newArtHarness(t)
-	_, cookie := artCtlSession(h, true)
-
-	// when
-	status, body := h.NewRequest("POST", "/art-comments/"+uuid.NewString()+"/media").
-		WithCookie(cookie).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "no media file provided")
 }
 
 func TestListUserArt(t *testing.T) {

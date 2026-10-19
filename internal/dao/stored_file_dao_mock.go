@@ -211,8 +211,8 @@ func (_c *MockStoredFileDAO_CountByBackend_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
-// Delete provides a mock function for the type MockStoredFileDAO
-func (_mock *MockStoredFileDAO) Delete(ctx context.Context, s spec.StoredFileKeys, tx ...*sql.Tx) error {
+// DeleteAt provides a mock function for the type MockStoredFileDAO
+func (_mock *MockStoredFileDAO) DeleteAt(ctx context.Context, s spec.StoredFileLocations, tx ...*sql.Tx) ([]string, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, s, tx)
@@ -222,41 +222,52 @@ func (_mock *MockStoredFileDAO) Delete(ctx context.Context, s spec.StoredFileKey
 	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for Delete")
+		panic("no return value specified for DeleteAt")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.StoredFileKeys, ...*sql.Tx) error); ok {
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.StoredFileLocations, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, s, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.StoredFileLocations, ...*sql.Tx) []string); ok {
 		r0 = returnFunc(ctx, s, tx...)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.StoredFileLocations, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// MockStoredFileDAO_Delete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Delete'
-type MockStoredFileDAO_Delete_Call struct {
+// MockStoredFileDAO_DeleteAt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteAt'
+type MockStoredFileDAO_DeleteAt_Call struct {
 	*mock.Call
 }
 
-// Delete is a helper method to define mock.On call
+// DeleteAt is a helper method to define mock.On call
 //   - ctx context.Context
-//   - s spec.StoredFileKeys
+//   - s spec.StoredFileLocations
 //   - tx ...*sql.Tx
-func (_e *MockStoredFileDAO_Expecter) Delete(ctx any, s any, tx ...any) *MockStoredFileDAO_Delete_Call {
-	return &MockStoredFileDAO_Delete_Call{Call: _e.mock.On("Delete",
+func (_e *MockStoredFileDAO_Expecter) DeleteAt(ctx any, s any, tx ...any) *MockStoredFileDAO_DeleteAt_Call {
+	return &MockStoredFileDAO_DeleteAt_Call{Call: _e.mock.On("DeleteAt",
 		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockStoredFileDAO_Delete_Call) Run(run func(ctx context.Context, s spec.StoredFileKeys, tx ...*sql.Tx)) *MockStoredFileDAO_Delete_Call {
+func (_c *MockStoredFileDAO_DeleteAt_Call) Run(run func(ctx context.Context, s spec.StoredFileLocations, tx ...*sql.Tx)) *MockStoredFileDAO_DeleteAt_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 spec.StoredFileKeys
+		var arg1 spec.StoredFileLocations
 		if args[1] != nil {
-			arg1 = args[1].(spec.StoredFileKeys)
+			arg1 = args[1].(spec.StoredFileLocations)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -273,12 +284,12 @@ func (_c *MockStoredFileDAO_Delete_Call) Run(run func(ctx context.Context, s spe
 	return _c
 }
 
-func (_c *MockStoredFileDAO_Delete_Call) Return(err error) *MockStoredFileDAO_Delete_Call {
-	_c.Call.Return(err)
+func (_c *MockStoredFileDAO_DeleteAt_Call) Return(strings []string, err error) *MockStoredFileDAO_DeleteAt_Call {
+	_c.Call.Return(strings, err)
 	return _c
 }
 
-func (_c *MockStoredFileDAO_Delete_Call) RunAndReturn(run func(ctx context.Context, s spec.StoredFileKeys, tx ...*sql.Tx) error) *MockStoredFileDAO_Delete_Call {
+func (_c *MockStoredFileDAO_DeleteAt_Call) RunAndReturn(run func(ctx context.Context, s spec.StoredFileLocations, tx ...*sql.Tx) ([]string, error)) *MockStoredFileDAO_DeleteAt_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -528,6 +539,164 @@ func (_c *MockStoredFileDAO_ListByPrefix_Call) Return(storedFileRows []model.Sto
 }
 
 func (_c *MockStoredFileDAO_ListByPrefix_Call) RunAndReturn(run func(ctx context.Context, s spec.StoredFilePrefix, tx ...*sql.Tx) ([]model.StoredFileRow, error)) *MockStoredFileDAO_ListByPrefix_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListFallback provides a mock function for the type MockStoredFileDAO
+func (_mock *MockStoredFileDAO) ListFallback(ctx context.Context, tx ...*sql.Tx) ([]model.StoredFileRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListFallback")
+	}
+
+	var r0 []model.StoredFileRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]model.StoredFileRow, error)); ok {
+		return returnFunc(ctx, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []model.StoredFileRow); ok {
+		r0 = returnFunc(ctx, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.StoredFileRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockStoredFileDAO_ListFallback_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListFallback'
+type MockStoredFileDAO_ListFallback_Call struct {
+	*mock.Call
+}
+
+// ListFallback is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx ...*sql.Tx
+func (_e *MockStoredFileDAO_Expecter) ListFallback(ctx any, tx ...any) *MockStoredFileDAO_ListFallback_Call {
+	return &MockStoredFileDAO_ListFallback_Call{Call: _e.mock.On("ListFallback",
+		append([]any{ctx}, tx...)...)}
+}
+
+func (_c *MockStoredFileDAO_ListFallback_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockStoredFileDAO_ListFallback_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
+		run(
+			arg0,
+			arg1...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockStoredFileDAO_ListFallback_Call) Return(storedFileRows []model.StoredFileRow, err error) *MockStoredFileDAO_ListFallback_Call {
+	_c.Call.Return(storedFileRows, err)
+	return _c
+}
+
+func (_c *MockStoredFileDAO_ListFallback_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]model.StoredFileRow, error)) *MockStoredFileDAO_ListFallback_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Move provides a mock function for the type MockStoredFileDAO
+func (_mock *MockStoredFileDAO) Move(ctx context.Context, s spec.StoredFileMove, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for Move")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.StoredFileMove, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, s, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.StoredFileMove, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.StoredFileMove, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockStoredFileDAO_Move_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Move'
+type MockStoredFileDAO_Move_Call struct {
+	*mock.Call
+}
+
+// Move is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.StoredFileMove
+//   - tx ...*sql.Tx
+func (_e *MockStoredFileDAO_Expecter) Move(ctx any, s any, tx ...any) *MockStoredFileDAO_Move_Call {
+	return &MockStoredFileDAO_Move_Call{Call: _e.mock.On("Move",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockStoredFileDAO_Move_Call) Run(run func(ctx context.Context, s spec.StoredFileMove, tx ...*sql.Tx)) *MockStoredFileDAO_Move_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.StoredFileMove
+		if args[1] != nil {
+			arg1 = args[1].(spec.StoredFileMove)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockStoredFileDAO_Move_Call) Return(b bool, err error) *MockStoredFileDAO_Move_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockStoredFileDAO_Move_Call) RunAndReturn(run func(ctx context.Context, s spec.StoredFileMove, tx ...*sql.Tx) (bool, error)) *MockStoredFileDAO_Move_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -9,10 +9,10 @@ SELECT media_url FROM mystery_media WHERE id = $1 AND mystery_id = $2;
 -- name: DeleteMysteryMediaRow :exec
 DELETE FROM mystery_media WHERE id = $1 AND mystery_id = $2;
 
--- name: UpdateMysteryMediaURL :exec
+-- name: UpdateMysteryMediaURL :execrows
 UPDATE mystery_media SET media_url = $1 WHERE id = $2;
 
--- name: UpdateMysteryMediaThumbnail :exec
+-- name: UpdateMysteryMediaThumbnail :execrows
 UPDATE mystery_media SET thumbnail_url = $1 WHERE id = $2;
 
 -- name: GetMysteryMedia :many

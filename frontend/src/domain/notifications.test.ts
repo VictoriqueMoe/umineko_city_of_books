@@ -64,6 +64,7 @@ const typeCases: { type: NotificationType; text: string; category: NotificationC
     },
     { type: "mystery_gm_back_notif", text: "is back on a mystery you are playing", category: "mysteries_player" },
     { type: "mystery_solved_all", text: "a mystery you were playing has been solved", category: "mysteries_player" },
+    { type: "mystery_commented", text: "commented on your mystery", category: "mysteries_gm" },
     { type: "mystery_comment_reply", text: "replied to your comment on a mystery", category: "mysteries_player" },
     { type: "mystery_private_clue", text: "revealed a private red truth to you", category: "mysteries_player" },
     { type: "fanfic_commented", text: "commented on your fanfic", category: "social" },

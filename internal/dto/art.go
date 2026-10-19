@@ -25,9 +25,9 @@ type (
 
 	ArtDetailResponse struct {
 		ArtResponse
-		Comments      []ArtCommentResponse `json:"comments"`
-		LikedBy       []UserResponse       `json:"liked_by"`
-		ViewerBlocked bool                 `json:"viewer_blocked"`
+		Comments      []CommentResponse `json:"comments"`
+		LikedBy       []UserResponse    `json:"liked_by"`
+		ViewerBlocked bool              `json:"viewer_blocked"`
 	}
 
 	CreateArtRequest struct {
@@ -45,19 +45,6 @@ type (
 		Description string   `json:"description"`
 		Tags        []string `json:"tags"`
 		IsSpoiler   bool     `json:"is_spoiler"`
-	}
-
-	ArtCommentResponse struct {
-		ID        uuid.UUID            `json:"id"`
-		ParentID  *uuid.UUID           `json:"parent_id,omitempty"`
-		Author    UserResponse         `json:"author"`
-		Body      string               `json:"body"`
-		Media     []PostMediaResponse  `json:"media"`
-		LikeCount int                  `json:"like_count"`
-		UserLiked bool                 `json:"user_liked"`
-		Replies   []ArtCommentResponse `json:"replies,omitempty"`
-		CreatedAt string               `json:"created_at"`
-		UpdatedAt *string              `json:"updated_at,omitempty"`
 	}
 
 	ArtListResponse struct {

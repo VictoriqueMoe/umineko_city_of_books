@@ -56,11 +56,9 @@ export function ArtDetailPage() {
     const unlikeArtMutation = useUnlikeArt();
     const deleteArtMutation = useDeleteArt();
     const updateArtMutation = useUpdateArt(id ?? "");
-    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn, uploadMediaFn } = useCommentHandlers(
-        "art",
-        id ?? "",
-        { enabled: ["create", "update", "delete", "like", "unlike", "uploadMedia"] },
-    );
+    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn } = useCommentHandlers("art", id ?? "", {
+        enabled: ["create", "update", "delete", "like", "unlike"],
+    });
 
     useScrollToHash(!loading && !!art, highlightedComment ? `comment-${highlightedComment}` : null);
 
@@ -266,7 +264,6 @@ export function ArtDetailPage() {
                 deleteFn={deleteFn}
                 updateFn={updateFn}
                 createCommentFn={createCommentFn}
-                uploadMediaFn={uploadMediaFn}
             />
 
             <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title="Delete Art">

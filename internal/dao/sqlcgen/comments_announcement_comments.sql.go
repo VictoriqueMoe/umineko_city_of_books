@@ -385,6 +385,17 @@ func (q *Queries) GetAnnouncementCommentMediaBatch(ctx context.Context, dollar_1
 	return items, nil
 }
 
+const getAnnouncementCommentTargetOwner = `-- name: GetAnnouncementCommentTargetOwner :one
+SELECT COALESCE(author_id, '00000000-0000-0000-0000-000000000000')::uuid AS owner_id FROM announcements WHERE id = $1
+`
+
+func (q *Queries) GetAnnouncementCommentTargetOwner(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, getAnnouncementCommentTargetOwner, id)
+	var owner_id uuid.UUID
+	err := row.Scan(&owner_id)
+	return owner_id, err
+}
+
 const likeAnnouncementComment = `-- name: LikeAnnouncementComment :exec
 INSERT INTO announcement_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING
 `
@@ -524,7 +535,7 @@ func (q *Queries) UpdateAnnouncementComment(ctx context.Context, arg UpdateAnnou
 	return result.RowsAffected()
 }
 
-const updateAnnouncementCommentMediaThumbnail = `-- name: UpdateAnnouncementCommentMediaThumbnail :exec
+const updateAnnouncementCommentMediaThumbnail = `-- name: UpdateAnnouncementCommentMediaThumbnail :execrows
 UPDATE announcement_comment_media SET thumbnail_url = $1 WHERE id = $2
 `
 
@@ -533,12 +544,15 @@ type UpdateAnnouncementCommentMediaThumbnailParams struct {
 	ID           int64
 }
 
-func (q *Queries) UpdateAnnouncementCommentMediaThumbnail(ctx context.Context, arg UpdateAnnouncementCommentMediaThumbnailParams) error {
-	_, err := q.db.ExecContext(ctx, updateAnnouncementCommentMediaThumbnail, arg.ThumbnailUrl, arg.ID)
-	return err
+func (q *Queries) UpdateAnnouncementCommentMediaThumbnail(ctx context.Context, arg UpdateAnnouncementCommentMediaThumbnailParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateAnnouncementCommentMediaThumbnail, arg.ThumbnailUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const updateAnnouncementCommentMediaURL = `-- name: UpdateAnnouncementCommentMediaURL :exec
+const updateAnnouncementCommentMediaURL = `-- name: UpdateAnnouncementCommentMediaURL :execrows
 UPDATE announcement_comment_media SET media_url = $1 WHERE id = $2
 `
 
@@ -547,7 +561,10 @@ type UpdateAnnouncementCommentMediaURLParams struct {
 	ID       int64
 }
 
-func (q *Queries) UpdateAnnouncementCommentMediaURL(ctx context.Context, arg UpdateAnnouncementCommentMediaURLParams) error {
-	_, err := q.db.ExecContext(ctx, updateAnnouncementCommentMediaURL, arg.MediaUrl, arg.ID)
-	return err
+func (q *Queries) UpdateAnnouncementCommentMediaURL(ctx context.Context, arg UpdateAnnouncementCommentMediaURLParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateAnnouncementCommentMediaURL, arg.MediaUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

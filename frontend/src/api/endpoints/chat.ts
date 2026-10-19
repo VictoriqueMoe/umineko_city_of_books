@@ -11,24 +11,7 @@ import type {
     User,
     VoiceTokenResponse,
 } from "../../types/api";
-
-function appendMediaParts(formData: FormData, files?: File[], spoilers?: boolean[]): void {
-    if (!files || files.length === 0) {
-        return;
-    }
-
-    const spoilerIndexes: number[] = [];
-    for (const [i, file] of files.entries()) {
-        formData.append("media", file);
-        if (spoilers?.[i] === true) {
-            spoilerIndexes.push(i);
-        }
-    }
-
-    if (spoilerIndexes.length > 0) {
-        formData.append("spoiler_indexes", spoilerIndexes.join(","));
-    }
-}
+import { appendMediaParts } from "./mediaFormData";
 
 export async function resolveDMRoom(recipientId: string): Promise<{ room: ChatRoom | null; recipient: User }> {
     return apiFetch<{ room: ChatRoom | null; recipient: User }>(`/chat/dm/${encodeURIComponent(recipientId)}/resolve`);

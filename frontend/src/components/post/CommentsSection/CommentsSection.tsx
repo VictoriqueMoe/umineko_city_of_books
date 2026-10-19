@@ -1,10 +1,8 @@
 import type { CommentBase, UserProfile } from "../../../types/api";
+import type { CreateCommentHandler } from "../../../hooks/useCommentHandlers";
 import { CommentItem } from "../CommentItem/CommentItem";
 import { CommentComposer } from "../CommentComposer/CommentComposer";
 import styles from "./CommentsSection.module.css";
-
-type CreateCommentFn = (targetId: string, body: string, parentId?: string) => Promise<{ id: string }>;
-type UploadMediaFn = (commentId: string, file: File) => Promise<unknown>;
 
 interface CommentsSectionProps {
     comments: CommentBase[] | null | undefined;
@@ -24,8 +22,7 @@ interface CommentsSectionProps {
     unlikeFn?: (id: string) => Promise<void>;
     deleteFn?: (id: string) => Promise<void>;
     updateFn?: (id: string, body: string) => Promise<void>;
-    createCommentFn?: CreateCommentFn;
-    uploadMediaFn?: UploadMediaFn;
+    createCommentFn?: CreateCommentHandler;
 }
 
 export function CommentsSection({
@@ -47,17 +44,11 @@ export function CommentsSection({
     deleteFn,
     updateFn,
     createCommentFn,
-    uploadMediaFn,
 }: CommentsSectionProps) {
     const list = comments ?? [];
     const count = list.length;
     const composer = showComposer && user && !viewerBlocked && (
-        <CommentComposer
-            postId={targetId}
-            onCreated={onChanged}
-            createCommentFn={createCommentFn}
-            uploadMediaFn={uploadMediaFn}
-        />
+        <CommentComposer postId={targetId} onCreated={onChanged} createCommentFn={createCommentFn} />
     );
 
     return (
@@ -80,7 +71,6 @@ export function CommentsSection({
                     deleteFn={deleteFn}
                     updateFn={updateFn}
                     createCommentFn={createCommentFn}
-                    uploadMediaFn={uploadMediaFn}
                     viewerBlocked={viewerBlocked}
                 />
             ))}

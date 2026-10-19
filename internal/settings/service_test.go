@@ -398,7 +398,8 @@ func TestSetMultiple_UnknownKeyRejected(t *testing.T) {
 	err := svc.SetMultiple(context.Background(), values, updatedBy)
 
 	// then
-	require.Error(t, err)
+	_, rejected := errors.AsType[*RejectedError](err)
+	assert.True(t, rejected)
 	assert.Contains(t, err.Error(), "unknown setting")
 }
 
@@ -415,7 +416,8 @@ func TestSetMultiple_ValidationFailureSkipsRepo(t *testing.T) {
 	err := svc.SetMultiple(context.Background(), values, updatedBy)
 
 	// then
-	require.Error(t, err)
+	_, rejected := errors.AsType[*RejectedError](err)
+	assert.True(t, rejected)
 	assert.Contains(t, err.Error(), "max body size")
 }
 
@@ -558,6 +560,37 @@ func TestSet_RegisteredValidatorBlocksWrite(t *testing.T) {
 	// then
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot reach valkey")
+}
+
+func TestSet_ValidatorErrorsKeepTheirKind(t *testing.T) {
+	tests := []struct {
+		name         string
+		validatorErr error
+		wantRejected bool
+		wantMessage  string
+	}{
+		{name: "a rejected value stays rejected and names its key", validatorErr: &RejectedError{Err: errors.New("cannot reach valkey")}, wantRejected: true, wantMessage: "valkey_url: cannot reach valkey"},
+		{name: "an internal failure is not a rejection", validatorErr: errors.New("db down"), wantMessage: "valkey_url: db down"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, repo := newTestService(t)
+			primeValidCache(repo)
+			svc.RegisterValidator(config.SettingValkeyURL, func(context.Context, string) error {
+				return tc.validatorErr
+			})
+
+			// when
+			err := svc.Set(context.Background(), config.SettingValkeyURL, "redis://nothing-here:6379", uuid.New())
+
+			// then
+			_, rejected := errors.AsType[*RejectedError](err)
+			assert.Equal(t, tc.wantRejected, rejected)
+			assert.EqualError(t, err, tc.wantMessage)
+		})
+	}
 }
 
 func TestSet_ValidatorSkippedWhenValueUnchanged(t *testing.T) {

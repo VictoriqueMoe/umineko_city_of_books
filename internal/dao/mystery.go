@@ -61,19 +61,6 @@ type (
 		CountClues(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (int, error)
 		GetPlayerIDs(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)
 
-		UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error
-		DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error
-		GetComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error)
-		GetCommentEntityID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
-		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
-		LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
-		UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
-		AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)
-		UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
-		UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
-		GetCommentMedia(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error)
-		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)
-
 		AddAttachment(ctx context.Context, s spec.NewMysteryAttachment, tx ...*sql.Tx) (int64, error)
 		DeleteAttachment(ctx context.Context, s spec.MysteryAttachmentDeletion, tx ...*sql.Tx) error
 		GetAttachments(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]dto.MysteryAttachment, error)
@@ -86,15 +73,12 @@ type (
 
 		GetAttachmentPaths(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]string, error)
 		CollectMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)
-		CollectCommentMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)
-		CollectSingleCommentMediaPaths(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error)
 	}
 
 	mysteryDAO struct {
 		db *sql.DB
 		*ownedDAO
 		attemptVotes *voteDAO
-		*commentDAO[uuid.UUID]
 		*mediaDAO
 	}
 

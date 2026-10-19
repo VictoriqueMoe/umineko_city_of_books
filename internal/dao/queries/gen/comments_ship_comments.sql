@@ -57,6 +57,9 @@ SELECT ship_id FROM ship_comments WHERE id = $1;
 -- name: GetShipCommentAuthorID :one
 SELECT user_id FROM ship_comments WHERE id = $1;
 
+-- name: GetShipCommentTargetOwner :one
+SELECT COALESCE(user_id, '00000000-0000-0000-0000-000000000000')::uuid AS owner_id FROM ships WHERE id = $1;
+
 -- name: LikeShipComment :exec
 INSERT INTO ship_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING;
 
@@ -80,10 +83,10 @@ FROM ship_comment_media
 WHERE comment_id = ANY(string_to_array($1::text, ',')::uuid[])
 ORDER BY sort_order;
 
--- name: UpdateShipCommentMediaURL :exec
+-- name: UpdateShipCommentMediaURL :execrows
 UPDATE ship_comment_media SET media_url = $1 WHERE id = $2;
 
--- name: UpdateShipCommentMediaThumbnail :exec
+-- name: UpdateShipCommentMediaThumbnail :execrows
 UPDATE ship_comment_media SET thumbnail_url = $1 WHERE id = $2;
 
 -- name: CollectShipCommentMediaPaths :many

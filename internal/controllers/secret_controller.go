@@ -1,15 +1,16 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 
-	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	secretsvc "umineko_city_of_books/internal/secret"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 func (s *Service) getAllSecretRoutes() []FSetupRoute {
@@ -17,11 +18,6 @@ func (s *Service) getAllSecretRoutes() []FSetupRoute {
 		s.setupListSecrets,
 		s.setupGetSecret,
 		s.setupCreateSecretComment,
-		s.setupUpdateSecretComment,
-		s.setupDeleteSecretComment,
-		s.setupLikeSecretComment,
-		s.setupUnlikeSecretComment,
-		s.setupUploadSecretCommentMedia,
 	}
 }
 
@@ -34,27 +30,7 @@ func (s *Service) setupGetSecret(r fiber.Router) {
 }
 
 func (s *Service) setupCreateSecretComment(r fiber.Router) {
-	r.Post("/secrets/:id/comments", s.requireAuth(), s.createSecretComment)
-}
-
-func (s *Service) setupUpdateSecretComment(r fiber.Router) {
-	r.Put("/secret-comments/:id", s.requireAuth(), s.updateSecretComment)
-}
-
-func (s *Service) setupDeleteSecretComment(r fiber.Router) {
-	r.Delete("/secret-comments/:id", s.requireAuth(), s.deleteSecretComment)
-}
-
-func (s *Service) setupLikeSecretComment(r fiber.Router) {
-	r.Post("/secret-comments/:id/like", s.requireAuth(), s.likeSecretComment)
-}
-
-func (s *Service) setupUnlikeSecretComment(r fiber.Router) {
-	r.Delete("/secret-comments/:id/like", s.requireAuth(), s.unlikeSecretComment)
-}
-
-func (s *Service) setupUploadSecretCommentMedia(r fiber.Router) {
-	r.Post("/secret-comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadSecretCommentMedia)
+	r.Post("/secrets/:id/comments", s.requireAuth(), s.requireEstablished(), s.createSecretComment)
 }
 
 func (s *Service) listSecrets(ctx fiber.Ctx) error {
@@ -83,69 +59,9 @@ func (s *Service) createSecretComment(ctx fiber.Ctx) error {
 	secretID := ctx.Params("id")
 	userID := utils.UserID(ctx)
 
-	req, ok := utils.BindJSON[dto.CreateSecretCommentRequest](ctx)
-	if !ok {
-		return nil
-	}
-
-	id, err := s.SecretService.CreateComment(ctx.Context(), secretID, userID, req)
-	if err != nil {
-		if utils.MapFilterError(ctx, err) {
-			return nil
-		}
-		if errors.Is(err, secretsvc.ErrNotFound) {
-			return utils.NotFound(ctx, "secret not found")
-		}
-		if errors.Is(err, secretsvc.ErrEmptyBody) {
-			return utils.BadRequest(ctx, err.Error())
-		}
-		if errors.Is(err, block.ErrUserBlocked) {
-			return utils.Forbidden(ctx, "user is blocked")
-		}
-		return utils.InternalError(ctx, "failed to create comment", err)
-	}
-	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
-}
-
-func (s *Service) updateSecretComment(ctx fiber.Ctx) error {
-	id, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	req, ok := utils.BindJSON[dto.UpdateSecretCommentRequest](ctx)
-	if !ok {
-		return nil
-	}
-
-	if err := s.SecretService.UpdateComment(ctx.Context(), id, userID, req); err != nil {
-		if utils.MapFilterError(ctx, err) {
-			return nil
-		}
-		if errors.Is(err, secretsvc.ErrEmptyBody) {
-			return utils.BadRequest(ctx, err.Error())
-		}
-		if errors.Is(err, dao.ErrNotFound) {
-			return utils.Forbidden(ctx, "cannot update this comment")
-		}
-		return utils.InternalError(ctx, "failed to update comment", err)
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
-}
-
-func (s *Service) deleteSecretComment(ctx fiber.Ctx) error {
-	return s.handleDeleteComment(ctx, s.SecretService.DeleteComment)
-}
-
-func (s *Service) likeSecretComment(ctx fiber.Ctx) error {
-	return s.handleLikeComment(ctx, s.SecretService.LikeComment)
-}
-
-func (s *Service) unlikeSecretComment(ctx fiber.Ctx) error {
-	return s.handleUnlikeComment(ctx, s.SecretService.UnlikeComment)
-}
-
-func (s *Service) uploadSecretCommentMedia(ctx fiber.Ctx) error {
-	return handleUploadCommentMedia(ctx, s.SecretService.UploadCommentMedia)
+	return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
+		return s.SecretService.CreateComment(c, secretID, userID, req, files)
+	}, []errorResponse{
+		{err: secretsvc.ErrNotFound, respond: utils.NotFound, message: "secret not found"},
+	})
 }

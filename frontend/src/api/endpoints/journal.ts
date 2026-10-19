@@ -1,5 +1,5 @@
 import { apiDelete, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "../client";
-import { mediaFormData } from "./mediaFormData";
+import { mediaFormData, postCreate } from "./mediaFormData";
 import type {
     CreateJournalPayload,
     JournalComment,
@@ -8,6 +8,7 @@ import type {
     JournalEntryPayload,
     JournalListResponse,
     JournalWork,
+    MediaUpload,
     PostMedia,
 } from "../../types/api";
 
@@ -65,10 +66,12 @@ export async function createJournalComment(
     body: string,
     parentId?: string,
     entryId?: string,
+    media: readonly MediaUpload[] = [],
 ): Promise<{ id: string }> {
-    return apiPost<{ id: string }, { body: string; parent_id?: string; entry_id?: string }>(
+    return postCreate<{ id: string }, { body: string; parent_id?: string; entry_id?: string }>(
         `/journals/${journalId}/comments`,
         { body, parent_id: parentId, entry_id: entryId },
+        { media },
     );
 }
 
@@ -84,10 +87,12 @@ export async function getJournalEntry(
 export async function createJournalEntry(
     journalId: string,
     payload: JournalEntryPayload,
+    media: readonly MediaUpload[] = [],
 ): Promise<{ id: string; entry_number: number }> {
-    return apiPost<{ id: string; entry_number: number }, JournalEntryPayload>(
+    return postCreate<{ id: string; entry_number: number }, JournalEntryPayload>(
         `/journals/${journalId}/entries`,
         payload,
+        { media },
     );
 }
 

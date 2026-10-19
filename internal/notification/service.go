@@ -90,6 +90,7 @@ var notifText = map[dto.NotificationType]string{
 	dto.NotifMysteryGmAway:            "marked themselves as away on a mystery you are playing",
 	dto.NotifMysteryGmBack:            "is back on a mystery you are playing",
 	dto.NotifMysterySolvedAll:         "a mystery you were playing has been solved",
+	dto.NotifMysteryCommented:         "commented on your mystery",
 	dto.NotifMysteryCommentReply:      "replied to your comment on a mystery",
 	dto.NotifMysteryPrivateClue:       "revealed a private red truth to you",
 	dto.NotifFanficCommented:          "commented on your fanfic",

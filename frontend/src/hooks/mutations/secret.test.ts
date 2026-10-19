@@ -8,7 +8,6 @@ import {
     useUnlikeSecretComment,
     useUnlockSecret,
     useUpdateSecretComment,
-    useUploadSecretCommentMedia,
 } from "./secret";
 
 const mocks = vi.hoisted(() => ({
@@ -21,7 +20,6 @@ const commentMocks = vi.hoisted(() => ({
     likeSecretComment: vi.fn(),
     unlikeSecretComment: vi.fn(),
     updateSecretComment: vi.fn(),
-    uploadSecretCommentMedia: vi.fn(),
 }));
 
 vi.mock("../../api/endpoints/secret", () => mocks);
@@ -45,7 +43,6 @@ beforeEach(() => {
     commentMocks.unlikeSecretComment.mockResolvedValue(undefined);
     mocks.unlockSecret.mockResolvedValue(undefined);
     commentMocks.updateSecretComment.mockResolvedValue(undefined);
-    commentMocks.uploadSecretCommentMedia.mockResolvedValue({ id: 7, media_url: "/m/7.png", media_type: "image" });
 });
 
 describe("useCreateSecretComment", () => {
@@ -63,6 +60,7 @@ describe("useCreateSecretComment", () => {
         expect(commentMocks.createSecretComment).toHaveBeenCalledWith(
             secretId,
             "the golden witch is watching",
+            undefined,
             undefined,
         );
         expect(result.current.data).toEqual({ id: commentId });
@@ -83,7 +81,23 @@ describe("useCreateSecretComment", () => {
             secretId,
             "without love it cannot be seen",
             commentId,
+            undefined,
         );
+    });
+
+    it("sends the staged media with the comment in the same request", async () => {
+        // given
+        const { result } = setup(() => useCreateSecretComment(secretId));
+        const media = [{ file: new File(["portrait"], "beatrice.png", { type: "image/png" }), isSpoiler: true }];
+
+        // when
+        act(() => {
+            result.current.mutate({ body: "", media });
+        });
+
+        // then
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+        expect(commentMocks.createSecretComment).toHaveBeenCalledWith(secretId, "", undefined, media);
     });
 
     it("refreshes the cached secrets once the comment is stored", async () => {
@@ -254,24 +268,5 @@ describe("useUnlockSecret", () => {
         // then
         await waitFor(() => expect(result.current.isError).toBe(true));
         expect(result.current.error).toEqual(new Error("wrong phrase"));
-    });
-});
-
-describe("useUploadSecretCommentMedia", () => {
-    it("uploads the file against the comment it is given and returns the stored media", async () => {
-        // given
-        const { result, invalidate } = setup(() => useUploadSecretCommentMedia(secretId));
-        const file = new File(["portrait"], "beatrice.png", { type: "image/png" });
-
-        // when
-        act(() => {
-            result.current.mutate({ commentId, file });
-        });
-
-        // then
-        await waitFor(() => expect(result.current.isSuccess).toBe(true));
-        expect(commentMocks.uploadSecretCommentMedia).toHaveBeenCalledWith(commentId, file);
-        expect(result.current.data).toEqual({ id: 7, media_url: "/m/7.png", media_type: "image" });
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["secrets"] });
     });
 });

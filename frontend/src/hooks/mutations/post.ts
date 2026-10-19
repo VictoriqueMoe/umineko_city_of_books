@@ -11,23 +11,11 @@ import {
     uploadPostMedia,
     votePoll,
 } from "../../api/endpoints/post";
-import {
-    createComment,
-    deleteComment,
-    likeComment,
-    unlikeComment,
-    updateComment,
-    uploadCommentMedia,
-} from "../../api/endpoints/comments";
-import type { CreatePollPayload } from "../../types/api";
+import { createComment, deleteComment, likeComment, unlikeComment, updateComment } from "../../api/endpoints/comments";
+import type { CreatePollPayload, MediaUpload } from "../../types/api";
 import { ApiError } from "../../api/client";
 import { invalidateViews } from "../../api/cache/invalidate";
 import { queryKeys } from "../../api/queryKeys";
-
-type PostMediaUpload = {
-    file: File;
-    isSpoiler?: boolean;
-};
 
 type CreatePostInput = {
     body: string;
@@ -35,47 +23,21 @@ type CreatePostInput = {
     poll?: CreatePollPayload;
     sharedContentId?: string;
     sharedContentType?: string;
-    media?: readonly PostMediaUpload[];
+    media?: readonly MediaUpload[];
 };
-
-export type FailedPostMediaUpload = {
-    file: File;
-    message: string;
-};
-
-export type CreatedPost = {
-    id: string;
-    failedUploads: FailedPostMediaUpload[];
-};
-
-async function createPostWithMedia(input: CreatePostInput): Promise<CreatedPost> {
-    const { id } = await createPost(
-        input.body,
-        input.corner ?? "general",
-        input.poll,
-        input.sharedContentId,
-        input.sharedContentType,
-    );
-
-    const failedUploads: FailedPostMediaUpload[] = [];
-    for (const item of input.media ?? []) {
-        try {
-            await uploadPostMedia(id, item.file, item.isSpoiler ?? false);
-        } catch (err) {
-            failedUploads.push({
-                file: item.file,
-                message: err instanceof Error ? err.message : `Failed to upload ${item.file.name}`,
-            });
-        }
-    }
-
-    return { id, failedUploads };
-}
 
 export function useCreatePost() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: createPostWithMedia,
+        mutationFn: (input: CreatePostInput) =>
+            createPost(
+                input.body,
+                input.corner ?? "general",
+                input.poll,
+                input.sharedContentId,
+                input.sharedContentType,
+                input.media,
+            ),
         onSuccess: () => {
             invalidateViews(qc, "post");
         },
@@ -186,7 +148,8 @@ export function useUnresolveSuggestion() {
 export function useCreateComment(postId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ body, parentId }: { body: string; parentId?: string }) => createComment(postId, body, parentId),
+        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly MediaUpload[] }) =>
+            createComment(postId, body, parentId, media),
         onSuccess: () => {
             invalidateViews(qc, "post");
         },
@@ -227,17 +190,6 @@ export function useUnlikeComment(postId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (commentId: string) => unlikeComment(commentId),
-        onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.post.detail(postId) });
-        },
-    });
-}
-
-export function useUploadCommentMedia(postId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({ commentId, file, isSpoiler }: { commentId: string; file: File; isSpoiler?: boolean }) =>
-            uploadCommentMedia(commentId, file, isSpoiler ?? false),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.post.detail(postId) });
         },

@@ -19,9 +19,9 @@ type (
 	{{.Recv}} struct{}
 )
 
-func ({{.Recv}}) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment[{{.KeyType}}]) (*model.CommentRow, error) {
+func ({{.Recv}}) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment) (*model.CommentRow, error) {
 	row, err := q.Create{{.Entity}}Comment(ctx, sqlcgen.Create{{.Entity}}CommentParams{
-		{{.FKField}}: s.TargetID,
+		{{.FKField}}: s.Target.{{.TargetField}},
 		ParentID:     s.ParentID,
 		UserID:       s.UserID,
 		Body:         s.Body,
@@ -50,17 +50,17 @@ func ({{.Recv}}) Delete(ctx context.Context, q *sqlcgen.Queries, s spec.CommentD
 	})
 }
 
-func ({{.Recv}}) Count(ctx context.Context, q *sqlcgen.Queries, target {{.KeyType}}, exclude []uuid.UUID) (int64, error) {
+func ({{.Recv}}) Count(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget, exclude []uuid.UUID) (int64, error) {
 	return q.Count{{.Entity}}Comments(ctx, sqlcgen.Count{{.Entity}}CommentsParams{
-		{{.FKField}}: target,
+		{{.FKField}}: target.{{.TargetField}},
 		Column2:      joinUUIDs(exclude),
 	})
 }
 
-func ({{.Recv}}) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery[{{.KeyType}}]) ([]model.CommentRow, error) {
+func ({{.Recv}}) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery) ([]model.CommentRow, error) {
 	rows, err := q.List{{.Entity}}Comments(ctx, sqlcgen.List{{.Entity}}CommentsParams{
 		UserID:       s.ViewerID,
-		{{.FKField}}: s.TargetID,
+		{{.FKField}}: s.Target.{{.TargetField}},
 		Column3:      joinUUIDs(s.ExcludeUserIDs),
 		Limit:        int32(s.Limit),
 		Offset:       int32(s.Offset),
@@ -86,12 +86,29 @@ func ({{.Recv}}) ByID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (*m
 	return new(commentRowFromCreate(commentCreateRow(row))), nil
 }
 
-func ({{.Recv}}) EntityID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) ({{.KeyType}}, error) {
-	return q.Get{{.Entity}}CommentEntityID(ctx, id)
+func ({{.Recv}}) Target(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (spec.CommentTarget, error) {
+	entityID, err := q.Get{{.Entity}}CommentEntityID(ctx, id)
+	if err != nil {
+		return spec.CommentTarget{}, err
+	}
+
+	return spec.CommentTarget{ {{- .TargetField}}: entityID}, nil
 }
 
 func ({{.Recv}}) AuthorID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error) {
 	return q.Get{{.Entity}}CommentAuthorID(ctx, id)
+}
+
+func ({{.Recv}}) MediaDir() string {
+	return "{{.MediaDir}}"
+}
+
+func ({{.Recv}}) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
+{{- if .ParentTable}}
+	return q.Get{{.Entity}}CommentTargetOwner(ctx, target.{{.TargetField}})
+{{- else}}
+	return uuid.Nil, nil
+{{- end}}
 }
 
 func ({{.Recv}}) Like(ctx context.Context, q *sqlcgen.Queries, s spec.CommentLike) error {
@@ -142,16 +159,16 @@ func ({{.Recv}}) MediaBatch(ctx context.Context, q *sqlcgen.Queries, ids []uuid.
 	return out, nil
 }
 
-func ({{.Recv}}) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func ({{.Recv}}) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.Update{{.Entity}}CommentMediaURL(ctx, sqlcgen.Update{{.Entity}}CommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
 }
 
-func ({{.Recv}}) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func ({{.Recv}}) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.Update{{.Entity}}CommentMediaThumbnail(ctx, sqlcgen.Update{{.Entity}}CommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
-func ({{.Recv}}) Paths(ctx context.Context, q *sqlcgen.Queries, target {{.KeyType}}) ([]string, error) {
-	rows, err := q.Collect{{.Entity}}CommentMediaPaths(ctx, target)
+func ({{.Recv}}) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {
+	rows, err := q.Collect{{.Entity}}CommentMediaPaths(ctx, target.{{.TargetField}})
 	if err != nil {
 		return nil, err
 	}

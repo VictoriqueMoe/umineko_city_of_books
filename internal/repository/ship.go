@@ -3,9 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
-	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/model"
@@ -19,19 +17,17 @@ type (
 		CreateWithCharacters(ctx context.Context, s spec.NewShipWithCharacters, tx ...*sql.Tx) (*model.ShipRow, error)
 		UpdateWithCharacters(ctx context.Context, update spec.ShipUpdate, tx ...*sql.Tx) error
 		DeleteShip(ctx context.Context, deletion spec.ShipDeletion, tx ...*sql.Tx) ([]string, error)
-		UpdateCommentBody(ctx context.Context, update spec.CommentUpdate, tx ...*sql.Tx) error
-		DeleteCommentWithAudit(ctx context.Context, deletion spec.CommentDeletion, tx ...*sql.Tx) ([]string, error)
 	}
 
 	shipRepository struct {
 		db *sql.DB
 		dao.ShipDAO
-		audit AuditLogRepository
+		comments dao.CommentDAO
 	}
 )
 
-func NewShipRepo(database *sql.DB, ships dao.ShipDAO, auditLog AuditLogRepository) ShipRepository {
-	return &shipRepository{db: database, ShipDAO: ships, audit: auditLog}
+func NewShipRepo(database *sql.DB, ships dao.ShipDAO, comments dao.CommentDAO) ShipRepository {
+	return &shipRepository{db: database, ShipDAO: ships, comments: comments}
 }
 
 func (r *shipRepository) CreateWithCharacters(ctx context.Context, s spec.NewShipWithCharacters, tx ...*sql.Tx) (*model.ShipRow, error) {
@@ -95,7 +91,7 @@ func (r *shipRepository) DeleteShip(ctx context.Context, deletion spec.ShipDelet
 			return err
 		}
 
-		commentPaths, err := r.ShipDAO.CollectCommentMediaPaths(ctx, deletion.ID, tx)
+		commentPaths, err := r.comments.CollectCommentMediaPaths(ctx, spec.CommentTarget{Kind: spec.CommentKindShip, ID: deletion.ID}, tx)
 		if err != nil {
 			return err
 		}
@@ -121,44 +117,4 @@ func (r *shipRepository) DeleteShip(ctx context.Context, deletion spec.ShipDelet
 	}
 
 	return paths, nil
-}
-
-func (r *shipRepository) UpdateCommentBody(ctx context.Context, update spec.CommentUpdate, tx ...*sql.Tx) error {
-	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
-		authorID, err := r.ShipDAO.GetCommentAuthorID(ctx, update.CommentID, tx)
-		if err != nil {
-			return err
-		}
-
-		if err := r.ShipDAO.UpdateComment(ctx, update, tx); err != nil {
-			return err
-		}
-
-		if authorID == update.UserID {
-			return nil
-		}
-
-		entry := audit.NewEntry{
-			ActorID:    update.UserID,
-			Action:     audit.ActionShipCommentUpdateAdmin,
-			TargetType: audit.TargetShipComment,
-			TargetID:   update.CommentID.String(),
-			SubjectID:  authorID,
-		}
-
-		if err := r.audit.Create(ctx, entry, tx); err != nil {
-			return fmt.Errorf("audit comment update: %w", err)
-		}
-
-		return nil
-	})
-}
-
-func (r *shipRepository) DeleteCommentWithAudit(ctx context.Context, deletion spec.CommentDeletion, tx ...*sql.Tx) ([]string, error) {
-	return deleteCommentWithAudit(ctx, r.db, r.ShipDAO, r.audit, commentDeleteSpec{
-		CommentDeletion: deletion,
-		OwnAction:       audit.ActionShipCommentDelete,
-		AdminAction:     audit.ActionShipCommentDeleteAdmin,
-		TargetType:      audit.TargetShipComment,
-	}, tx)
 }

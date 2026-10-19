@@ -8,7 +8,6 @@ import {
     useLikeAnnouncementComment,
     useUnlikeAnnouncementComment,
     useUpdateAnnouncementComment,
-    useUploadAnnouncementCommentMedia,
 } from "./announcement";
 
 const mocks = vi.hoisted(() => ({
@@ -17,7 +16,6 @@ const mocks = vi.hoisted(() => ({
     likeAnnouncementComment: vi.fn(),
     unlikeAnnouncementComment: vi.fn(),
     updateAnnouncementComment: vi.fn(),
-    uploadAnnouncementCommentMedia: vi.fn(),
 }));
 
 vi.mock("../../api/endpoints/comments", () => mocks);
@@ -61,7 +59,7 @@ describe("useCreateAnnouncementComment", () => {
         const data = await runMutation(() => useCreateAnnouncementComment(announcementId), { body: "hello" }, qc);
 
         // then
-        expect(mocks.createAnnouncementComment).toHaveBeenCalledWith(announcementId, "hello", undefined);
+        expect(mocks.createAnnouncementComment).toHaveBeenCalledWith(announcementId, "hello", undefined, undefined);
         expect(data).toEqual({ id: "c1" });
         expect(invalidate).toHaveBeenCalledWith({ queryKey: ["announcements"] });
     });
@@ -74,7 +72,19 @@ describe("useCreateAnnouncementComment", () => {
         await runMutation(() => useCreateAnnouncementComment(announcementId), { body: "replying", parentId: "c1" }, qc);
 
         // then
-        expect(mocks.createAnnouncementComment).toHaveBeenCalledWith(announcementId, "replying", "c1");
+        expect(mocks.createAnnouncementComment).toHaveBeenCalledWith(announcementId, "replying", "c1", undefined);
+    });
+
+    it("sends the staged media with the comment in the same request", async () => {
+        // given
+        const { qc } = client();
+        const media = [{ file: new File(["gif"], "beato.gif", { type: "image/gif" }), isSpoiler: true }];
+
+        // when
+        await runMutation(() => useCreateAnnouncementComment(announcementId), { body: "", media }, qc);
+
+        // then
+        expect(mocks.createAnnouncementComment).toHaveBeenCalledWith(announcementId, "", undefined, media);
     });
 
     it("leaves the announcement list alone when the server refuses the comment", async () => {
@@ -147,27 +157,6 @@ describe("useUnlikeAnnouncementComment", () => {
 
         // then
         expect(mocks.unlikeAnnouncementComment).toHaveBeenCalledWith("c1");
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["announcements"] });
-    });
-});
-
-describe("useUploadAnnouncementCommentMedia", () => {
-    it("uploads the file against the comment it belongs to and returns the stored media", async () => {
-        // given
-        const { qc, invalidate } = client();
-        const file = new File(["gif"], "beato.gif", { type: "image/gif" });
-        mocks.uploadAnnouncementCommentMedia.mockResolvedValue({ id: "m1", url: "/uploads/beato.gif" });
-
-        // when
-        const data = await runMutation(
-            () => useUploadAnnouncementCommentMedia(announcementId),
-            { commentId: "c1", file },
-            qc,
-        );
-
-        // then
-        expect(mocks.uploadAnnouncementCommentMedia).toHaveBeenCalledWith("c1", file);
-        expect(data).toEqual({ id: "m1", url: "/uploads/beato.gif" });
         expect(invalidate).toHaveBeenCalledWith({ queryKey: ["announcements"] });
     });
 });

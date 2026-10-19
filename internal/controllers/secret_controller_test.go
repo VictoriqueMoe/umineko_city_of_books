@@ -2,14 +2,16 @@ package controllers
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"testing"
 
+	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/comment"
+	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	secretsvc "umineko_city_of_books/internal/secret"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -87,13 +89,13 @@ func TestCreateSecretComment_OK(t *testing.T) {
 	commentID := uuid.New()
 	h.ExpectValidSession("valid", userID)
 	ms.EXPECT().
-		CreateComment(mock.Anything, "witchHunter", userID, mock.MatchedBy(func(r dto.CreateSecretCommentRequest) bool { return r.Body == "hi" })).
+		CreateComment(mock.Anything, "witchHunter", userID, dto.CreateCommentRequest{Body: "hi"}, []upload.FileUpload(nil)).
 		Return(commentID, nil)
 
 	// when
 	status, body := h.NewRequest("POST", "/secrets/witchHunter/comments").
 		WithCookie("valid").
-		WithJSONBody(dto.CreateSecretCommentRequest{Body: "hi"}).
+		WithJSONBody(dto.CreateCommentRequest{Body: "hi"}).
 		Do()
 
 	// then
@@ -107,18 +109,18 @@ func TestCreateSecretComment_EmptyBody(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid", userID)
 	ms.EXPECT().
-		CreateComment(mock.Anything, "witchHunter", userID, mock.Anything).
-		Return(uuid.Nil, secretsvc.ErrEmptyBody)
+		CreateComment(mock.Anything, "witchHunter", userID, mock.Anything, []upload.FileUpload(nil)).
+		Return(uuid.Nil, comment.ErrEmptyBody)
 
 	// when
 	status, body := h.NewRequest("POST", "/secrets/witchHunter/comments").
 		WithCookie("valid").
-		WithJSONBody(dto.CreateSecretCommentRequest{Body: "   "}).
+		WithJSONBody(dto.CreateCommentRequest{Body: "   "}).
 		Do()
 
 	// then
 	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "empty")
+	assert.Contains(t, string(body), comment.ErrEmptyBody.Error())
 }
 
 func TestCreateSecretComment_NotFound(t *testing.T) {
@@ -127,44 +129,44 @@ func TestCreateSecretComment_NotFound(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid", userID)
 	ms.EXPECT().
-		CreateComment(mock.Anything, "nonsense", userID, mock.Anything).
+		CreateComment(mock.Anything, "nonsense", userID, mock.Anything, []upload.FileUpload(nil)).
 		Return(uuid.Nil, secretsvc.ErrNotFound)
 
 	// when
 	status, _ := h.NewRequest("POST", "/secrets/nonsense/comments").
 		WithCookie("valid").
-		WithJSONBody(dto.CreateSecretCommentRequest{Body: "hi"}).
+		WithJSONBody(dto.CreateCommentRequest{Body: "hi"}).
 		Do()
 
 	// then
 	require.Equal(t, http.StatusNotFound, status)
 }
 
-func TestUpdateSecretComment_ServiceOutcomes(t *testing.T) {
+func TestCreateSecretComment_ServiceOutcomes(t *testing.T) {
 	cases := []struct {
 		name     string
 		err      error
 		wantCode int
 		wantBody string
 	}{
-		{"ok", nil, http.StatusNoContent, ""},
-		{"empty body", secretsvc.ErrEmptyBody, http.StatusBadRequest, "empty"},
-		{"not owned", fmt.Errorf("comment not found or not owned: %w", dao.ErrNotFound), http.StatusForbidden, "cannot update this comment"},
-		{"server failure", errors.New("pq: connection refused"), http.StatusInternalServerError, `{"error":"failed to update comment"}`},
+		{"blocked", block.ErrUserBlocked, http.StatusForbidden, "user is blocked"},
+		{"refused upload", upload.ErrFileTooLarge, http.StatusBadRequest, upload.ErrFileTooLarge.Error()},
+		{"server failure", errors.New("pq: connection refused"), http.StatusInternalServerError, `{"error":"failed to create comment"}`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			h, ms := newSecretHarness(t)
 			userID := uuid.New()
-			commentID := uuid.New()
 			h.ExpectValidSession("valid", userID)
-			ms.EXPECT().UpdateComment(mock.Anything, commentID, userID, dto.UpdateSecretCommentRequest{Body: "hi"}).Return(tc.err)
+			ms.EXPECT().
+				CreateComment(mock.Anything, "witchHunter", userID, dto.CreateCommentRequest{Body: "hi"}, []upload.FileUpload(nil)).
+				Return(uuid.Nil, tc.err)
 
 			// when
-			status, body := h.NewRequest("PUT", "/secret-comments/"+commentID.String()).
+			status, body := h.NewRequest("POST", "/secrets/witchHunter/comments").
 				WithCookie("valid").
-				WithJSONBody(dto.UpdateSecretCommentRequest{Body: "hi"}).
+				WithJSONBody(dto.CreateCommentRequest{Body: "hi"}).
 				Do()
 
 			// then
@@ -174,56 +176,31 @@ func TestUpdateSecretComment_ServiceOutcomes(t *testing.T) {
 	}
 }
 
-func TestDeleteSecretComment_OK(t *testing.T) {
-	// given
+func TestCreateSecretComment_MultipartPassesTheMediaThrough(t *testing.T) {
+	// given a multipart comment with no text and one spoilered image
 	h, ms := newSecretHarness(t)
 	userID := uuid.New()
 	commentID := uuid.New()
 	h.ExpectValidSession("valid", userID)
-	ms.EXPECT().DeleteComment(mock.Anything, commentID, userID).Return(nil)
+	ms.EXPECT().
+		CreateComment(mock.Anything, "witchHunter", userID, dto.CreateCommentRequest{}, mock.MatchedBy(func(files []upload.FileUpload) bool {
+			return len(files) == 1 && files[0].Filename == "pic.png" && files[0].ContentType == "image/png" && files[0].IsSpoiler
+		})).
+		Return(commentID, nil)
+	form, contentType := testutil.MediaForm(t, utils.MediaField, map[string]string{
+		utils.PayloadField:        `{"body":""}`,
+		utils.SpoilerIndexesField: "0",
+	})
 
 	// when
-	status, _ := h.NewRequest("DELETE", "/secret-comments/"+commentID.String()).
+	status, body := h.NewRequest("POST", "/secrets/witchHunter/comments").
 		WithCookie("valid").
+		WithRawBody(form, contentType).
 		Do()
 
 	// then
-	require.Equal(t, http.StatusNoContent, status)
-}
-
-func TestLikeSecretComment_OK(t *testing.T) {
-	// given
-	h, ms := newSecretHarness(t)
-	userID := uuid.New()
-	commentID := uuid.New()
-	h.ExpectValidSession("valid", userID)
-	ms.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(nil)
-
-	// when
-	status, _ := h.NewRequest("POST", "/secret-comments/"+commentID.String()+"/like").
-		WithCookie("valid").
-		WithJSONBody(map[string]any{}).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusNoContent, status)
-}
-
-func TestUnlikeSecretComment_OK(t *testing.T) {
-	// given
-	h, ms := newSecretHarness(t)
-	userID := uuid.New()
-	commentID := uuid.New()
-	h.ExpectValidSession("valid", userID)
-	ms.EXPECT().UnlikeComment(mock.Anything, userID, commentID).Return(nil)
-
-	// when
-	status, _ := h.NewRequest("DELETE", "/secret-comments/"+commentID.String()+"/like").
-		WithCookie("valid").
-		Do()
-
-	// then
-	require.Equal(t, http.StatusNoContent, status)
+	require.Equal(t, http.StatusCreated, status)
+	assert.Contains(t, string(body), commentID.String())
 }
 
 func TestListSecrets_Unauthenticated_StillOK(t *testing.T) {

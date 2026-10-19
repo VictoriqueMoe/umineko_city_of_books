@@ -52,7 +52,7 @@ func (l *Local) Get(ctx context.Context, location string, rng *engine.ByteRange)
 		return nil, err
 	}
 
-	root, err := l.root(ctx)
+	root, err := Root(l.settingsSvc.Get(ctx, config.SettingUploadDir))
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func (l *Local) Delete(ctx context.Context, locations ...string) error {
 
 func (l *Local) List(ctx context.Context, prefix string) iter.Seq2[engine.ObjectInfo, error] {
 	return func(yield func(engine.ObjectInfo, error) bool) {
-		root, err := l.root(ctx)
+		root, err := Root(l.settingsSvc.Get(ctx, config.SettingUploadDir))
 		if err != nil {
 			yield(engine.ObjectInfo{}, err)
 
@@ -242,26 +242,27 @@ func (l *Local) List(ctx context.Context, prefix string) iter.Seq2[engine.Object
 	}
 }
 
-func (l *Local) root(ctx context.Context) (string, error) {
+/*func (l *Local) root(ctx context.Context) (string, error) {
 	root, err := filepath.Abs(l.settingsSvc.Get(ctx, config.SettingUploadDir))
 	if err != nil {
 		return "", fmt.Errorf("resolve upload directory: %w", err)
 	}
 
 	return root, nil
-}
+}*/
 
 func (l *Local) resolve(ctx context.Context, key string) (string, error) {
-	if err := engine.ValidateKey(key); err != nil {
+	/*if err := engine.ValidateKey(key); err != nil {
 		return "", err
-	}
+	}*/
 
-	root, err := l.root(ctx)
+	root, err := Root(l.settingsSvc.Get(ctx, config.SettingUploadDir))
 	if err != nil {
 		return "", err
 	}
+	return ResolvePath(root, key)
 
-	return filepath.Join(root, filepath.FromSlash(key)), nil
+	//return filepath.Join(root, filepath.FromSlash(key)), nil
 }
 
 func mapLocalError(err error, key string) error {

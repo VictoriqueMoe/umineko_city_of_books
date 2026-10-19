@@ -85,7 +85,7 @@ describe("useOptimisticSends", () => {
         deferSend();
         const onSending = vi.fn();
         const { result } = renderSends({ onSending });
-        const replyTo = { id: "m-earlier", senderName: "Battler", bodyPreview: "an earlier claim" };
+        const replyTo = { id: "m-earlier", senderName: "Battler", body: "an earlier claim" };
 
         // when
         act(() => {

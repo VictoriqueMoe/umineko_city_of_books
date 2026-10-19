@@ -23,7 +23,6 @@ vi.mock("../../hooks/mutations/oc", () => ({
     useDeleteOCComment: () => ({ mutateAsync: vi.fn() }),
     useLikeOCComment: () => ({ mutateAsync: vi.fn() }),
     useUnlikeOCComment: () => ({ mutateAsync: vi.fn() }),
-    useUploadOCCommentMedia: () => ({ mutateAsync: vi.fn() }),
 }));
 
 vi.mock("react-router", async importOriginal => {

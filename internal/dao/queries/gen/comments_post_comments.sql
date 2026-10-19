@@ -57,6 +57,9 @@ SELECT post_id FROM post_comments WHERE id = $1;
 -- name: GetPostCommentAuthorID :one
 SELECT user_id FROM post_comments WHERE id = $1;
 
+-- name: GetPostCommentTargetOwner :one
+SELECT COALESCE(user_id, '00000000-0000-0000-0000-000000000000')::uuid AS owner_id FROM posts WHERE id = $1;
+
 -- name: LikePostComment :exec
 INSERT INTO post_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING;
 
@@ -80,10 +83,10 @@ FROM post_comment_media
 WHERE comment_id = ANY(string_to_array($1::text, ',')::uuid[])
 ORDER BY sort_order;
 
--- name: UpdatePostCommentMediaURL :exec
+-- name: UpdatePostCommentMediaURL :execrows
 UPDATE post_comment_media SET media_url = $1 WHERE id = $2;
 
--- name: UpdatePostCommentMediaThumbnail :exec
+-- name: UpdatePostCommentMediaThumbnail :execrows
 UPDATE post_comment_media SET thumbnail_url = $1 WHERE id = $2;
 
 -- name: CollectPostCommentMediaPaths :many

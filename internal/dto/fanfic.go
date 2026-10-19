@@ -40,10 +40,10 @@ type (
 
 	FanficDetailResponse struct {
 		FanficResponse
-		Chapters        []FanficChapterSummary  `json:"chapters"`
-		Comments        []FanficCommentResponse `json:"comments"`
-		ReadingProgress int                     `json:"reading_progress"`
-		ViewerBlocked   bool                    `json:"viewer_blocked"`
+		Chapters        []FanficChapterSummary `json:"chapters"`
+		Comments        []CommentResponse      `json:"comments"`
+		ReadingProgress int                    `json:"reading_progress"`
+		ViewerBlocked   bool                   `json:"viewer_blocked"`
 	}
 
 	FanficChapterResponse struct {
@@ -63,19 +63,6 @@ type (
 		ChapterNum int       `json:"chapter_number"`
 		Title      string    `json:"title"`
 		WordCount  int       `json:"word_count"`
-	}
-
-	FanficCommentResponse struct {
-		ID        uuid.UUID               `json:"id"`
-		ParentID  *uuid.UUID              `json:"parent_id,omitempty"`
-		Author    UserResponse            `json:"author"`
-		Body      string                  `json:"body"`
-		Media     []PostMediaResponse     `json:"media"`
-		LikeCount int                     `json:"like_count"`
-		UserLiked bool                    `json:"user_liked"`
-		Replies   []FanficCommentResponse `json:"replies,omitempty"`
-		CreatedAt string                  `json:"created_at"`
-		UpdatedAt *string                 `json:"updated_at,omitempty"`
 	}
 
 	FanficListResponse struct {

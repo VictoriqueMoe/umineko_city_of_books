@@ -1,19 +1,24 @@
 package controllers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/comment"
+	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	journalsvc "umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/journal/params"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
@@ -43,10 +48,11 @@ func journalCtlHarness(t *testing.T) (*testutil.Harness, *journalsvc.MockService
 	js := journalsvc.NewMockService(t)
 
 	s := &Service{
-		JournalService: js,
-		AuthSession:    h.SessionManager,
-		AuthService:    h.AuthService,
-		AuthzService:   h.AuthzService,
+		JournalService:  js,
+		SettingsService: h.SettingsService,
+		AuthSession:     h.SessionManager,
+		AuthService:     h.AuthService,
+		AuthzService:    h.AuthzService,
 	}
 	for _, setup := range s.getAllJournalRoutes() {
 		setup(h.App)
@@ -78,11 +84,6 @@ func TestJournalRoutes_AuthFailures(t *testing.T) {
 		{name: "follow journal", method: "POST", path: "/journals/" + uuid.NewString() + "/follow"},
 		{name: "unfollow journal", method: "DELETE", path: "/journals/" + uuid.NewString() + "/follow"},
 		{name: "create comment", method: "POST", path: "/journals/" + uuid.NewString() + "/comments", body: dto.CreateCommentRequest{Body: "b"}},
-		{name: "update comment", method: "PUT", path: "/journal-comments/" + uuid.NewString(), body: dto.UpdateCommentRequest{Body: "b"}},
-		{name: "delete comment", method: "DELETE", path: "/journal-comments/" + uuid.NewString()},
-		{name: "like comment", method: "POST", path: "/journal-comments/" + uuid.NewString() + "/like"},
-		{name: "unlike comment", method: "DELETE", path: "/journal-comments/" + uuid.NewString() + "/like"},
-		{name: "upload comment media", method: "POST", path: "/journal-comments/" + uuid.NewString() + "/media"},
 	}
 
 	for _, tc := range cases {
@@ -111,16 +112,9 @@ func TestJournalRoutes_MalformedRequests(t *testing.T) {
 		{name: "follow a non-uuid journal", method: "POST", path: "/journals/not-a-uuid/follow", signedIn: true, wantBody: "invalid id"},
 		{name: "unfollow a non-uuid journal", method: "DELETE", path: "/journals/not-a-uuid/follow", signedIn: true, wantBody: "invalid id"},
 		{name: "comment on a non-uuid journal", method: "POST", path: "/journals/not-a-uuid/comments", signedIn: true, jsonBody: dto.CreateCommentRequest{Body: "b"}, wantBody: "invalid id"},
-		{name: "update a non-uuid comment", method: "PUT", path: "/journal-comments/not-a-uuid", signedIn: true, jsonBody: dto.UpdateCommentRequest{Body: "x"}, wantBody: "invalid id"},
-		{name: "delete a non-uuid comment", method: "DELETE", path: "/journal-comments/not-a-uuid", signedIn: true, wantBody: "invalid id"},
-		{name: "like a non-uuid comment", method: "POST", path: "/journal-comments/not-a-uuid/like", signedIn: true, wantBody: "invalid id"},
-		{name: "unlike a non-uuid comment", method: "DELETE", path: "/journal-comments/not-a-uuid/like", signedIn: true, wantBody: "invalid id"},
-		{name: "upload media to a non-uuid comment", method: "POST", path: "/journal-comments/not-a-uuid/media", signedIn: true, wantBody: "invalid id"},
 		{name: "create a journal from malformed json", method: "POST", path: "/journals", signedIn: true, rawBody: "not json", wantBody: "invalid request body"},
 		{name: "update a journal from malformed json", method: "PUT", path: "/journals/" + uuid.NewString(), signedIn: true, rawBody: "not json", wantBody: "invalid request body"},
 		{name: "create a comment from malformed json", method: "POST", path: "/journals/" + uuid.NewString() + "/comments", signedIn: true, rawBody: "not json", wantBody: "invalid request body"},
-		{name: "update a comment from malformed json", method: "PUT", path: "/journal-comments/" + uuid.NewString(), signedIn: true, rawBody: "not json", wantBody: "invalid request body"},
-		{name: "upload comment media without a file", method: "POST", path: "/journal-comments/" + uuid.NewString() + "/media", signedIn: true, wantBody: "no media file provided"},
 	}
 
 	for _, tc := range cases {
@@ -197,46 +191,6 @@ func TestJournalRoutes_IDActions(t *testing.T) {
 			outcomes: []journalCtlOutcome{
 				{name: "unfollowed", wantCode: http.StatusNoContent},
 				{name: "internal", svcErr: errors.New("boom"), wantCode: http.StatusInternalServerError, wantBody: "failed to unfollow"},
-			},
-		},
-		{
-			name:   "delete comment",
-			method: "DELETE",
-			path:   "/journal-comments/:id",
-			expect: func(js *journalsvc.MockService, id, userID uuid.UUID, err error) {
-				js.EXPECT().DeleteComment(mock.Anything, id, userID).Return(err)
-			},
-			outcomes: []journalCtlOutcome{
-				{name: "deleted", wantCode: http.StatusNoContent},
-				{name: "not found", svcErr: journalsvc.ErrNotFound, wantCode: http.StatusNotFound, wantBody: "comment not found"},
-				{name: "not owned", svcErr: journalCtlNotOwned, wantCode: http.StatusForbidden, wantBody: "cannot delete this comment"},
-				{name: "internal", svcErr: errors.New("boom"), wantCode: http.StatusInternalServerError, wantBody: "failed to delete comment"},
-			},
-		},
-		{
-			name:   "like comment",
-			method: "POST",
-			path:   "/journal-comments/:id/like",
-			expect: func(js *journalsvc.MockService, id, userID uuid.UUID, err error) {
-				js.EXPECT().LikeComment(mock.Anything, id, userID).Return(err)
-			},
-			outcomes: []journalCtlOutcome{
-				{name: "liked", wantCode: http.StatusNoContent},
-				{name: "blocked", svcErr: block.ErrUserBlocked, wantCode: http.StatusForbidden, wantBody: "user is blocked"},
-				{name: "not found", svcErr: journalsvc.ErrNotFound, wantCode: http.StatusNotFound, wantBody: "comment not found"},
-				{name: "internal", svcErr: errors.New("boom"), wantCode: http.StatusInternalServerError, wantBody: "failed to like comment"},
-			},
-		},
-		{
-			name:   "unlike comment",
-			method: "DELETE",
-			path:   "/journal-comments/:id/like",
-			expect: func(js *journalsvc.MockService, id, userID uuid.UUID, err error) {
-				js.EXPECT().UnlikeComment(mock.Anything, id, userID).Return(err)
-			},
-			outcomes: []journalCtlOutcome{
-				{name: "unliked", wantCode: http.StatusNoContent},
-				{name: "internal", svcErr: errors.New("boom"), wantCode: http.StatusInternalServerError, wantBody: "failed to unlike comment"},
 			},
 		},
 	}
@@ -480,10 +434,13 @@ func TestCreateJournalComment(t *testing.T) {
 	newID := uuid.New()
 	cases := []journalCtlOutcome{
 		{name: "created", newID: newID, wantCode: http.StatusCreated, wantBody: `{"id":"` + newID.String() + `"}`},
-		{name: "empty body", svcErr: journalsvc.ErrEmptyBody, wantCode: http.StatusBadRequest, wantBody: "body is required"},
+		{name: "empty body", svcErr: comment.ErrEmptyBody, wantCode: http.StatusBadRequest, wantBody: "comment body is required"},
 		{name: "archived", svcErr: journalsvc.ErrArchived, wantCode: http.StatusForbidden, wantBody: "journal is archived"},
 		{name: "not found", svcErr: journalsvc.ErrNotFound, wantCode: http.StatusNotFound, wantBody: "journal not found"},
+		{name: "entry not found", svcErr: journalsvc.ErrEntryNotFound, wantCode: http.StatusNotFound, wantBody: "entry not found"},
+		{name: "entry from another journal", svcErr: journalsvc.ErrEntryMismatch, wantCode: http.StatusBadRequest, wantBody: "entry does not belong to this journal"},
 		{name: "blocked", svcErr: block.ErrUserBlocked, wantCode: http.StatusForbidden, wantBody: "user is blocked"},
+		{name: "an upload rejection", svcErr: fmt.Errorf("%w: file size 9MB exceeds maximum 5MB", upload.ErrFileTooLarge), wantCode: http.StatusBadRequest, wantBody: "exceeds maximum 5MB"},
 		{name: "internal", svcErr: errors.New("boom"), wantCode: http.StatusInternalServerError, wantBody: "failed to create comment"},
 	}
 
@@ -492,13 +449,13 @@ func TestCreateJournalComment(t *testing.T) {
 			// given
 			h, js, userID := journalCtlSignedIn(t)
 			journalID := uuid.New()
-			js.EXPECT().CreateComment(mock.Anything, journalID, userID, (*uuid.UUID)(nil), (*uuid.UUID)(nil), "hello").
+			js.EXPECT().CreateComment(mock.Anything, journalID, userID, dto.CreateJournalCommentRequest{Body: "hello"}, []upload.FileUpload(nil)).
 				Return(tc.newID, tc.svcErr)
 
 			// when
 			status, body := h.NewRequest("POST", "/journals/"+journalID.String()+"/comments").
 				WithCookie("valid-cookie").
-				WithJSONBody(dto.CreateCommentRequest{Body: "hello"}).
+				WithJSONBody(dto.CreateJournalCommentRequest{Body: "hello"}).
 				Do()
 
 			// then
@@ -508,26 +465,62 @@ func TestCreateJournalComment(t *testing.T) {
 	}
 }
 
-func TestUpdateJournalComment(t *testing.T) {
+func TestCreateJournalComment_MultipartCarriesThePayloadAndFiles(t *testing.T) {
+	// given
+	h, js, userID := journalCtlSignedIn(t)
+	journalID := uuid.New()
+	entryID := uuid.New()
+	newID := uuid.New()
+	want := dto.CreateJournalCommentRequest{Body: "see attached", EntryID: &entryID}
+
+	payload, err := json.Marshal(want)
+	require.NoError(t, err)
+	form, contentType := testutil.MediaForm(t, utils.MediaField, map[string]string{
+		utils.PayloadField:        string(payload),
+		utils.SpoilerIndexesField: "0",
+	})
+
+	js.EXPECT().
+		CreateComment(mock.Anything, journalID, userID, want, mock.MatchedBy(func(files []upload.FileUpload) bool {
+			return len(files) == 1 && files[0].Filename == "pic.png" && files[0].ContentType == "image/png" && files[0].IsSpoiler
+		})).
+		Return(newID, nil)
+
+	// when
+	status, body := h.NewRequest("POST", "/journals/"+journalID.String()+"/comments").
+		WithCookie("valid-cookie").
+		WithRawBody(form, contentType).
+		Do()
+
+	// then
+	require.Equal(t, http.StatusCreated, status)
+	assert.Contains(t, string(body), `{"id":"`+newID.String()+`"}`)
+}
+
+func TestCreateJournalEntry(t *testing.T) {
+	newID := uuid.New()
 	cases := []journalCtlOutcome{
-		{name: "updated", wantCode: http.StatusNoContent},
+		{name: "created", newID: newID, wantCode: http.StatusCreated, wantBody: `"entry_number":4`},
 		{name: "empty body", svcErr: journalsvc.ErrEmptyBody, wantCode: http.StatusBadRequest, wantBody: "body is required"},
-		{name: "not found", svcErr: journalsvc.ErrNotFound, wantCode: http.StatusNotFound, wantBody: "comment not found"},
-		{name: "not owned", svcErr: journalCtlNotOwned, wantCode: http.StatusForbidden, wantBody: "cannot update this comment"},
-		{name: "internal", svcErr: errors.New("boom"), wantCode: http.StatusInternalServerError, wantBody: "failed to update comment"},
+		{name: "not found", svcErr: journalsvc.ErrNotFound, wantCode: http.StatusNotFound, wantBody: "journal not found"},
+		{name: "not the author", svcErr: journalsvc.ErrNotAuthor, wantCode: http.StatusForbidden, wantBody: "not the journal author"},
+		{name: "an upload rejection", svcErr: fmt.Errorf("%w: file size 9MB exceeds maximum 5MB", upload.ErrFileTooLarge), wantCode: http.StatusBadRequest, wantBody: "exceeds maximum 5MB"},
+		{name: "internal", svcErr: errors.New("boom"), wantCode: http.StatusInternalServerError, wantBody: "failed to create entry"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			h, js, userID := journalCtlSignedIn(t)
-			id := uuid.New()
-			js.EXPECT().UpdateComment(mock.Anything, id, userID, "updated").Return(tc.svcErr)
+			journalID := uuid.New()
+			req := dto.CreateJournalEntryRequest{Title: "Day 1", Body: "hello"}
+			js.EXPECT().CreateEntry(mock.Anything, journalID, userID, req, []upload.FileUpload(nil)).
+				Return(tc.newID, 4, tc.svcErr)
 
 			// when
-			status, body := h.NewRequest("PUT", "/journal-comments/"+id.String()).
+			status, body := h.NewRequest("POST", "/journals/"+journalID.String()+"/entries").
 				WithCookie("valid-cookie").
-				WithJSONBody(dto.UpdateCommentRequest{Body: "updated"}).
+				WithJSONBody(req).
 				Do()
 
 			// then
@@ -537,40 +530,68 @@ func TestUpdateJournalComment(t *testing.T) {
 	}
 }
 
-func TestUploadJournalCommentMedia(t *testing.T) {
+func TestCreateJournalEntry_MultipartCarriesThePayloadAndFiles(t *testing.T) {
+	// given
+	h, js, userID := journalCtlSignedIn(t)
+	journalID := uuid.New()
+	newID := uuid.New()
+	want := dto.CreateJournalEntryRequest{Title: "Day 1", Body: "hello", IsDraft: true}
+
+	payload, err := json.Marshal(want)
+	require.NoError(t, err)
+	form, contentType := testutil.MediaForm(t, utils.MediaField, map[string]string{utils.PayloadField: string(payload)})
+
+	js.EXPECT().
+		CreateEntry(mock.Anything, journalID, userID, want, mock.MatchedBy(func(files []upload.FileUpload) bool {
+			return len(files) == 1 && files[0].Filename == "pic.png" && files[0].ContentType == "image/png" && !files[0].IsSpoiler
+		})).
+		Return(newID, 2, nil)
+
+	// when
+	status, body := h.NewRequest("POST", "/journals/"+journalID.String()+"/entries").
+		WithCookie("valid-cookie").
+		WithRawBody(form, contentType).
+		Do()
+
+	// then
+	require.Equal(t, http.StatusCreated, status)
+	got := testutil.UnmarshalJSON[map[string]any](t, body)
+	assert.Equal(t, newID.String(), got["id"])
+	assert.EqualValues(t, 2, got["entry_number"])
+}
+
+func TestJournalCreateRoutes_NewAccountsCannotAttachFiles(t *testing.T) {
 	cases := []struct {
-		name     string
-		media    *dto.PostMediaResponse
-		svcErr   error
-		wantCode int
-		wantBody string
+		name string
+		path string
 	}{
-		{name: "uploaded", media: &dto.PostMediaResponse{MediaType: "image"}, wantCode: http.StatusCreated, wantBody: `"media_type":"image"`},
-		{name: "not author", svcErr: journalsvc.ErrNotAuthor, wantCode: http.StatusForbidden, wantBody: "not the comment author"},
-		{name: "not found", svcErr: journalsvc.ErrNotFound, wantCode: http.StatusNotFound, wantBody: "comment not found"},
-		{name: "too large", svcErr: fmt.Errorf("%w: file size 9MB exceeds maximum 5MB", upload.ErrFileTooLarge), wantCode: http.StatusBadRequest, wantBody: "exceeds maximum 5MB"},
-		{name: "a server error mentioning a size is still a server error", svcErr: errors.New("pq: value too large for column"), wantCode: http.StatusInternalServerError, wantBody: "failed to upload media"},
-		{name: "internal", svcErr: errors.New("boom"), wantCode: http.StatusInternalServerError, wantBody: "failed to upload media"},
+		{name: "a comment", path: "/journals/%s/comments"},
+		{name: "an entry", path: "/journals/%s/entries"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			h, js, userID := journalCtlSignedIn(t)
-			commentID := uuid.New()
-			form, contentType := testutil.MediaForm(t, "media", nil)
-			js.EXPECT().UploadCommentMedia(mock.Anything, commentID, userID, "image/png", mock.Anything, mock.AnythingOfType("int64"), mock.Anything, mock.Anything).
-				Return(tc.media, tc.svcErr)
+			h, _ := journalCtlHarness(t)
+			userID := uuid.New()
+			h.AuthService.EXPECT().
+				Authenticate(mock.Anything, "new-cookie").
+				Return(model.SessionAuthState{UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}, nil).
+				Maybe()
+			h.SessionRepo.EXPECT().GetUserID(mock.Anything, "new-cookie").Return(userID, time.Now().Add(time.Hour), nil).Maybe()
+			h.AuthzService.EXPECT().IsBanned(mock.Anything, userID).Return(false).Maybe()
+			h.AuthzService.EXPECT().IsRestrictedNewAccount(mock.Anything, userID).Return(true)
+			form, contentType := testutil.MediaForm(t, utils.MediaField, map[string]string{utils.PayloadField: `{"body":"hi"}`})
 
 			// when
-			status, body := h.NewRequest("POST", "/journal-comments/"+commentID.String()+"/media").
-				WithCookie("valid-cookie").
+			status, body := h.NewRequest("POST", fmt.Sprintf(tc.path, uuid.NewString())).
+				WithCookie("new-cookie").
 				WithRawBody(form, contentType).
 				Do()
 
 			// then
-			require.Equal(t, tc.wantCode, status)
-			assert.Contains(t, string(body), tc.wantBody)
+			require.Equal(t, http.StatusForbidden, status)
+			assert.Contains(t, string(body), "new accounts cannot post attachments")
 		})
 	}
 }

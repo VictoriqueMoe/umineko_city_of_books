@@ -47,16 +47,26 @@ func (m *mediaDAO) DeleteMedia(ctx context.Context, s spec.MediaDeletion, tx ...
 }
 
 func (m *mediaDAO) UpdateMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	if err := m.q.SetURL(ctx, m.queries(tx), s); err != nil {
+	n, err := m.q.SetURL(ctx, m.queries(tx), s)
+	if err != nil {
 		return fmt.Errorf("update media url: %w", err)
+	}
+
+	if n == 0 {
+		return fmt.Errorf("update media url %d: %w", s.ID, ErrNotFound)
 	}
 
 	return nil
 }
 
 func (m *mediaDAO) UpdateMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	if err := m.q.SetThumbnail(ctx, m.queries(tx), s); err != nil {
+	n, err := m.q.SetThumbnail(ctx, m.queries(tx), s)
+	if err != nil {
 		return fmt.Errorf("update media thumbnail: %w", err)
+	}
+
+	if n == 0 {
+		return fmt.Errorf("update media thumbnail %d: %w", s.ID, ErrNotFound)
 	}
 
 	return nil

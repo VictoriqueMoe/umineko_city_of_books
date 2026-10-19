@@ -19,9 +19,9 @@ type (
 	fanficCommentQuerier struct{}
 )
 
-func (fanficCommentQuerier) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment[uuid.UUID]) (*model.CommentRow, error) {
+func (fanficCommentQuerier) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment) (*model.CommentRow, error) {
 	row, err := q.CreateFanficComment(ctx, sqlcgen.CreateFanficCommentParams{
-		FanficID: s.TargetID,
+		FanficID: s.Target.ID,
 		ParentID: s.ParentID,
 		UserID:   s.UserID,
 		Body:     s.Body,
@@ -50,17 +50,17 @@ func (fanficCommentQuerier) Delete(ctx context.Context, q *sqlcgen.Queries, s sp
 	})
 }
 
-func (fanficCommentQuerier) Count(ctx context.Context, q *sqlcgen.Queries, target uuid.UUID, exclude []uuid.UUID) (int64, error) {
+func (fanficCommentQuerier) Count(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget, exclude []uuid.UUID) (int64, error) {
 	return q.CountFanficComments(ctx, sqlcgen.CountFanficCommentsParams{
-		FanficID: target,
+		FanficID: target.ID,
 		Column2:  joinUUIDs(exclude),
 	})
 }
 
-func (fanficCommentQuerier) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery[uuid.UUID]) ([]model.CommentRow, error) {
+func (fanficCommentQuerier) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery) ([]model.CommentRow, error) {
 	rows, err := q.ListFanficComments(ctx, sqlcgen.ListFanficCommentsParams{
 		UserID:   s.ViewerID,
-		FanficID: s.TargetID,
+		FanficID: s.Target.ID,
 		Column3:  joinUUIDs(s.ExcludeUserIDs),
 		Limit:    int32(s.Limit),
 		Offset:   int32(s.Offset),
@@ -86,12 +86,25 @@ func (fanficCommentQuerier) ByID(ctx context.Context, q *sqlcgen.Queries, id uui
 	return new(commentRowFromCreate(commentCreateRow(row))), nil
 }
 
-func (fanficCommentQuerier) EntityID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error) {
-	return q.GetFanficCommentEntityID(ctx, id)
+func (fanficCommentQuerier) Target(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (spec.CommentTarget, error) {
+	entityID, err := q.GetFanficCommentEntityID(ctx, id)
+	if err != nil {
+		return spec.CommentTarget{}, err
+	}
+
+	return spec.CommentTarget{ID: entityID}, nil
 }
 
 func (fanficCommentQuerier) AuthorID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error) {
 	return q.GetFanficCommentAuthorID(ctx, id)
+}
+
+func (fanficCommentQuerier) MediaDir() string {
+	return "fanfics"
+}
+
+func (fanficCommentQuerier) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
+	return q.GetFanficCommentTargetOwner(ctx, target.ID)
 }
 
 func (fanficCommentQuerier) Like(ctx context.Context, q *sqlcgen.Queries, s spec.CommentLike) error {
@@ -142,16 +155,16 @@ func (fanficCommentQuerier) MediaBatch(ctx context.Context, q *sqlcgen.Queries, 
 	return out, nil
 }
 
-func (fanficCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (fanficCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateFanficCommentMediaURL(ctx, sqlcgen.UpdateFanficCommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
 }
 
-func (fanficCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (fanficCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateFanficCommentMediaThumbnail(ctx, sqlcgen.UpdateFanficCommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
-func (fanficCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target uuid.UUID) ([]string, error) {
-	rows, err := q.CollectFanficCommentMediaPaths(ctx, target)
+func (fanficCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {
+	rows, err := q.CollectFanficCommentMediaPaths(ctx, target.ID)
 	if err != nil {
 		return nil, err
 	}

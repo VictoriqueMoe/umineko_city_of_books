@@ -259,7 +259,7 @@ describe("the message action menu on every chat surface", () => {
         expect(props.onReply).toHaveBeenCalledExactlyOnceWith({
             id: "m1",
             senderName: "Battler",
-            bodyPreview: "a short claim",
+            body: "a short claim",
         });
         expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     });

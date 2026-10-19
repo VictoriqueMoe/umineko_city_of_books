@@ -37,8 +37,8 @@ type (
 		Add(ctx context.Context, q *sqlcgen.Queries, s spec.NewMedia) (int64, error)
 		URL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaDeletion) (string, error)
 		DeleteRow(ctx context.Context, q *sqlcgen.Queries, s spec.MediaDeletion) error
-		SetURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error
-		SetThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error
+		SetURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error)
+		SetThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error)
 		Media(ctx context.Context, q *sqlcgen.Queries, targetID uuid.UUID) ([]model.PostMediaRow, error)
 		MediaBatch(ctx context.Context, q *sqlcgen.Queries, targetIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error)
 		Paths(ctx context.Context, q *sqlcgen.Queries, targetID uuid.UUID) ([]string, error)

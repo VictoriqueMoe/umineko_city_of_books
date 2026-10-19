@@ -15,7 +15,6 @@ const {
     useDeleteJournalComment,
     useLikeJournalComment,
     useUnlikeJournalComment,
-    useUploadJournalCommentMedia,
     useDeleteJournalEntry,
     navigate,
 } = vi.hoisted(() => ({
@@ -26,7 +25,6 @@ const {
     useDeleteJournalComment: vi.fn(),
     useLikeJournalComment: vi.fn(),
     useUnlikeJournalComment: vi.fn(),
-    useUploadJournalCommentMedia: vi.fn(),
     useDeleteJournalEntry: vi.fn(),
     navigate: vi.fn(),
 }));
@@ -39,7 +37,6 @@ vi.mock("../../hooks/mutations/journal", () => ({
     useLikeJournalComment,
     useUnlikeJournalComment,
     useUpdateJournalComment,
-    useUploadJournalCommentMedia,
 }));
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
@@ -142,7 +139,6 @@ function stubEntry(options: StubOptions = {}) {
         useDeleteJournalComment,
         useLikeJournalComment,
         useUnlikeJournalComment,
-        useUploadJournalCommentMedia,
     ]) {
         hook.mockReturnValue({ mutateAsync: vi.fn(() => Promise.resolve({ id: "comment-1" })) });
     }

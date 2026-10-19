@@ -23,26 +23,10 @@ type (
 		List(ctx context.Context, q spec.AnnouncementListQuery, tx ...*sql.Tx) ([]model.AnnouncementRow, int, error)
 		GetLatest(ctx context.Context, tx ...*sql.Tx) (*model.AnnouncementRow, error)
 		SetPinned(ctx context.Context, s spec.AnnouncementPinUpdate, tx ...*sql.Tx) error
-
-		UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error
-		DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error
-		GetComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error)
-		GetCommentEntityID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
-		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
-		LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
-		UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
-
-		AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)
-		UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
-		UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
-		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)
-		CollectCommentMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)
-		CollectSingleCommentMediaPaths(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error)
 	}
 
 	announcementDAO struct {
 		db *sql.DB
-		*commentDAO[uuid.UUID]
 	}
 
 	announcementJoinRow = sqlcgen.GetAnnouncementByIDRow

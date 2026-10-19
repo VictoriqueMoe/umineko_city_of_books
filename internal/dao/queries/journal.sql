@@ -213,13 +213,15 @@ SELECT COUNT(*) FROM journal_follows WHERE journal_id = $1;
 -- name: ListJournalEntryIDs :many
 SELECT id FROM journal_entries WHERE journal_id = $1 ORDER BY entry_number;
 
--- name: ListJournalEntryCommentIDs :many
+-- name: CollectJournalEntryCommentMediaPaths :many
 WITH RECURSIVE tree AS (
     SELECT root.id FROM journal_comments root WHERE root.entry_id = sqlc.arg(entry_id)::uuid
     UNION
     SELECT child.id FROM journal_comments child JOIN tree t ON child.parent_id = t.id
 )
-SELECT t.id FROM tree t;
+SELECT m.media_url, m.thumbnail_url
+FROM journal_comment_media m
+JOIN tree ON tree.id = m.comment_id;
 
 -- name: CreateJournalEntry :one
 INSERT INTO journal_entries (journal_id, entry_number, title, body, word_count, is_draft, published_at)
@@ -260,9 +262,6 @@ SELECT (COALESCE(MAX(entry_number), 0) + 1)::int AS next_entry_number
 FROM journal_entries
 WHERE journal_id = $1;
 
--- name: GetJournalEntryJournalID :one
-SELECT journal_id FROM journal_entries WHERE id = $1;
-
 -- name: GetJournalEntryAuthorID :one
 SELECT j.user_id FROM journal_entries e JOIN journals j ON j.id = e.journal_id WHERE e.id = $1;
 
@@ -291,6 +290,7 @@ WHERE journal_id = $1 AND entry_id IS NULL
 SELECT c.id, c.journal_id::text AS entity_id, c.entry_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
        u.username, u.display_name, u.avatar_url,
        COALESCE(r.role, '')::text AS author_role,
+       (u.banned_at IS NOT NULL)::boolean AS author_banned,
        (SELECT COUNT(*) FROM journal_comment_likes lc WHERE lc.comment_id = c.id) AS like_count,
        EXISTS(SELECT 1 FROM journal_comment_likes lu WHERE lu.comment_id = c.id AND lu.user_id = $1) AS user_liked
 FROM journal_comments c
@@ -310,6 +310,7 @@ WHERE entry_id = $1::uuid
 SELECT c.id, c.journal_id::text AS entity_id, c.entry_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
        u.username, u.display_name, u.avatar_url,
        COALESCE(r.role, '')::text AS author_role,
+       (u.banned_at IS NOT NULL)::boolean AS author_banned,
        (SELECT COUNT(*) FROM journal_comment_likes lc WHERE lc.comment_id = c.id) AS like_count,
        EXISTS(SELECT 1 FROM journal_comment_likes lu WHERE lu.comment_id = c.id AND lu.user_id = $1) AS user_liked
 FROM journal_comments c

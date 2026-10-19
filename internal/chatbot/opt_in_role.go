@@ -50,10 +50,10 @@ func validateOptInRole(ctx context.Context, vanityRepo repository.VanityRoleRepo
 		return fmt.Errorf("get vanity role: %w", err)
 	}
 	if row == nil {
-		return ErrOptInRoleNotFound
+		return &settings.RejectedError{Err: ErrOptInRoleNotFound}
 	}
 	if row.IsSystem {
-		return ErrOptInRoleIsSystem
+		return &settings.RejectedError{Err: ErrOptInRoleIsSystem}
 	}
 
 	table, err := permRepo.GetVanityRolePermissions(ctx)
@@ -62,7 +62,7 @@ func validateOptInRole(ctx context.Context, vanityRepo repository.VanityRoleRepo
 	}
 
 	if !slices.Contains(table[roleID], string(authz.PermUseChatbot)) {
-		return ErrOptInRoleNoChatbot
+		return &settings.RejectedError{Err: ErrOptInRoleNoChatbot}
 	}
 
 	return nil

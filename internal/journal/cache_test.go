@@ -7,8 +7,8 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/contentfilter"
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
@@ -35,9 +35,9 @@ func newCacheTestService(t *testing.T, mgr *cache.Manager, echoes homefeed.Servi
 	notifSvc := notification.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
-	comments := repository.NewMockJournalCommentWriter(t)
+	commentSvc := comment.NewMockService(t)
 	activity := sidebar.NewMockActivityBumper(t)
-	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, dao.CommentDAOs{Journal: comments})
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc)
 
 	resolver := og.NewResolver(
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
@@ -48,13 +48,13 @@ func newCacheTestService(t *testing.T, mgr *cache.Manager, echoes homefeed.Servi
 	)
 
 	svc := NewService(
-		repo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc,
+		repo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc,
 		uploadSvc, &media.Processor{}, settingsSvc, contentfilter.New(), resolver, echoes, activity,
 	).(*service)
 
 	return svc, &testMocks{
 		repo:         repo,
-		comments:     comments,
+		commentSvc:   commentSvc,
 		userRepo:     userRepo,
 		auditRepo:    auditRepo,
 		authz:        authzSvc,

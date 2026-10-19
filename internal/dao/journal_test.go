@@ -2,13 +2,10 @@ package dao_test
 
 import (
 	"context"
-	"slices"
 	"strings"
 	"testing"
 	"time"
 
-	"umineko_city_of_books/internal/audit"
-	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
@@ -45,19 +42,6 @@ func createJournal(t *testing.T, repos *repository.Repositories, userID uuid.UUI
 	return created.ID
 }
 
-func createJournalComment(t *testing.T, repos *repository.Repositories, journalID, userID uuid.UUID, parentID *uuid.UUID, body string) uuid.UUID {
-	t.Helper()
-	created, err := repos.Comments.Journal.CreateComment(context.Background(), spec.NewJournalComment{
-		JournalID: journalID,
-		ParentID:  parentID,
-		UserID:    userID,
-		Body:      body,
-	})
-	require.NoError(t, err)
-
-	return created.ID
-}
-
 func journalCreateEntry(t *testing.T, repos *repository.Repositories, s spec.NewJournalEntry) uuid.UUID {
 	t.Helper()
 	created, err := repos.Journal.CreateEntry(context.Background(), s)
@@ -70,23 +54,6 @@ func journalBackdate(t *testing.T, repos *repository.Repositories, journalID uui
 	t.Helper()
 	_, err := repos.DB().ExecContext(context.Background(), `UPDATE journals SET created_at = $1, last_author_activity_at = $1 WHERE id = $2`, at, journalID)
 	require.NoError(t, err)
-}
-
-func journalRootComments(t *testing.T, repos *repository.Repositories, journalID, viewerID uuid.UUID) ([]model.CommentRow, int) {
-	t.Helper()
-	comments, total, err := repos.Journal.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: journalID, ViewerID: viewerID, Limit: 10})
-	require.NoError(t, err)
-
-	return comments, total
-}
-
-func journalCommentIDs(comments []model.CommentRow) []uuid.UUID {
-	var ids []uuid.UUID
-	for _, comment := range comments {
-		ids = append(ids, comment.ID)
-	}
-
-	return ids
 }
 
 func journalResponseIDs(journals []dto.JournalResponse) []uuid.UUID {
@@ -106,13 +73,12 @@ func journalSeedMedia(t *testing.T, repos *repository.Repositories) journalMedia
 	journalID := createJournal(t, repos, owner.ID, "T", "", "general")
 	entryID := journalCreateEntry(t, repos, spec.NewJournalEntry{JournalID: journalID, EntryNumber: 1, Body: "b", WordCount: 1})
 	keptEntryID := journalCreateEntry(t, repos, spec.NewJournalEntry{JournalID: journalID, EntryNumber: 2, Body: "b", WordCount: 1})
-	commentID := createJournalComment(t, repos, journalID, owner.ID, nil, "on journal")
-	keptCommentID := createJournalComment(t, repos, journalID, owner.ID, nil, "kept")
-
-	entryComment, err := repos.Comments.Journal.CreateComment(ctx, spec.NewJournalComment{JournalID: journalID, EntryID: &entryID, UserID: owner.ID, Body: "on entry"})
-	require.NoError(t, err)
-
-	replyID := createJournalComment(t, repos, journalID, owner.ID, &entryComment.ID, "reply")
+	root := spec.CommentTarget{Kind: spec.CommentKindJournal, ID: journalID}
+	entry := spec.CommentTarget{Kind: spec.CommentKindJournalEntry, ID: journalID, EntryNumber: 1}
+	commentID := createComment(t, repos, root, owner.ID, nil, "on journal")
+	keptCommentID := createComment(t, repos, root, owner.ID, nil, "kept")
+	entryCommentID := createComment(t, repos, entry, owner.ID, nil, "on entry")
+	replyID := createComment(t, repos, entry, owner.ID, &entryCommentID, "reply")
 
 	for _, media := range []spec.NewMedia{
 		{TargetID: entryID, MediaURL: "/uploads/journal/entry.png", MediaType: "image", ThumbnailURL: "/uploads/journal/entry_thumb.png"},
@@ -123,15 +89,10 @@ func journalSeedMedia(t *testing.T, repos *repository.Repositories) journalMedia
 		require.NoError(t, err)
 	}
 
-	for _, media := range []spec.NewMedia{
-		{TargetID: commentID, MediaURL: "/uploads/journal/comment.png", MediaType: "image", ThumbnailURL: "/uploads/journal/comment_thumb.png"},
-		{TargetID: keptCommentID, MediaURL: "/uploads/journal/kept_comment.png", MediaType: "image"},
-		{TargetID: entryComment.ID, MediaURL: "/uploads/journal/entry_comment.png", MediaType: "image", ThumbnailURL: "/uploads/journal/entry_comment_thumb.png"},
-		{TargetID: replyID, MediaURL: "/uploads/journal/reply.png", MediaType: "image"},
-	} {
-		_, err := repos.Journal.AddCommentMedia(ctx, media)
-		require.NoError(t, err)
-	}
+	addCommentMedia(t, repos, spec.CommentKindJournal, commentID, "/uploads/journal/comment.png", "/uploads/journal/comment_thumb.png")
+	addCommentMedia(t, repos, spec.CommentKindJournal, keptCommentID, "/uploads/journal/kept_comment.png", "")
+	addCommentMedia(t, repos, spec.CommentKindJournalEntry, entryCommentID, "/uploads/journal/entry_comment.png", "/uploads/journal/entry_comment_thumb.png")
+	addCommentMedia(t, repos, spec.CommentKindJournalEntry, replyID, "/uploads/journal/reply.png", "")
 
 	return journalMediaFixture{
 		ownerID:       owner.ID,
@@ -200,20 +161,14 @@ func TestJournalDAO_UnknownIDs(t *testing.T) {
 	journal, journalErr := repos.Journal.GetByID(ctx, spec.JournalLookup{ID: missing})
 	_, authorErr := repos.Journal.GetAuthorID(ctx, missing)
 	_, titleErr := repos.Journal.GetTitle(ctx, missing)
-	_, commentJournalErr := repos.Journal.GetCommentEntityID(ctx, missing)
-	_, commentAuthorErr := repos.Journal.GetCommentAuthorID(ctx, missing)
 	_, entryAuthorErr := repos.Journal.GetEntryAuthorID(ctx, missing)
-	_, entryJournalErr := repos.Journal.GetEntryJournalID(ctx, missing)
 
 	// then
 	require.NoError(t, journalErr)
 	assert.Nil(t, journal)
 	assert.ErrorIs(t, authorErr, dao.ErrNotFound)
 	assert.ErrorIs(t, titleErr, dao.ErrNotFound)
-	assert.Error(t, commentJournalErr)
-	assert.ErrorIs(t, commentAuthorErr, dao.ErrNotFound)
 	assert.ErrorIs(t, entryAuthorErr, dao.ErrNotFound, "a missing entry must read as not found, not as a database failure")
-	assert.ErrorIs(t, entryJournalErr, dao.ErrNotFound)
 }
 
 func TestJournalDAO_GetByID_CountsCommentsAndSurfacesTheLatestEntry(t *testing.T) {
@@ -221,8 +176,9 @@ func TestJournalDAO_GetByID_CountsCommentsAndSurfacesTheLatestEntry(t *testing.T
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	journalID := createJournal(t, repos, user.ID, "Title", "", "general")
-	createJournalComment(t, repos, journalID, user.ID, nil, "one")
-	createJournalComment(t, repos, journalID, user.ID, nil, "two")
+	root := spec.CommentTarget{Kind: spec.CommentKindJournal, ID: journalID}
+	createComment(t, repos, root, user.ID, nil, "one")
+	createComment(t, repos, root, user.ID, nil, "two")
 	journalCreateEntry(t, repos, spec.NewJournalEntry{JournalID: journalID, EntryNumber: 1, Body: "first body", WordCount: 2})
 	journalCreateEntry(t, repos, spec.NewJournalEntry{JournalID: journalID, EntryNumber: 2, Title: new("Latest"), Body: "newest body", WordCount: 2})
 
@@ -492,6 +448,44 @@ func TestJournalDAO_UpdateLastAuthorActivity_Unarchives(t *testing.T) {
 	assert.False(t, archived)
 }
 
+func TestJournalRepository_CreateEntry_RecordsAuthorActivityOnlyWhenAsked(t *testing.T) {
+	cases := []struct {
+		name                 string
+		recordAuthorActivity bool
+		wantArchived         bool
+	}{
+		{name: "an entry that records author activity revives an archived journal in the same write", recordAuthorActivity: true, wantArchived: false},
+		{name: "an entry whose caller defers the activity leaves an archived journal archived", recordAuthorActivity: false, wantArchived: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			ctx := context.Background()
+			user := daotest.CreateUser(t, repos)
+			id := createJournal(t, repos, user.ID, "T", "", "general")
+
+			_, err := repos.Journal.ArchiveStale(ctx, time.Now().Add(time.Hour))
+			require.NoError(t, err)
+
+			// when
+			journalCreateEntry(t, repos, spec.NewJournalEntry{
+				JournalID:            id,
+				EntryNumber:          1,
+				Body:                 "b",
+				WordCount:            1,
+				RecordAuthorActivity: tc.recordAuthorActivity,
+			})
+
+			// then
+			archived, err := repos.Journal.IsArchived(ctx, id)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantArchived, archived)
+		})
+	}
+}
+
 func TestJournalDAO_ArchiveStale(t *testing.T) {
 	cases := []struct {
 		name         string
@@ -620,255 +614,6 @@ func TestJournalDAO_ListFollowedByUser(t *testing.T) {
 	for _, journal := range journals {
 		assert.True(t, journal.IsFollowing)
 	}
-}
-
-func TestJournalDAO_CreateComment(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	ctx := context.Background()
-	author := daotest.CreateUser(t, repos)
-	commenter := daotest.CreateUser(t, repos)
-	journalID := createJournal(t, repos, author.ID, "T", "", "general")
-
-	// when
-	rootID := createJournalComment(t, repos, journalID, commenter.ID, nil, "hello")
-	replyID := createJournalComment(t, repos, journalID, commenter.ID, &rootID, "child")
-
-	// then
-	comments, total := journalRootComments(t, repos, journalID, commenter.ID)
-	assert.Equal(t, 2, total)
-	require.ElementsMatch(t, []uuid.UUID{rootID, replyID}, journalCommentIDs(comments))
-	for _, comment := range comments {
-		if comment.ID == rootID {
-			assert.Equal(t, "hello", comment.Body)
-			assert.Nil(t, comment.ParentID)
-		} else {
-			require.NotNil(t, comment.ParentID)
-			assert.Equal(t, rootID, *comment.ParentID)
-		}
-	}
-
-	gotJournalID, err := repos.Journal.GetCommentEntityID(ctx, rootID)
-	require.NoError(t, err)
-	assert.Equal(t, journalID, gotJournalID)
-
-	gotAuthorID, err := repos.Journal.GetCommentAuthorID(ctx, rootID)
-	require.NoError(t, err)
-	assert.Equal(t, commenter.ID, gotAuthorID)
-}
-
-func TestJournalDAO_UpdateComment(t *testing.T) {
-	cases := []struct {
-		name     string
-		byOwner  bool
-		asAdmin  bool
-		wantErr  bool
-		wantBody string
-	}{
-		{name: "the author edits their own comment", byOwner: true, wantBody: "new"},
-		{name: "a stranger is refused and the comment is untouched", wantErr: true, wantBody: "old"},
-		{name: "an admin edits someone else's comment", asAdmin: true, wantBody: "new"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			repos := daotest.NewRepos(t)
-			ctx := context.Background()
-			author := daotest.CreateUser(t, repos)
-			stranger := daotest.CreateUser(t, repos)
-			journalID := createJournal(t, repos, author.ID, "T", "", "general")
-			commentID := createJournalComment(t, repos, journalID, author.ID, nil, "old")
-
-			actor := stranger.ID
-			if tc.byOwner {
-				actor = author.ID
-			}
-
-			// when
-			err := repos.Journal.UpdateComment(ctx, spec.CommentUpdate{CommentID: commentID, UserID: actor, Body: "new", AsAdmin: tc.asAdmin})
-
-			// then
-			if tc.wantErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
-
-			comments, _ := journalRootComments(t, repos, journalID, author.ID)
-			require.Len(t, comments, 1)
-			assert.Equal(t, tc.wantBody, comments[0].Body)
-			assert.Equal(t, !tc.wantErr, comments[0].UpdatedAt != nil)
-		})
-	}
-}
-
-func TestJournalDAO_DeleteCommentWithAudit(t *testing.T) {
-	cases := []struct {
-		name        string
-		byOwner     bool
-		asAdmin     bool
-		wantErr     bool
-		auditAction audit.Action
-		wantAudited int
-	}{
-		{name: "the author deletes their own comment, gets back only its media paths, and it is audited", byOwner: true, auditAction: audit.ActionJournalCommentDelete, wantAudited: 1},
-		{name: "a stranger is refused, the comment survives, and nothing is audited", wantErr: true, auditAction: audit.ActionJournalCommentDelete, wantAudited: 0},
-		{name: "an admin deletes someone else's comment and it is audited as an admin action", asAdmin: true, auditAction: audit.ActionJournalCommentDeleteAdmin, wantAudited: 1},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			repos := daotest.NewRepos(t)
-			ctx := context.Background()
-			f := journalSeedMedia(t, repos)
-
-			actor := f.strangerID
-			if tc.byOwner {
-				actor = f.ownerID
-			}
-
-			// when
-			paths, err := repos.Journal.DeleteCommentWithAudit(ctx, spec.CommentDeletion{CommentID: f.commentID, UserID: actor, AsAdmin: tc.asAdmin})
-
-			// then
-			if tc.wantErr {
-				require.ErrorIs(t, err, dao.ErrNotFound)
-				assert.Nil(t, paths)
-			} else {
-				require.NoError(t, err)
-				assert.ElementsMatch(t, []string{"/uploads/journal/comment.png", "/uploads/journal/comment_thumb.png"}, paths)
-				assert.NotContains(t, paths, "")
-			}
-
-			comments, _ := journalRootComments(t, repos, f.journalID, f.ownerID)
-			assert.Equal(t, tc.wantErr, slices.Contains(journalCommentIDs(comments), f.commentID))
-
-			keptMedia, err := repos.Journal.GetCommentMediaBatch(ctx, []uuid.UUID{f.keptCommentID})
-			require.NoError(t, err)
-			require.Len(t, keptMedia[f.keptCommentID], 1)
-			assert.Equal(t, "/uploads/journal/kept_comment.png", keptMedia[f.keptCommentID][0].MediaURL)
-
-			entries, total, err := repos.AuditLog.List(ctx, spec.AuditLogListing{Action: tc.auditAction, Page: bounds.NewPage(10, 0)})
-			require.NoError(t, err)
-			assert.Equal(t, tc.wantAudited, total)
-			require.Len(t, entries, tc.wantAudited)
-			for _, entry := range entries {
-				assert.Equal(t, actor, entry.ActorID)
-				assert.Equal(t, audit.TargetJournalComment, entry.TargetType)
-				assert.Equal(t, f.commentID.String(), entry.TargetID)
-			}
-		})
-	}
-}
-
-func TestJournalDAO_GetComments_PaginationOrderingAndExclusion(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	ctx := context.Background()
-	author := daotest.CreateUser(t, repos)
-	commenterA := daotest.CreateUser(t, repos, daotest.WithDisplayName("A"))
-	commenterB := daotest.CreateUser(t, repos, daotest.WithDisplayName("B"))
-	blocked := daotest.CreateUser(t, repos)
-	journalID := createJournal(t, repos, author.ID, "T", "", "general")
-	first := createJournalComment(t, repos, journalID, commenterA.ID, nil, "first")
-	second := createJournalComment(t, repos, journalID, commenterB.ID, nil, "second")
-	third := createJournalComment(t, repos, journalID, blocked.ID, nil, "blocked-comment")
-
-	base := time.Now().UTC().Add(-time.Hour)
-	for i, id := range []uuid.UUID{first, second, third} {
-		_, err := repos.DB().ExecContext(ctx, `UPDATE journal_comments SET created_at = $1 WHERE id = $2`, base.Add(time.Duration(i)*time.Minute), id)
-		require.NoError(t, err)
-	}
-
-	// when
-	all, total, err := repos.Journal.GetComments(ctx, spec.CommentQuery[uuid.UUID]{TargetID: journalID, ViewerID: commenterA.ID, Limit: 10})
-	require.NoError(t, err)
-	excluded, exclTotal, err := repos.Journal.GetComments(ctx, spec.CommentQuery[uuid.UUID]{TargetID: journalID, ViewerID: commenterA.ID, Limit: 10, ExcludeUserIDs: []uuid.UUID{blocked.ID}})
-	require.NoError(t, err)
-	page, _, err := repos.Journal.GetComments(ctx, spec.CommentQuery[uuid.UUID]{TargetID: journalID, ViewerID: commenterA.ID, Limit: 1, Offset: 1})
-	require.NoError(t, err)
-
-	// then
-	assert.Equal(t, 3, total)
-	require.Equal(t, []uuid.UUID{first, second, third}, journalCommentIDs(all))
-	assert.Equal(t, "A", all[0].AuthorDisplayName)
-	assert.Equal(t, 2, exclTotal)
-	assert.Equal(t, []uuid.UUID{first, second}, journalCommentIDs(excluded))
-	assert.Equal(t, []uuid.UUID{second}, journalCommentIDs(page))
-}
-
-func TestJournalDAO_LikeAndUnlikeComment(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	ctx := context.Background()
-	author := daotest.CreateUser(t, repos)
-	liker := daotest.CreateUser(t, repos)
-	journalID := createJournal(t, repos, author.ID, "T", "", "general")
-	like := spec.CommentLike{UserID: liker.ID, CommentID: createJournalComment(t, repos, journalID, author.ID, nil, "x")}
-
-	// when
-	require.NoError(t, repos.Journal.LikeComment(ctx, like))
-	require.NoError(t, repos.Journal.LikeComment(ctx, like))
-	liked, _ := journalRootComments(t, repos, journalID, liker.ID)
-
-	require.NoError(t, repos.Journal.UnlikeComment(ctx, like))
-	unliked, _ := journalRootComments(t, repos, journalID, liker.ID)
-
-	// then
-	require.Len(t, liked, 1)
-	assert.Equal(t, 1, liked[0].LikeCount)
-	assert.True(t, liked[0].UserLiked)
-	require.Len(t, unliked, 1)
-	assert.Equal(t, 0, unliked[0].LikeCount)
-	assert.False(t, unliked[0].UserLiked)
-}
-
-func TestJournalDAO_CommentMedia(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	ctx := context.Background()
-	author := daotest.CreateUser(t, repos)
-	journalID := createJournal(t, repos, author.ID, "T", "", "general")
-	commentA := createJournalComment(t, repos, journalID, author.ID, nil, "a")
-	commentB := createJournalComment(t, repos, journalID, author.ID, nil, "b")
-	commentC := createJournalComment(t, repos, journalID, author.ID, nil, "c")
-	commentD := createJournalComment(t, repos, journalID, author.ID, nil, "d")
-
-	// when
-	idA0, err := repos.Journal.AddCommentMedia(ctx, spec.NewMedia{TargetID: commentA, MediaURL: "url-a-0", MediaType: "image", ThumbnailURL: "thumb-a-0"})
-	require.NoError(t, err)
-	idA1, err := repos.Journal.AddCommentMedia(ctx, spec.NewMedia{TargetID: commentA, MediaURL: "url-a-1", MediaType: "image", ThumbnailURL: "thumb-a-1"})
-	require.NoError(t, err)
-	idB, err := repos.Journal.AddCommentMedia(ctx, spec.NewMedia{TargetID: commentB, MediaURL: "url-b", MediaType: "video", ThumbnailURL: "thumb-b"})
-	require.NoError(t, err)
-	idD, err := repos.Journal.AddCommentMedia(ctx, spec.NewMedia{TargetID: commentD, MediaURL: "old-url", MediaType: "image", ThumbnailURL: "old-thumb"})
-	require.NoError(t, err)
-
-	require.NoError(t, repos.Journal.UpdateCommentMediaURL(ctx, spec.MediaURLUpdate{ID: idD, URL: "new-url"}))
-	require.NoError(t, repos.Journal.UpdateCommentMediaThumbnail(ctx, spec.MediaURLUpdate{ID: idD, URL: "new-thumb"}))
-
-	batch, err := repos.Journal.GetCommentMediaBatch(ctx, []uuid.UUID{commentA, commentB, commentC, commentD})
-	require.NoError(t, err)
-	empty, err := repos.Journal.GetCommentMediaBatch(ctx, nil)
-	require.NoError(t, err)
-
-	// then
-	assert.Greater(t, idA0, int64(0))
-	assert.Greater(t, idA1, int64(0))
-	assert.Greater(t, idB, int64(0))
-	require.Len(t, batch[commentA], 2)
-	assert.Equal(t, "url-a-0", batch[commentA][0].MediaURL)
-	assert.Equal(t, "url-a-1", batch[commentA][1].MediaURL)
-	require.Len(t, batch[commentB], 1)
-	assert.Equal(t, "url-b", batch[commentB][0].MediaURL)
-	assert.Equal(t, "video", batch[commentB][0].MediaType)
-	assert.NotContains(t, batch, commentC)
-	require.Len(t, batch[commentD], 1)
-	assert.Equal(t, "new-url", batch[commentD][0].MediaURL)
-	assert.Equal(t, "new-thumb", batch[commentD][0].ThumbnailURL)
-	assert.Nil(t, empty)
 }
 
 func TestJournalDAO_Entries(t *testing.T) {
@@ -1051,33 +796,6 @@ func TestJournalDAO_LatestEntryAt_IsWhenTheLatestEntryWasPublished(t *testing.T)
 	assert.Equal(t, draftedInJanuary.Format(time.RFC3339), entries[0].CreatedAt)
 }
 
-func TestJournalDAO_EntryComments_ScopedSeparately(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	ctx := context.Background()
-	user := daotest.CreateUser(t, repos)
-	journalID := createJournal(t, repos, user.ID, "Title", "", "general")
-	entryID := journalCreateEntry(t, repos, spec.NewJournalEntry{JournalID: journalID, EntryNumber: 1, Body: "b", WordCount: 1})
-
-	// when
-	topLevelComment := createJournalComment(t, repos, journalID, user.ID, nil, "on journal")
-	entryComment, err := repos.Comments.Journal.CreateComment(ctx, spec.NewJournalComment{JournalID: journalID, EntryID: &entryID, UserID: user.ID, Body: "on entry"})
-	require.NoError(t, err)
-
-	jrComments, _ := journalRootComments(t, repos, journalID, uuid.Nil)
-	enComments, _, err := repos.Journal.GetEntryComments(ctx, spec.CommentQuery[uuid.UUID]{TargetID: entryID, Limit: 100})
-	require.NoError(t, err)
-
-	// then: title-page query only returns the journal-level comment
-	require.Len(t, jrComments, 1)
-	assert.Equal(t, topLevelComment, jrComments[0].ID)
-	// entry query only returns the entry-scoped comment
-	require.Len(t, enComments, 1)
-	assert.Equal(t, entryComment.ID, enComments[0].ID)
-	require.NotNil(t, enComments[0].EntryID)
-	assert.Equal(t, entryID, *enComments[0].EntryID)
-}
-
 func TestJournalDAO_DeleteEntry_ReturnsOnlyThatEntrysMediaPaths(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
@@ -1104,8 +822,8 @@ func TestJournalDAO_DeleteEntry_ReturnsOnlyThatEntrysMediaPaths(t *testing.T) {
 	require.Len(t, keptEntryMedia[f.keptEntryID], 1)
 	assert.Equal(t, "/uploads/journal/kept_entry.png", keptEntryMedia[f.keptEntryID][0].MediaURL)
 
-	keptCommentMedia, err := repos.Journal.GetCommentMediaBatch(ctx, []uuid.UUID{f.keptCommentID})
+	keptCommentMedia, err := repos.Comment.GetCommentMedia(ctx, spec.CommentRef{Kind: spec.CommentKindJournal, CommentID: f.keptCommentID})
 	require.NoError(t, err)
-	require.Len(t, keptCommentMedia[f.keptCommentID], 1)
-	assert.Equal(t, "/uploads/journal/kept_comment.png", keptCommentMedia[f.keptCommentID][0].MediaURL)
+	require.Len(t, keptCommentMedia, 1)
+	assert.Equal(t, "/uploads/journal/kept_comment.png", keptCommentMedia[0].MediaURL)
 }

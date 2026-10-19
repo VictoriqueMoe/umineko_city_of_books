@@ -5,16 +5,16 @@ import {
     likeAnnouncementComment,
     unlikeAnnouncementComment,
     updateAnnouncementComment,
-    uploadAnnouncementCommentMedia,
 } from "../../api/endpoints/comments";
+import type { MediaUpload } from "../../types/api";
 import { invalidateViews } from "../../api/cache/invalidate";
 import { commentMutations } from "./comments";
 
 export function useCreateAnnouncementComment(announcementId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ body, parentId }: { body: string; parentId?: string }) =>
-            createAnnouncementComment(announcementId, body, parentId),
+        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly MediaUpload[] }) =>
+            createAnnouncementComment(announcementId, body, parentId, media),
         onSuccess: () => invalidateViews(qc, "announcement"),
     });
 }
@@ -24,11 +24,9 @@ const announcementCommentMutations = commentMutations("announcement", {
     remove: id => deleteAnnouncementComment(id),
     like: id => likeAnnouncementComment(id),
     unlike: id => unlikeAnnouncementComment(id),
-    uploadMedia: (commentId, file) => uploadAnnouncementCommentMedia(commentId, file),
 });
 
 export const useUpdateAnnouncementComment = announcementCommentMutations.useUpdate;
 export const useDeleteAnnouncementComment = announcementCommentMutations.useDelete;
 export const useLikeAnnouncementComment = announcementCommentMutations.useLike;
 export const useUnlikeAnnouncementComment = announcementCommentMutations.useUnlike;
-export const useUploadAnnouncementCommentMedia = announcementCommentMutations.useUploadMedia;

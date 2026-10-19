@@ -19,9 +19,9 @@ type (
 	journalCommentQuerier struct{}
 )
 
-func (journalCommentQuerier) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment[uuid.UUID]) (*model.CommentRow, error) {
+func (journalCommentQuerier) Create(ctx context.Context, q *sqlcgen.Queries, s spec.NewComment) (*model.CommentRow, error) {
 	row, err := q.CreateJournalComment(ctx, sqlcgen.CreateJournalCommentParams{
-		JournalID: s.TargetID,
+		JournalID: s.Target.ID,
 		ParentID:  s.ParentID,
 		UserID:    s.UserID,
 		Body:      s.Body,
@@ -50,17 +50,17 @@ func (journalCommentQuerier) Delete(ctx context.Context, q *sqlcgen.Queries, s s
 	})
 }
 
-func (journalCommentQuerier) Count(ctx context.Context, q *sqlcgen.Queries, target uuid.UUID, exclude []uuid.UUID) (int64, error) {
+func (journalCommentQuerier) Count(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget, exclude []uuid.UUID) (int64, error) {
 	return q.CountJournalComments(ctx, sqlcgen.CountJournalCommentsParams{
-		JournalID: target,
+		JournalID: target.ID,
 		Column2:   joinUUIDs(exclude),
 	})
 }
 
-func (journalCommentQuerier) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery[uuid.UUID]) ([]model.CommentRow, error) {
+func (journalCommentQuerier) List(ctx context.Context, q *sqlcgen.Queries, s spec.CommentQuery) ([]model.CommentRow, error) {
 	rows, err := q.ListJournalComments(ctx, sqlcgen.ListJournalCommentsParams{
 		UserID:    s.ViewerID,
-		JournalID: s.TargetID,
+		JournalID: s.Target.ID,
 		Column3:   joinUUIDs(s.ExcludeUserIDs),
 		Limit:     int32(s.Limit),
 		Offset:    int32(s.Offset),
@@ -86,12 +86,25 @@ func (journalCommentQuerier) ByID(ctx context.Context, q *sqlcgen.Queries, id uu
 	return new(commentRowFromCreate(commentCreateRow(row))), nil
 }
 
-func (journalCommentQuerier) EntityID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error) {
-	return q.GetJournalCommentEntityID(ctx, id)
+func (journalCommentQuerier) Target(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (spec.CommentTarget, error) {
+	entityID, err := q.GetJournalCommentEntityID(ctx, id)
+	if err != nil {
+		return spec.CommentTarget{}, err
+	}
+
+	return spec.CommentTarget{ID: entityID}, nil
 }
 
 func (journalCommentQuerier) AuthorID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error) {
 	return q.GetJournalCommentAuthorID(ctx, id)
+}
+
+func (journalCommentQuerier) MediaDir() string {
+	return "journals"
+}
+
+func (journalCommentQuerier) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
+	return q.GetJournalCommentTargetOwner(ctx, target.ID)
 }
 
 func (journalCommentQuerier) Like(ctx context.Context, q *sqlcgen.Queries, s spec.CommentLike) error {
@@ -142,16 +155,16 @@ func (journalCommentQuerier) MediaBatch(ctx context.Context, q *sqlcgen.Queries,
 	return out, nil
 }
 
-func (journalCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (journalCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateJournalCommentMediaURL(ctx, sqlcgen.UpdateJournalCommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
 }
 
-func (journalCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) error {
+func (journalCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
 	return q.UpdateJournalCommentMediaThumbnail(ctx, sqlcgen.UpdateJournalCommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
-func (journalCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target uuid.UUID) ([]string, error) {
-	rows, err := q.CollectJournalCommentMediaPaths(ctx, target)
+func (journalCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {
+	rows, err := q.CollectJournalCommentMediaPaths(ctx, target.ID)
 	if err != nil {
 		return nil, err
 	}

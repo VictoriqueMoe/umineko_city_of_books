@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"io"
 	"strings"
 	"sync"
 	"testing"
@@ -14,9 +15,9 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
@@ -27,6 +28,7 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
+	"umineko_city_of_books/internal/upload/uploadtest"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -37,7 +39,7 @@ import (
 
 type testMocks struct {
 	repo         *repository.MockMysteryRepository
-	comments     *dao.MockCommentDAO[uuid.UUID]
+	commentSvc   *comment.MockService
 	userRepo     *repository.MockUserRepository
 	auditRepo    *repository.MockAuditLogRepository
 	authz        *authz.MockService
@@ -63,11 +65,9 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	mediaProc := &media.Processor{}
 	hub := ws.NewHub()
 	activity := sidebar.NewMockActivityBumper(t)
-	comments := dao.NewMockCommentDAO[uuid.UUID](t)
-	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, dao.CommentDAOs{
-		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindMysteryComment): comments},
-	})
-	svc := NewService(repo, userRepo, followRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New(), nil, activity).(*service)
+	commentSvc := comment.NewMockService(t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc)
+	svc := NewService(repo, userRepo, followRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New(), nil, activity).(*service)
 	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
 	fanout := make(chan uuid.UUID, 8)
 	followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Run(func(_ context.Context, userID uuid.UUID, _ ...*sql.Tx) {
@@ -76,7 +76,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	return svc, &testMocks{
 		fanout:       fanout,
 		repo:         repo,
-		comments:     comments,
+		commentSvc:   commentSvc,
 		userRepo:     userRepo,
 		auditRepo:    auditRepo,
 		authz:        authzSvc,
@@ -300,7 +300,7 @@ func TestCreateMystery_EmptyTitle(t *testing.T) {
 	req.Title = "   "
 
 	// when
-	_, err := svc.CreateMystery(context.Background(), uuid.New(), req)
+	_, err := svc.CreateMystery(context.Background(), uuid.New(), req, nil, nil)
 
 	// then
 	require.ErrorIs(t, err, ErrEmptyTitle)
@@ -313,7 +313,7 @@ func TestCreateMystery_EmptyBody(t *testing.T) {
 	req.Body = "\n\t"
 
 	// when
-	_, err := svc.CreateMystery(context.Background(), uuid.New(), req)
+	_, err := svc.CreateMystery(context.Background(), uuid.New(), req, nil, nil)
 
 	// then
 	require.ErrorIs(t, err, ErrEmptyTitle)
@@ -341,7 +341,7 @@ func TestCreateMystery_RepoError(t *testing.T) {
 	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(nil, errors.New("boom"))
 
 	// when
-	_, err := svc.CreateMystery(context.Background(), userID, validCreateReq())
+	_, err := svc.CreateMystery(context.Background(), userID, validCreateReq(), nil, nil)
 
 	// then
 	require.Error(t, err)
@@ -355,7 +355,7 @@ func TestCreateMystery_NotifiesFollowersAndBumpsTheMysteriesSection(t *testing.T
 	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyMysteries).Return().Once()
 
 	// when
-	_, err := svc.CreateMystery(context.Background(), userID, validCreateReq())
+	_, err := svc.CreateMystery(context.Background(), userID, validCreateReq(), nil, nil)
 
 	// then
 	require.NoError(t, err)
@@ -374,7 +374,7 @@ func TestCreateMystery_RepoErrorSkipsFollowerFanout(t *testing.T) {
 	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(nil, errors.New("boom"))
 
 	// when
-	_, err := svc.CreateMystery(context.Background(), userID, validCreateReq())
+	_, err := svc.CreateMystery(context.Background(), userID, validCreateReq(), nil, nil)
 
 	// then
 	require.Error(t, err)
@@ -391,7 +391,7 @@ func TestCreateMystery_DefaultDifficulty(t *testing.T) {
 	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyMysteries).Return().Once()
 
 	// when
-	_, err := svc.CreateMystery(context.Background(), userID, req)
+	_, err := svc.CreateMystery(context.Background(), userID, req, nil, nil)
 
 	// then
 	require.NoError(t, err)
@@ -415,7 +415,7 @@ func TestCreateMystery_WithClues(t *testing.T) {
 	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyMysteries).Return().Once()
 
 	// when
-	id, err := svc.CreateMystery(context.Background(), userID, req)
+	id, err := svc.CreateMystery(context.Background(), userID, req, nil, nil)
 
 	// then
 	require.NoError(t, err)
@@ -453,7 +453,7 @@ func TestCreateMystery_MentionInTheBodyNotifiesTheNamedUser(t *testing.T) {
 		})
 
 	// when
-	_, err := svc.CreateMystery(context.Background(), userID, req)
+	_, err := svc.CreateMystery(context.Background(), userID, req, nil, nil)
 
 	// then
 	require.NoError(t, err)
@@ -463,6 +463,240 @@ func TestCreateMystery_MentionInTheBodyNotifiesTheNamedUser(t *testing.T) {
 	assert.Equal(t, mysteryID, mentioned.ReferenceID)
 	assert.Equal(t, "mystery", mentioned.ReferenceType)
 	assert.Equal(t, "/mystery/"+mysteryID.String(), mentioned.EmailLink)
+}
+
+func TestCreateMystery_SavesMediaAndAttachmentsBeforeAnySideEffect(t *testing.T) {
+	// given a mystery carrying two images, the second spoilered, and one attachment
+	svc, m := newTestService(t)
+	recorder := upload.NewMockMediaRecorder(t)
+	svc.uploader = recorder
+	userID := uuid.New()
+	mysteryID := uuid.New()
+	files := []upload.FileUpload{uploadtest.PNGUpload(t, "one.png", false), uploadtest.PNGUpload(t, "two.png", true)}
+	notes := pdfUpload("notes.pdf")
+
+	var order []string
+
+	uploadtest.ExpectMediaLimits(m.settingsSvc, testMediaLimit)
+	expectAttachmentLimit(m, testMediaLimit)
+	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(&model.MysteryRow{ID: mysteryID}, nil)
+	expectStored(recorder, files[0], "/uploads/mysteries/one.png")
+	expectStored(recorder, files[1], "/uploads/mysteries/two.png")
+	m.repo.EXPECT().
+		AddMedia(mock.Anything, spec.NewMedia{TargetID: mysteryID, MediaURL: "/uploads/mysteries/one.png", MediaType: media.MediaTypeImage, Filename: "one.png", SortOrder: 0}).
+		Run(func(_ context.Context, _ spec.NewMedia, _ ...*sql.Tx) { order = append(order, "one.png") }).
+		Return(1, nil).
+		Once()
+	m.repo.EXPECT().
+		AddMedia(mock.Anything, spec.NewMedia{TargetID: mysteryID, MediaURL: "/uploads/mysteries/two.png", MediaType: media.MediaTypeImage, Filename: "two.png", SortOrder: 1, IsSpoiler: true}).
+		Run(func(_ context.Context, _ spec.NewMedia, _ ...*sql.Tx) { order = append(order, "two.png") }).
+		Return(2, nil).
+		Once()
+	m.uploadSvc.EXPECT().
+		SaveAttachment(mock.Anything, "mystery-attachments/"+mysteryID.String(), notes.Size, int64(testMediaLimit), mock.Anything).
+		Return("/uploads/mystery-attachments/notes.pdf", nil).
+		Once()
+	m.repo.EXPECT().
+		AddAttachment(mock.Anything, spec.NewMysteryAttachment{MysteryID: mysteryID, FileURL: "/uploads/mystery-attachments/notes.pdf", FileName: "notes.pdf", FileSize: int(notes.Size)}).
+		Run(func(_ context.Context, _ spec.NewMysteryAttachment, _ ...*sql.Tx) { order = append(order, "notes.pdf") }).
+		Return(7, nil).
+		Once()
+	m.activity.EXPECT().
+		BumpSidebarActivity(sidebar.KeyMysteries).
+		Run(func(_ sidebar.Key) { order = append(order, "bump") }).
+		Return().
+		Once()
+
+	// when
+	id, err := svc.CreateMystery(context.Background(), userID, validCreateReq(), files, []upload.FileUpload{notes})
+
+	// then every file is recorded against the mystery in order, and only then is the section bumped
+	require.NoError(t, err)
+	assert.Equal(t, mysteryID, id)
+	assert.Equal(t, []string{"one.png", "two.png", "notes.pdf", "bump"}, order)
+}
+
+func TestCreateMystery_AFailedSaveRollsTheMysteryBackAndFiresNothing(t *testing.T) {
+	rollbackErr := errors.New("db down")
+	rowErr := errors.New("attachment row refused")
+
+	cases := []struct {
+		name          string
+		expect        func(m *testMocks, recorder *upload.MockMediaRecorder, mysteryID uuid.UUID, cancel context.CancelFunc)
+		rollbackPaths []string
+		rollbackErr   error
+		wantErr       error
+	}{
+		{
+			name: "a media failure deletes the mystery",
+			expect: func(_ *testMocks, recorder *upload.MockMediaRecorder, _ uuid.UUID, _ context.CancelFunc) {
+				recorder.EXPECT().
+					SaveAndRecord(mock.Anything, "mysteries", "image/png", "one.png", mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
+					Return(nil, errStoreFailed).
+					Once()
+			},
+			wantErr: errStoreFailed,
+		},
+		{
+			name: "an attachment store failure deletes the mystery and its stored media",
+			expect: func(m *testMocks, recorder *upload.MockMediaRecorder, mysteryID uuid.UUID, _ context.CancelFunc) {
+				recorder.EXPECT().
+					SaveAndRecord(mock.Anything, "mysteries", "image/png", "one.png", mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
+					RunAndReturn(storeAs("/uploads/mysteries/one.png")).
+					Once()
+				m.repo.EXPECT().AddMedia(mock.Anything, mock.Anything).Return(1, nil).Once()
+				m.uploadSvc.EXPECT().SaveAttachment(mock.Anything, "mystery-attachments/"+mysteryID.String(), mock.Anything, mock.Anything, mock.Anything).Return("", errStoreFailed).Once()
+			},
+			rollbackPaths: []string{"/uploads/mysteries/one.png"},
+			wantErr:       errStoreFailed,
+		},
+		{
+			name: "a refused attachment row unlinks the stored attachment and deletes the mystery",
+			expect: func(m *testMocks, recorder *upload.MockMediaRecorder, _ uuid.UUID, _ context.CancelFunc) {
+				recorder.EXPECT().
+					SaveAndRecord(mock.Anything, "mysteries", "image/png", "one.png", mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
+					RunAndReturn(storeAs("/uploads/mysteries/one.png")).
+					Once()
+				m.repo.EXPECT().AddMedia(mock.Anything, mock.Anything).Return(1, nil).Once()
+				m.uploadSvc.EXPECT().SaveAttachment(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("/uploads/mystery-attachments/notes.pdf", nil).Once()
+				m.repo.EXPECT().AddAttachment(mock.Anything, mock.Anything).Return(0, rowErr).Once()
+				m.uploadSvc.EXPECT().Delete([]string{"/uploads/mystery-attachments/notes.pdf"}).Return().Once()
+			},
+			rollbackPaths: []string{"/uploads/mysteries/one.png"},
+			wantErr:       rowErr,
+		},
+		{
+			name: "a failed rollback is reported alongside the cause",
+			expect: func(_ *testMocks, recorder *upload.MockMediaRecorder, _ uuid.UUID, _ context.CancelFunc) {
+				recorder.EXPECT().
+					SaveAndRecord(mock.Anything, "mysteries", "image/png", "one.png", mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
+					Return(nil, errStoreFailed).
+					Once()
+			},
+			rollbackErr: rollbackErr,
+			wantErr:     errStoreFailed,
+		},
+		{
+			name: "a client hanging up mid-upload still rolls the mystery back",
+			expect: func(_ *testMocks, recorder *upload.MockMediaRecorder, _ uuid.UUID, cancel context.CancelFunc) {
+				recorder.EXPECT().
+					SaveAndRecord(mock.Anything, "mysteries", "image/png", "one.png", mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
+					RunAndReturn(func(context.Context, string, string, string, int64, io.Reader, bool, media.AddFn, media.UpdateURLFn, media.UpdateURLFn) (*dto.PostMediaResponse, error) {
+						cancel()
+
+						return nil, errStoreFailed
+					}).
+					Once()
+			},
+			wantErr: errStoreFailed,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a mystery that mentions someone, carrying one image and one attachment
+			svc, m := newTestService(t)
+			recorder := upload.NewMockMediaRecorder(t)
+			svc.uploader = recorder
+			userID := uuid.New()
+			mysteryID := uuid.New()
+			req := validCreateReq()
+			req.Body = "solve this with @alice"
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			uploadtest.ExpectMediaLimits(m.settingsSvc, testMediaLimit)
+			expectAttachmentLimit(m, testMediaLimit)
+			m.repo.EXPECT().CreateWithClues(mock.Anything, mock.Anything).Return(&model.MysteryRow{ID: mysteryID}, nil)
+			tc.expect(m, recorder, mysteryID, cancel)
+
+			var rollbackCtxErr error
+			m.repo.EXPECT().
+				DeleteWithMedia(mock.Anything, spec.OwnedDeletion{ID: mysteryID, UserID: userID}).
+				Run(func(ctx context.Context, _ spec.OwnedDeletion, _ ...*sql.Tx) { rollbackCtxErr = ctx.Err() }).
+				Return(tc.rollbackPaths, tc.rollbackErr).
+				Once()
+			expectUnlinked(m, tc.rollbackPaths)
+
+			// when
+			id, err := svc.CreateMystery(ctx, userID, req, []upload.FileUpload{uploadtest.PNGUpload(t, "one.png", false)}, []upload.FileUpload{pdfUpload("notes.pdf")})
+
+			// then the mystery is gone, and the strict mocks prove no mention, follower notice or section bump fired
+			require.ErrorIs(t, err, tc.wantErr)
+			if tc.rollbackErr != nil {
+				require.ErrorIs(t, err, tc.rollbackErr)
+			}
+			assert.Equal(t, uuid.Nil, id)
+			require.NoError(t, rollbackCtxErr)
+			assert.Empty(t, m.fanout)
+		})
+	}
+}
+
+func TestCreateMystery_ARefusedFileWritesNothing(t *testing.T) {
+	cases := []struct {
+		name          string
+		files         []upload.FileUpload
+		attachments   []upload.FileUpload
+		maxImageSize  int
+		maxAttachment int
+		wantErr       error
+	}{
+		{
+			name:          "an image over the size limit",
+			files:         []upload.FileUpload{uploadtest.PNGUpload(t, "big.png", false)},
+			maxImageSize:  1,
+			maxAttachment: testMediaLimit,
+			wantErr:       upload.ErrFileTooLarge,
+		},
+		{
+			name:          "an image that is not what it claims to be",
+			files:         []upload.FileUpload{uploadtest.MemoryUpload("image/png", "fake.png", []byte("not an image at all"), false)},
+			maxImageSize:  testMediaLimit,
+			maxAttachment: testMediaLimit,
+			wantErr:       upload.ErrInvalidFileType,
+		},
+		{
+			name:          "an attachment over the size limit",
+			attachments:   []upload.FileUpload{pdfUpload("notes.pdf")},
+			maxImageSize:  testMediaLimit,
+			maxAttachment: 1,
+			wantErr:       upload.ErrFileTooLarge,
+		},
+		{
+			name:          "an attachment of a refused type",
+			attachments:   []upload.FileUpload{uploadtest.MemoryUpload("text/html", "page.html", []byte("<html><body>trap</body></html>"), false)},
+			maxImageSize:  testMediaLimit,
+			maxAttachment: testMediaLimit,
+			wantErr:       upload.ErrInvalidAttachmentType,
+		},
+		{
+			name:          "two attachments sharing a name",
+			attachments:   []upload.FileUpload{pdfUpload("notes.pdf"), pdfUpload("notes.pdf")},
+			maxImageSize:  testMediaLimit,
+			maxAttachment: testMediaLimit,
+			wantErr:       ErrDuplicateAttachment,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given strict repo, recorder and upload mocks that expect no write at all
+			svc, m := newTestService(t)
+			svc.uploader = upload.NewMockMediaRecorder(t)
+			uploadtest.ExpectMediaLimits(m.settingsSvc, tc.maxImageSize)
+			expectAttachmentLimit(m, tc.maxAttachment)
+
+			// when
+			id, err := svc.CreateMystery(context.Background(), uuid.New(), validCreateReq(), tc.files, tc.attachments)
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+			assert.Equal(t, uuid.Nil, id)
+			assert.Empty(t, m.fanout)
+		})
+	}
 }
 
 func TestUpdateMystery_NotAuthorised(t *testing.T) {
@@ -635,7 +869,7 @@ func TestUpdateMystery_AFailedReadIsSurfacedNotReportedAsNotFound(t *testing.T) 
 }
 
 func TestGetMystery_AFailedReadIsSurfacedInsteadOfRenderingAnEmptySection(t *testing.T) {
-	steps := []string{"clues", "attempts", "viewer role", "blocked users", "comments", "comment media", "attachments", "media", "viewer solved"}
+	steps := []string{"clues", "attempts", "viewer role", "comments", "attachments", "media", "viewer solved"}
 
 	for _, failAt := range steps {
 		t.Run("the "+failAt+" read failing", func(t *testing.T) {
@@ -655,9 +889,7 @@ func TestGetMystery_AFailedReadIsSurfacedInsteadOfRenderingAnEmptySection(t *tes
 			m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, errAt("clues")).Maybe()
 			m.repo.EXPECT().GetAttempts(mock.Anything, mock.Anything).Return(nil, errAt("attempts")).Maybe()
 			m.authz.EXPECT().GetRole(mock.Anything, viewer).Return("", errAt("viewer role")).Maybe()
-			m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, errAt("blocked users")).Maybe()
-			m.repo.EXPECT().GetComments(mock.Anything, mock.Anything).Return([]model.CommentRow{{ID: uuid.New()}}, 1, errAt("comments")).Maybe()
-			m.repo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, errAt("comment media")).Maybe()
+			m.commentSvc.EXPECT().Thread(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindMystery, ID: id}, viewer).Return(nil, errAt("comments")).Maybe()
 			m.repo.EXPECT().GetAttachments(mock.Anything, id).Return(nil, errAt("attachments")).Maybe()
 			m.repo.EXPECT().GetMedia(mock.Anything, id).Return(nil, errAt("media")).Maybe()
 			m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mock.Anything).Return(false, errAt("viewer solved")).Maybe()
@@ -815,4 +1047,90 @@ func TestDeleteMystery_NonAdmin_RepoError(t *testing.T) {
 
 	// then
 	require.Error(t, err)
+}
+
+func TestGetMystery_CommentsShowOnlyOnceSolved(t *testing.T) {
+	cases := []struct {
+		name   string
+		solved bool
+	}{
+		{name: "a solved mystery carries its comment thread", solved: true},
+		{name: "an unsolved mystery shows no comments and never loads them"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			id, author, viewer := uuid.New(), uuid.New(), uuid.New()
+			thread := []dto.CommentResponse{{ID: uuid.New(), Body: "the butler did it"}}
+			m.repo.EXPECT().GetByID(mock.Anything, id).Return(&model.MysteryRow{ID: id, UserID: author, Solved: tc.solved}, nil)
+			m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mock.Anything).Return(false, nil).Maybe()
+			m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
+			m.repo.EXPECT().GetAttempts(mock.Anything, mock.Anything).Return(nil, nil)
+			m.authz.EXPECT().GetRole(mock.Anything, viewer).Return("", nil).Maybe()
+			m.repo.EXPECT().GetAttachments(mock.Anything, id).Return(nil, nil)
+			m.repo.EXPECT().GetMedia(mock.Anything, id).Return(nil, nil).Maybe()
+			if tc.solved {
+				m.commentSvc.EXPECT().Thread(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindMystery, ID: id}, viewer).Return(thread, nil).Once()
+			}
+
+			// when
+			got, err := svc.GetMystery(context.Background(), id, viewer)
+
+			// then
+			require.NoError(t, err)
+			if tc.solved {
+				assert.Equal(t, thread, got.Comments)
+				return
+			}
+
+			assert.NotNil(t, got.Comments, "an unsolved mystery renders an empty list, not null")
+			assert.Empty(t, got.Comments)
+		})
+	}
+}
+
+func TestCreateComment(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name      string
+		solved    bool
+		solvedErr error
+		createErr error
+		want      error
+	}{
+		{name: "a missing mystery is not found", solvedErr: errMissingRow, want: ErrNotFound},
+		{name: "a failed solved check is surfaced, not reported as not found", solvedErr: boom, want: boom},
+		{name: "an unsolved mystery refuses comments", want: ErrNotSolved},
+		{name: "a solved mystery hands the comment to the comment service", solved: true},
+		{name: "a refused comment bubbles", solved: true, createErr: boom, want: boom},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			mid, userID, commentID := uuid.New(), uuid.New(), uuid.New()
+			req := dto.CreateCommentRequest{Body: "hi"}
+			m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(tc.solved, tc.solvedErr)
+
+			wantID := uuid.Nil
+			if tc.solved {
+				returned := commentID
+				if tc.createErr != nil {
+					returned = uuid.Nil
+				}
+				m.commentSvc.EXPECT().Create(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindMystery, ID: mid}, userID, req, []upload.FileUpload(nil)).Return(returned, tc.createErr).Once()
+				wantID = returned
+			}
+
+			// when
+			id, err := svc.CreateComment(context.Background(), mid, userID, req, nil)
+
+			// then
+			require.ErrorIs(t, err, tc.want)
+			assert.Equal(t, wantID, id)
+		})
+	}
 }

@@ -24,19 +24,20 @@ type (
 		CreateWithClues(ctx context.Context, s spec.NewMysteryWithClues, tx ...*sql.Tx) (*model.MysteryRow, error)
 		UpdateWithClues(ctx context.Context, s spec.MysteryUpdateWithClues, tx ...*sql.Tx) error
 		DeleteWithFiles(ctx context.Context, s spec.MysteryDelete, tx ...*sql.Tx) ([]string, error)
-		DeleteCommentWithAudit(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) ([]string, error)
+		DeleteWithMedia(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error)
 	}
 )
 
 type mysteryRepository struct {
 	db *sql.DB
 	dao.MysteryDAO
-	audit AuditLogRepository
-	cache *cache.Manager
+	comments dao.CommentDAO
+	audit    AuditLogRepository
+	cache    *cache.Manager
 }
 
-func NewMysteryRepo(database *sql.DB, mysteryDAO dao.MysteryDAO, auditRepo AuditLogRepository, c *cache.Manager) MysteryRepository {
-	return &mysteryRepository{db: database, MysteryDAO: mysteryDAO, audit: auditRepo, cache: c}
+func NewMysteryRepo(database *sql.DB, mysteryDAO dao.MysteryDAO, comments dao.CommentDAO, auditRepo AuditLogRepository, c *cache.Manager) MysteryRepository {
+	return &mysteryRepository{db: database, MysteryDAO: mysteryDAO, comments: comments, audit: auditRepo, cache: c}
 }
 
 func (r *mysteryRepository) CreateWithClues(ctx context.Context, s spec.NewMysteryWithClues, tx ...*sql.Tx) (*model.MysteryRow, error) {
@@ -187,6 +188,32 @@ func (r *mysteryRepository) DeleteWithFiles(ctx context.Context, s spec.MysteryD
 	return paths, nil
 }
 
+func (r *mysteryRepository) DeleteWithMedia(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error) {
+	var paths []string
+
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
+		collected, err := r.collectFilePaths(ctx, s.ID, tx)
+		if err != nil {
+			return fmt.Errorf("collect mystery file paths: %w", err)
+		}
+
+		paths = collected
+
+		if err := r.MysteryDAO.Delete(ctx, s, tx); err != nil {
+			return fmt.Errorf("delete mystery: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	r.invalidateLeaderboards(ctx)
+
+	return paths, nil
+}
+
 func (r *mysteryRepository) collectFilePaths(ctx context.Context, mysteryID uuid.UUID, tx *sql.Tx) ([]string, error) {
 	mediaPaths, err := r.MysteryDAO.CollectMediaPaths(ctx, mysteryID, tx)
 	if err != nil {
@@ -198,7 +225,7 @@ func (r *mysteryRepository) collectFilePaths(ctx context.Context, mysteryID uuid
 		return nil, err
 	}
 
-	commentMediaPaths, err := r.MysteryDAO.CollectCommentMediaPaths(ctx, mysteryID, tx)
+	commentMediaPaths, err := r.comments.CollectCommentMediaPaths(ctx, spec.CommentTarget{Kind: spec.CommentKindMystery, ID: mysteryID}, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -289,48 +316,4 @@ func (r *mysteryRepository) GetTopGMIDs(ctx context.Context, tx ...*sql.Tx) ([]s
 	}
 
 	return r.cache.Load(ctx, cache.MysteryTopGMs.Key(), load)
-}
-
-func (r *mysteryRepository) DeleteCommentWithAudit(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) ([]string, error) {
-	var paths []string
-
-	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
-		authorID, err := r.MysteryDAO.GetCommentAuthorID(ctx, s.CommentID, tx)
-		if err != nil {
-			return err
-		}
-
-		collected, err := r.MysteryDAO.CollectSingleCommentMediaPaths(ctx, s.CommentID, tx)
-		if err != nil {
-			return err
-		}
-
-		paths = dedupePaths(collected)
-
-		if err := r.MysteryDAO.DeleteComment(ctx, s, tx); err != nil {
-			return err
-		}
-
-		action := audit.ActionMysteryCommentDelete
-		if authorID != s.UserID {
-			action = audit.ActionMysteryCommentDeleteAdmin
-		}
-
-		if err := r.audit.Create(ctx, audit.NewEntry{
-			ActorID:    s.UserID,
-			Action:     action,
-			TargetType: audit.TargetMysteryComment,
-			TargetID:   s.CommentID.String(),
-			SubjectID:  authorID,
-		}, tx); err != nil {
-			return fmt.Errorf("audit comment delete: %w", err)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return paths, nil
 }

@@ -1,15 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { invalidateViews, type ViewDomain } from "../../api/cache/invalidate";
 
-interface CommentApi<TMedia> {
+interface CommentApi {
     update: (id: string, body: string) => Promise<void>;
     remove: (id: string) => Promise<void>;
     like: (id: string) => Promise<void>;
     unlike: (id: string) => Promise<void>;
-    uploadMedia: (commentId: string, file: File, isSpoiler?: boolean) => Promise<TMedia>;
 }
 
-export function commentMutations<TMedia>(domain: ViewDomain, api: CommentApi<TMedia>) {
+export function commentMutations(domain: ViewDomain, api: CommentApi) {
     return {
         useUpdate(_parentId?: string) {
             const qc = useQueryClient();
@@ -36,14 +35,6 @@ export function commentMutations<TMedia>(domain: ViewDomain, api: CommentApi<TMe
             const qc = useQueryClient();
             return useMutation({
                 mutationFn: (id: string) => api.unlike(id),
-                onSuccess: () => invalidateViews(qc, domain),
-            });
-        },
-        useUploadMedia(_parentId?: string) {
-            const qc = useQueryClient();
-            return useMutation({
-                mutationFn: ({ commentId, file, isSpoiler }: { commentId: string; file: File; isSpoiler?: boolean }) =>
-                    api.uploadMedia(commentId, file, isSpoiler ?? false),
                 onSuccess: () => invalidateViews(qc, domain),
             });
         },

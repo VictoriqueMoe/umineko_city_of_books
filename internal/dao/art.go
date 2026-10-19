@@ -28,8 +28,6 @@ type (
 		GetImageURL(ctx context.Context, artID uuid.UUID, tx ...*sql.Tx) (string, error)
 		GetArtImagePaths(ctx context.Context, artID uuid.UUID, tx ...*sql.Tx) ([]string, error)
 		ListGalleryArtImages(ctx context.Context, s spec.GalleryRef, tx ...*sql.Tx) ([]model.ArtImageRef, error)
-		CollectCommentMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)
-		CollectSingleCommentMediaPaths(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error)
 
 		Like(ctx context.Context, s spec.Like, tx ...*sql.Tx) error
 		Unlike(ctx context.Context, s spec.Like, tx ...*sql.Tx) error
@@ -45,19 +43,6 @@ type (
 
 		GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (map[string]int, error)
 		CountUserArtToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error)
-
-		UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error
-		DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error
-		GetComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error)
-		GetCommentEntityID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
-		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
-		LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
-		UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
-		AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)
-		GetCommentMedia(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error)
-		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)
-		UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
-		UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
 
 		SetGallery(ctx context.Context, s spec.ArtGalleryAssignment, tx ...*sql.Tx) error
 
@@ -76,7 +61,6 @@ type (
 	artDAO struct {
 		db *sql.DB
 		*ownedDAO
-		*commentDAO[uuid.UUID]
 		*likeDAO
 		*viewDAO
 	}

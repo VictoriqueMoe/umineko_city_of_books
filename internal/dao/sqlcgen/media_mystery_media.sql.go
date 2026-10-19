@@ -205,7 +205,7 @@ func (q *Queries) GetMysteryMediaURL(ctx context.Context, arg GetMysteryMediaURL
 	return media_url, err
 }
 
-const updateMysteryMediaThumbnail = `-- name: UpdateMysteryMediaThumbnail :exec
+const updateMysteryMediaThumbnail = `-- name: UpdateMysteryMediaThumbnail :execrows
 UPDATE mystery_media SET thumbnail_url = $1 WHERE id = $2
 `
 
@@ -214,12 +214,15 @@ type UpdateMysteryMediaThumbnailParams struct {
 	ID           int64
 }
 
-func (q *Queries) UpdateMysteryMediaThumbnail(ctx context.Context, arg UpdateMysteryMediaThumbnailParams) error {
-	_, err := q.db.ExecContext(ctx, updateMysteryMediaThumbnail, arg.ThumbnailUrl, arg.ID)
-	return err
+func (q *Queries) UpdateMysteryMediaThumbnail(ctx context.Context, arg UpdateMysteryMediaThumbnailParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateMysteryMediaThumbnail, arg.ThumbnailUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const updateMysteryMediaURL = `-- name: UpdateMysteryMediaURL :exec
+const updateMysteryMediaURL = `-- name: UpdateMysteryMediaURL :execrows
 UPDATE mystery_media SET media_url = $1 WHERE id = $2
 `
 
@@ -228,7 +231,10 @@ type UpdateMysteryMediaURLParams struct {
 	ID       int64
 }
 
-func (q *Queries) UpdateMysteryMediaURL(ctx context.Context, arg UpdateMysteryMediaURLParams) error {
-	_, err := q.db.ExecContext(ctx, updateMysteryMediaURL, arg.MediaUrl, arg.ID)
-	return err
+func (q *Queries) UpdateMysteryMediaURL(ctx context.Context, arg UpdateMysteryMediaURLParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateMysteryMediaURL, arg.MediaUrl, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

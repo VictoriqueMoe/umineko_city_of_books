@@ -1261,6 +1261,7 @@ type StoredFile struct {
 	Location  string
 	Size      int64
 	CreatedAt time.Time
+	Fallback  bool
 }
 
 type StreamCredential struct {

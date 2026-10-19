@@ -2,7 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import { createTestQueryClient } from "../../test-utils/render";
 import { queryKeys } from "../queryKeys";
-import { invalidateViews, type ViewDomain } from "./invalidate";
+import { invalidateReferencedViews, invalidateViews, type ViewDomain } from "./invalidate";
 
 function seededClient() {
     const qc = createTestQueryClient();
@@ -84,6 +84,37 @@ describe("invalidateViews", () => {
 
         // when
         invalidateViews(qc, domain);
+
+        // then
+        expect(invalidatedKeys(qc).sort()).toEqual(want.map(key => JSON.stringify(key)).sort());
+    });
+});
+
+describe("invalidateReferencedViews", () => {
+    it.each<{ referenceType: string; want: readonly (readonly unknown[])[] }>([
+        { referenceType: "journal_entry_comment:2:c-1", want: [queryKeys.user.journals("u-1", {})] },
+        { referenceType: "journal_entry:3", want: [queryKeys.user.journals("u-1", {})] },
+        {
+            referenceType: "post_comment:c-1",
+            want: [
+                queryKeys.post.feed({ corner: "general" }),
+                queryKeys.post.detail("p-1"),
+                queryKeys.user.posts("u-1", { limit: 20 }),
+            ],
+        },
+        {
+            referenceType: "theory_response:r-1",
+            want: [queryKeys.theory.feed({}), queryKeys.profile.byUsername("ange")],
+        },
+        { referenceType: "chat_room", want: [] },
+        { referenceType: "constructor", want: [] },
+        { referenceType: "", want: [] },
+    ])("refreshes the views of the family named by $referenceType", ({ referenceType, want }) => {
+        // given a cache holding views of every domain
+        const qc = seededClient();
+
+        // when
+        invalidateReferencedViews(qc, referenceType);
 
         // then
         expect(invalidatedKeys(qc).sort()).toEqual(want.map(key => JSON.stringify(key)).sort());

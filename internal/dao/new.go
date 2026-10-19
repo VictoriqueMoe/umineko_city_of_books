@@ -3,9 +3,8 @@ package dao
 import (
 	"database/sql"
 
-	"github.com/google/uuid"
-
 	"umineko_city_of_books/internal/dao/dynamicsql"
+	"umineko_city_of_books/internal/model/spec"
 )
 
 func NewSession(db *sql.DB) SessionDAO { return &sessionDAO{db: db} }
@@ -46,95 +45,89 @@ func NewChat(db *sql.DB) ChatDAO {
 
 func NewReport(db *sql.DB) ReportDAO { return &reportDAO{db: db} }
 
-func NewPost(db *sql.DB) (PostDAO, CommentDAO[uuid.UUID]) {
-	d := &postDAO{
-		db:         db,
-		ownedDAO:   newOwnedDAO(db, postOwnedQuerier{}, "post"),
-		commentDAO: newCommentDAO[uuid.UUID](db, postCommentQuerier{}),
-		likeDAO:    newLikeDAO(db, postLikeQuerier{}),
-		mediaDAO:   newMediaDAO(db, postMediaQuerier{}),
-		viewDAO:    newViewDAO(db, postViewQuerier{}),
+func NewComments(db *sql.DB) CommentDAO {
+	return &commentDAO{
+		sqlcSource: newSQLCSource(db),
+		tables: map[spec.CommentKind]commentQuerier{
+			spec.CommentKindPost:         postCommentQuerier{},
+			spec.CommentKindArt:          artCommentQuerier{},
+			spec.CommentKindAnnouncement: announcementCommentQuerier{},
+			spec.CommentKindMystery:      mysteryCommentQuerier{},
+			spec.CommentKindShip:         shipCommentQuerier{},
+			spec.CommentKindOC:           oCCommentQuerier{},
+			spec.CommentKindFanfic:       fanficCommentQuerier{},
+			spec.CommentKindJournal:      journalRootCommentQuerier{},
+			spec.CommentKindJournalEntry: journalEntryCommentQuerier{},
+			spec.CommentKindSecret:       secretCommentTable{},
+		},
 	}
+}
 
-	return d, d.commentDAO
+func NewPost(db *sql.DB) PostDAO {
+	return &postDAO{
+		db:       db,
+		ownedDAO: newOwnedDAO(db, postOwnedQuerier{}, "post"),
+		likeDAO:  newLikeDAO(db, postLikeQuerier{}),
+		mediaDAO: newMediaDAO(db, postMediaQuerier{}),
+		viewDAO:  newViewDAO(db, postViewQuerier{}),
+	}
 }
 
 func NewFollow(db *sql.DB) FollowDAO { return &followDAO{db: db} }
 
-func NewArt(db *sql.DB) (ArtDAO, CommentDAO[uuid.UUID]) {
-	d := &artDAO{
-		db:         db,
-		ownedDAO:   newOwnedDAO(db, artOwnedQuerier{}, "art"),
-		commentDAO: newCommentDAO[uuid.UUID](db, artCommentQuerier{}),
-		likeDAO:    newLikeDAO(db, artLikeQuerier{}),
-		viewDAO:    newViewDAO(db, artViewQuerier{}),
+func NewArt(db *sql.DB) ArtDAO {
+	return &artDAO{
+		db:       db,
+		ownedDAO: newOwnedDAO(db, artOwnedQuerier{}, "art"),
+		likeDAO:  newLikeDAO(db, artLikeQuerier{}),
+		viewDAO:  newViewDAO(db, artViewQuerier{}),
 	}
-
-	return d, d.commentDAO
 }
 
 func NewBlock(db *sql.DB) BlockDAO { return &blockDAO{db: db} }
 
-func NewAnnouncement(db *sql.DB) (AnnouncementDAO, CommentDAO[uuid.UUID]) {
-	d := &announcementDAO{
-		db:         db,
-		commentDAO: newCommentDAO[uuid.UUID](db, announcementCommentQuerier{}),
-	}
-
-	return d, d.commentDAO
+func NewAnnouncement(db *sql.DB) AnnouncementDAO {
+	return &announcementDAO{db: db}
 }
 
-func NewMystery(db *sql.DB) (MysteryDAO, CommentDAO[uuid.UUID]) {
-	d := &mysteryDAO{
+func NewMystery(db *sql.DB) MysteryDAO {
+	return &mysteryDAO{
 		db:           db,
 		ownedDAO:     newOwnedDAO(db, mysteryOwnedQuerier{}, "mystery"),
 		attemptVotes: newVoteDAO(db, mysteryAttemptVoteQuerier{}, "vote attempt"),
-		commentDAO:   newCommentDAO[uuid.UUID](db, mysteryCommentQuerier{}),
 		mediaDAO:     newMediaDAO(db, mysteryMediaQuerier{}),
 	}
-
-	return d, d.commentDAO
 }
 
-func NewShip(db *sql.DB) (ShipDAO, CommentDAO[uuid.UUID]) {
-	d := &shipDAO{
-		db:         db,
-		ownedDAO:   newOwnedDAO(db, shipOwnedQuerier{}, "ship"),
-		voteDAO:    newVoteDAO(db, shipVoteQuerier{}, "vote ship"),
-		commentDAO: newCommentDAO[uuid.UUID](db, shipCommentQuerier{}),
+func NewShip(db *sql.DB) ShipDAO {
+	return &shipDAO{
+		db:       db,
+		ownedDAO: newOwnedDAO(db, shipOwnedQuerier{}, "ship"),
+		voteDAO:  newVoteDAO(db, shipVoteQuerier{}, "vote ship"),
 	}
-
-	return d, d.commentDAO
 }
 
-func NewOC(db *sql.DB) (OCDAO, CommentDAO[uuid.UUID]) {
-	d := &ocDAO{
-		db:         db,
-		ownedDAO:   newOwnedDAO(db, oCOwnedQuerier{}, "oc"),
-		voteDAO:    newVoteDAO(db, oCVoteQuerier{}, "vote oc"),
-		commentDAO: newCommentDAO[uuid.UUID](db, oCCommentQuerier{}),
+func NewOC(db *sql.DB) OCDAO {
+	return &ocDAO{
+		db:       db,
+		ownedDAO: newOwnedDAO(db, oCOwnedQuerier{}, "oc"),
+		voteDAO:  newVoteDAO(db, oCVoteQuerier{}, "vote oc"),
 	}
-
-	return d, d.commentDAO
 }
 
-func NewFanfic(db *sql.DB) (FanficDAO, CommentDAO[uuid.UUID]) {
-	d := &fanficDAO{
-		db:         db,
-		ownedDAO:   newOwnedDAO(db, fanficOwnedQuerier{}, "fanfic"),
-		commentDAO: newCommentDAO[uuid.UUID](db, fanficCommentQuerier{}),
-		viewDAO:    newViewDAO(db, fanficViewQuerier{}),
+func NewFanfic(db *sql.DB) FanficDAO {
+	return &fanficDAO{
+		db:       db,
+		ownedDAO: newOwnedDAO(db, fanficOwnedQuerier{}, "fanfic"),
+		viewDAO:  newViewDAO(db, fanficViewQuerier{}),
 	}
-
-	return d, d.commentDAO
 }
 
 func NewJournal(db *sql.DB) JournalDAO {
 	return &journalDAO{
-		db:         db,
-		ownedDAO:   newOwnedDAO(db, journalOwnedQuerier{}, "journal"),
-		commentDAO: newCommentDAO[uuid.UUID](db, journalCommentQuerier{}),
-		mediaDAO:   newMediaDAO(db, journalEntryMediaQuerier{}),
+		db:       db,
+		ownedDAO: newOwnedDAO(db, journalOwnedQuerier{}, "journal"),
+		mediaDAO: newMediaDAO(db, journalEntryMediaQuerier{}),
 	}
 }
 
@@ -152,13 +145,8 @@ func NewStoredFile(db *sql.DB) StoredFileDAO { return &storedFileDAO{db: db} }
 
 func NewUserSecret(db *sql.DB) UserSecretDAO { return &userSecretDAO{db: db} }
 
-func NewSecret(db *sql.DB) (SecretDAO, CommentDAO[string]) {
-	d := &secretDAO{
-		db:         db,
-		commentDAO: newCommentDAO[string](db, secretCommentQuerier{}),
-	}
-
-	return d, d.commentDAO
+func NewSecret(db *sql.DB) SecretDAO {
+	return &secretDAO{db: db}
 }
 
 func NewChatRoomBan(db *sql.DB) ChatRoomBanDAO { return &chatRoomBanDAO{db: db} }

@@ -3,11 +3,13 @@ package media
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"io"
 	"path/filepath"
 	"strings"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model/spec"
@@ -139,56 +141,70 @@ func (u *Uploader) enqueueTranscode(ctx context.Context, subDir string, urlPath 
 	u.processor.Enqueue(Job{
 		Type:      JobVideo,
 		InputPath: localPath,
-		Callback: func(outputPath string) {
-			defer u.uploadSvc.Discard(outputPath)
-
-			bg := context.Background()
-
-			newURL := urlPath
-			if outputPath != localPath {
-				stored, err := u.uploadSvc.Store(bg, subDir, outputPath)
-				if err != nil {
-					logger.Ctx(ctx).Error().Err(err).Int64("media_id", rowID).Msg("failed to store transcoded video, keeping the source file")
-
-					return
-				}
-
-				newURL = stored
-			}
-
-			if err := updateURL(bg, spec.MediaURLUpdate{ID: rowID, URL: newURL}); err != nil {
-				logger.Ctx(ctx).Error().Err(err).Int64("media_id", rowID).Msg("failed to update video media url, keeping the source file")
-				if newURL != urlPath {
-					u.uploadSvc.Delete(newURL)
-				}
-
-				return
-			}
-
-			if newURL != urlPath {
-				u.uploadSvc.Delete(urlPath)
-			}
-
-			thumbName, err := GenerateThumbnail(outputPath, filepath.Dir(outputPath), filepath.Base(outputPath))
-			if err != nil {
-				logger.Ctx(ctx).Error().Err(err).Msg("failed to generate video thumbnail")
-				return
-			}
-
-			thumbURL, err := u.uploadSvc.Store(bg, subDir, filepath.Join(filepath.Dir(outputPath), thumbName))
-			if err != nil {
-				logger.Ctx(ctx).Error().Err(err).Int64("media_id", rowID).Msg("failed to store video thumbnail")
-				return
-			}
-
-			if err := updateThumb(bg, spec.MediaURLUpdate{ID: rowID, URL: thumbURL}); err != nil {
-				logger.Ctx(ctx).Error().Err(err).Msg("failed to update video thumbnail url")
-				u.uploadSvc.Delete(thumbURL)
-			}
-		},
+		Callback:  u.transcodeDone(ctx, subDir, urlPath, localPath, rowID, updateURL, updateThumb),
 		ErrorCallback: func(err error) {
 			u.uploadSvc.Discard(localPath)
 			logger.Ctx(ctx).Error().Err(err).Int64("media_id", rowID).Str("url", urlPath).Msg("video was not transcoded, media row still points at the raw upload")
 		},
 	})
+}
+
+func (u *Uploader) transcodeDone(ctx context.Context, subDir string, urlPath string, localPath string, rowID int64, updateURL UpdateURLFn, updateThumb UpdateURLFn) func(outputPath string) {
+	return func(outputPath string) {
+		defer u.uploadSvc.Discard(outputPath)
+
+		bg := context.Background()
+
+		newURL := urlPath
+		if outputPath != localPath {
+			stored, err := u.uploadSvc.Store(bg, subDir, outputPath)
+			if err != nil {
+				logger.Ctx(ctx).Error().Err(err).Int64("media_id", rowID).Msg("failed to store transcoded video, keeping the source file")
+
+				return
+			}
+
+			newURL = stored
+		}
+
+		if err := updateURL(bg, spec.MediaURLUpdate{ID: rowID, URL: newURL}); err != nil {
+			logMissingRow(ctx, err, rowID, "media row was removed before its transcode finished, discarding the transcoded video", "failed to update video media url, keeping the source file")
+			if newURL != urlPath {
+				u.uploadSvc.Delete(newURL)
+			}
+
+			return
+		}
+
+		if newURL != urlPath {
+			u.uploadSvc.Delete(urlPath)
+		}
+
+		thumbName, err := GenerateThumbnail(outputPath, filepath.Dir(outputPath), filepath.Base(outputPath))
+		if err != nil {
+			logger.Ctx(ctx).Error().Err(err).Msg("failed to generate video thumbnail")
+			return
+		}
+
+		thumbURL, err := u.uploadSvc.Store(bg, subDir, filepath.Join(filepath.Dir(outputPath), thumbName))
+		if err != nil {
+			logger.Ctx(ctx).Error().Err(err).Int64("media_id", rowID).Msg("failed to store video thumbnail")
+			return
+		}
+
+		if err := updateThumb(bg, spec.MediaURLUpdate{ID: rowID, URL: thumbURL}); err != nil {
+			logMissingRow(ctx, err, rowID, "media row was removed before its thumbnail was recorded, discarding the thumbnail", "failed to update video thumbnail url")
+			u.uploadSvc.Delete(thumbURL)
+		}
+	}
+}
+
+func logMissingRow(ctx context.Context, err error, rowID int64, goneMsg string, failedMsg string) {
+	if errors.Is(err, dao.ErrNotFound) {
+		logger.Ctx(ctx).Info().Err(err).Int64("media_id", rowID).Msg(goneMsg)
+
+		return
+	}
+
+	logger.Ctx(ctx).Error().Err(err).Int64("media_id", rowID).Msg(failedMsg)
 }

@@ -425,7 +425,11 @@ func (a *adminService) validateUpsert(ctx context.Context, req dto.ChatbotUpsert
 
 func ModelValidator(openaiSvc openai.Service) settings.Validator {
 	return func(ctx context.Context, value string) error {
-		return validateModel(ctx, openaiSvc, value)
+		if err := validateModel(ctx, openaiSvc, value); err != nil {
+			return &settings.RejectedError{Err: err}
+		}
+
+		return nil
 	}
 }
 

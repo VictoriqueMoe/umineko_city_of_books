@@ -89,6 +89,7 @@ type (
 		postSvc     post.Service
 		chatRepo    repository.ChatRepository
 		postRepo    repository.PostRepository
+		commentRepo repository.CommentRepository
 		botRepo     repository.ChatbotRepository
 		auditRepo   repository.AuditLogRepository
 		authzSvc    authz.Service
@@ -115,6 +116,7 @@ func NewService(
 	postSvc post.Service,
 	chatRepo repository.ChatRepository,
 	postRepo repository.PostRepository,
+	commentRepo repository.CommentRepository,
 	botRepo repository.ChatbotRepository,
 	auditRepo repository.AuditLogRepository,
 	authzSvc authz.Service,
@@ -128,6 +130,7 @@ func NewService(
 		postSvc:     postSvc,
 		chatRepo:    chatRepo,
 		postRepo:    postRepo,
+		commentRepo: commentRepo,
 		botRepo:     botRepo,
 		auditRepo:   auditRepo,
 		authzSvc:    authzSvc,

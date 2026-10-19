@@ -16,7 +16,6 @@ import {
     useUnlikeOCComment,
     useUpdateOC,
     useUpdateOCComment,
-    useUploadOCCommentMedia,
     useUploadOCImageById,
     useVoteOC,
 } from "./oc";
@@ -38,7 +37,6 @@ vi.mock("../../api/endpoints/comments", () => ({
     likeOCComment: vi.fn(),
     unlikeOCComment: vi.fn(),
     updateOCComment: vi.fn(),
-    uploadOCCommentMedia: vi.fn(),
 }));
 
 interface MutationCase {
@@ -138,7 +136,14 @@ describe("oc mutations", () => {
             useHook: () => useCreateOCComment(ocId),
             variables: { body: "Sakutarou is the best", parentId: "c-parent" },
             endpoint: vi.mocked(comments.createOCComment),
-            args: [ocId, "Sakutarou is the best", "c-parent"],
+            args: [ocId, "Sakutarou is the best", "c-parent", undefined],
+        },
+        {
+            name: "useCreateOCComment sends the staged media in the same request",
+            useHook: () => useCreateOCComment(ocId),
+            variables: { body: "", media: [{ file, isSpoiler: true }] },
+            endpoint: vi.mocked(comments.createOCComment),
+            args: [ocId, "", undefined, [{ file, isSpoiler: true }]],
         },
         {
             name: "useUpdateOCComment addresses the comment directly",
@@ -167,13 +172,6 @@ describe("oc mutations", () => {
             variables: "c-1",
             endpoint: vi.mocked(comments.unlikeOCComment),
             args: ["c-1"],
-        },
-        {
-            name: "useUploadOCCommentMedia attaches the file to the given comment",
-            useHook: () => useUploadOCCommentMedia(),
-            variables: { commentId: "c-1", file },
-            endpoint: vi.mocked(comments.uploadOCCommentMedia),
-            args: ["c-1", file],
         },
     ];
 
@@ -236,7 +234,7 @@ describe("useCreateOCComment", () => {
         });
 
         // then
-        expect(comments.createOCComment).toHaveBeenCalledWith(ocId, "Adorable", undefined);
+        expect(comments.createOCComment).toHaveBeenCalledWith(ocId, "Adorable", undefined, undefined);
     });
 });
 

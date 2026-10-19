@@ -23,19 +23,20 @@ import (
 type (
 	artWriterCase struct {
 		name   string
-		expect func(artDAO *dao.MockArtDAO, audit *MockAuditLogRepository, err error)
+		expect func(artDAO *dao.MockArtDAO, comments *dao.MockCommentDAO, audit *MockAuditLogRepository, err error)
 		call   func(repo ArtRepository) error
 	}
 )
 
-func newCachedArtRepo(t *testing.T) (ArtRepository, *dao.MockArtDAO, *MockAuditLogRepository, *valkeymock.Client) {
+func newCachedArtRepo(t *testing.T) (ArtRepository, *dao.MockArtDAO, *dao.MockCommentDAO, *MockAuditLogRepository, *valkeymock.Client) {
 	t.Helper()
 
 	client := valkeymock.NewClient(gomock.NewController(t))
 	artDAO := dao.NewMockArtDAO(t)
+	comments := dao.NewMockCommentDAO(t)
 	audit := NewMockAuditLogRepository(t)
 
-	return NewArtRepo(nil, artDAO, nil, audit, cache.NewManager(engines.NewValkeyWithClient(client))), artDAO, audit, client
+	return NewArtRepo(nil, artDAO, comments, nil, audit, cache.NewManager(engines.NewValkeyWithClient(client))), artDAO, comments, audit, client
 }
 
 func TestArtRepository_GetCornerCountsIsCached(t *testing.T) {
@@ -51,7 +52,7 @@ func TestArtRepository_GetCornerCountsIsCached(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given a strict dao mock that only expects a load on a cold cache
-			repo, artDAO, _, client := newCachedArtRepo(t)
+			repo, artDAO, _, _, client := newCachedArtRepo(t)
 			reply := settingsMissThenStore
 			if tc.warm {
 				reply = cachedCornerCounts(`{"general":3}`)
@@ -75,7 +76,7 @@ func artCornerCountWriters(artID, userID, galleryID uuid.UUID) []artWriterCase {
 	return []artWriterCase{
 		{
 			name: "create",
-			expect: func(artDAO *dao.MockArtDAO, _ *MockAuditLogRepository, err error) {
+			expect: func(artDAO *dao.MockArtDAO, _ *dao.MockCommentDAO, _ *MockAuditLogRepository, err error) {
 				var created *model.ArtRow
 				if err == nil {
 					created = &model.ArtRow{ID: artID}
@@ -94,9 +95,9 @@ func artCornerCountWriters(artID, userID, galleryID uuid.UUID) []artWriterCase {
 		},
 		{
 			name: "delete",
-			expect: func(artDAO *dao.MockArtDAO, audit *MockAuditLogRepository, err error) {
+			expect: func(artDAO *dao.MockArtDAO, comments *dao.MockCommentDAO, audit *MockAuditLogRepository, err error) {
 				artDAO.EXPECT().GetArtImagePaths(mock.Anything, artID, mock.Anything).Return(nil, nil)
-				artDAO.EXPECT().CollectCommentMediaPaths(mock.Anything, artID, mock.Anything).Return(nil, nil)
+				comments.EXPECT().CollectCommentMediaPaths(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindArt, ID: artID}, mock.Anything).Return(nil, nil)
 				artDAO.EXPECT().Delete(mock.Anything, spec.OwnedDeletion{ID: artID, UserID: userID}, mock.Anything).Return(err)
 				if err == nil {
 					audit.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -110,7 +111,7 @@ func artCornerCountWriters(artID, userID, galleryID uuid.UUID) []artWriterCase {
 		},
 		{
 			name: "delete gallery",
-			expect: func(artDAO *dao.MockArtDAO, _ *MockAuditLogRepository, err error) {
+			expect: func(artDAO *dao.MockArtDAO, _ *dao.MockCommentDAO, _ *MockAuditLogRepository, err error) {
 				ref := spec.GalleryRef{GalleryID: galleryID, UserID: userID}
 				artDAO.EXPECT().ListGalleryArtImages(mock.Anything, ref, mock.Anything).Return(nil, nil)
 				artDAO.EXPECT().DeleteArtInGallery(mock.Anything, ref, mock.Anything).Return(err)
@@ -133,8 +134,8 @@ func TestArtRepository_CornerCountWritersInvalidateTheCount(t *testing.T) {
 	for _, tc := range artCornerCountWriters(artID, userID, galleryID) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			repo, artDAO, audit, client := newCachedArtRepo(t)
-			tc.expect(artDAO, audit, nil)
+			repo, artDAO, comments, audit, client := newCachedArtRepo(t)
+			tc.expect(artDAO, comments, audit, nil)
 
 			var commands []string
 			captureDel(client, &commands)
@@ -155,8 +156,8 @@ func TestArtRepository_CornerCountWritersSkipInvalidationOnDaoError(t *testing.T
 	for _, tc := range artCornerCountWriters(artID, userID, galleryID) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			repo, artDAO, audit, client := newCachedArtRepo(t)
-			tc.expect(artDAO, audit, errors.New("db down"))
+			repo, artDAO, comments, audit, client := newCachedArtRepo(t)
+			tc.expect(artDAO, comments, audit, errors.New("db down"))
 			client.EXPECT().Do(gomock.Any(), gomock.Any()).Times(0)
 
 			// when

@@ -6,13 +6,12 @@ import { makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import { CommentItem } from "./CommentItem";
 
-const { likeComment, unlikeComment, deleteComment, updateComment, createComment, uploadMedia } = vi.hoisted(() => ({
+const { likeComment, unlikeComment, deleteComment, updateComment, createComment } = vi.hoisted(() => ({
     likeComment: vi.fn(),
     unlikeComment: vi.fn(),
     deleteComment: vi.fn(),
     updateComment: vi.fn(),
     createComment: vi.fn(),
-    uploadMedia: vi.fn(),
 }));
 
 const { previews } = vi.hoisted(() => ({ previews: { byURL: new Map<string, LinkPreview>() } }));
@@ -23,7 +22,6 @@ vi.mock("../../../hooks/mutations/post", () => ({
     useDeleteComment: () => ({ mutateAsync: deleteComment }),
     useUpdateComment: () => ({ mutateAsync: updateComment }),
     useCreateComment: () => ({ mutateAsync: createComment }),
-    useUploadCommentMedia: () => ({ mutateAsync: uploadMedia }),
 }));
 
 vi.mock("../../../hooks/queries/linkPreview", () => ({
@@ -256,9 +254,27 @@ describe("CommentItem", () => {
         await user.click(screen.getAllByRole("button", { name: "Reply" })[1]);
 
         // then
-        expect(createCommentFn).toHaveBeenCalledWith("post-1", "I reject that theory", "comment-1");
+        expect(createCommentFn).toHaveBeenCalledWith("post-1", "I reject that theory", "comment-1", []);
         await waitFor(() => expect(screen.queryByPlaceholderText("Write a reply...")).not.toBeInTheDocument());
         expect(onDelete).toHaveBeenCalled();
+    });
+
+    it("keeps the reply box open with the draft and the error when the reply is refused", async () => {
+        // given
+        const onDelete = vi.fn();
+        const createCommentFn = vi.fn(() => Promise.reject(new Error("storage is unavailable")));
+        const user = userEvent.setup();
+        setup({ onDelete, createCommentFn });
+        await user.click(screen.getByRole("button", { name: "Reply" }));
+
+        // when
+        await user.type(screen.getByPlaceholderText("Write a reply..."), "I reject that theory");
+        await user.click(screen.getAllByRole("button", { name: "Reply" })[1]);
+
+        // then
+        expect(await screen.findByText("storage is unavailable")).toBeInTheDocument();
+        expect(screen.getByPlaceholderText("Write a reply...")).toHaveValue("I reject that theory");
+        expect(onDelete).not.toHaveBeenCalled();
     });
 
     it("hides editing and deleting from a viewer who owns neither the comment nor the site", () => {

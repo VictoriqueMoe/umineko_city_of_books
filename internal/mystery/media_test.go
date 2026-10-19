@@ -102,11 +102,12 @@ func TestUploadAttachment_AddAttachmentError(t *testing.T) {
 	m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(nil, nil)
 	m.uploadSvc.EXPECT().SaveAttachment(mock.Anything, mock.Anything, int64(10), int64(1024*1024), mock.Anything).Return("/uploads/x", nil)
 	m.repo.EXPECT().AddAttachment(mock.Anything, spec.NewMysteryAttachment{MysteryID: mid, FileURL: "/uploads/x", FileName: "f.txt", FileSize: 10}).Return(int64(0), errors.New("boom"))
+	m.uploadSvc.EXPECT().Delete([]string{"/uploads/x"}).Return().Once()
 
 	// when
 	_, err := svc.UploadAttachment(context.Background(), mid, userID, "f.txt", 10, bytes.NewReader(nil))
 
-	// then
+	// then the stored file is unlinked rather than left with no row pointing at it
 	require.Error(t, err)
 }
 

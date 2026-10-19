@@ -1,11 +1,11 @@
 import { useCallback } from "react";
+import type { MediaUpload } from "../types/api";
 import {
     useCreateAnnouncementComment,
     useDeleteAnnouncementComment,
     useLikeAnnouncementComment,
     useUnlikeAnnouncementComment,
     useUpdateAnnouncementComment,
-    useUploadAnnouncementCommentMedia,
 } from "./mutations/announcement";
 import {
     useCreateArtComment,
@@ -13,7 +13,6 @@ import {
     useLikeArtComment,
     useUnlikeArtComment,
     useUpdateArtComment,
-    useUploadArtCommentMedia,
 } from "./mutations/art";
 import {
     useCreateFanficComment,
@@ -21,7 +20,6 @@ import {
     useLikeFanficComment,
     useUnlikeFanficComment,
     useUpdateFanficComment,
-    useUploadFanficCommentMedia,
 } from "./mutations/fanfic";
 import {
     useCreateJournalComment,
@@ -29,7 +27,6 @@ import {
     useLikeJournalComment,
     useUnlikeJournalComment,
     useUpdateJournalComment,
-    useUploadJournalCommentMedia,
 } from "./mutations/journal";
 import {
     useCreateMysteryComment,
@@ -37,7 +34,6 @@ import {
     useLikeMysteryComment,
     useUnlikeMysteryComment,
     useUpdateMysteryComment,
-    useUploadMysteryCommentMedia,
 } from "./mutations/mystery";
 import {
     useCreateOCComment,
@@ -45,7 +41,6 @@ import {
     useLikeOCComment,
     useUnlikeOCComment,
     useUpdateOCComment,
-    useUploadOCCommentMedia,
 } from "./mutations/oc";
 import {
     useCreateComment,
@@ -53,7 +48,6 @@ import {
     useLikeComment,
     useUnlikeComment,
     useUpdateComment,
-    useUploadCommentMedia,
 } from "./mutations/post";
 import {
     useCreateSecretComment,
@@ -61,7 +55,6 @@ import {
     useLikeSecretComment,
     useUnlikeSecretComment,
     useUpdateSecretComment,
-    useUploadSecretCommentMedia,
 } from "./mutations/secret";
 import {
     useCreateShipComment,
@@ -69,7 +62,6 @@ import {
     useLikeShipComment,
     useUnlikeShipComment,
     useUpdateShipComment,
-    useUploadShipCommentMedia,
 } from "./mutations/ship";
 
 export type CommentFamily =
@@ -83,12 +75,16 @@ export type CommentFamily =
     | "secret"
     | "ship";
 
-export type CommentOperation = "create" | "update" | "delete" | "like" | "unlike" | "uploadMedia";
+export type CommentOperation = "create" | "update" | "delete" | "like" | "unlike";
 
-type CreateCommentHandler = (targetId: string, body: string, parentId?: string) => Promise<{ id: string }>;
+export type CreateCommentHandler = (
+    targetId: string,
+    body: string,
+    parentId?: string,
+    media?: readonly MediaUpload[],
+) => Promise<{ id: string }>;
 type UpdateCommentHandler = (commentId: string, body: string) => Promise<void>;
 type CommentIdHandler = (commentId: string) => Promise<void>;
-type UploadCommentMediaHandler = (commentId: string, file: File) => Promise<unknown>;
 
 interface CommentHandlerShape {
     create: CreateCommentHandler;
@@ -96,7 +92,6 @@ interface CommentHandlerShape {
     delete: CommentIdHandler;
     like: CommentIdHandler;
     unlike: CommentIdHandler;
-    uploadMedia: UploadCommentMediaHandler;
 }
 
 interface CommentHandlerName {
@@ -105,7 +100,6 @@ interface CommentHandlerName {
     delete: "deleteFn";
     like: "likeFn";
     unlike: "unlikeFn";
-    uploadMedia: "uploadMediaFn";
 }
 
 export type CommentHandlers<TEnabled extends CommentOperation> = {
@@ -118,7 +112,11 @@ export interface CommentHandlerOptions<TEnabled extends readonly CommentOperatio
 }
 
 interface CreateCommentMutation {
-    mutateAsync: (variables: { body: string; parentId?: string }) => Promise<{ id: string }>;
+    mutateAsync: (variables: {
+        body: string;
+        parentId?: string;
+        media?: readonly MediaUpload[];
+    }) => Promise<{ id: string }>;
 }
 
 interface UpdateCommentMutation {
@@ -129,17 +127,12 @@ interface CommentIdMutation {
     mutateAsync: (commentId: string) => Promise<unknown>;
 }
 
-interface UploadCommentMediaMutation {
-    mutateAsync: (variables: { commentId: string; file: File }) => Promise<unknown>;
-}
-
 interface CommentFamilyMutations {
     useCreate: (targetId: string, entryId?: string) => CreateCommentMutation;
     useUpdate: (targetId: string) => UpdateCommentMutation;
     useDelete: (targetId: string) => CommentIdMutation;
     useLike: (targetId: string) => CommentIdMutation;
     useUnlike: (targetId: string) => CommentIdMutation;
-    useUploadMedia: (targetId: string) => UploadCommentMediaMutation;
 }
 
 const commentFamilies: Record<CommentFamily, CommentFamilyMutations> = {
@@ -149,7 +142,6 @@ const commentFamilies: Record<CommentFamily, CommentFamilyMutations> = {
         useDelete: useDeleteAnnouncementComment,
         useLike: useLikeAnnouncementComment,
         useUnlike: useUnlikeAnnouncementComment,
-        useUploadMedia: useUploadAnnouncementCommentMedia,
     },
     art: {
         useCreate: useCreateArtComment,
@@ -157,7 +149,6 @@ const commentFamilies: Record<CommentFamily, CommentFamilyMutations> = {
         useDelete: useDeleteArtComment,
         useLike: useLikeArtComment,
         useUnlike: useUnlikeArtComment,
-        useUploadMedia: useUploadArtCommentMedia,
     },
     fanfic: {
         useCreate: useCreateFanficComment,
@@ -165,7 +156,6 @@ const commentFamilies: Record<CommentFamily, CommentFamilyMutations> = {
         useDelete: useDeleteFanficComment,
         useLike: useLikeFanficComment,
         useUnlike: useUnlikeFanficComment,
-        useUploadMedia: useUploadFanficCommentMedia,
     },
     journal: {
         useCreate: useCreateJournalComment,
@@ -173,7 +163,6 @@ const commentFamilies: Record<CommentFamily, CommentFamilyMutations> = {
         useDelete: useDeleteJournalComment,
         useLike: useLikeJournalComment,
         useUnlike: useUnlikeJournalComment,
-        useUploadMedia: useUploadJournalCommentMedia,
     },
     mystery: {
         useCreate: useCreateMysteryComment,
@@ -181,7 +170,6 @@ const commentFamilies: Record<CommentFamily, CommentFamilyMutations> = {
         useDelete: useDeleteMysteryComment,
         useLike: useLikeMysteryComment,
         useUnlike: useUnlikeMysteryComment,
-        useUploadMedia: useUploadMysteryCommentMedia,
     },
     oc: {
         useCreate: useCreateOCComment,
@@ -189,7 +177,6 @@ const commentFamilies: Record<CommentFamily, CommentFamilyMutations> = {
         useDelete: useDeleteOCComment,
         useLike: useLikeOCComment,
         useUnlike: useUnlikeOCComment,
-        useUploadMedia: useUploadOCCommentMedia,
     },
     post: {
         useCreate: useCreateComment,
@@ -197,7 +184,6 @@ const commentFamilies: Record<CommentFamily, CommentFamilyMutations> = {
         useDelete: useDeleteComment,
         useLike: useLikeComment,
         useUnlike: useUnlikeComment,
-        useUploadMedia: useUploadCommentMedia,
     },
     secret: {
         useCreate: useCreateSecretComment,
@@ -205,7 +191,6 @@ const commentFamilies: Record<CommentFamily, CommentFamilyMutations> = {
         useDelete: useDeleteSecretComment,
         useLike: useLikeSecretComment,
         useUnlike: useUnlikeSecretComment,
-        useUploadMedia: useUploadSecretCommentMedia,
     },
     ship: {
         useCreate: useCreateShipComment,
@@ -213,7 +198,6 @@ const commentFamilies: Record<CommentFamily, CommentFamilyMutations> = {
         useDelete: useDeleteShipComment,
         useLike: useLikeShipComment,
         useUnlike: useUnlikeShipComment,
-        useUploadMedia: useUploadShipCommentMedia,
     },
 };
 
@@ -233,10 +217,9 @@ export function useCommentHandlers<const TEnabled extends readonly CommentOperat
     const { mutateAsync: deleteComment } = mutations.useDelete(targetId);
     const { mutateAsync: likeComment } = mutations.useLike(targetId);
     const { mutateAsync: unlikeComment } = mutations.useUnlike(targetId);
-    const { mutateAsync: uploadCommentMedia } = mutations.useUploadMedia(targetId);
 
     const createCommentFn = useCallback<CreateCommentHandler>(
-        (_targetId, body, parentId) => createComment({ body, parentId }),
+        (_targetId, body, parentId, media) => createComment({ body, parentId, media }),
         [createComment],
     );
 
@@ -268,11 +251,6 @@ export function useCommentHandlers<const TEnabled extends readonly CommentOperat
         [unlikeComment],
     );
 
-    const uploadMediaFn = useCallback<UploadCommentMediaHandler>(
-        (commentId, file) => uploadCommentMedia({ commentId, file }),
-        [uploadCommentMedia],
-    );
-
     const { enabled } = options;
 
     return {
@@ -281,6 +259,5 @@ export function useCommentHandlers<const TEnabled extends readonly CommentOperat
         deleteFn: isEnabled(enabled, "delete") ? deleteFn : undefined,
         likeFn: isEnabled(enabled, "like") ? likeFn : undefined,
         unlikeFn: isEnabled(enabled, "unlike") ? unlikeFn : undefined,
-        uploadMediaFn: isEnabled(enabled, "uploadMedia") ? uploadMediaFn : undefined,
     } as CommentHandlers<TEnabled[number]>;
 }

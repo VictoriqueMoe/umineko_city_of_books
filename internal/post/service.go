@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/corner"
@@ -30,7 +31,6 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
-	"umineko_city_of_books/internal/utils"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -38,7 +38,7 @@ import (
 
 type (
 	Service interface {
-		CreatePost(ctx context.Context, userID uuid.UUID, req dto.CreatePostRequest) (uuid.UUID, error)
+		CreatePost(ctx context.Context, userID uuid.UUID, req dto.CreatePostRequest, files []upload.FileUpload) (uuid.UUID, error)
 		GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.PostDetailResponse, error)
 		UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdatePostRequest) error
 		DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
@@ -48,12 +48,7 @@ type (
 		DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID int64, userID uuid.UUID) error
 		LikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
 		UnlikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
-		CreateComment(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)
-		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest) error
-		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
-		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
+		CreateComment(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error)
 		GetCornerCounts(ctx context.Context) (map[string]int, error)
 		VotePoll(ctx context.Context, postID uuid.UUID, userID uuid.UUID, optionID int) (*dto.PollResponse, error)
 		ResolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID, status string) error
@@ -64,16 +59,17 @@ type (
 
 	service struct {
 		postRepo      repository.PostRepository
+		commentRepo   repository.CommentRepository
 		userRepo      repository.UserRepository
 		roleRepo      repository.RoleRepository
-		auditRepo     repository.AuditLogRepository
 		authz         authz.Service
 		blockSvc      block.Service
 		notifService  notification.Service
 		mentionSvc    mention.Service
+		commentSvc    comment.Service
 		uploadSvc     upload.Service
 		mediaProc     *media.Processor
-		uploader      *media.Uploader
+		uploader      upload.MediaRecorder
 		settingsSvc   settings.Service
 		hub           *ws.Hub
 		contentFilter *contentfilter.Manager
@@ -91,13 +87,14 @@ var validPollDurations = map[int]bool{
 
 func NewService(
 	postRepo repository.PostRepository,
+	commentRepo repository.CommentRepository,
 	userRepo repository.UserRepository,
 	roleRepo repository.RoleRepository,
-	auditRepo repository.AuditLogRepository,
 	authzService authz.Service,
 	blockSvc block.Service,
 	notifService notification.Service,
 	mentionSvc mention.Service,
+	commentSvc comment.Service,
 	uploadSvc upload.Service,
 	mediaProc *media.Processor,
 	settingsSvc settings.Service,
@@ -109,13 +106,14 @@ func NewService(
 ) Service {
 	return &service{
 		postRepo:      postRepo,
+		commentRepo:   commentRepo,
 		userRepo:      userRepo,
 		roleRepo:      roleRepo,
-		auditRepo:     auditRepo,
 		authz:         authzService,
 		blockSvc:      blockSvc,
 		notifService:  notifService,
 		mentionSvc:    mentionSvc,
+		commentSvc:    commentSvc,
 		uploadSvc:     uploadSvc,
 		mediaProc:     mediaProc,
 		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
@@ -128,18 +126,12 @@ func NewService(
 	}
 }
 
-func (s *service) writeAudit(ctx context.Context, entry audit.NewEntry) {
-	if err := s.auditRepo.Create(ctx, entry); err != nil {
-		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
-	}
-}
-
 var validSharedContentTypes = map[string]bool{
 	"post": true, "art": true, "ship": true,
 	"mystery": true, "theory": true, "fanfic": true,
 }
 
-func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.CreatePostRequest) (uuid.UUID, error) {
+func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.CreatePostRequest, files []upload.FileUpload) (uuid.UUID, error) {
 	isShare := req.SharedContentID != ""
 	if isShare {
 		if !validSharedContentTypes[req.SharedContentType] {
@@ -147,7 +139,7 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 		}
 	}
 
-	if strings.TrimSpace(req.Body) == "" && !isShare {
+	if strings.TrimSpace(req.Body) == "" && !isShare && len(files) == 0 {
 		return uuid.Nil, ErrEmptyBody
 	}
 
@@ -178,6 +170,11 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 		}
 	}
 
+	validated, err := upload.ValidateMedia(ctx, s.settingsSvc, files)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
 	body := strings.TrimSpace(req.Body)
 
 	newPost := spec.NewPost{
@@ -198,6 +195,10 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 	}
 
 	id := created.ID
+
+	if err := validated.SaveToEntity(ctx, s.uploader, s.uploadSvc, "posts", s.postRepo, id); err != nil {
+		return uuid.Nil, upload.DiscardOwned(ctx, s.postRepo, s.uploadSvc, "post", spec.OwnedDeletion{ID: id, UserID: userID}, err)
+	}
 
 	if isShare {
 		shared := model.SharedContentRef{ID: req.SharedContentID, Type: req.SharedContentType}
@@ -247,35 +248,10 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 		return nil, fmt.Errorf("post media: %w", err)
 	}
 
-	comments, _, err := s.postRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
-		TargetID:       id,
-		ViewerID:       viewerID,
-		Limit:          500,
-		Offset:         0,
-		ExcludeUserIDs: blockedIDs,
-	})
+	comments, err := s.commentSvc.Thread(ctx, spec.CommentTarget{Kind: spec.CommentKindPost, ID: id}, viewerID)
 	if err != nil {
 		return nil, fmt.Errorf("post comments: %w", err)
 	}
-
-	var commentIDs []uuid.UUID
-	for _, c := range comments {
-		commentIDs = append(commentIDs, c.ID)
-	}
-	commentMediaMap, err := s.postRepo.GetCommentMediaBatch(ctx, commentIDs)
-	if err != nil {
-		return nil, fmt.Errorf("comment media: %w", err)
-	}
-
-	flatComments := make([]dto.PostCommentResponse, len(comments))
-	for i, c := range comments {
-		flatComments[i] = postCommentToResponse(c, commentMediaMap[c.ID])
-	}
-	dtoComments := utils.BuildTree(flatComments,
-		func(c dto.PostCommentResponse) uuid.UUID { return c.ID },
-		func(c dto.PostCommentResponse) *uuid.UUID { return c.ParentID },
-		func(c *dto.PostCommentResponse, replies []dto.PostCommentResponse) { c.Replies = replies },
-	)
 
 	likeUsers, err := s.postRepo.GetLikedBy(ctx, spec.LikedByQuery{TargetID: id, ExcludeUserIDs: blockedIDs})
 	if err != nil {
@@ -329,7 +305,7 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 
 	return &dto.PostDetailResponse{
 		PostResponse:  postResp,
-		Comments:      dtoComments,
+		Comments:      comments,
 		LikedBy:       likedBy,
 		ViewerBlocked: viewerBlocked,
 	}, nil
@@ -595,35 +571,6 @@ func (s *service) DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID
 	return nil
 }
 
-func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
-	authorID, err := s.postRepo.GetCommentAuthorID(ctx, commentID)
-	if errors.Is(err, dao.ErrNotFound) {
-		return nil, ErrNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-	if authorID != userID {
-		return nil, authz.ErrNotCommentAuthor
-	}
-
-	return s.uploader.SaveAndRecord(ctx, "posts", contentType, filename, fileSize, reader, isSpoiler,
-		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-			return s.postRepo.AddCommentMedia(ctx, spec.NewMedia{
-				TargetID:     commentID,
-				MediaURL:     mediaURL,
-				MediaType:    mediaType,
-				ThumbnailURL: thumbURL,
-				Filename:     filename,
-				SortOrder:    sortOrder,
-				IsSpoiler:    isSpoiler,
-			})
-		},
-		s.postRepo.UpdateCommentMediaURL,
-		s.postRepo.UpdateCommentMediaThumbnail,
-	)
-}
-
 func (s *service) broadcastCommentAdded(postID, commentID uuid.UUID) {
 	s.hub.SendToPostWatchers(postID, ws.Message{
 		Type: "post_comment",
@@ -695,228 +642,17 @@ func (s *service) UnlikePost(ctx context.Context, userID uuid.UUID, postID uuid.
 	return nil
 }
 
-func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
-	if strings.TrimSpace(req.Body) == "" {
-		return uuid.Nil, ErrEmptyBody
-	}
-	if err := s.contentFilter.Check(ctx, req.Body); err != nil {
-		return uuid.Nil, err
-	}
-
-	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
-	if errors.Is(err, dao.ErrNotFound) {
-		return uuid.Nil, ErrNotFound
-	}
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("block check: %w", err)
-	}
-	if blocked {
-		return uuid.Nil, block.ErrUserBlocked
-	}
-
-	body := strings.TrimSpace(req.Body)
-
-	id, err := s.mentionSvc.CreateComment(ctx, mention.CommentSpec{
-		Kind:     mention.KindPostComment,
-		EntityID: postID,
-		ParentID: req.ParentID,
-		AuthorID: userID,
-		Body:     body,
-	})
+func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
+	id, err := s.commentSvc.Create(ctx, spec.CommentTarget{Kind: spec.CommentKindPost, ID: postID}, userID, req, files)
 	if err != nil {
 		return uuid.Nil, err
 	}
 
 	s.broadcastCommentAdded(postID, id)
 
-	go s.observeForBot(postID, new(id), userID, body, req.ParentID)
-
-	go func() {
-		ctx := context.Background()
-
-		actor, err := s.userRepo.GetByID(ctx, userID)
-		if err != nil || actor == nil {
-			return
-		}
-		if req.ParentID == nil {
-			_ = s.notifService.Notify(ctx, dto.NotifyParams{
-				RecipientID:   authorID,
-				Type:          dto.NotifPostCommented,
-				ReferenceID:   postID,
-				ReferenceType: fmt.Sprintf("post_comment:%s", id),
-				ActorID:       userID,
-				EmailActor:    actor.DisplayName,
-				EmailAction:   "commented on your post",
-				EmailLink:     fmt.Sprintf("/game-board/%s#comment-%s", postID, id),
-			})
-			return
-		}
-
-		parentAuthorID, err := s.postRepo.GetCommentAuthorID(ctx, *req.ParentID)
-		if err == nil && parentAuthorID != userID {
-			_ = s.notifService.Notify(ctx, dto.NotifyParams{
-				RecipientID:   parentAuthorID,
-				Type:          dto.NotifPostCommentReply,
-				ReferenceID:   postID,
-				ReferenceType: fmt.Sprintf("post_comment:%s", id),
-				ActorID:       userID,
-				EmailActor:    actor.DisplayName,
-				EmailAction:   "replied to your comment",
-				EmailLink:     fmt.Sprintf("/game-board/%s#comment-%s", postID, id),
-			})
-		}
-
-		if authorID != userID && authorID != parentAuthorID {
-			_ = s.notifService.Notify(ctx, dto.NotifyParams{
-				RecipientID:   authorID,
-				Type:          dto.NotifPostCommented,
-				ReferenceID:   postID,
-				ReferenceType: fmt.Sprintf("post_comment:%s", id),
-				ActorID:       userID,
-				EmailActor:    actor.DisplayName,
-				EmailAction:   "commented on your post",
-				EmailLink:     fmt.Sprintf("/game-board/%s#comment-%s", postID, id),
-			})
-		}
-	}()
+	go s.observeForBot(postID, new(id), userID, strings.TrimSpace(req.Body), req.ParentID)
 
 	return id, nil
-}
-
-func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest) error {
-	body := strings.TrimSpace(req.Body)
-	if body == "" {
-		return ErrEmptyBody
-	}
-
-	if err := s.contentFilter.Check(ctx, body); err != nil {
-		return err
-	}
-
-	authorID, err := s.postRepo.GetCommentAuthorID(ctx, id)
-	if errors.Is(err, dao.ErrNotFound) {
-		return ErrNotFound
-	}
-	if err != nil {
-		return err
-	}
-
-	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyComment)
-
-	update := spec.CommentUpdate{
-		CommentID: id,
-		UserID:    userID,
-		Body:      body,
-		AsAdmin:   asAdmin,
-	}
-	if err := s.postRepo.UpdateCommentWithDetails(ctx, update); err != nil {
-		return err
-	}
-
-	if authorID != userID {
-		s.writeAudit(ctx, audit.NewEntry{
-			ActorID:    userID,
-			Action:     audit.ActionPostCommentUpdateAdmin,
-			TargetType: audit.TargetPostComment,
-			TargetID:   id.String(),
-			SubjectID:  authorID,
-		})
-	}
-
-	if asAdmin {
-		go s.notifyCommentEdited(ctx, id, "post", userID)
-	}
-
-	return nil
-}
-
-func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	authorID, err := s.postRepo.GetCommentAuthorID(ctx, id)
-	if errors.Is(err, dao.ErrNotFound) {
-		return ErrNotFound
-	}
-	if err != nil {
-		return err
-	}
-
-	action := audit.ActionPostCommentDelete
-	if authorID != userID {
-		action = audit.ActionPostCommentDeleteAdmin
-	}
-
-	paths, err := s.postRepo.DeleteCommentWithAudit(ctx, spec.PostCommentDelete{
-		CommentID: id,
-		UserID:    userID,
-		AsAdmin:   s.authz.Can(ctx, userID, authz.PermDeleteAnyComment),
-		Audit: audit.NewEntry{
-			ActorID:    userID,
-			Action:     action,
-			TargetType: audit.TargetPostComment,
-			TargetID:   id.String(),
-			SubjectID:  authorID,
-		},
-	})
-	if err != nil {
-		return err
-	}
-
-	s.uploadSvc.Delete(paths...)
-
-	return nil
-}
-
-func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	commentAuthorID, err := s.postRepo.GetCommentAuthorID(ctx, commentID)
-	if errors.Is(err, dao.ErrNotFound) {
-		return ErrNotFound
-	}
-	if err != nil {
-		return err
-	}
-
-	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID)
-	if err != nil {
-		return fmt.Errorf("block check: %w", err)
-	}
-	if blocked {
-		return block.ErrUserBlocked
-	}
-
-	if err := s.postRepo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID}); err != nil {
-		return err
-	}
-
-	go func() {
-		postID, err := s.postRepo.GetCommentEntityID(ctx, commentID)
-		if err != nil {
-			return
-		}
-		actor, err := s.userRepo.GetByID(ctx, userID)
-		if err != nil || actor == nil {
-			return
-		}
-		_ = s.notifService.Notify(ctx, dto.NotifyParams{
-			RecipientID:   commentAuthorID,
-			Type:          dto.NotifCommentLiked,
-			ReferenceID:   postID,
-			ReferenceType: fmt.Sprintf("post_comment:%s", commentID),
-			ActorID:       userID,
-			EmailActor:    actor.DisplayName,
-			EmailAction:   "liked your comment",
-			EmailLink:     fmt.Sprintf("/game-board/%s#comment-%s", postID, commentID),
-		})
-	}()
-
-	return nil
-}
-
-func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	return s.postRepo.UnlikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID})
 }
 
 func (s *service) GetCornerCounts(ctx context.Context) (map[string]int, error) {
@@ -958,25 +694,6 @@ func (s *service) notifyContentEdited(ctx context.Context, postID uuid.UUID, con
 		ReferenceID:   postID,
 		ReferenceType: "post",
 		LinkPath:      fmt.Sprintf("/game-board/%s", postID),
-	})
-}
-
-func (s *service) notifyCommentEdited(ctx context.Context, commentID uuid.UUID, commentType string, editorID uuid.UUID) {
-	authorID, err := s.postRepo.GetCommentAuthorID(ctx, commentID)
-	if err != nil {
-		return
-	}
-	postID, err := s.postRepo.GetCommentEntityID(ctx, commentID)
-	if err != nil {
-		return
-	}
-	notification.SendEditNotification(ctx, s.userRepo, s.notifService, notification.EditNotifyParams{
-		AuthorID:      authorID,
-		EditorID:      editorID,
-		ContentType:   "comment",
-		ReferenceID:   postID,
-		ReferenceType: fmt.Sprintf("post_comment:%s", commentID),
-		LinkPath:      fmt.Sprintf("/game-board/%s#comment-%s", postID, commentID),
 	})
 }
 
@@ -1156,25 +873,4 @@ func (s *service) notifyContentShared(sharerID uuid.UUID, postID uuid.UUID, cont
 		EmailAction:   "shared your content",
 		EmailLink:     fmt.Sprintf("/game-board/%s", postID),
 	})
-}
-
-func postCommentToResponse(c model.CommentRow, media []model.PostMediaRow) dto.PostCommentResponse {
-	return dto.PostCommentResponse{
-		ID:       c.ID,
-		ParentID: c.ParentID,
-		Author: dto.UserResponse{
-			ID:          c.UserID,
-			Username:    c.AuthorUsername,
-			DisplayName: c.AuthorDisplayName,
-			AvatarURL:   c.AuthorAvatarURL,
-			Role:        role.Role(c.AuthorRole),
-			Banned:      c.AuthorBanned,
-		},
-		Body:      c.Body,
-		Media:     model.MediaRowsToResponse(media),
-		LikeCount: c.LikeCount,
-		UserLiked: c.UserLiked,
-		CreatedAt: c.CreatedAt,
-		UpdatedAt: c.UpdatedAt,
-	}
 }

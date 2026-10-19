@@ -2,8 +2,6 @@ package repository
 
 import (
 	"database/sql"
-
-	"umineko_city_of_books/internal/dao"
 )
 
 type (
@@ -54,7 +52,7 @@ type (
 		OverlayToken      OverlayTokenRepository
 		Chatbot           ChatbotRepository
 		ChatbotBasePrompt ChatbotBasePromptRepository
-		Comments          dao.CommentDAOs
+		Comment           CommentRepository
 	}
 )
 

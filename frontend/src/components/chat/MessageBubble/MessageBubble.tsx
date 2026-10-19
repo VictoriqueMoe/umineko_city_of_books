@@ -17,7 +17,7 @@ import { MessageActionMenu } from "../MessageActionMenu/MessageActionMenu";
 import { placeMenu, type MenuPoint } from "../MessageActionMenu/placeMenu";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { RolePill } from "../../RolePill/RolePill";
-import { renderRich } from "../../richText/richText";
+import { renderRich, renderRichInline } from "../../richText/richText";
 import { GifEmbed } from "../../GifEmbed/GifEmbed";
 import { EmojiPicker } from "../EmojiPicker/EmojiPicker";
 import { ChatMessageMedia } from "../ChatMessageMedia/ChatMessageMedia";
@@ -490,7 +490,7 @@ function MessageBubbleBase({
                             {message.reply_to.sender_name}
                         </span>
                         <span dir="auto" className={styles.replyText}>
-                            {message.reply_to.body_preview}
+                            {renderRichInline(message.reply_to.body)}
                         </span>
                     </div>
                 )}

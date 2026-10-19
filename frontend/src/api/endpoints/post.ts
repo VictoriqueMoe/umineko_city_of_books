@@ -1,6 +1,6 @@
 import { apiDelete, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "../client";
-import { mediaFormData } from "./mediaFormData";
-import type { CreatePollPayload, Poll, PostDetail, PostListResponse, PostMedia } from "../../types/api";
+import { mediaFormData, postCreate } from "./mediaFormData";
+import type { CreatePollPayload, MediaUpload, Poll, PostDetail, PostListResponse, PostMedia } from "../../types/api";
 
 export async function getCornerCounts(): Promise<Record<string, number>> {
     return apiFetch<Record<string, number>>("/posts/corner-counts");
@@ -33,8 +33,9 @@ export async function createPost(
     poll?: CreatePollPayload,
     sharedContentId?: string,
     sharedContentType?: string,
+    media: readonly MediaUpload[] = [],
 ): Promise<{ id: string }> {
-    return apiPost<
+    return postCreate<
         { id: string },
         {
             body: string;
@@ -43,13 +44,17 @@ export async function createPost(
             shared_content_id?: string;
             shared_content_type?: string;
         }
-    >("/posts", {
-        body,
-        corner,
-        poll,
-        shared_content_id: sharedContentId,
-        shared_content_type: sharedContentType,
-    });
+    >(
+        "/posts",
+        {
+            body,
+            corner,
+            poll,
+            shared_content_id: sharedContentId,
+            shared_content_type: sharedContentType,
+        },
+        { media },
+    );
 }
 
 export async function votePoll(postId: string, optionId: number): Promise<Poll> {

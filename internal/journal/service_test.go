@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
+	"io"
 	"testing"
 	"time"
 
@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dao"
@@ -26,6 +27,7 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
+	"umineko_city_of_books/internal/upload/uploadtest"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -36,7 +38,7 @@ import (
 type (
 	testMocks struct {
 		repo         *repository.MockJournalRepository
-		comments     *repository.MockJournalCommentWriter
+		commentSvc   *comment.MockService
 		userRepo     *repository.MockUserRepository
 		auditRepo    *repository.MockAuditLogRepository
 		authz        *authz.MockService
@@ -58,13 +60,14 @@ type (
 
 var (
 	errBoom       = errors.New("boom")
+	errRollback   = errors.New("rollback failed")
 	errMissingRow = errors.Join(errors.New("no row"), dao.ErrNotFound)
 )
 
 func newTestService(t *testing.T) (*service, *testMocks) {
 	m := &testMocks{
 		repo:         repository.NewMockJournalRepository(t),
-		comments:     repository.NewMockJournalCommentWriter(t),
+		commentSvc:   comment.NewMockService(t),
 		userRepo:     repository.NewMockUserRepository(t),
 		auditRepo:    repository.NewMockAuditLogRepository(t),
 		authz:        authz.NewMockService(t),
@@ -75,8 +78,8 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		activity:     sidebar.NewMockActivityBumper(t),
 	}
 
-	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifService, dao.CommentDAOs{Journal: m.comments})
-	svc := NewService(m.repo, m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifService, mentionSvc, m.uploadSvc, &media.Processor{}, m.settingsSvc, contentfilter.New(), nil, nil, m.activity).(*service)
+	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifService)
+	svc := NewService(m.repo, m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifService, mentionSvc, m.commentSvc, m.uploadSvc, &media.Processor{}, m.settingsSvc, contentfilter.New(), nil, nil, m.activity).(*service)
 
 	return svc, m
 }
@@ -137,6 +140,54 @@ func awaitNotifications(t *testing.T, sent <-chan dto.NotifyParams, count int) m
 	}
 
 	return got
+}
+
+func withMediaRecorder(t *testing.T, svc *service, m *testMocks) *upload.MockMediaRecorder {
+	t.Helper()
+
+	recorder := upload.NewMockMediaRecorder(t)
+	svc.uploader = recorder
+
+	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1024 * 1024).Maybe()
+	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImagePixels).Return(bounds.FallbackMaxImagePixels).Maybe()
+
+	return recorder
+}
+
+func storedURL(filename string) string {
+	return "/uploads/journals/" + filename
+}
+
+func storedMedia(targetID uuid.UUID, filename string, sortOrder int, isSpoiler bool) spec.NewMedia {
+	return spec.NewMedia{
+		TargetID:  targetID,
+		MediaURL:  storedURL(filename),
+		MediaType: media.MediaTypeImage,
+		Filename:  filename,
+		SortOrder: sortOrder,
+		IsSpoiler: isSpoiler,
+	}
+}
+
+func expectStored(recorder *upload.MockMediaRecorder, filename string, isSpoiler bool) {
+	recorder.EXPECT().
+		SaveAndRecord(mock.Anything, "journals", "image/png", filename, mock.Anything, mock.Anything, isSpoiler, mock.Anything, mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, _ string, _ string, name string, _ int64, _ io.Reader, spoiler bool, addFn media.AddFn, _ media.UpdateURLFn, _ media.UpdateURLFn) (*dto.PostMediaResponse, error) {
+			id, err := addFn(storedURL(name), media.MediaTypeImage, "", name, 0)
+			if err != nil {
+				return nil, err
+			}
+
+			return &dto.PostMediaResponse{ID: int(id), MediaURL: storedURL(name), MediaType: media.MediaTypeImage, Filename: name, IsSpoiler: spoiler}, nil
+		}).
+		Once()
+}
+
+func expectStoreFailure(recorder *upload.MockMediaRecorder, filename string, isSpoiler bool) {
+	recorder.EXPECT().
+		SaveAndRecord(mock.Anything, "journals", "image/png", filename, mock.Anything, mock.Anything, isSpoiler, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, errBoom).
+		Once()
 }
 
 func TestCreateJournal(t *testing.T) {
@@ -268,35 +319,10 @@ func TestGetJournalDetail_Failures(t *testing.T) {
 			wantErr: errBoom,
 		},
 		{
-			name: "a comment load error bubbles up",
+			name: "a comment thread error bubbles up instead of hiding the comments",
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetByID(mock.Anything, spec.JournalLookup{ID: f.journalID, ViewerID: f.userID}).Return(&dto.JournalResponse{ID: f.journalID, Author: dto.UserResponse{ID: f.authorID}}, nil)
-				m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, f.userID).Return(nil, nil)
-				m.repo.EXPECT().GetComments(mock.Anything, spec.CommentQuery[uuid.UUID]{
-					TargetID:       f.journalID,
-					ViewerID:       f.userID,
-					Limit:          500,
-					Offset:         0,
-					ExcludeUserIDs: []uuid.UUID(nil),
-				}).Return(nil, 0, errBoom)
-			},
-			wantErr: errBoom,
-		},
-		{
-			name: "a block list error bubbles up instead of showing blocked users' comments",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetByID(mock.Anything, spec.JournalLookup{ID: f.journalID, ViewerID: f.userID}).Return(&dto.JournalResponse{ID: f.journalID, Author: dto.UserResponse{ID: f.authorID}}, nil)
-				m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, f.userID).Return(nil, errBoom)
-			},
-			wantErr: errBoom,
-		},
-		{
-			name: "a comment media error bubbles up",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetByID(mock.Anything, spec.JournalLookup{ID: f.journalID, ViewerID: f.userID}).Return(&dto.JournalResponse{ID: f.journalID, Author: dto.UserResponse{ID: f.authorID}}, nil)
-				m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, f.userID).Return(nil, nil)
-				m.repo.EXPECT().GetComments(mock.Anything, mock.Anything).Return([]model.CommentRow{{ID: f.commentID}}, 1, nil)
-				m.repo.EXPECT().GetCommentMediaBatch(mock.Anything, []uuid.UUID{f.commentID}).Return(nil, errBoom)
+				m.commentSvc.EXPECT().Thread(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindJournal, ID: f.journalID}, f.userID).Return(nil, errBoom)
 			},
 			wantErr: errBoom,
 		},
@@ -305,9 +331,7 @@ func TestGetJournalDetail_Failures(t *testing.T) {
 			given: func(m *testMocks, f fixture) {
 				latest := 1
 				m.repo.EXPECT().GetByID(mock.Anything, spec.JournalLookup{ID: f.journalID, ViewerID: f.userID}).Return(&dto.JournalResponse{ID: f.journalID, Author: dto.UserResponse{ID: f.authorID}, LatestEntryNumber: &latest}, nil)
-				m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, f.userID).Return(nil, nil)
-				m.repo.EXPECT().GetComments(mock.Anything, mock.Anything).Return(nil, 0, nil)
-				m.repo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
+				m.commentSvc.EXPECT().Thread(mock.Anything, mock.Anything, f.userID).Return([]dto.CommentResponse{}, nil)
 				m.repo.EXPECT().ListEntries(mock.Anything, f.journalID).Return(nil, nil)
 				m.repo.EXPECT().GetEntry(mock.Anything, spec.JournalEntryLookup{JournalID: f.journalID, EntryNumber: 1}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
 				m.repo.EXPECT().GetMediaBatch(mock.Anything, []uuid.UUID{f.entryID}).Return(nil, errBoom)
@@ -336,17 +360,9 @@ func TestGetJournalDetail(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	f := newFixture()
-	blockedIDs := []uuid.UUID{uuid.New()}
+	thread := []dto.CommentResponse{{ID: f.commentID, Body: "hi", IsAuthor: true}}
 	m.repo.EXPECT().GetByID(mock.Anything, spec.JournalLookup{ID: f.journalID, ViewerID: f.userID}).Return(&dto.JournalResponse{ID: f.journalID, Author: dto.UserResponse{ID: f.authorID}}, nil)
-	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, f.userID).Return(blockedIDs, nil)
-	m.repo.EXPECT().GetComments(mock.Anything, spec.CommentQuery[uuid.UUID]{
-		TargetID:       f.journalID,
-		ViewerID:       f.userID,
-		Limit:          500,
-		Offset:         0,
-		ExcludeUserIDs: blockedIDs,
-	}).Return([]model.CommentRow{{ID: f.commentID, UserID: f.authorID, Body: "hi"}}, 1, nil)
-	m.repo.EXPECT().GetCommentMediaBatch(mock.Anything, []uuid.UUID{f.commentID}).Return(nil, nil)
+	m.commentSvc.EXPECT().Thread(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindJournal, ID: f.journalID}, f.userID).Return(thread, nil).Once()
 	m.repo.EXPECT().ListEntries(mock.Anything, f.journalID).Return(nil, nil)
 
 	// when
@@ -355,7 +371,7 @@ func TestGetJournalDetail(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	require.NotNil(t, got)
-	assert.Len(t, got.Comments, 1)
+	assert.Equal(t, thread, got.Comments)
 }
 
 func TestListJournals(t *testing.T) {
@@ -645,20 +661,12 @@ func TestDeleteJournal(t *testing.T) {
 func TestCreateComment_Rejections(t *testing.T) {
 	tests := []struct {
 		name    string
-		body    string
 		onEntry bool
 		given   func(m *testMocks, f fixture)
 		wantErr error
 	}{
 		{
-			name:    "a blank body is rejected before any lookup",
-			body:    "   ",
-			given:   func(*testMocks, fixture) {},
-			wantErr: ErrEmptyBody,
-		},
-		{
 			name: "a missing journal is not found",
-			body: "hi",
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(uuid.Nil, errMissingRow)
 			},
@@ -666,7 +674,6 @@ func TestCreateComment_Rejections(t *testing.T) {
 		},
 		{
 			name: "a failed author lookup is surfaced, not reported as not found",
-			body: "hi",
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(uuid.Nil, errBoom)
 			},
@@ -674,7 +681,6 @@ func TestCreateComment_Rejections(t *testing.T) {
 		},
 		{
 			name: "an archive check error bubbles up",
-			body: "hi",
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.authorID, nil)
 				m.repo.EXPECT().IsArchived(mock.Anything, f.journalID).Return(false, errBoom)
@@ -683,7 +689,6 @@ func TestCreateComment_Rejections(t *testing.T) {
 		},
 		{
 			name: "an archived journal takes no comments",
-			body: "hi",
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.authorID, nil)
 				m.repo.EXPECT().IsArchived(mock.Anything, f.journalID).Return(true, nil)
@@ -691,31 +696,37 @@ func TestCreateComment_Rejections(t *testing.T) {
 			wantErr: ErrArchived,
 		},
 		{
-			name:    "an entry from another journal is a mismatch",
-			body:    "body",
+			name:    "a failed entry lookup is surfaced",
 			onEntry: true,
 			given: func(m *testMocks, f fixture) {
 				expectOpenJournal(m, f)
-				m.repo.EXPECT().GetEntryJournalID(mock.Anything, f.entryID).Return(uuid.New(), nil)
+				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).Return(nil, errBoom)
+			},
+			wantErr: errBoom,
+		},
+		{
+			name:    "a missing entry is not found",
+			onEntry: true,
+			given: func(m *testMocks, f fixture) {
+				expectOpenJournal(m, f)
+				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).Return(nil, nil)
+			},
+			wantErr: ErrEntryNotFound,
+		},
+		{
+			name:    "an entry from another journal is a mismatch",
+			onEntry: true,
+			given: func(m *testMocks, f fixture) {
+				expectOpenJournal(m, f)
+				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).Return(&model.JournalEntryRow{ID: f.entryID, JournalID: uuid.New(), EntryNumber: 2}, nil)
 			},
 			wantErr: ErrEntryMismatch,
 		},
 		{
-			name: "a block between commenter and author is refused",
-			body: "hi",
+			name: "a comment the comment service refuses bubbles up",
 			given: func(m *testMocks, f fixture) {
 				expectOpenJournal(m, f)
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, f.userID, f.authorID).Return(true, nil)
-			},
-			wantErr: block.ErrUserBlocked,
-		},
-		{
-			name: "a write error bubbles up",
-			body: "hi",
-			given: func(m *testMocks, f fixture) {
-				expectOpenJournal(m, f)
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, f.userID, f.authorID).Return(false, nil)
-				m.comments.EXPECT().CreateComment(mock.Anything, spec.NewJournalComment{JournalID: f.journalID, UserID: f.userID, Body: "hi"}).Return(nil, errBoom)
+				m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, f.userID, mock.Anything, mock.Anything).Return(uuid.Nil, errBoom)
 			},
 			wantErr: errBoom,
 		},
@@ -734,57 +745,81 @@ func TestCreateComment_Rejections(t *testing.T) {
 			}
 
 			// when
-			_, err := svc.CreateComment(context.Background(), f.journalID, f.userID, entryID, nil, tc.body)
+			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "hi", EntryID: entryID}, nil)
 
 			// then
 			require.ErrorIs(t, err, tc.wantErr)
+			assert.Equal(t, uuid.Nil, got)
+			m.repo.AssertNotCalled(t, "UpdateLastAuthorActivity", mock.Anything, mock.Anything)
 		})
 	}
 }
 
-func TestCreateComment_AuthorReplyWithParent(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	f := newFixture()
-	f.authorID = f.userID
-	parentID := uuid.New()
-	expectOpenJournal(m, f)
-	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, f.userID, f.authorID).Return(false, nil)
-	m.comments.EXPECT().CreateComment(mock.Anything, spec.NewJournalComment{
-		JournalID:            f.journalID,
-		ParentID:             &parentID,
-		UserID:               f.userID,
-		Body:                 "hi",
-		RecordAuthorActivity: true,
-	}).Return(&model.CommentRow{ID: f.commentID}, nil)
-	allowBackgroundFanOut(m, f.journalID, f.userID)
-	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, parentID).Return(uuid.Nil, errBoom).Maybe()
+func TestCreateComment_AReaderCommentReachesTheRightThreadWithoutRecordingActivity(t *testing.T) {
+	tests := []struct {
+		name       string
+		onEntry    bool
+		wantTarget func(f fixture) spec.CommentTarget
+	}{
+		{
+			name: "a comment on the journal itself",
+			wantTarget: func(f fixture) spec.CommentTarget {
+				return spec.CommentTarget{Kind: spec.CommentKindJournal, ID: f.journalID}
+			},
+		},
+		{
+			name:    "a comment on one entry is addressed by the entry's number",
+			onEntry: true,
+			wantTarget: func(f fixture) spec.CommentTarget {
+				return spec.CommentTarget{Kind: spec.CommentKindJournalEntry, ID: f.journalID, EntryNumber: 4}
+			},
+		},
+	}
 
-	// when
-	got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, nil, &parentID, "hi")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			f := newFixture()
+			parentID := uuid.New()
+			expectOpenJournal(m, f)
 
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, f.commentID, got)
+			var entryID *uuid.UUID
+			if tc.onEntry {
+				entryID = &f.entryID
+				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, EntryNumber: 4}, nil)
+			}
+
+			want := dto.CreateCommentRequest{Body: "lovely", ParentID: &parentID}
+			m.commentSvc.EXPECT().Create(mock.Anything, tc.wantTarget(f), f.userID, want, []upload.FileUpload(nil)).Return(f.commentID, nil).Once()
+
+			// when
+			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "lovely", ParentID: &parentID, EntryID: entryID}, nil)
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, f.commentID, got)
+			m.repo.AssertNotCalled(t, "UpdateLastAuthorActivity", mock.Anything, mock.Anything)
+			m.notifService.AssertNotCalled(t, "NotifyMany", mock.Anything, mock.Anything)
+		})
+	}
 }
 
-func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
+func TestCreateComment_TheAuthorsCommentRecordsActivityAndTellsEligibleFollowers(t *testing.T) {
 	tests := []struct {
 		name        string
 		onEntry     bool
-		entryNumber int
 		wantRefType string
 		wantLink    string
 	}{
 		{
-			name:        "a comment on the journal itself",
+			name:        "an update on the journal itself",
 			wantRefType: "journal_comment:%s",
 			wantLink:    "/journals/%s#comment-%s",
 		},
 		{
-			name:        "a comment on one entry",
+			name:        "an update on one entry",
 			onEntry:     true,
-			entryNumber: 4,
 			wantRefType: "journal_entry_comment:4:%s",
 			wantLink:    "/journals/%s/entry/4#comment-%s",
 		},
@@ -792,147 +827,63 @@ func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// given
+			// given a journal followed by a reader, a blocked reader and its own author
 			svc, m := newTestService(t)
 			f := newFixture()
-			mentionedID := uuid.New()
+			f.authorID = f.userID
+			readerID, blockedID := uuid.New(), uuid.New()
+			expectOpenJournal(m, f)
 
-			wantComment := spec.NewJournalComment{JournalID: f.journalID, UserID: f.userID, Body: "look at this @alice"}
-			var entryArg *uuid.UUID
+			var entryID *uuid.UUID
 			if tc.onEntry {
-				entryArg = &f.entryID
-				wantComment.EntryID = &f.entryID
-				m.repo.EXPECT().GetEntryJournalID(mock.Anything, f.entryID).Return(f.journalID, nil)
-				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).
-					Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, EntryNumber: tc.entryNumber}, nil)
+				entryID = &f.entryID
+				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, EntryNumber: 4}, nil)
 			}
 
-			expectOpenJournal(m, f)
-			m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, f.userID, f.authorID).Return(false, nil)
-			m.comments.EXPECT().CreateComment(mock.Anything, wantComment).Return(&model.CommentRow{ID: f.commentID}, nil)
-			m.repo.EXPECT().GetTitle(mock.Anything, f.journalID).Return("j", nil)
-			expectMentionOfAlice(m, f.userID, mentionedID)
-			sent := captureNotifications(m, 2)
+			m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, f.userID, mock.Anything, mock.Anything).Return(f.commentID, nil).Once()
+			m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, f.journalID).Return(nil).Once()
+			m.repo.EXPECT().GetTitle(mock.Anything, f.journalID).Return("A Cat Box Diary", nil)
+			m.repo.EXPECT().GetFollowerIDs(mock.Anything, f.journalID).Return([]uuid.UUID{readerID, blockedID, f.userID}, nil)
+			m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, f.userID).Return([]uuid.UUID{blockedID}, nil)
+			m.userRepo.EXPECT().GetByID(mock.Anything, f.userID).Return(&model.User{ID: f.userID, DisplayName: "Ange"}, nil)
+
+			fanOut := make(chan []dto.NotifyParams, 1)
+			m.notifService.EXPECT().NotifyMany(mock.Anything, mock.Anything).
+				Run(func(_ context.Context, params []dto.NotifyParams) { fanOut <- params }).
+				Return().
+				Once()
 
 			// when
-			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, entryArg, nil, "look at this @alice")
+			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "today's entry", EntryID: entryID}, nil)
 
-			// then
+			// then only the unblocked reader hears about the update
 			require.NoError(t, err)
 			assert.Equal(t, f.commentID, got)
 
-			notified := awaitNotifications(t, sent, 2)
-			assert.Equal(t, f.authorID, notified[dto.NotifJournalCommented].RecipientID)
-
-			mentioned := notified[dto.NotifMention]
-			assert.Equal(t, mentionedID, mentioned.RecipientID)
-			assert.Equal(t, fmt.Sprintf(tc.wantRefType, f.commentID), mentioned.ReferenceType)
-			assert.Equal(t, fmt.Sprintf(tc.wantLink, f.journalID, f.commentID), mentioned.EmailLink)
-		})
-	}
-}
-
-func TestUpdateComment(t *testing.T) {
-	tests := []struct {
-		name    string
-		body    string
-		given   func(m *testMocks, f fixture)
-		wantErr error
-		audited bool
-	}{
-		{
-			name:    "a blank body is rejected before any lookup",
-			body:    "   ",
-			given:   func(*testMocks, fixture) {},
-			wantErr: ErrEmptyBody,
-		},
-		{
-			name: "the owner's edit is trimmed and not audited",
-			body: "  trimmed  ",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(f.userID, nil)
-				m.repo.EXPECT().UpdateComment(mock.Anything, spec.CommentUpdate{CommentID: f.commentID, UserID: f.userID, Body: "trimmed"}).Return(nil)
-			},
-		},
-		{
-			name: "an update error bubbles up",
-			body: "body",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(f.userID, nil)
-				m.repo.EXPECT().UpdateComment(mock.Anything, spec.CommentUpdate{CommentID: f.commentID, UserID: f.userID, Body: "body"}).Return(errBoom)
-			},
-			wantErr: errBoom,
-		},
-		{
-			name: "an admin edit is audited against the author",
-			body: "new body",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(f.authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyComment).Return(true)
-				m.repo.EXPECT().UpdateComment(mock.Anything, spec.CommentUpdate{CommentID: f.commentID, UserID: f.userID, Body: "new body", AsAdmin: true}).Return(nil)
-				m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
-					ActorID:    f.userID,
-					Action:     audit.ActionJournalCommentUpdateAdmin,
-					TargetType: audit.TargetJournalComment,
-					TargetID:   f.commentID.String(),
-					SubjectID:  f.authorID,
-				}).Return(nil)
-			},
-			audited: true,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			f := newFixture()
-			tc.given(m, f)
-
-			// when
-			err := svc.UpdateComment(context.Background(), f.commentID, f.userID, tc.body)
-
-			// then
-			require.ErrorIs(t, err, tc.wantErr)
-
-			if !tc.audited {
-				m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+			select {
+			case params := <-fanOut:
+				require.Len(t, params, 1)
+				assert.Equal(t, readerID, params[0].RecipientID)
+				assert.Equal(t, dto.NotifJournalUpdate, params[0].Type)
+				assert.Equal(t, f.journalID, params[0].ReferenceID)
+				assert.Equal(t, fmt.Sprintf(tc.wantRefType, f.commentID), params[0].ReferenceType)
+				assert.Equal(t, fmt.Sprintf(tc.wantLink, f.journalID, f.commentID), params[0].EmailLink)
+				assert.Equal(t, "A Cat Box Diary", params[0].EmailTitle)
+			case <-time.After(5 * time.Second):
+				t.Fatal("the follower fan-out never ran")
 			}
 		})
 	}
 }
 
-func TestDeleteComment(t *testing.T) {
+func TestCreateComment_AFailedActivityRecordRollsTheAuthorsCommentBack(t *testing.T) {
 	tests := []struct {
-		name    string
-		given   func(m *testMocks, f fixture)
-		wantErr error
+		name      string
+		deleteErr error
+		wantErrs  []error
 	}{
-		{
-			name: "the owner's delete removes its media",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(f.userID, nil)
-				m.repo.EXPECT().DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{CommentID: f.commentID, UserID: f.userID, AsAdmin: false}).Return([]string{"/u/reply.png"}, nil)
-				m.uploadSvc.EXPECT().Delete([]string{"/u/reply.png"}).Return()
-			},
-		},
-		{
-			name: "an admin's delete is flagged as an admin action",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(f.authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermDeleteAnyComment).Return(true)
-				m.repo.EXPECT().DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{CommentID: f.commentID, UserID: f.userID, AsAdmin: true}).Return([]string{"/u/c.png", "/u/c-thumb.png"}, nil)
-				m.uploadSvc.EXPECT().Delete([]string{"/u/c.png", "/u/c-thumb.png"}).Return()
-			},
-		},
-		{
-			name: "a delete error bubbles up",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(f.userID, nil)
-				m.repo.EXPECT().DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{CommentID: f.commentID, UserID: f.userID, AsAdmin: false}).Return(nil, errBoom)
-			},
-			wantErr: errBoom,
-		},
+		{name: "the comment is removed and the activity failure reported", wantErrs: []error{errBoom}},
+		{name: "a failed rollback is reported alongside the activity failure", deleteErr: errRollback, wantErrs: []error{errBoom, errRollback}},
 	}
 
 	for _, tc := range tests {
@@ -940,191 +891,21 @@ func TestDeleteComment(t *testing.T) {
 			// given
 			svc, m := newTestService(t)
 			f := newFixture()
-			tc.given(m, f)
+			f.authorID = f.userID
+			expectOpenJournal(m, f)
+			m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, f.userID, mock.Anything, mock.Anything).Return(f.commentID, nil).Once()
+			m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, f.journalID).Return(errBoom).Once()
+			m.commentSvc.EXPECT().Delete(mock.Anything, spec.CommentRef{Kind: spec.CommentKindJournal, CommentID: f.commentID}, f.userID).Return(tc.deleteErr).Once()
 
 			// when
-			err := svc.DeleteComment(context.Background(), f.commentID, f.userID)
+			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "today's entry"}, nil)
 
 			// then
-			require.ErrorIs(t, err, tc.wantErr)
-		})
-	}
-}
-
-func TestLikeComment(t *testing.T) {
-	tests := []struct {
-		name     string
-		given    func(m *testMocks, f fixture)
-		wantErr  error
-		notifies bool
-	}{
-		{
-			name: "a missing comment is not found",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(uuid.Nil, errMissingRow)
-			},
-			wantErr: ErrNotFound,
-		},
-		{
-			name: "a failed comment author lookup is surfaced, not reported as not found",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(uuid.Nil, errBoom)
-			},
-			wantErr: errBoom,
-		},
-		{
-			name: "a failed block lookup refuses the like",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(f.authorID, nil)
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, f.userID, f.authorID).Return(false, errBoom)
-			},
-			wantErr: errBoom,
-		},
-		{
-			name: "a block between liker and author is refused",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(f.authorID, nil)
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, f.userID, f.authorID).Return(true, nil)
-			},
-			wantErr: block.ErrUserBlocked,
-		},
-		{
-			name: "a like error bubbles up",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(f.authorID, nil)
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, f.userID, f.authorID).Return(false, nil)
-				m.repo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: f.userID, CommentID: f.commentID}).Return(errBoom)
-			},
-			wantErr: errBoom,
-		},
-		{
-			name: "liking your own comment notifies nobody",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(f.userID, nil)
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, f.userID, f.userID).Return(false, nil)
-				m.repo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: f.userID, CommentID: f.commentID}).Return(nil)
-			},
-		},
-		{
-			name: "liking someone else's comment notifies its author",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(f.authorID, nil)
-				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, f.userID, f.authorID).Return(false, nil)
-				m.repo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: f.userID, CommentID: f.commentID}).Return(nil)
-				m.repo.EXPECT().GetCommentEntityID(mock.Anything, f.commentID).Return(f.journalID, nil)
-				m.repo.EXPECT().GetCommentEntryNumber(mock.Anything, f.commentID).Return(nil, nil)
-				m.repo.EXPECT().GetTitle(mock.Anything, f.journalID).Return("title", nil)
-				m.userRepo.EXPECT().GetByID(mock.Anything, f.userID).Return(nil, nil)
-			},
-			notifies: true,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			f := newFixture()
-			tc.given(m, f)
-
-			var sent <-chan dto.NotifyParams
-			if tc.notifies {
-				sent = captureNotifications(m, 1)
+			for _, want := range tc.wantErrs {
+				require.ErrorIs(t, err, want)
 			}
-
-			// when
-			err := svc.LikeComment(context.Background(), f.commentID, f.userID)
-
-			// then
-			require.ErrorIs(t, err, tc.wantErr)
-
-			if !tc.notifies {
-				return
-			}
-
-			liked := awaitNotifications(t, sent, 1)[dto.NotifJournalCommentLiked]
-			assert.Equal(t, f.authorID, liked.RecipientID)
-			assert.Equal(t, f.journalID, liked.ReferenceID)
-			assert.Equal(t, f.userID, liked.ActorID)
-		})
-	}
-}
-
-func TestUnlikeComment(t *testing.T) {
-	tests := []struct {
-		name    string
-		repoErr error
-	}{
-		{name: "the like is removed"},
-		{name: "a repo error bubbles up", repoErr: errBoom},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			f := newFixture()
-			m.repo.EXPECT().UnlikeComment(mock.Anything, spec.CommentLike{UserID: f.userID, CommentID: f.commentID}).Return(tc.repoErr)
-
-			// when
-			err := svc.UnlikeComment(context.Background(), f.commentID, f.userID)
-
-			// then
-			require.ErrorIs(t, err, tc.repoErr)
-		})
-	}
-}
-
-func TestUploadCommentMedia(t *testing.T) {
-	tests := []struct {
-		name    string
-		given   func(m *testMocks, f fixture)
-		wantErr error
-	}{
-		{
-			name: "a missing comment is not found",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(uuid.Nil, errMissingRow)
-			},
-			wantErr: ErrNotFound,
-		},
-		{
-			name: "a failed comment author lookup is surfaced, not reported as not found",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(uuid.Nil, errBoom)
-			},
-			wantErr: errBoom,
-		},
-		{
-			name: "someone else's comment is refused",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(f.authorID, nil)
-			},
-			wantErr: ErrNotAuthor,
-		},
-		{
-			name: "an upload failure bubbles up",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetCommentAuthorID(mock.Anything, f.commentID).Return(f.userID, nil)
-				m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
-				m.uploadSvc.EXPECT().SaveImage(mock.Anything, "journals", mock.Anything, int64(10), int64(1000), mock.Anything).Return("", errBoom)
-			},
-			wantErr: errBoom,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			svc, m := newTestService(t)
-			f := newFixture()
-			tc.given(m, f)
-
-			// when
-			_, err := svc.UploadCommentMedia(context.Background(), f.commentID, f.userID, "image/png", "photo.png", 10, strings.NewReader("x"), false)
-
-			// then
-			require.ErrorIs(t, err, tc.wantErr)
+			assert.Equal(t, uuid.Nil, got)
+			m.notifService.AssertNotCalled(t, "NotifyMany", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -1332,10 +1113,11 @@ func TestCreateEntry(t *testing.T) {
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
 				m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(7, nil)
 				m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
-					JournalID:   f.journalID,
-					EntryNumber: 7,
-					Body:        "an entry",
-					WordCount:   2,
+					JournalID:            f.journalID,
+					EntryNumber:          7,
+					Body:                 "an entry",
+					WordCount:            2,
+					RecordAuthorActivity: true,
 				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
 				allowBackgroundFanOut(m, f.journalID, f.userID)
 				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
@@ -1349,11 +1131,12 @@ func TestCreateEntry(t *testing.T) {
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
 				m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(1, nil)
 				m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
-					JournalID:   f.journalID,
-					EntryNumber: 1,
-					Title:       new("Day 1"),
-					Body:        "the body",
-					WordCount:   2,
+					JournalID:            f.journalID,
+					EntryNumber:          1,
+					Title:                new("Day 1"),
+					Body:                 "the body",
+					WordCount:            2,
+					RecordAuthorActivity: true,
 				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
 				allowBackgroundFanOut(m, f.journalID, f.userID)
 				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
@@ -1367,11 +1150,12 @@ func TestCreateEntry(t *testing.T) {
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
 				m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(2, nil)
 				m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
-					JournalID:   f.journalID,
-					EntryNumber: 2,
-					Body:        "a draft",
-					WordCount:   2,
-					IsDraft:     true,
+					JournalID:            f.journalID,
+					EntryNumber:          2,
+					Body:                 "a draft",
+					WordCount:            2,
+					IsDraft:              true,
+					RecordAuthorActivity: true,
 				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
 			},
 			wantNumber: 2,
@@ -1384,10 +1168,11 @@ func TestCreateEntry(t *testing.T) {
 				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyJournal).Return(true)
 				m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(4, nil)
 				m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
-					JournalID:   f.journalID,
-					EntryNumber: 4,
-					Body:        "an entry",
-					WordCount:   2,
+					JournalID:            f.journalID,
+					EntryNumber:          4,
+					Body:                 "an entry",
+					WordCount:            2,
+					RecordAuthorActivity: true,
 				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
 				m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 					ActorID:    f.userID,
@@ -1412,7 +1197,7 @@ func TestCreateEntry(t *testing.T) {
 			tc.given(m, f)
 
 			// when
-			id, number, err := svc.CreateEntry(context.Background(), f.journalID, f.userID, tc.req)
+			id, number, err := svc.CreateEntry(context.Background(), f.journalID, f.userID, tc.req, nil)
 
 			// then
 			require.ErrorIs(t, err, tc.wantErr)
@@ -1425,6 +1210,151 @@ func TestCreateEntry(t *testing.T) {
 			assert.Equal(t, tc.wantNumber, number)
 		})
 	}
+}
+
+func TestCreateEntry_WithMedia(t *testing.T) {
+	picture := uploadtest.PNG(t)
+	expectEntryWritten := func(m *testMocks, f fixture) {
+		m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(3, nil).Once()
+		m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
+			JournalID:   f.journalID,
+			EntryNumber: 3,
+			Body:        "an entry",
+			WordCount:   2,
+		}).Return(&model.JournalEntryRow{ID: f.entryID}, nil).Once()
+	}
+
+	tests := []struct {
+		name     string
+		files    func() []upload.FileUpload
+		given    func(m *testMocks, f fixture, recorder *upload.MockMediaRecorder)
+		wantErrs []error
+	}{
+		{
+			name: "a file that is not what it claims is refused before the entry is written",
+			files: func() []upload.FileUpload {
+				return []upload.FileUpload{uploadtest.MemoryUpload("image/png", "fake.png", []byte("plainly not an image"), false)}
+			},
+			given:    func(*testMocks, fixture, *upload.MockMediaRecorder) {},
+			wantErrs: []error{upload.ErrInvalidFileType},
+		},
+		{
+			name: "every file is kept in display order with its spoiler flag before the activity is recorded and the entry announced",
+			files: func() []upload.FileUpload {
+				return []upload.FileUpload{uploadtest.MemoryUpload("image/png", "one.png", picture, false), uploadtest.MemoryUpload("image/png", "two.png", picture, true)}
+			},
+			given: func(m *testMocks, f fixture, recorder *upload.MockMediaRecorder) {
+				expectEntryWritten(m, f)
+				expectStored(recorder, "one.png", false)
+				expectStored(recorder, "two.png", true)
+				m.repo.EXPECT().AddMedia(mock.Anything, storedMedia(f.entryID, "one.png", 0, false)).Return(int64(1), nil).Once()
+				m.repo.EXPECT().AddMedia(mock.Anything, storedMedia(f.entryID, "two.png", 1, true)).Return(int64(2), nil).Once()
+				m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, f.journalID).Return(nil).Once()
+				allowBackgroundFanOut(m, f.journalID, f.userID)
+				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
+			},
+		},
+		{
+			name: "a store failure deletes the entry with the files already stored and announces nothing",
+			files: func() []upload.FileUpload {
+				return []upload.FileUpload{uploadtest.MemoryUpload("image/png", "one.png", picture, false), uploadtest.MemoryUpload("image/png", "two.png", picture, true)}
+			},
+			given: func(m *testMocks, f fixture, recorder *upload.MockMediaRecorder) {
+				expectEntryWritten(m, f)
+				expectStored(recorder, "one.png", false)
+				expectStoreFailure(recorder, "two.png", true)
+				m.repo.EXPECT().AddMedia(mock.Anything, storedMedia(f.entryID, "one.png", 0, false)).Return(int64(1), nil).Once()
+				m.repo.EXPECT().DeleteEntryWithMedia(mock.Anything, f.entryID).Return([]string{storedURL("one.png")}, nil).Once()
+				m.uploadSvc.EXPECT().Delete([]string{storedURL("one.png")}).Return().Twice()
+			},
+			wantErrs: []error{errBoom},
+		},
+		{
+			name: "an activity failure after the files are stored deletes the entry and its files and announces nothing",
+			files: func() []upload.FileUpload {
+				return []upload.FileUpload{uploadtest.MemoryUpload("image/png", "one.png", picture, false), uploadtest.MemoryUpload("image/png", "two.png", picture, true)}
+			},
+			given: func(m *testMocks, f fixture, recorder *upload.MockMediaRecorder) {
+				expectEntryWritten(m, f)
+				expectStored(recorder, "one.png", false)
+				expectStored(recorder, "two.png", true)
+				m.repo.EXPECT().AddMedia(mock.Anything, storedMedia(f.entryID, "one.png", 0, false)).Return(int64(1), nil).Once()
+				m.repo.EXPECT().AddMedia(mock.Anything, storedMedia(f.entryID, "two.png", 1, true)).Return(int64(2), nil).Once()
+				m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, f.journalID).Return(errBoom).Once()
+				m.repo.EXPECT().DeleteEntryWithMedia(mock.Anything, f.entryID).Return([]string{storedURL("one.png"), storedURL("two.png")}, nil).Once()
+				m.uploadSvc.EXPECT().Delete([]string{storedURL("one.png"), storedURL("two.png")}).Return().Once()
+			},
+			wantErrs: []error{errBoom},
+		},
+		{
+			name: "a rollback that fails is reported alongside the store failure",
+			files: func() []upload.FileUpload {
+				return []upload.FileUpload{uploadtest.MemoryUpload("image/png", "one.png", picture, false)}
+			},
+			given: func(m *testMocks, f fixture, recorder *upload.MockMediaRecorder) {
+				expectEntryWritten(m, f)
+				expectStoreFailure(recorder, "one.png", false)
+				m.repo.EXPECT().DeleteEntryWithMedia(mock.Anything, f.entryID).Return(nil, errRollback).Once()
+			},
+			wantErrs: []error{errBoom, errRollback},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			recorder := withMediaRecorder(t, svc, m)
+			f := newFixture()
+			m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
+			tc.given(m, f, recorder)
+
+			// when
+			id, number, err := svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: "an entry"}, tc.files())
+
+			// then
+			if len(tc.wantErrs) > 0 {
+				for _, wantErr := range tc.wantErrs {
+					require.ErrorIs(t, err, wantErr)
+				}
+				assert.Equal(t, uuid.Nil, id)
+				assert.Zero(t, number)
+				m.activity.AssertNotCalled(t, "BumpSidebarActivity", sidebar.KeyJournals)
+				m.repo.AssertNotCalled(t, "GetTitle", mock.Anything, f.journalID)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, f.entryID, id)
+			assert.Equal(t, 3, number)
+		})
+	}
+}
+
+func TestCreateEntry_FilesWithoutText(t *testing.T) {
+	// given an entry with no words but one picture
+	svc, m := newTestService(t)
+	recorder := withMediaRecorder(t, svc, m)
+	f := newFixture()
+	m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
+	m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(5, nil).Once()
+	m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
+		JournalID:   f.journalID,
+		EntryNumber: 5,
+	}).Return(&model.JournalEntryRow{ID: f.entryID}, nil).Once()
+	expectStored(recorder, "one.png", false)
+	m.repo.EXPECT().AddMedia(mock.Anything, storedMedia(f.entryID, "one.png", 0, false)).Return(int64(1), nil).Once()
+	m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, f.journalID).Return(nil).Once()
+	allowBackgroundFanOut(m, f.journalID, f.userID)
+	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
+
+	// when
+	id, number, err := svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: "  "}, []upload.FileUpload{uploadtest.MemoryUpload("image/png", "one.png", uploadtest.PNG(t), false)})
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, f.entryID, id)
+	assert.Equal(t, 5, number)
 }
 
 func TestJournalEntryPublish_NotifiesMentionsAndFollowersOnlyOnTheFirstPublish(t *testing.T) {
@@ -1515,7 +1445,7 @@ func TestJournalEntryPublish_NotifiesMentionsAndFollowersOnlyOnTheFirstPublish(t
 			// when
 			var err error
 			if tc.create {
-				_, _, err = svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: body, IsDraft: tc.draft})
+				_, _, err = svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: body, IsDraft: tc.draft}, nil)
 			} else {
 				err = svc.UpdateEntry(context.Background(), f.entryID, f.userID, dto.UpdateJournalEntryRequest{Body: body})
 			}
@@ -1571,15 +1501,8 @@ func TestGetEntry(t *testing.T) {
 	row := &model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, EntryNumber: 3, Body: "b", HasPrev: true}
 	m.repo.EXPECT().GetEntry(mock.Anything, spec.JournalEntryLookup{JournalID: f.journalID, EntryNumber: 3}).Return(row, nil)
 	m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.authorID, nil)
-	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, uuid.Nil).Return(nil, nil)
-	m.repo.EXPECT().GetEntryComments(mock.Anything, spec.CommentQuery[uuid.UUID]{
-		TargetID:       f.entryID,
-		ViewerID:       uuid.Nil,
-		Limit:          500,
-		Offset:         0,
-		ExcludeUserIDs: []uuid.UUID(nil),
-	}).Return(nil, 0, nil)
-	m.repo.EXPECT().GetCommentMediaBatch(mock.Anything, []uuid.UUID{}).Return(nil, nil)
+	thread := []dto.CommentResponse{{ID: f.commentID, EntryID: &f.entryID, Body: "loved this one"}}
+	m.commentSvc.EXPECT().Thread(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindJournalEntry, ID: f.journalID, EntryNumber: 3}, uuid.Nil).Return(thread, nil).Once()
 	m.repo.EXPECT().GetMediaBatch(mock.Anything, []uuid.UUID{f.entryID}).Return(nil, nil)
 
 	// when
@@ -1590,7 +1513,7 @@ func TestGetEntry(t *testing.T) {
 	require.NotNil(t, entry)
 	assert.Equal(t, 3, entry.EntryNumber)
 	assert.True(t, entry.HasPrev)
-	assert.Empty(t, comments)
+	assert.Equal(t, thread, comments)
 }
 
 func TestUpdateEntry(t *testing.T) {
