@@ -39,7 +39,7 @@ type (
 		UserID       uuid.UUID
 		Conn         *websocket.Conn
 		send         chan []byte
-		closeCh      chan any
+		closeCh      chan struct{}
 		closeOnce    sync.Once
 		pingAt       atomic.Int64
 		rttPeak      atomic.Int64
@@ -60,7 +60,7 @@ type (
 		viewers      map[uuid.UUID]map[uuid.UUID]*viewerInfo
 		userRooms    map[uuid.UUID]map[uuid.UUID]struct{}
 		userViewing  map[uuid.UUID]map[uuid.UUID]struct{}
-		anon         map[*Client]any
+		anon         map[*Client]struct{}
 		alwaysOnline map[uuid.UUID]struct{}
 		postWatchers map[uuid.UUID]map[*Client]struct{}
 		mu           sync.RWMutex
@@ -82,7 +82,7 @@ func NewClient(userID uuid.UUID, conn *websocket.Conn) *Client {
 		UserID:  userID,
 		Conn:    conn,
 		send:    make(chan []byte, sendBufferSize),
-		closeCh: make(chan any),
+		closeCh: make(chan struct{}),
 	}
 }
 
@@ -258,7 +258,7 @@ func NewHub(name ...string) *Hub {
 		viewers:      make(map[uuid.UUID]map[uuid.UUID]*viewerInfo),
 		userRooms:    make(map[uuid.UUID]map[uuid.UUID]struct{}),
 		userViewing:  make(map[uuid.UUID]map[uuid.UUID]struct{}),
-		anon:         make(map[*Client]any),
+		anon:         make(map[*Client]struct{}),
 		alwaysOnline: make(map[uuid.UUID]struct{}),
 		postWatchers: make(map[uuid.UUID]map[*Client]struct{}),
 	}

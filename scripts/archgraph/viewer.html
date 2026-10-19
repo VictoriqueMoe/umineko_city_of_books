@@ -1,0 +1,1593 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Architecture Graph</title>
+        <script
+            src="https://cdn.jsdelivr.net/npm/cytoscape@3.34.3/dist/cytoscape.min.js"
+            integrity="sha384-qPKQxl9uMXOw7vSTUDAnpUilhLuulovw6P5Z4db4bqxW5VhumS7przEmHX0iM0Oc"
+            crossorigin="anonymous"
+        ></script>
+        <script
+            src="https://cdn.jsdelivr.net/npm/elkjs@0.12.0/lib/elk.bundled.js"
+            integrity="sha384-ww57TDqx4cGknIavPm0QKO+aygLUR1BLSn2Vhbnt1XdYKWcwLyWTFKX7aZMaKIi2"
+            crossorigin="anonymous"
+        ></script>
+        <script
+            src="https://cdn.jsdelivr.net/npm/cytoscape-elk@2.3.0/dist/cytoscape-elk.js"
+            integrity="sha384-VCqo69qSTjiAwEkpykDLjsy96VKDH33my5mKmDfk3HhB85Iy4QwZ9R0IXqYuxV1A"
+            crossorigin="anonymous"
+        ></script>
+        <style>
+            :root {
+                --bg: #f7f7f5;
+                --panel: #ffffff;
+                --text: #1c1b19;
+                --muted: #6b6862;
+                --border: #e4e2dd;
+                --accent: #2f6fde;
+                --danger: #d4342c;
+                --edge: #a29e96;
+                --cell: 47, 111, 222;
+                color-scheme: light;
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg: #121211;
+                    --panel: #1b1b19;
+                    --text: #eceae5;
+                    --muted: #a19d95;
+                    --border: #2e2d2a;
+                    --accent: #6c9cf0;
+                    --danger: #f0605a;
+                    --edge: #5d5a54;
+                    --cell: 108, 156, 240;
+                    color-scheme: dark;
+                }
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+
+            [hidden] {
+                display: none !important;
+            }
+
+            html,
+            body {
+                height: 100%;
+                margin: 0;
+            }
+
+            body {
+                display: grid;
+                grid-template-rows: auto auto auto 1fr;
+                background: var(--bg);
+                color: var(--text);
+                font:
+                    13px/1.45 system-ui,
+                    -apple-system,
+                    "Segoe UI",
+                    sans-serif;
+            }
+
+            header {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: baseline;
+                gap: 4px 16px;
+                padding: 12px 16px 8px;
+            }
+
+            h1 {
+                margin: 0;
+                font-size: 16px;
+            }
+
+            h2 {
+                margin: 0 0 8px;
+                font-size: 14px;
+                overflow-wrap: anywhere;
+            }
+
+            h3 {
+                margin: 16px 0 6px;
+                color: var(--muted);
+                font-size: 12px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+            }
+
+            code {
+                font:
+                    12px/1.4 ui-monospace,
+                    "Cascadia Code",
+                    Consolas,
+                    monospace;
+            }
+
+            button,
+            input,
+            select {
+                font: inherit;
+                color: var(--text);
+                background: var(--panel);
+                border: 1px solid var(--border);
+                border-radius: 6px;
+                padding: 4px 8px;
+            }
+
+            button {
+                cursor: pointer;
+            }
+
+            .muted,
+            .stats {
+                color: var(--muted);
+            }
+
+            .bad {
+                color: var(--danger);
+            }
+
+            .toolbar,
+            .subbar {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 8px 16px;
+                padding: 0 16px 8px;
+            }
+
+            .subbar {
+                border-bottom: 1px solid var(--border);
+            }
+
+            .tabs {
+                display: flex;
+                gap: 2px;
+                padding: 2px;
+                border-radius: 8px;
+                background: var(--border);
+            }
+
+            .tabs button {
+                border: 0;
+                background: transparent;
+            }
+
+            .tabs button[aria-selected="true"] {
+                background: var(--panel);
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+            }
+
+            .controls {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 6px;
+            }
+
+            #focus {
+                width: 280px;
+                max-width: 100%;
+            }
+
+            .chips {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+
+            .chip {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                border-radius: 999px;
+                padding: 2px 10px 2px 6px;
+            }
+
+            .chip[aria-pressed="false"] {
+                opacity: 0.4;
+                text-decoration: line-through;
+            }
+
+            .swatch {
+                width: 10px;
+                height: 10px;
+                border-radius: 3px;
+            }
+
+            .hint {
+                flex: 1 1 320px;
+                margin: 0;
+                color: var(--muted);
+            }
+
+            main {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) 380px;
+                min-height: 0;
+            }
+
+            #stage {
+                position: relative;
+                min-height: 0;
+                overflow: hidden;
+            }
+
+            #cy {
+                position: absolute;
+                inset: 0;
+            }
+
+            #matrix,
+            #rules {
+                position: absolute;
+                inset: 0;
+                overflow: auto;
+                padding: 16px;
+                background: var(--bg);
+            }
+
+            #notice {
+                position: absolute;
+                top: 12px;
+                left: 50%;
+                transform: translateX(-50%);
+                max-width: calc(100% - 32px);
+                padding: 6px 12px;
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                background: var(--panel);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+            }
+
+            aside {
+                min-height: 0;
+                overflow: auto;
+                padding: 14px 16px;
+                border-left: 1px solid var(--border);
+                background: var(--panel);
+            }
+
+            .action {
+                margin: 4px 0;
+            }
+
+            details {
+                margin: 2px 0;
+            }
+
+            details details {
+                margin-left: 14px;
+            }
+
+            summary {
+                display: flex;
+                align-items: baseline;
+                gap: 8px;
+                padding: 2px 0;
+                cursor: pointer;
+                list-style: none;
+            }
+
+            summary::before {
+                content: "\25B8";
+                color: var(--muted);
+            }
+
+            details[open] > summary::before {
+                content: "\25BE";
+            }
+
+            summary > :first-child {
+                overflow-wrap: anywhere;
+            }
+
+            .count {
+                margin-left: auto;
+                color: var(--muted);
+                font-variant-numeric: tabular-nums;
+            }
+
+            .kind {
+                padding: 0 6px;
+                border-radius: 999px;
+                background: var(--border);
+                color: var(--muted);
+                font-size: 11px;
+            }
+
+            .sites {
+                margin: 4px 0 8px 14px;
+                padding: 0;
+                list-style: none;
+            }
+
+            .sites li {
+                padding: 1px 0;
+                overflow-wrap: anywhere;
+            }
+
+            .figures {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+                gap: 16px;
+                margin-top: 16px;
+            }
+
+            figure {
+                margin: 0;
+                padding: 8px;
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                background: #ffffff;
+            }
+
+            figure img {
+                display: block;
+                width: 100%;
+                height: auto;
+            }
+
+            figcaption {
+                color: #6b6862;
+                text-align: center;
+            }
+
+            .matrix {
+                border-collapse: collapse;
+                font-size: 10px;
+            }
+
+            .matrix thead th {
+                position: sticky;
+                top: -16px;
+                z-index: 1;
+                background: var(--bg);
+            }
+
+            .matrix th.corner {
+                left: -16px;
+                z-index: 2;
+            }
+
+            .matrix th.col {
+                padding: 4px 0;
+                border-top: 4px solid;
+                font-weight: 400;
+                vertical-align: bottom;
+            }
+
+            .matrix th.col span {
+                writing-mode: vertical-rl;
+                transform: rotate(180deg);
+                white-space: nowrap;
+            }
+
+            .matrix th.row {
+                position: sticky;
+                left: -16px;
+                padding: 0 6px;
+                border-left: 4px solid;
+                background: var(--bg);
+                font-weight: 400;
+                text-align: right;
+                white-space: nowrap;
+            }
+
+            .matrix td {
+                width: 12px;
+                min-width: 12px;
+                height: 12px;
+                padding: 0;
+                border: 1px solid var(--border);
+            }
+
+            .matrix td[data-key] {
+                cursor: pointer;
+            }
+
+            .matrix td.self {
+                background: repeating-linear-gradient(45deg, var(--border) 0 2px, transparent 2px 4px);
+            }
+
+            .matrix td.bad {
+                background: var(--danger);
+            }
+
+            @media (max-width: 900px) {
+                main {
+                    grid-template-columns: minmax(0, 1fr);
+                    grid-template-rows: 65vh auto;
+                }
+
+                aside {
+                    border-top: 1px solid var(--border);
+                    border-left: 0;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>Architecture graph</h1>
+            <span class="stats" id="stats"></span>
+        </header>
+        <div class="toolbar">
+            <div class="tabs" id="tabs" role="tablist"></div>
+            <div class="controls" id="focus-controls">
+                <input
+                    id="focus"
+                    list="focus-options"
+                    placeholder="Focus on a node"
+                    autocomplete="off"
+                    spellcheck="false"
+                />
+                <datalist id="focus-options"></datalist>
+                <select id="depth" title="Neighbourhood depth">
+                    <option value="1">1 hop</option>
+                    <option value="2">2 hops</option>
+                    <option value="3">3 hops</option>
+                </select>
+                <button type="button" id="clear-focus">Clear</button>
+                <button type="button" id="fit">Fit</button>
+            </div>
+            <label class="controls" id="granularity-control">
+                Callers by
+                <select id="granularity">
+                    <option value="type">type</option>
+                    <option value="file">file</option>
+                    <option value="function">function</option>
+                    <option value="package">package</option>
+                </select>
+            </label>
+            <label class="controls" id="labels-control">
+                <input type="checkbox" id="field-labels" />
+                Field names
+            </label>
+        </div>
+        <div class="subbar">
+            <div class="chips" id="chips"></div>
+            <p class="hint" id="hint"></p>
+        </div>
+        <main>
+            <section id="stage">
+                <div id="cy"></div>
+                <div id="matrix" hidden></div>
+                <div id="rules" hidden></div>
+                <div id="notice" hidden></div>
+            </section>
+            <aside id="details"></aside>
+        </main>
+        <script id="archgraph-data" type="application/json">
+            __ARCHGRAPH_DATA__
+        </script>
+        <script>
+            const DATA = JSON.parse(document.getElementById("archgraph-data").textContent);
+
+            const PALETTE = [
+                "#4e79a7",
+                "#f28e2b",
+                "#59a14f",
+                "#b07aa1",
+                "#76b7b2",
+                "#edc948",
+                "#9c755f",
+                "#ff9da7",
+                "#86bcb6",
+                "#8cd17d",
+                "#a0cbe8",
+                "#ffbe7d",
+                "#bab0ac",
+                "#d4a6c8",
+            ];
+            const STORAGE_KEY = "archgraph.hidden";
+            const MAX_EDGES = 2500;
+            const CALL_KINDS = new Set(["method", "func"]);
+            const THEME_TOKENS = ["--text", "--muted", "--bg", "--edge", "--danger", "--accent"];
+
+            const ui = {
+                stats: document.getElementById("stats"),
+                tabs: document.getElementById("tabs"),
+                chips: document.getElementById("chips"),
+                hint: document.getElementById("hint"),
+                focus: document.getElementById("focus"),
+                focusOptions: document.getElementById("focus-options"),
+                focusControls: document.getElementById("focus-controls"),
+                depth: document.getElementById("depth"),
+                clearFocus: document.getElementById("clear-focus"),
+                fit: document.getElementById("fit"),
+                granularity: document.getElementById("granularity"),
+                granularityControl: document.getElementById("granularity-control"),
+                fieldLabels: document.getElementById("field-labels"),
+                labelsControl: document.getElementById("labels-control"),
+                cy: document.getElementById("cy"),
+                matrix: document.getElementById("matrix"),
+                rules: document.getElementById("rules"),
+                notice: document.getElementById("notice"),
+                details: document.getElementById("details"),
+            };
+
+            const componentOf = new Map(DATA.packages.map(pkg => [pkg.path, pkg.component]));
+            const violationsByPair = Map.groupBy(DATA.violations, violation => pairKey(violation.from, violation.to));
+            const reaches = componentReach();
+            const order = layerOrder(reaches);
+            const colours = new Map(order.map((name, index) => [name, PALETTE[index % PALETTE.length]]));
+
+            const VIEWS = [
+                {
+                    id: "layers",
+                    title: "Layers",
+                    unit: { one: "reference", many: "references" },
+                    hint: "Components from .go-arch-lint.yml. An edge counts every reference between two components; red means go-arch-lint flags at least one import under it.",
+                    build: buildLayers,
+                    edgeBody: layerBody,
+                },
+                {
+                    id: "packages",
+                    title: "Packages",
+                    unit: { one: "reference", many: "references" },
+                    hint: "Every package, boxed by component. Click a package to light up its neighbours, double-click to focus on it.",
+                    build: buildPackages,
+                    edgeBody: pairBody,
+                },
+                {
+                    id: "wiring",
+                    title: "Wiring",
+                    unit: { one: "link", many: "links" },
+                    hint: "Struct fields that hold another package's type: the dependency injection graph. Dashed edges run from an injected interface to the type in its package that implements it.",
+                    build: buildWiring,
+                    edgeBody: wiringBody,
+                },
+                {
+                    id: "calls",
+                    title: "Calls",
+                    unit: { one: "call", many: "calls" },
+                    hint: "Method and function calls across packages. Pick how callers are grouped, then focus on a type to see exactly who calls which of its methods.",
+                    build: buildCalls,
+                    edgeBody: pairBody,
+                },
+                {
+                    id: "matrix",
+                    title: "Matrix",
+                    hint: "Rows reference columns. Packages run from the top layer down, so ordinary references sit above the diagonal and anything below it points back up the stack. Red cells break a rule.",
+                    render: renderMatrix,
+                },
+                {
+                    id: "rules",
+                    title: "Rules",
+                    hint: "go-arch-lint's own graphs draw the mayDependOn rules you declared, not the code. The list is what the code breaks.",
+                    render: renderRules,
+                },
+            ];
+
+            const state = {
+                view: "layers",
+                hidden: loadHidden(),
+                focus: "",
+                depth: 1,
+                granularity: "type",
+                fieldLabels: false,
+            };
+
+            let cy = null;
+            let ticket = 0;
+
+            function pairKey(from, to) {
+                return `${from} -> ${to}`;
+            }
+
+            function short(path) {
+                if (path === ".") {
+                    return "(module root)";
+                }
+
+                return path.replace(/^internal\//, "");
+            }
+
+            function siteCount(refs) {
+                return refs.reduce((total, ref) => total + ref.sites.length, 0);
+            }
+
+            function el(tag, props, ...children) {
+                const node = Object.assign(document.createElement(tag), props);
+                node.append(...children);
+
+                return node;
+            }
+
+            function componentReach() {
+                const reach = new Map();
+                for (const pkg of DATA.packages) {
+                    reach.set(pkg.component, new Set());
+                }
+
+                for (const ref of DATA.refs) {
+                    const from = componentOf.get(ref.from);
+                    const to = componentOf.get(ref.to);
+                    if (from !== to) {
+                        reach.get(from).add(to);
+                    }
+                }
+
+                return reach;
+            }
+
+            function layerOrder(reach) {
+                const remaining = new Set([...reach.keys()].sort());
+                const ordered = [];
+                while (remaining.size > 0) {
+                    let pick = "";
+                    let fewest = Infinity;
+                    for (const name of remaining) {
+                        let inbound = 0;
+                        for (const other of remaining) {
+                            if (other !== name && reach.get(other).has(name)) {
+                                inbound += 1;
+                            }
+                        }
+
+                        if (inbound < fewest) {
+                            pick = name;
+                            fewest = inbound;
+                        }
+                    }
+
+                    ordered.push(pick);
+                    remaining.delete(pick);
+                }
+
+                return ordered;
+            }
+
+            function loadHidden() {
+                try {
+                    const saved = localStorage.getItem(STORAGE_KEY);
+                    if (saved !== null) {
+                        return new Set(JSON.parse(saved));
+                    }
+                } catch (err) {
+                    console.warn("archgraph: saved component filter unavailable", err);
+                }
+
+                const others = order.length - 1;
+                const inbound = new Map(order.map(name => [name, 0]));
+                for (const targets of reaches.values()) {
+                    for (const target of targets) {
+                        inbound.set(target, inbound.get(target) + 1);
+                    }
+                }
+
+                return new Set(
+                    order.filter(
+                        name => others > 0 && Math.max(inbound.get(name), reaches.get(name).size) / others >= 0.75,
+                    ),
+                );
+            }
+
+            function saveHidden() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify([...state.hidden]));
+                } catch (err) {
+                    console.warn("archgraph: could not save the component filter", err);
+                }
+            }
+
+            function newGraph() {
+                return { nodes: new Map(), edges: new Map() };
+            }
+
+            function addNode(graph, id, fields) {
+                if (!graph.nodes.has(id)) {
+                    graph.nodes.set(id, { id, title: fields.label, ...fields });
+                }
+
+                return graph.nodes.get(id);
+            }
+
+            function memberNode(graph, pkg, id, label) {
+                const colour = colours.get(componentOf.get(pkg));
+                const parent = `package:${pkg}`;
+                addNode(graph, parent, { label: short(pkg), colour, compound: true });
+
+                return addNode(graph, id, { label, title: `${short(pkg)}.${label}`, colour, parent, pkg });
+            }
+
+            function addEdge(graph, source, target, item, weight, violation) {
+                const id = pairKey(source, target);
+                if (!graph.edges.has(id)) {
+                    graph.edges.set(id, { id, source, target, weight: 0, violation: false, items: [] });
+                }
+
+                const edge = graph.edges.get(id);
+                edge.weight += weight;
+                edge.violation ||= violation;
+                edge.items.push(item);
+
+                return edge;
+            }
+
+            function buildLayers() {
+                const graph = newGraph();
+                for (const pkg of DATA.packages) {
+                    if (state.hidden.has(pkg.component)) {
+                        continue;
+                    }
+
+                    const node = addNode(graph, pkg.component, {
+                        label: pkg.component,
+                        colour: colours.get(pkg.component),
+                        packages: [],
+                    });
+                    node.packages.push(pkg);
+                    node.label = `${pkg.component}\n${node.packages.length} ${node.packages.length === 1 ? "package" : "packages"}`;
+                }
+
+                for (const ref of DATA.refs) {
+                    const from = componentOf.get(ref.from);
+                    const to = componentOf.get(ref.to);
+                    if (!graph.nodes.has(from) || !graph.nodes.has(to)) {
+                        continue;
+                    }
+
+                    const edge = addEdge(
+                        graph,
+                        from,
+                        to,
+                        ref,
+                        ref.sites.length,
+                        violationsByPair.has(pairKey(ref.from, ref.to)),
+                    );
+                    edge.label = edge.weight.toLocaleString();
+                }
+
+                return graph;
+            }
+
+            function buildPackages() {
+                const graph = newGraph();
+                for (const pkg of DATA.packages) {
+                    if (state.hidden.has(pkg.component)) {
+                        continue;
+                    }
+
+                    const colour = colours.get(pkg.component);
+                    const parent = `component:${pkg.component}`;
+                    addNode(graph, parent, { label: pkg.component, colour, compound: true });
+                    addNode(graph, pkg.path, { label: short(pkg.path), colour, parent, pkg: pkg.path });
+                }
+
+                for (const ref of DATA.refs) {
+                    if (graph.nodes.has(ref.from) && graph.nodes.has(ref.to)) {
+                        addEdge(
+                            graph,
+                            ref.from,
+                            ref.to,
+                            ref,
+                            ref.sites.length,
+                            violationsByPair.has(pairKey(ref.from, ref.to)),
+                        );
+                    }
+                }
+
+                return graph;
+            }
+
+            function buildWiring() {
+                const graph = newGraph();
+                const injected = new Set();
+                for (const field of DATA.fields) {
+                    if (
+                        state.hidden.has(componentOf.get(field.pkg)) ||
+                        state.hidden.has(componentOf.get(field.toPkg))
+                    ) {
+                        continue;
+                    }
+
+                    const owner = memberNode(graph, field.pkg, `${field.pkg}.${field.type}`, field.type);
+                    const held = memberNode(graph, field.toPkg, `${field.toPkg}.${field.toType}`, field.toType);
+                    const edge = addEdge(
+                        graph,
+                        owner.id,
+                        held.id,
+                        field,
+                        1,
+                        violationsByPair.has(pairKey(field.pkg, field.toPkg)),
+                    );
+                    edge.label = state.fieldLabels ? edge.items.map(item => item.field).join(", ") : "";
+                    injected.add(held.id);
+                }
+
+                for (const impl of DATA.impls) {
+                    const iface = `${impl.pkg}.${impl.iface}`;
+                    if (!injected.has(iface)) {
+                        continue;
+                    }
+
+                    const node = memberNode(graph, impl.pkg, `${impl.pkg}.${impl.impl}`, impl.impl);
+                    addEdge(graph, iface, node.id, impl, 1, false).dashed = true;
+                }
+
+                return graph;
+            }
+
+            function buildCalls() {
+                const graph = newGraph();
+                const grouped = state.granularity !== "package";
+                for (const ref of DATA.refs) {
+                    if (
+                        !CALL_KINDS.has(ref.kind) ||
+                        state.hidden.has(componentOf.get(ref.from)) ||
+                        state.hidden.has(componentOf.get(ref.to))
+                    ) {
+                        continue;
+                    }
+
+                    const calleeType = ref.toType || "funcs";
+                    const calleeId = `${ref.to}.${calleeType}`;
+                    const callee = grouped
+                        ? memberNode(graph, ref.to, calleeId, calleeType)
+                        : addNode(graph, calleeId, {
+                              label: `${short(ref.to)}.${calleeType}`,
+                              colour: colours.get(componentOf.get(ref.to)),
+                              pkg: ref.to,
+                          });
+                    const violation = violationsByPair.has(pairKey(ref.from, ref.to));
+
+                    for (const [caller, sites] of callers(ref)) {
+                        const node = grouped
+                            ? memberNode(graph, ref.from, caller.id, caller.label)
+                            : addNode(graph, caller.id, {
+                                  label: caller.label,
+                                  colour: colours.get(componentOf.get(ref.from)),
+                                  pkg: ref.from,
+                              });
+                        addEdge(graph, node.id, callee.id, { ...ref, sites }, sites.length, violation);
+                    }
+                }
+
+                return graph;
+            }
+
+            function callers(ref) {
+                if (state.granularity === "file") {
+                    return [...Map.groupBy(ref.sites, site => site.file)].map(([file, sites]) => [
+                        { id: file, label: file.split("/").pop() },
+                        sites,
+                    ]);
+                }
+
+                if (state.granularity === "package") {
+                    return [[{ id: ref.from, label: short(ref.from) }, ref.sites]];
+                }
+
+                if (state.granularity === "function") {
+                    const name = [ref.fromType, ref.fromFunc || "declarations"].filter(Boolean).join(".");
+
+                    return [[{ id: `${ref.from}.${name}()`, label: name }, ref.sites]];
+                }
+
+                const type = ref.fromType || "funcs";
+
+                return [[{ id: `${ref.from}.${type}`, label: type }, ref.sites]];
+            }
+
+            function narrow(graph) {
+                if (!graph.nodes.has(state.focus)) {
+                    return graph;
+                }
+
+                const keep = new Set([state.focus]);
+                let frontier = new Set([state.focus]);
+                for (let hop = 0; hop < state.depth; hop += 1) {
+                    const next = new Set();
+                    for (const edge of graph.edges.values()) {
+                        if (frontier.has(edge.source) && !keep.has(edge.target)) {
+                            next.add(edge.target);
+                        }
+
+                        if (frontier.has(edge.target) && !keep.has(edge.source)) {
+                            next.add(edge.source);
+                        }
+                    }
+
+                    for (const id of next) {
+                        keep.add(id);
+                    }
+
+                    frontier = next;
+                }
+
+                const narrowed = newGraph();
+                for (const id of keep) {
+                    const node = graph.nodes.get(id);
+                    narrowed.nodes.set(id, node);
+                    if (node.parent) {
+                        narrowed.nodes.set(node.parent, graph.nodes.get(node.parent));
+                    }
+                }
+
+                for (const edge of graph.edges.values()) {
+                    if (keep.has(edge.source) && keep.has(edge.target)) {
+                        narrowed.edges.set(edge.id, edge);
+                    }
+                }
+
+                return narrowed;
+            }
+
+            function notify(text) {
+                ui.notice.textContent = text;
+                ui.notice.hidden = false;
+            }
+
+            function render() {
+                const view = VIEWS.find(candidate => candidate.id === state.view);
+                ticket += 1;
+                syncControls(view);
+
+                if (cy) {
+                    cy.destroy();
+                    cy = null;
+                }
+
+                ui.matrix.hidden = view.id !== "matrix";
+                ui.rules.hidden = view.id !== "rules";
+                ui.notice.hidden = true;
+                ui.details.replaceChildren(
+                    el("p", { className: "muted", textContent: "Click a node, an edge or a cell for details." }),
+                );
+
+                if (view.render) {
+                    view.render();
+                    return;
+                }
+
+                const full = view.build();
+                const leaves = [...full.nodes.values()].filter(node => !node.compound).map(node => node.id);
+                ui.focusOptions.replaceChildren(...leaves.sort().map(id => el("option", { value: id })));
+
+                const shown = narrow(full);
+                if (shown.edges.size > MAX_EDGES) {
+                    notify(
+                        `${shown.edges.size.toLocaleString()} edges is too many to lay out. Hide a component or focus on a node.`,
+                    );
+                    return;
+                }
+
+                notify(
+                    `Laying out ${shown.nodes.size.toLocaleString()} nodes and ${shown.edges.size.toLocaleString()} edges`,
+                );
+                const mine = ticket;
+                setTimeout(() => {
+                    if (mine === ticket) {
+                        draw(view, full, shown);
+                    }
+                }, 30);
+            }
+
+            function syncControls(view) {
+                for (const button of ui.tabs.children) {
+                    button.setAttribute("aria-selected", String(button.dataset.view === view.id));
+                }
+
+                ui.focusControls.hidden = !view.build;
+                ui.granularityControl.hidden = view.id !== "calls";
+                ui.labelsControl.hidden = view.id !== "wiring";
+                ui.hint.textContent = view.hint;
+                ui.focus.value = state.focus;
+
+                const chips = [];
+                for (const name of order) {
+                    const swatch = el("span", { className: "swatch" });
+                    swatch.style.background = colours.get(name);
+
+                    const chip = el("button", { type: "button", className: "chip" }, swatch, name);
+                    chip.setAttribute("aria-pressed", String(!state.hidden.has(name)));
+                    chip.addEventListener("click", () => {
+                        if (state.hidden.has(name)) {
+                            state.hidden.delete(name);
+                        } else {
+                            state.hidden.add(name);
+                        }
+
+                        saveHidden();
+                        render();
+                    });
+                    chips.push(chip);
+                }
+
+                ui.chips.replaceChildren(...chips);
+            }
+
+            function graphStyle(tokens) {
+                return [
+                    {
+                        selector: "node",
+                        style: {
+                            shape: "round-rectangle",
+                            width: "data(w)",
+                            height: "data(h)",
+                            label: "data(label)",
+                            "background-color": "data(colour)",
+                            "border-width": 1,
+                            "border-color": "rgba(0, 0, 0, 0.25)",
+                            color: "#141413",
+                            "font-size": 11,
+                            "text-wrap": "wrap",
+                            "text-valign": "center",
+                            "text-halign": "center",
+                        },
+                    },
+                    {
+                        selector: "node[?compound]",
+                        style: {
+                            "background-color": "data(colour)",
+                            "background-opacity": 0.12,
+                            "border-color": "data(colour)",
+                            "border-width": 2,
+                            color: tokens["--text"],
+                            "font-weight": 600,
+                            "text-valign": "top",
+                            "text-margin-y": -4,
+                            padding: "14px",
+                        },
+                    },
+                    {
+                        selector: "edge",
+                        style: {
+                            width: "data(width)",
+                            "curve-style": "bezier",
+                            "line-color": tokens["--edge"],
+                            "target-arrow-color": tokens["--edge"],
+                            "target-arrow-shape": "triangle",
+                            "arrow-scale": 0.8,
+                            opacity: 0.75,
+                        },
+                    },
+                    {
+                        selector: "edge[label != '']",
+                        style: {
+                            label: "data(label)",
+                            color: tokens["--muted"],
+                            "font-size": 9,
+                            "text-background-color": tokens["--bg"],
+                            "text-background-opacity": 0.85,
+                            "text-background-padding": 2,
+                        },
+                    },
+                    {
+                        selector: "edge[?dashed]",
+                        style: { "line-style": "dashed" },
+                    },
+                    {
+                        selector: "edge[?violation]",
+                        style: {
+                            "line-color": tokens["--danger"],
+                            "target-arrow-color": tokens["--danger"],
+                            opacity: 1,
+                            "z-index": 10,
+                        },
+                    },
+                    {
+                        selector: ".faded",
+                        style: { opacity: 0.1 },
+                    },
+                    {
+                        selector: "node:selected",
+                        style: { "border-width": 3, "border-color": tokens["--accent"] },
+                    },
+                    {
+                        selector: "edge:selected",
+                        style: {
+                            "line-color": tokens["--accent"],
+                            "target-arrow-color": tokens["--accent"],
+                            opacity: 1,
+                        },
+                    },
+                ];
+            }
+
+            function draw(view, full, shown) {
+                const theme = getComputedStyle(document.documentElement);
+                const tokens = Object.fromEntries(
+                    THEME_TOKENS.map(name => [name, theme.getPropertyValue(name).trim()]),
+                );
+                const heaviest = Math.max(1, ...[...shown.edges.values()].map(edge => edge.weight));
+                const nodes = [...shown.nodes.values()].sort(
+                    (a, b) => Number(Boolean(b.compound)) - Number(Boolean(a.compound)),
+                );
+
+                const elements = [];
+                for (const node of nodes) {
+                    const lines = node.label.split("\n");
+                    elements.push({
+                        group: "nodes",
+                        data: {
+                            id: node.id,
+                            parent: node.parent,
+                            label: node.label,
+                            colour: node.colour,
+                            compound: Boolean(node.compound),
+                            w: Math.max(...lines.map(line => line.length)) * 6.8 + 18,
+                            h: lines.length * 15 + 10,
+                        },
+                    });
+                }
+
+                for (const edge of shown.edges.values()) {
+                    elements.push({
+                        group: "edges",
+                        data: {
+                            id: edge.id,
+                            source: edge.source,
+                            target: edge.target,
+                            label: edge.label ?? "",
+                            violation: edge.violation,
+                            dashed: Boolean(edge.dashed),
+                            width: 1 + (4 * Math.log1p(edge.weight)) / Math.log1p(heaviest),
+                        },
+                    });
+                }
+
+                cy = cytoscape({
+                    container: ui.cy,
+                    elements,
+                    style: graphStyle(tokens),
+                    minZoom: 0.05,
+                    maxZoom: 4,
+                    boxSelectionEnabled: false,
+                });
+
+                const layout = cy.layout({
+                    name: "elk",
+                    fit: true,
+                    padding: 24,
+                    nodeDimensionsIncludeLabels: false,
+                    elk: {
+                        algorithm: "layered",
+                        "elk.direction": "DOWN",
+                        "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+                        "elk.layered.spacing.nodeNodeBetweenLayers": 48,
+                        "elk.spacing.nodeNode": 16,
+                        "elk.padding": "[top=30,left=12,bottom=12,right=12]",
+                    },
+                });
+                layout.one("layoutstop", () => {
+                    ui.notice.hidden = true;
+                });
+                layout.run();
+
+                cy.on("tap", "node", event => {
+                    highlight(event.target);
+                    nodeDetails(view, full, event.target.id());
+                });
+                cy.on("tap", "edge", event => {
+                    highlight(event.target);
+                    edgeDetails(view, full, full.edges.get(event.target.id()));
+                });
+                cy.on("tap", event => {
+                    if (event.target === cy) {
+                        cy.elements().removeClass("faded");
+                    }
+                });
+                cy.on("dbltap", "node", event => {
+                    if (!event.target.isParent()) {
+                        focusOn(event.target.id());
+                    }
+                });
+            }
+
+            function highlight(target) {
+                cy.elements().addClass("faded");
+
+                if (target.isEdge()) {
+                    const lit = target.union(target.connectedNodes());
+                    lit.union(lit.ancestors()).removeClass("faded");
+                    return;
+                }
+
+                const base = target.isParent() ? target.descendants() : target;
+                const lit = base.closedNeighborhood().union(target);
+                lit.union(lit.nodes().ancestors()).removeClass("faded");
+            }
+
+            function focusOn(id) {
+                state.focus = id;
+                render();
+            }
+
+            function lazyDetails(summary, fill) {
+                const details = el("details", {}, el("summary", {}, ...summary));
+                let filled = false;
+                details.addEventListener("toggle", () => {
+                    if (details.open && !filled) {
+                        filled = true;
+                        details.append(fill());
+                    }
+                });
+
+                return details;
+            }
+
+            function nodeDetails(view, graph, id) {
+                const node = graph.nodes.get(id);
+                const panel = [el("h2", { textContent: node.title })];
+
+                if (node.pkg) {
+                    panel.push(
+                        el("p", { className: "muted", textContent: `${node.pkg} · ${componentOf.get(node.pkg)}` }),
+                    );
+                }
+
+                if (node.compound) {
+                    const children = [...graph.nodes.values()].filter(child => child.parent === id);
+                    const list = el("ul", { className: "sites" });
+                    for (const child of children) {
+                        list.append(el("li", { textContent: child.label }));
+                    }
+
+                    panel.push(el("h3", { textContent: `Contains (${children.length})` }), list);
+                    ui.details.replaceChildren(...panel);
+                    return;
+                }
+
+                if (node.packages) {
+                    const list = el("ul", { className: "sites" });
+                    for (const pkg of node.packages) {
+                        list.append(el("li", {}, el("code", { textContent: pkg.path }), ` ${pkg.files} files`));
+                    }
+
+                    panel.push(el("h3", { textContent: "Packages" }), list);
+                }
+
+                const focus = el("button", { type: "button", className: "action", textContent: "Focus here" });
+                focus.addEventListener("click", () => {
+                    focusOn(id);
+                });
+                panel.push(focus);
+
+                const edges = [...graph.edges.values()].sort((a, b) => b.weight - a.weight);
+                panel.push(
+                    edgeList(
+                        view,
+                        graph,
+                        "Uses",
+                        edges.filter(edge => edge.source === id),
+                        edge => edge.target,
+                    ),
+                    edgeList(
+                        view,
+                        graph,
+                        "Used by",
+                        edges.filter(edge => edge.target === id),
+                        edge => edge.source,
+                    ),
+                );
+                ui.details.replaceChildren(...panel);
+            }
+
+            function edgeList(view, graph, title, edges, otherEnd) {
+                const section = el("section", {}, el("h3", { textContent: `${title} (${edges.length})` }));
+                for (const edge of edges) {
+                    section.append(
+                        lazyDetails(
+                            [
+                                el("span", {
+                                    className: edge.violation ? "bad" : "",
+                                    textContent: graph.nodes.get(otherEnd(edge)).title,
+                                }),
+                                el("span", { className: "count", textContent: edge.weight.toLocaleString() }),
+                            ],
+                            () => view.edgeBody(edge.items),
+                        ),
+                    );
+                }
+
+                return section;
+            }
+
+            function edgeDetails(view, graph, edge) {
+                const verdict = edge.violation ? ", breaks a go-arch-lint rule" : "";
+                ui.details.replaceChildren(
+                    el("h2", {
+                        textContent: `${graph.nodes.get(edge.source).title} → ${graph.nodes.get(edge.target).title}`,
+                    }),
+                    el("p", {
+                        className: edge.violation ? "bad" : "muted",
+                        textContent: `${edge.weight.toLocaleString()} ${edge.weight === 1 ? view.unit.one : view.unit.many}${verdict}`,
+                    }),
+                    view.edgeBody(edge.items),
+                );
+            }
+
+            function layerBody(refs) {
+                const list = el("div");
+                const pairs = [...Map.groupBy(refs, ref => pairKey(ref.from, ref.to)).values()].sort(
+                    (a, b) => siteCount(b) - siteCount(a),
+                );
+                for (const pair of pairs) {
+                    const { from, to } = pair[0];
+                    list.append(
+                        lazyDetails(
+                            [
+                                el("span", {
+                                    className: violationsByPair.has(pairKey(from, to)) ? "bad" : "",
+                                    textContent: `${short(from)} → ${short(to)}`,
+                                }),
+                                el("span", { className: "count", textContent: siteCount(pair).toLocaleString() }),
+                            ],
+                            () => pairBody(pair),
+                        ),
+                    );
+                }
+
+                return list;
+            }
+
+            function pairBody(refs) {
+                const { from, to } = refs[0];
+                const body = el("div");
+
+                const flagged = violationsByPair.get(pairKey(from, to)) ?? [];
+                if (flagged.length > 0) {
+                    const list = el("ul", { className: "sites" });
+                    for (const violation of flagged) {
+                        list.append(
+                            el("li", {}, el("code", { textContent: `${violation.site.file}:${violation.site.line}` })),
+                        );
+                    }
+
+                    body.append(
+                        el("p", {
+                            className: "bad",
+                            textContent: `go-arch-lint: ${flagged[0].component} may not import ${short(to)}`,
+                        }),
+                        list,
+                    );
+                }
+
+                const symbols = [...Map.groupBy(refs, ref => `${ref.toType}.${ref.name}.${ref.kind}`).values()].sort(
+                    (a, b) => siteCount(b) - siteCount(a),
+                );
+                for (const group of symbols) {
+                    const { toType, name, kind } = group[0];
+                    body.append(
+                        lazyDetails(
+                            [
+                                el("code", { textContent: toType ? `${toType}.${name}` : name }),
+                                el("span", { className: "kind", textContent: kind }),
+                                el("span", { className: "count", textContent: siteCount(group).toLocaleString() }),
+                            ],
+                            () => sitesList(group),
+                        ),
+                    );
+                }
+
+                return body;
+            }
+
+            function sitesList(refs) {
+                const list = el("ul", { className: "sites" });
+                for (const ref of refs) {
+                    const caller = [ref.fromType, ref.fromFunc].filter(Boolean).join(".") || "declarations";
+                    for (const site of ref.sites) {
+                        list.append(
+                            el(
+                                "li",
+                                {},
+                                el("code", { textContent: `${site.file}:${site.line}` }),
+                                el("span", { className: "muted", textContent: ` in ${caller}` }),
+                            ),
+                        );
+                    }
+                }
+
+                return list;
+            }
+
+            function wiringBody(items) {
+                const list = el("ul", { className: "sites" });
+                for (const item of items) {
+                    if (item.iface) {
+                        list.append(el("li", { textContent: `${item.impl} implements ${item.iface}` }));
+                        continue;
+                    }
+
+                    list.append(
+                        el(
+                            "li",
+                            {},
+                            el("code", { textContent: item.field }),
+                            item.embedded ? " embedded at " : " at ",
+                            el("code", { textContent: `${item.site.file}:${item.site.line}` }),
+                        ),
+                    );
+                }
+
+                return list;
+            }
+
+            function renderMatrix() {
+                const rank = new Map(order.map((name, index) => [name, index]));
+                const packages = DATA.packages
+                    .filter(pkg => !state.hidden.has(pkg.component))
+                    .sort((a, b) => rank.get(a.component) - rank.get(b.component) || a.path.localeCompare(b.path));
+                const cells = Map.groupBy(DATA.refs, ref => pairKey(ref.from, ref.to));
+
+                let heaviest = 1;
+                for (const refs of cells.values()) {
+                    heaviest = Math.max(heaviest, siteCount(refs));
+                }
+
+                const head = el("tr", {}, el("th", { className: "corner" }));
+                for (const pkg of packages) {
+                    const th = el(
+                        "th",
+                        { className: "col", title: pkg.path },
+                        el("span", { textContent: short(pkg.path) }),
+                    );
+                    th.style.borderTopColor = colours.get(pkg.component);
+                    head.append(th);
+                }
+
+                const body = el("tbody");
+                for (const row of packages) {
+                    const th = el("th", { className: "row", title: row.path, textContent: short(row.path) });
+                    th.style.borderLeftColor = colours.get(row.component);
+
+                    const tr = el("tr", {}, th);
+                    for (const col of packages) {
+                        const key = pairKey(row.path, col.path);
+                        const refs = cells.get(key);
+                        const td = el("td");
+                        if (row.path === col.path) {
+                            td.className = "self";
+                        } else if (refs) {
+                            const weight = siteCount(refs);
+                            td.dataset.key = key;
+                            td.title = `${short(row.path)} → ${short(col.path)}: ${weight.toLocaleString()} ${weight === 1 ? "reference" : "references"}`;
+                            if (violationsByPair.has(key)) {
+                                td.className = "bad";
+                            } else {
+                                const alpha = 0.15 + (0.85 * Math.log1p(weight)) / Math.log1p(heaviest);
+                                td.style.background = `rgba(var(--cell), ${alpha.toFixed(3)})`;
+                            }
+                        }
+
+                        tr.append(td);
+                    }
+
+                    body.append(tr);
+                }
+
+                const table = el("table", { className: "matrix" }, el("thead", {}, head), body);
+                table.addEventListener("click", event => {
+                    const cell = event.target.closest("td[data-key]");
+                    if (!cell) {
+                        return;
+                    }
+
+                    const refs = cells.get(cell.dataset.key);
+                    const total = siteCount(refs);
+                    ui.details.replaceChildren(
+                        el("h2", { textContent: `${short(refs[0].from)} → ${short(refs[0].to)}` }),
+                        el("p", {
+                            className: "muted",
+                            textContent: `${total.toLocaleString()} ${total === 1 ? "reference" : "references"}`,
+                        }),
+                        pairBody(refs),
+                    );
+                });
+                ui.matrix.replaceChildren(table);
+            }
+
+            function renderRules() {
+                const list = el("div");
+                const groups = Map.groupBy(
+                    DATA.violations,
+                    violation => `${violation.component} ${pairKey(violation.from, violation.to)}`,
+                );
+                for (const group of groups.values()) {
+                    const { component, from, to } = group[0];
+                    list.append(
+                        lazyDetails(
+                            [
+                                el("span", { className: "bad", textContent: `${short(from)} → ${short(to)}` }),
+                                el("span", { className: "kind", textContent: component }),
+                                el("span", { className: "count", textContent: group.length.toLocaleString() }),
+                            ],
+                            () => {
+                                const sites = el("ul", { className: "sites" });
+                                for (const violation of group) {
+                                    sites.append(
+                                        el(
+                                            "li",
+                                            {},
+                                            el("code", {
+                                                textContent: `${violation.site.file}:${violation.site.line}`,
+                                            }),
+                                        ),
+                                    );
+                                }
+
+                                return sites;
+                            },
+                        ),
+                    );
+                }
+
+                const figures = DATA.rules.map(rule =>
+                    el(
+                        "figure",
+                        {},
+                        el("img", { src: rule.file, alt: `go-arch-lint ${rule.kind} graph of the declared rules` }),
+                        el("figcaption", { textContent: `go-arch-lint graph --type ${rule.kind}` }),
+                    ),
+                );
+
+                ui.rules.replaceChildren(
+                    el("h2", { textContent: `${DATA.violations.length} imports break the declared rules` }),
+                    list,
+                    el("div", { className: "figures" }, ...figures),
+                );
+            }
+
+            for (const view of VIEWS) {
+                const button = el("button", { type: "button", textContent: view.title });
+                button.dataset.view = view.id;
+                button.setAttribute("role", "tab");
+                button.addEventListener("click", () => {
+                    state.view = view.id;
+                    state.focus = "";
+                    render();
+                });
+                ui.tabs.append(button);
+            }
+
+            ui.focus.addEventListener("change", () => {
+                state.focus = ui.focus.value.trim();
+                render();
+            });
+            ui.depth.addEventListener("change", () => {
+                state.depth = Number(ui.depth.value);
+                render();
+            });
+            ui.clearFocus.addEventListener("click", () => {
+                state.focus = "";
+                render();
+            });
+            ui.fit.addEventListener("click", () => {
+                if (cy) {
+                    cy.fit(undefined, 24);
+                }
+            });
+            ui.granularity.addEventListener("change", () => {
+                state.granularity = ui.granularity.value;
+                state.focus = "";
+                render();
+            });
+            ui.fieldLabels.addEventListener("change", () => {
+                state.fieldLabels = ui.fieldLabels.checked;
+                render();
+            });
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+
+            ui.stats.replaceChildren(
+                `${DATA.module} · ${DATA.packages.length} packages · ${siteCount(DATA.refs).toLocaleString()} cross-package references · `,
+                el("span", {
+                    className: DATA.violations.length > 0 ? "bad" : "",
+                    textContent: `${DATA.violations.length} rule violations`,
+                }),
+            );
+
+            render();
+        </script>
+    </body>
+</html>

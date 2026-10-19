@@ -1,0 +1,188 @@
+version: 3
+workdir: .
+
+allow:
+  depOnAnyVendor: true
+
+exclude:
+  - frontend
+  - static
+  - scripts
+  - uploads
+  - data
+  - design
+  - internal/controllers/utils/testutil
+  - internal/dao/daotest
+  - internal/db/dbtest
+  - internal/upload/uploadtest
+
+excludeFiles:
+  - "^.*_test\\.go$"
+  - "^.*_mock\\.go$"
+
+components:
+  main:         { in: . }
+  routes:       { in: internal/routes }
+  controllers:  { in: [ internal/controllers, internal/controllers/utils ] }
+  middleware:   { in: internal/middleware }
+  repository:   { in: internal/repository }
+  store:        { in: internal/store }
+  dao:
+    in:
+      - internal/dao
+      - internal/dao/dynamicsql
+      - internal/dao/queries/expand
+      - internal/dao/sqlcgen
+      - internal/dao/utils
+  db:           { in: internal/db }
+  settings:     { in: internal/settings }
+  services:
+    in:
+      - internal/admin
+      - internal/announcement
+      - internal/art
+      - internal/auth
+      - internal/authz
+      - internal/block
+      - internal/chat
+      - internal/chatbot
+      - internal/comment
+      - internal/contentfilter
+      - internal/contentfilter/rules/bannedgiphy
+      - internal/contentfilter/rules/newaccountlinks
+      - internal/contentfilter/rules/slurs
+      - internal/credibility
+      - internal/fanfic
+      - internal/follow
+      - internal/game/checkers
+      - internal/game/chess
+      - internal/game/minesweeper
+      - internal/game/othello
+      - internal/game/pong
+      - internal/game/snakesandladders
+      - internal/gameroom
+      - internal/giphy/banlist
+      - internal/giphy/favourite
+      - internal/health
+      - internal/homefeed
+      - internal/journal
+      - internal/linkpreview
+      - internal/media
+      - internal/mention
+      - internal/mystery
+      - internal/notification
+      - internal/notification/push
+      - internal/oc
+      - internal/og
+      - internal/overlay
+      - internal/post
+      - internal/profile
+      - internal/report
+      - internal/search
+      - internal/secret
+      - internal/session
+      - internal/ship
+      - internal/sidebar
+      - internal/siteinfo
+      - internal/sitemap
+      - internal/storage
+      - internal/stream
+      - internal/theory
+      - internal/upload
+      - internal/user
+      - internal/usersecret
+      - internal/vanityrole
+      - internal/ws
+  integrations:
+    in:
+      - internal/cache
+      - internal/cache/engine
+      - internal/cache/engines
+      - internal/cache/engines/observability
+      - internal/dronebl
+      - internal/dronebl/feed
+      - internal/email
+      - internal/giphy
+      - internal/httpclient
+      - internal/hyperbeam
+      - internal/livekit
+      - internal/openai
+      - internal/quotefinder
+      - internal/storage/engine
+      - internal/storage/engines
+      - internal/telemetry
+  kernel:
+    in:
+      - internal/audit
+      - internal/authctx
+      - internal/bounds
+      - internal/coalesce
+      - internal/config
+      - internal/corner
+      - internal/dto
+      - internal/fanfic/params
+      - internal/journal/params
+      - internal/logger
+      - internal/model
+      - internal/model/spec
+      - internal/reserved
+      - internal/role
+      - internal/secrets
+      - internal/text
+      - internal/theory/params
+      - internal/utils
+
+commonComponents:
+  - kernel
+  - settings
+
+deps:
+  main:
+    anyProjectDeps: true
+
+  routes:
+    mayDependOn:
+      - controllers
+
+  controllers:
+    mayDependOn:
+      - controllers
+      - middleware
+      - services
+      - integrations
+
+  middleware:
+    mayDependOn:
+      - services
+      - integrations
+
+  services:
+    mayDependOn:
+      - services
+      - repository
+      - integrations
+
+  settings:
+    mayDependOn:
+      - repository
+
+  integrations:
+    mayDependOn:
+      - integrations
+
+  store:
+    mayDependOn:
+      - repository
+      - dao
+      - integrations
+
+  repository:
+    mayDependOn:
+      - dao
+      - db
+      - integrations
+
+  dao:
+    mayDependOn:
+      - dao
+      - db
