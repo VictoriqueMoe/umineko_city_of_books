@@ -326,7 +326,7 @@ func (s *service) FlushFallback(ctx context.Context) (int, error) {
 
 	root, err := engines.Root(s.settingsSvc.Get(ctx, config.SettingUploadDir))
 	if err != nil {
-		return 0, fmt.Errorf("resolve the upload directory: %w", err)
+		return 0, err
 	}
 
 	rows, err := s.repo.ListFallback(ctx)

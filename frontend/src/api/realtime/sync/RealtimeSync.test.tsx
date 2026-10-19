@@ -97,7 +97,7 @@ describe("RealtimeSync", () => {
         const { queryClient } = renderSync();
 
         // when
-        emit({ type: "notification", data: { id: 4, type: "chat_mention" } });
+        emit({ type: "notification", data: { id: 4, type: "chat_mention", reference_type: "chat_room" } });
 
         // then
         expect(queryClient.getQueryData(queryKeys.notifications.unreadCount())).toEqual({ count: 1 });
@@ -108,10 +108,10 @@ describe("RealtimeSync", () => {
         const { showNotification, playSound } = renderSync();
 
         // when
-        emit({ type: "notification", data: { id: 4, type: "chat_mention" } });
+        emit({ type: "notification", data: { id: 4, type: "chat_mention", reference_type: "chat_room" } });
 
         // then
-        expect(showNotification).toHaveBeenCalledWith({ id: 4, type: "chat_mention" });
+        expect(showNotification).toHaveBeenCalledWith({ id: 4, type: "chat_mention", reference_type: "chat_room" });
         expect(playSound).toHaveBeenCalledOnce();
     });
 

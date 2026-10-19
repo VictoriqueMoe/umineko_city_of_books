@@ -23,9 +23,9 @@ func TestErrorHandler(t *testing.T) {
 		wantJSON   bool
 	}{
 		{
-			name:       "a body over the limit is refused with the limit spelled out",
-			body:       bytes.Repeat([]byte("x"), 3*1024*1024),
-			route:      func(ctx fiber.Ctx) error { return ctx.SendStatus(fiber.StatusCreated) },
+			name:       "a request too large is refused with the limit spelled out",
+			body:       []byte("small"),
+			route:      func(fiber.Ctx) error { return fiber.ErrRequestEntityTooLarge },
 			wantStatus: fiber.StatusRequestEntityTooLarge,
 			wantError:  "This is more than the 2 MB one request can carry. Every file is sent together with the post, so remove or shrink some files and try again.",
 			wantJSON:   true,

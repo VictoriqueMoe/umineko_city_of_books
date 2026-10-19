@@ -148,10 +148,14 @@ describe("NotificationProvider", () => {
         openSocket();
 
         // when
-        emit({ type: "notification", data: { id: 4, type: "chat_mention" } });
+        emit({ type: "notification", data: { id: 4, type: "chat_mention", reference_type: "chat_room" } });
 
         // then
-        expect(showDesktopNotification).toHaveBeenCalledWith({ id: 4, type: "chat_mention" });
+        expect(showDesktopNotification).toHaveBeenCalledWith({
+            id: 4,
+            type: "chat_mention",
+            reference_type: "chat_room",
+        });
         expect(playNotificationSound).toHaveBeenCalledOnce();
     });
 

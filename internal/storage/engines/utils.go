@@ -1,7 +1,9 @@
 package engines
 
 import (
+	"fmt"
 	"path/filepath"
+
 	"umineko_city_of_books/internal/storage/engine"
 )
 
@@ -14,5 +16,10 @@ func ResolvePath(uploadDir string, key string) (string, error) {
 }
 
 func Root(uploadDir string) (string, error) {
-	return filepath.Abs(uploadDir)
+	root, err := filepath.Abs(uploadDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve upload directory: %w", err)
+	}
+
+	return root, nil
 }
