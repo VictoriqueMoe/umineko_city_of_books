@@ -324,6 +324,78 @@ func TestCheckUsernameAvailable_RepoError(t *testing.T) {
 	assert.Contains(t, err.Error(), "check username")
 }
 
+func TestUpdateIP(t *testing.T) {
+	uid := uuid.New()
+	readErr := errors.New("read failed")
+	writeErr := errors.New("write failed")
+
+	cases := []struct {
+		name    string
+		ip      string
+		expect  func(userRepo *repository.MockUserRepository)
+		wantErr error
+	}{
+		{
+			name: "the same ip as stored writes nothing",
+			ip:   "10.0.0.1",
+			expect: func(userRepo *repository.MockUserRepository) {
+				userRepo.EXPECT().GetIP(mock.Anything, uid).Return("10.0.0.1", nil).Once()
+			},
+		},
+		{
+			name: "a changed ip is written",
+			ip:   "10.0.0.2",
+			expect: func(userRepo *repository.MockUserRepository) {
+				userRepo.EXPECT().GetIP(mock.Anything, uid).Return("10.0.0.1", nil).Once()
+				userRepo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.2"}).Return(nil).Once()
+			},
+		},
+		{
+			name: "a user with no ip yet gets one written",
+			ip:   "10.0.0.1",
+			expect: func(userRepo *repository.MockUserRepository) {
+				userRepo.EXPECT().GetIP(mock.Anything, uid).Return("", nil).Once()
+				userRepo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.1"}).Return(nil).Once()
+			},
+		},
+		{
+			name: "a failed read writes nothing",
+			ip:   "10.0.0.1",
+			expect: func(userRepo *repository.MockUserRepository) {
+				userRepo.EXPECT().GetIP(mock.Anything, uid).Return("", readErr).Once()
+			},
+			wantErr: readErr,
+		},
+		{
+			name: "a failed write is returned",
+			ip:   "10.0.0.2",
+			expect: func(userRepo *repository.MockUserRepository) {
+				userRepo.EXPECT().GetIP(mock.Anything, uid).Return("10.0.0.1", nil).Once()
+				userRepo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.2"}).Return(writeErr).Once()
+			},
+			wantErr: writeErr,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, userRepo, _, _ := newTestService(t)
+			tc.expect(userRepo)
+
+			// when
+			err := svc.UpdateIP(context.Background(), uid, tc.ip)
+
+			// then
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
 func TestIsChatbotOptedIn(t *testing.T) {
 	roleID := "characters"
 

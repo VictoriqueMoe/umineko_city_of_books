@@ -177,7 +177,6 @@ packages:
       Disconnector:
   umineko_city_of_books/internal/middleware:
     interfaces:
-      IPStore:
       Authenticator:
   umineko_city_of_books/internal/repository:
     config:

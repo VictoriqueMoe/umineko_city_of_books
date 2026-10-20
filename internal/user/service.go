@@ -167,6 +167,15 @@ func (s *service) CheckUsernameAvailable(ctx context.Context, username string) e
 }
 
 func (s *service) UpdateIP(ctx context.Context, id uuid.UUID, ip string) error {
+	current, err := s.repo.GetIP(ctx, id)
+	if err != nil {
+		return fmt.Errorf("get current ip: %w", err)
+	}
+
+	if current == ip {
+		return nil
+	}
+
 	return s.repo.UpdateIP(ctx, spec.UserIPUpdate{UserID: id, IP: ip})
 }
 

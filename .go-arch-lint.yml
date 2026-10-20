@@ -61,6 +61,7 @@ components:
       - internal/game/pong
       - internal/game/snakesandladders
       - internal/gameroom
+      - internal/giphy
       - internal/giphy/banlist
       - internal/giphy/favourite
       - internal/health
@@ -102,7 +103,6 @@ components:
       - internal/dronebl
       - internal/dronebl/feed
       - internal/email
-      - internal/giphy
       - internal/httpclient
       - internal/hyperbeam
       - internal/livekit
