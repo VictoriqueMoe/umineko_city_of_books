@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dronebl"
@@ -36,7 +37,7 @@ var (
 	}
 )
 
-func Setup(app *fiber.App, settingsSvc settings.Service, authenticator Authenticator, authzSvc authz.Service, droneblChecker *dronebl.Checker) {
+func Setup(app *fiber.App, settingsSvc settings.Service, authSvc auth.Service, authzSvc authz.Service, droneblChecker *dronebl.Checker) {
 	app.Server().MaxRequestBodySize = settingsSvc.GetInt(context.Background(), config.SettingMaxBodySize)
 
 	app.Use(fiberRecover.New(fiberRecover.Config{
@@ -81,7 +82,7 @@ func Setup(app *fiber.App, settingsSvc settings.Service, authenticator Authentic
 		return ctx.Next()
 	})
 
-	app.Use(RequireCleanIP(droneblChecker, authenticator))
+	app.Use(RequireCleanIP(droneblChecker, authSvc))
 
 	app.Use(func(ctx fiber.Ctx) error {
 		start := time.Now()
@@ -118,8 +119,8 @@ func Setup(app *fiber.App, settingsSvc settings.Service, authenticator Authentic
 		return err
 	})
 
-	app.Use(RequireLogin(settingsSvc, authenticator))
-	app.Use(maintenanceMiddleware(settingsSvc, authenticator, authzSvc))
+	app.Use(RequireLogin(settingsSvc, authSvc))
+	app.Use(maintenanceMiddleware(settingsSvc, authSvc, authzSvc))
 }
 
 func redactedQueryString(ctx fiber.Ctx) string {
@@ -174,7 +175,7 @@ func shouldSkipRequestLog(ctx fiber.Ctx) bool {
 	return ctx.Method() == "GET" && ctx.Response().StatusCode() < 400
 }
 
-func maintenanceMiddleware(settingsSvc settings.Service, authenticator Authenticator, authzSvc authz.Service) fiber.Handler {
+func maintenanceMiddleware(settingsSvc settings.Service, authSvc auth.Service, authzSvc authz.Service) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		if !settingsSvc.GetBool(ctx.Context(), config.SettingMaintenanceMode) {
 			return ctx.Next()
@@ -192,7 +193,7 @@ func maintenanceMiddleware(settingsSvc settings.Service, authenticator Authentic
 
 		token := SessionToken(ctx)
 		if token != "" {
-			if state, err := authenticate(ctx, authenticator, token); err == nil {
+			if state, err := authenticate(ctx, authSvc, token); err == nil {
 				if authzSvc.Can(ctx.Context(), state.UserID, authz.PermManageSettings) {
 					return ctx.Next()
 				}

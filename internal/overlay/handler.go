@@ -52,7 +52,7 @@ func (s *service) stillAuthorised(token string, userID uuid.UUID) error {
 		return fmt.Errorf("overlay token no longer belongs to this user")
 	}
 
-	if s.banChecker != nil && s.banChecker.IsBanned(ctx, userID) {
+	if s.authzSvc != nil && s.authzSvc.IsBanned(ctx, userID) {
 		return fmt.Errorf("account is banned")
 	}
 
@@ -121,7 +121,7 @@ func (s *service) Handler() fiber.Handler {
 			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid token"})
 		}
 
-		if s.banChecker != nil && s.banChecker.IsBanned(ctx.Context(), userID) {
+		if s.authzSvc != nil && s.authzSvc.IsBanned(ctx.Context(), userID) {
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "account is banned"})
 		}
 

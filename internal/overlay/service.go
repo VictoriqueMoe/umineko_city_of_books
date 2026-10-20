@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model/spec"
@@ -39,7 +40,7 @@ type (
 		repo        repository.OverlayTokenRepository
 		hub         *ws.Hub
 		settingsSvc settings.Service
-		banChecker  ws.BanChecker
+		authzSvc    authz.Service
 	}
 
 	overlayPayload struct {
@@ -70,14 +71,14 @@ var overlayEvents = map[dto.NotificationType]eventMapping{
 	dto.NotifGameFinished:   {"game_over", "your game has ended"},
 }
 
-func NewService(repo repository.OverlayTokenRepository, hub *ws.Hub, settingsSvc settings.Service, banChecker ...ws.BanChecker) Service {
+func NewService(repo repository.OverlayTokenRepository, hub *ws.Hub, settingsSvc settings.Service, authzSvc ...authz.Service) Service {
 	svc := &service{
 		repo:        repo,
 		hub:         hub,
 		settingsSvc: settingsSvc,
 	}
-	if len(banChecker) > 0 {
-		svc.banChecker = banChecker[0]
+	if len(authzSvc) > 0 {
+		svc.authzSvc = authzSvc[0]
 	}
 
 	return svc

@@ -83,13 +83,13 @@ func TestRequireAuth(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			authenticator := NewMockAuthenticator(t)
+			authSvc := auth.NewMockService(t)
 			if tc.token != "" {
-				authenticator.EXPECT().Authenticate(mock.Anything, tc.token).Return(tc.state, tc.authErr).Once()
+				authSvc.EXPECT().Authenticate(mock.Anything, tc.token).Return(tc.state, tc.authErr).Once()
 			}
 
 			app := fiber.New()
-			app.All("/*", RequireAuth(authenticator), func(ctx fiber.Ctx) error {
+			app.All("/*", RequireAuth(authSvc), func(ctx fiber.Ctx) error {
 				userID, _ := ctx.Locals("userID").(uuid.UUID)
 
 				return ctx.SendString(userID.String())
@@ -131,13 +131,13 @@ func TestOptionalAuth(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			authenticator := NewMockAuthenticator(t)
+			authSvc := auth.NewMockService(t)
 			if tc.token != "" {
-				authenticator.EXPECT().Authenticate(mock.Anything, tc.token).Return(tc.state, tc.authErr).Once()
+				authSvc.EXPECT().Authenticate(mock.Anything, tc.token).Return(tc.state, tc.authErr).Once()
 			}
 
 			app := fiber.New()
-			app.Post("/*", OptionalAuth(authenticator), func(ctx fiber.Ctx) error {
+			app.Post("/*", OptionalAuth(authSvc), func(ctx fiber.Ctx) error {
 				userID, _ := ctx.Locals("userID").(uuid.UUID)
 
 				return ctx.SendString(userID.String())
@@ -167,13 +167,13 @@ func TestRequirePermission(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			userID := uuid.New()
-			authenticator := NewMockAuthenticator(t)
-			authenticator.EXPECT().Authenticate(mock.Anything, testToken).Return(liveState(userID), nil).Once()
+			authSvc := auth.NewMockService(t)
+			authSvc.EXPECT().Authenticate(mock.Anything, testToken).Return(liveState(userID), nil).Once()
 			authzSvc := authz.NewMockService(t)
 			authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermManageSettings).Return(tc.granted).Once()
 
 			app := fiber.New()
-			app.Get("/*", RequirePermission(authenticator, authzSvc, authz.PermManageSettings), func(ctx fiber.Ctx) error {
+			app.Get("/*", RequirePermission(authSvc, authzSvc, authz.PermManageSettings), func(ctx fiber.Ctx) error {
 				return ctx.SendString("ok")
 			})
 
@@ -194,7 +194,7 @@ func TestAuthenticate_RunsOncePerRequest(t *testing.T) {
 		path       string
 		state      model.SessionAuthState
 		authErr    error
-		route      func(Authenticator) fiber.Handler
+		route      func(auth.Service) fiber.Handler
 		wantStatus int
 		wantBody   string
 	}{
@@ -205,14 +205,14 @@ func TestAuthenticate_RunsOncePerRequest(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			authenticator := NewMockAuthenticator(t)
-			authenticator.EXPECT().Authenticate(mock.Anything, testToken).Return(tc.state, tc.authErr).Once()
+			authSvc := auth.NewMockService(t)
+			authSvc.EXPECT().Authenticate(mock.Anything, testToken).Return(tc.state, tc.authErr).Once()
 			settingsSvc := settings.NewMockService(t)
 			settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingPrivateMode).Return(true).Once()
 
 			app := fiber.New()
-			app.Use(RequireLogin(settingsSvc, authenticator))
-			app.Get(tc.path, tc.route(authenticator), func(ctx fiber.Ctx) error {
+			app.Use(RequireLogin(settingsSvc, authSvc))
+			app.Get(tc.path, tc.route(authSvc), func(ctx fiber.Ctx) error {
 				id, _ := ctx.Locals("userID").(uuid.UUID)
 
 				return ctx.SendString(id.String())

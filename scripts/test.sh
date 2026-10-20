@@ -16,5 +16,8 @@ fi
 echo "Running staticcheck..."
 go tool staticcheck ./...
 
+echo "Running architecture rules..."
+go tool go-arch-lint check
+
 echo "Running tests..."
 go test ./... -count=1 "$@"

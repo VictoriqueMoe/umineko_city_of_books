@@ -3,6 +3,7 @@ package middleware
 import (
 	"strings"
 
+	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/settings"
 
@@ -34,7 +35,7 @@ var (
 	}
 )
 
-func RequireLogin(settingsSvc settings.Service, authenticator Authenticator) fiber.Handler {
+func RequireLogin(settingsSvc settings.Service, authSvc auth.Service) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		path := strings.ToLower(ctx.Path())
 		if privateModeExempt[path] {
@@ -45,11 +46,11 @@ func RequireLogin(settingsSvc settings.Service, authenticator Authenticator) fib
 			return ctx.Next()
 		}
 
-		if hasSession(ctx, authenticator) {
+		if hasSession(ctx, authSvc) {
 			return ctx.Next()
 		}
 
-		if path == websocketPath && hasQuerySession(ctx, authenticator) {
+		if path == websocketPath && hasQuerySession(ctx, authSvc) {
 			return ctx.Next()
 		}
 

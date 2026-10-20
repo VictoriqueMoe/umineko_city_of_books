@@ -2,9 +2,10 @@ package middleware
 
 import (
 	"strings"
-	"umineko_city_of_books/internal/logger"
 
+	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/dronebl"
+	"umineko_city_of_books/internal/logger"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -87,7 +88,7 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem; color
 </html>`
 )
 
-func RequireCleanIP(checker *dronebl.Checker, authenticator Authenticator) fiber.Handler {
+func RequireCleanIP(checker *dronebl.Checker, authSvc auth.Service) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		if checker == nil {
 			return ctx.Next()
@@ -118,7 +119,7 @@ func RequireCleanIP(checker *dronebl.Checker, authenticator Authenticator) fiber
 			return ctx.Next()
 		}
 
-		if hasSession(ctx, authenticator) {
+		if hasSession(ctx, authSvc) {
 			droneblChecks.WithLabelValues("member").Inc()
 
 			return ctx.Next()

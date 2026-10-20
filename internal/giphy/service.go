@@ -11,6 +11,7 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/giphy/banlist"
 	"umineko_city_of_books/internal/httpclient"
 	"umineko_city_of_books/internal/logger"
 )
@@ -53,17 +54,12 @@ type (
 		baseURL    string
 		httpClient *httpclient.Client
 		cache      *cache.Manager
-		banlist    Banlist
+		banlist    banlist.Service
 	}
 
 	gifUserEntry struct {
 		Username string `json:"username"`
 		Known    bool   `json:"known"`
-	}
-
-	Banlist interface {
-		ContainsGif(id string) bool
-		ContainsUser(username string) bool
 	}
 
 	GifUser struct {
@@ -83,13 +79,13 @@ const (
 	trendingTTL          = 6 * time.Hour
 )
 
-func NewService(banlist Banlist, cacheMgr *cache.Manager) Service {
+func NewService(banlistSvc banlist.Service, cacheMgr *cache.Manager) Service {
 	return &service{
 		apiKey:     config.Cfg.GiphyAPIKey,
 		baseURL:    defaultBaseURL,
 		httpClient: httpclient.New(requestTimeout),
 		cache:      cacheMgr,
-		banlist:    banlist,
+		banlist:    banlistSvc,
 	}
 }
 

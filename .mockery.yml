@@ -170,14 +170,10 @@ packages:
       GameSim:
   umineko_city_of_books/internal/ws:
     interfaces:
-      BanChecker:
       RoomMembershipChecker:
   umineko_city_of_books/internal/session:
     interfaces:
       Disconnector:
-  umineko_city_of_books/internal/middleware:
-    interfaces:
-      Authenticator:
   umineko_city_of_books/internal/repository:
     config:
       all: true

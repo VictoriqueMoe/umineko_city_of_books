@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/secrets"
@@ -48,10 +49,6 @@ type (
 
 	RoomMembershipChecker interface {
 		IsRoomMember(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
-	}
-
-	BanChecker interface {
-		IsBanned(ctx context.Context, userID uuid.UUID) bool
 	}
 
 	GameRoomPresence interface {
@@ -130,7 +127,7 @@ func recoverHandler(conn *websocket.Conn) {
 	_ = conn.WriteJSON(fiber.Map{"error": "internal error"})
 }
 
-func stillAuthorised(sessionMgr *session.Manager, banChecker BanChecker, token string, userID uuid.UUID) error {
+func stillAuthorised(sessionMgr *session.Manager, authzSvc authz.Service, token string, userID uuid.UUID) error {
 	ctx := context.Background()
 
 	current, err := sessionMgr.Validate(ctx, token)
@@ -141,7 +138,7 @@ func stillAuthorised(sessionMgr *session.Manager, banChecker BanChecker, token s
 		return fmt.Errorf("session no longer belongs to this user")
 	}
 
-	if banChecker != nil && banChecker.IsBanned(ctx, userID) {
+	if authzSvc != nil && authzSvc.IsBanned(ctx, userID) {
 		return fmt.Errorf("account is banned")
 	}
 
@@ -198,7 +195,7 @@ func ensureRoomMembership(ctx context.Context, hub *Hub, memberChecker RoomMembe
 	return true
 }
 
-func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomLister RoomLister, memberChecker RoomMembershipChecker, gamePresence GameRoomPresence, watchPartyDisconnect WatchPartyDisconnectHandler, allowedOrigin func(ctx context.Context) string) fiber.Handler {
+func Handler(hub *Hub, sessionMgr *session.Manager, authzSvc authz.Service, roomLister RoomLister, memberChecker RoomMembershipChecker, gamePresence GameRoomPresence, watchPartyDisconnect WatchPartyDisconnectHandler, allowedOrigin func(ctx context.Context) string) fiber.Handler {
 	wsHandler := websocket.New(func(conn *websocket.Conn) {
 		if anon, _ := conn.Locals(localsAnonKey).(bool); anon {
 			runAnonReader(hub, conn)
@@ -247,7 +244,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 
 			if token != "" && time.Since(lastRecheck) >= sessionRecheckEvery {
 				lastRecheck = time.Now()
-				if err := stillAuthorised(sessionMgr, banChecker, token, userID); err != nil {
+				if err := stillAuthorised(sessionMgr, authzSvc, token, userID); err != nil {
 					logger.Log.Info().Str("user_id", userID.String()).Msg("ws session no longer valid, closing socket")
 
 					return err
@@ -353,7 +350,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 			})
 		}
 
-		if banChecker != nil && banChecker.IsBanned(ctx.Context(), userID) {
+		if authzSvc != nil && authzSvc.IsBanned(ctx.Context(), userID) {
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"error": "account is banned",
 			})
