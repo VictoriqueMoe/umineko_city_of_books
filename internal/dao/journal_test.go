@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -166,9 +166,9 @@ func TestJournalDAO_UnknownIDs(t *testing.T) {
 	// then
 	require.NoError(t, journalErr)
 	assert.Nil(t, journal)
-	assert.ErrorIs(t, authorErr, dao.ErrNotFound)
-	assert.ErrorIs(t, titleErr, dao.ErrNotFound)
-	assert.ErrorIs(t, entryAuthorErr, dao.ErrNotFound, "a missing entry must read as not found, not as a database failure")
+	assert.ErrorIs(t, authorErr, daoerr.ErrNotFound)
+	assert.ErrorIs(t, titleErr, daoerr.ErrNotFound)
+	assert.ErrorIs(t, entryAuthorErr, daoerr.ErrNotFound, "a missing entry must read as not found, not as a database failure")
 }
 
 func TestJournalDAO_GetByID_CountsCommentsAndSurfacesTheLatestEntry(t *testing.T) {

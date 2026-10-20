@@ -6,7 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/oc"
 
@@ -164,7 +164,7 @@ func (s *Service) updateOC(ctx fiber.Ctx) error {
 		if errors.Is(err, oc.ErrEmptyName) || errors.Is(err, oc.ErrInvalidSeries) || errors.Is(err, oc.ErrEmptyCustomSeries) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		if errors.Is(err, dao.ErrNotFound) {
+		if errors.Is(err, daoerr.ErrNotFound) {
 			return utils.Forbidden(ctx, "cannot update this oc")
 		}
 		return utils.InternalError(ctx, "failed to update oc", err)
@@ -183,7 +183,7 @@ func (s *Service) deleteOC(ctx fiber.Ctx) error {
 		if errors.Is(err, oc.ErrNotFound) {
 			return utils.NotFound(ctx, "oc not found")
 		}
-		if errors.Is(err, dao.ErrNotFound) {
+		if errors.Is(err, daoerr.ErrNotFound) {
 			return utils.Forbidden(ctx, "cannot delete this oc")
 		}
 		return utils.InternalError(ctx, "failed to delete oc", err)
@@ -201,7 +201,7 @@ func ocImageError(ctx fiber.Ctx, err error, msg string) error {
 	if errors.Is(err, oc.ErrNotOwner) {
 		return utils.Forbidden(ctx, "cannot edit this oc")
 	}
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return utils.NotFound(ctx, "gallery image not found")
 	}
 	if utils.IsUploadRejection(err) {

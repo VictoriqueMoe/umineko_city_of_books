@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 )
@@ -36,10 +37,6 @@ type (
 	}
 
 	chatbotRow = sqlcgen.GetChatbotByUserIDRow
-)
-
-var (
-	ErrBotNotFound = errors.New("chatbot not found")
 )
 
 func toChatbot(row chatbotRow) model.Chatbot {
@@ -116,7 +113,7 @@ func (r *chatbotDAO) UpdateBot(ctx context.Context, bot model.Chatbot, tx ...*sq
 		Enabled:         bot.Enabled,
 	})
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrBotNotFound
+		return nil, daoerr.ErrBotNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("update chatbot: %w", err)
@@ -132,7 +129,7 @@ func (r *chatbotDAO) DeleteBot(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)
 	}
 
 	if affected == 0 {
-		return ErrBotNotFound
+		return daoerr.ErrBotNotFound
 	}
 
 	return nil

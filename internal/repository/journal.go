@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -143,7 +144,7 @@ func (r *journalRepository) DeleteEntryWithMedia(ctx context.Context, id uuid.UU
 			return err
 		}
 		if entry == nil {
-			return dao.ErrNotFound
+			return daoerr.ErrNotFound
 		}
 
 		collected, err := r.JournalDAO.CollectMediaPaths(ctx, id, tx)

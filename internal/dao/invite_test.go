@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
@@ -91,7 +91,7 @@ func TestInviteDAO_MarkUsed_UnknownCodeIsRejected(t *testing.T) {
 	err := repos.Invite.MarkUsed(context.Background(), spec.InviteRedemption{Code: "no-such-code", UsedBy: user.ID})
 
 	// then a code that cannot be claimed must never look like a success
-	require.ErrorIs(t, err, dao.ErrInviteUnavailable)
+	require.ErrorIs(t, err, daoerr.ErrInviteUnavailable)
 }
 
 func TestInviteDAO_MarkUsed_SecondClaimOfTheSameCodeIsRejected(t *testing.T) {
@@ -109,7 +109,7 @@ func TestInviteDAO_MarkUsed_SecondClaimOfTheSameCodeIsRejected(t *testing.T) {
 	err := repos.Invite.MarkUsed(context.Background(), spec.InviteRedemption{Code: code, UsedBy: second.ID})
 
 	// then the claim is refused and the original redeemer is preserved
-	require.ErrorIs(t, err, dao.ErrInviteUnavailable)
+	require.ErrorIs(t, err, daoerr.ErrInviteUnavailable)
 
 	invite, getErr := repos.Invite.GetByCode(context.Background(), code)
 	require.NoError(t, getErr)

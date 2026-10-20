@@ -7,7 +7,7 @@ import (
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/journal/params"
@@ -229,7 +229,7 @@ func (s *Service) updateJournal(ctx fiber.Ctx) error {
 		if errors.Is(err, journal.ErrNotFound) {
 			return utils.NotFound(ctx, "journal not found")
 		}
-		if errors.Is(err, dao.ErrNotFound) {
+		if errors.Is(err, daoerr.ErrNotFound) {
 			return utils.Forbidden(ctx, "cannot update this journal")
 		}
 		return utils.InternalError(ctx, "failed to update journal", err)
@@ -248,7 +248,7 @@ func (s *Service) deleteJournal(ctx fiber.Ctx) error {
 		if errors.Is(err, journal.ErrNotFound) {
 			return utils.NotFound(ctx, "journal not found")
 		}
-		if errors.Is(err, dao.ErrNotFound) {
+		if errors.Is(err, daoerr.ErrNotFound) {
 			return utils.Forbidden(ctx, "cannot delete this journal")
 		}
 		return utils.InternalError(ctx, "failed to delete journal", err)

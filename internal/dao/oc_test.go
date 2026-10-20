@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
@@ -486,8 +486,8 @@ func TestOCDAO_GalleryImageWritesOnAMissingImageReadAsNotFound(t *testing.T) {
 			foreignErr := tc.write(foreignImage)
 
 			// then
-			require.ErrorIs(t, missingErr, dao.ErrNotFound)
-			require.ErrorIs(t, foreignErr, dao.ErrNotFound)
+			require.ErrorIs(t, missingErr, daoerr.ErrNotFound)
+			require.ErrorIs(t, foreignErr, daoerr.ErrNotFound)
 		})
 	}
 }

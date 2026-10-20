@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 )
@@ -28,12 +29,6 @@ type (
 	}
 
 	basePromptRow = sqlcgen.GetChatbotBasePromptByIDRow
-)
-
-var (
-	ErrBasePromptNotFound = errors.New("base prompt not found")
-	ErrBasePromptNameUsed = errors.New("that base prompt name is already taken")
-	ErrBasePromptInUse    = errors.New("that base prompt is still used by a chatbot")
 )
 
 func toBasePrompt(row basePromptRow) model.ChatbotBasePrompt {
@@ -80,7 +75,7 @@ func (r *chatbotBasePromptDAO) List(ctx context.Context, tx ...*sql.Tx) ([]model
 func (r *chatbotBasePromptDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.ChatbotBasePrompt, error) {
 	row, err := genQueries(r.db, tx).GetChatbotBasePromptByID(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrBasePromptNotFound
+		return nil, daoerr.ErrBasePromptNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get base prompt: %w", err)
@@ -95,7 +90,7 @@ func (r *chatbotBasePromptDAO) Create(ctx context.Context, s spec.NewChatbotBase
 		Prompt: s.Prompt,
 	})
 	if isUniqueViolation(err) {
-		return nil, ErrBasePromptNameUsed
+		return nil, daoerr.ErrBasePromptNameUsed
 	}
 	if err != nil {
 		return nil, fmt.Errorf("create base prompt: %w", err)
@@ -111,10 +106,10 @@ func (r *chatbotBasePromptDAO) Update(ctx context.Context, s spec.ChatbotBasePro
 		Prompt: s.Prompt,
 	})
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrBasePromptNotFound
+		return nil, daoerr.ErrBasePromptNotFound
 	}
 	if isUniqueViolation(err) {
-		return nil, ErrBasePromptNameUsed
+		return nil, daoerr.ErrBasePromptNameUsed
 	}
 	if err != nil {
 		return nil, fmt.Errorf("update base prompt: %w", err)
@@ -126,14 +121,14 @@ func (r *chatbotBasePromptDAO) Update(ctx context.Context, s spec.ChatbotBasePro
 func (r *chatbotBasePromptDAO) Delete(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
 	affected, err := genQueries(r.db, tx).DeleteChatbotBasePrompt(ctx, id)
 	if isForeignKeyViolation(err) {
-		return ErrBasePromptInUse
+		return daoerr.ErrBasePromptInUse
 	}
 	if err != nil {
 		return fmt.Errorf("delete base prompt: %w", err)
 	}
 
 	if affected == 0 {
-		return ErrBasePromptNotFound
+		return daoerr.ErrBasePromptNotFound
 	}
 
 	return nil

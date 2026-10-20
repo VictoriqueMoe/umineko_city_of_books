@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
@@ -114,7 +115,7 @@ func (r *userRepository) RegisterAccount(ctx context.Context, registration spec.
 
 		if registration.InviteCode != "" {
 			if err := r.invites.MarkUsed(ctx, spec.InviteRedemption{Code: registration.InviteCode, UsedBy: created.ID}, tx); err != nil {
-				if errors.Is(err, dao.ErrInviteUnavailable) {
+				if errors.Is(err, daoerr.ErrInviteUnavailable) {
 					return err
 				}
 

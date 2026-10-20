@@ -7,8 +7,8 @@ import (
 	"slices"
 	"testing"
 
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
@@ -115,7 +115,7 @@ func TestChatDAO_InsertMessage_ClientNonce(t *testing.T) {
 			second, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: secondSender, Body: "hello", ClientNonce: tc.secondNonce})
 
 			// then
-			replay, isReplay := errors.AsType[*dao.ChatMessageReplayError](err)
+			replay, isReplay := errors.AsType[*daoerr.ChatMessageReplayError](err)
 			assert.Equal(t, tc.wantReplay, isReplay)
 			if tc.wantReplay {
 				assert.Nil(t, second)

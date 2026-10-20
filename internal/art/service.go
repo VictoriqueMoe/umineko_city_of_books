@@ -17,7 +17,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/corner"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/logger"
@@ -321,7 +321,7 @@ func (s *service) UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 
 func (s *service) artAuthor(ctx context.Context, artID uuid.UUID) (uuid.UUID, error) {
 	authorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return uuid.Nil, ErrNotFound
 	}
 	if err != nil {

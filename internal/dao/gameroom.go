@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 
@@ -47,10 +48,6 @@ type (
 	}
 
 	gameRoomJoinRow = sqlcgen.GetGameRoomRow
-)
-
-var (
-	ErrRoomNotActive = errors.New("game room is not active")
 )
 
 func toGameRoomRow(row gameRoomJoinRow) model.GameRoomRow {
@@ -156,7 +153,7 @@ func (r *gameRoomDAO) GetPlayerSlot(ctx context.Context, s spec.GameRoomPlayerRe
 		UserID: s.UserID,
 	})
 	if errors.Is(err, sql.ErrNoRows) {
-		return 0, fmt.Errorf("player not in room: %w", ErrNotFound)
+		return 0, fmt.Errorf("player not in room: %w", daoerr.ErrNotFound)
 	}
 	if err != nil {
 		return 0, fmt.Errorf("get player slot: %w", err)
@@ -227,7 +224,7 @@ func (r *gameRoomDAO) FinishRoom(ctx context.Context, s spec.GameRoomFinish, tx 
 	}
 
 	if n == 0 {
-		return ErrRoomNotActive
+		return daoerr.ErrRoomNotActive
 	}
 
 	return nil

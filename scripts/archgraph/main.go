@@ -7,7 +7,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -71,6 +73,8 @@ func run() error {
 		return fmt.Errorf("create %s: %w", outDir, err)
 	}
 
+	page := filepath.Join(outDir, filepath.Base(*out))
+
 	lint := archLint{root: root, archFile: *archFile}
 
 	fmt.Println("mapping packages to components")
@@ -125,13 +129,31 @@ func run() error {
 		return fmt.Errorf("encode graph: %w", err)
 	}
 
-	if err := os.WriteFile(*out, bytes.Replace(viewerPage, []byte(dataPlaceholder), data, 1), 0o644); err != nil {
-		return fmt.Errorf("write %s: %w", *out, err)
+	if err := os.WriteFile(page, bytes.Replace(viewerPage, []byte(dataPlaceholder), data, 1), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", page, err)
 	}
 
 	fmt.Printf("wrote %s: %d packages, %d references, %d fields, %d implementations, %d rule violations\n", *out, len(g.Packages), len(g.Refs), len(g.Fields), len(g.Impls), len(violations))
 	if deepScan > 0 {
 		fmt.Printf("go-arch-lint also reported %d deep-scan warnings the page does not draw; run go-arch-lint check to read them\n", deepScan)
+	}
+
+	return openInBrowser(page)
+}
+
+func openInBrowser(page string) error {
+	var opener *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		opener = exec.Command("rundll32", "url.dll,FileProtocolHandler", page)
+	case "darwin":
+		opener = exec.Command("open", page)
+	default:
+		opener = exec.Command("xdg-open", page)
+	}
+
+	if err := opener.Run(); err != nil {
+		return fmt.Errorf("open %s: %w", page, err)
 	}
 
 	return nil

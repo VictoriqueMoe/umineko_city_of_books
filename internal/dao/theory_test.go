@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
@@ -696,11 +696,11 @@ func TestTheoryDAO_Lookups(t *testing.T) {
 		_, metaErr := repos.Theory.GetResponseMeta(ctx, unknown)
 
 		// then
-		assert.ErrorIs(t, authorErr, dao.ErrNotFound)
-		assert.ErrorIs(t, titleErr, dao.ErrNotFound)
-		assert.ErrorIs(t, seriesErr, dao.ErrNotFound)
-		assert.ErrorIs(t, infoErr, dao.ErrNotFound)
-		assert.ErrorIs(t, metaErr, dao.ErrNotFound)
+		assert.ErrorIs(t, authorErr, daoerr.ErrNotFound)
+		assert.ErrorIs(t, titleErr, daoerr.ErrNotFound)
+		assert.ErrorIs(t, seriesErr, daoerr.ErrNotFound)
+		assert.ErrorIs(t, infoErr, daoerr.ErrNotFound)
+		assert.ErrorIs(t, metaErr, daoerr.ErrNotFound)
 	})
 }
 

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/audit"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -236,7 +236,7 @@ func TestDelete_MissingBotIsReportedAsNotFound(t *testing.T) {
 
 	botRepo := repository.NewMockChatbotRepository(t)
 	botRepo.EXPECT().ListBots(mock.Anything).Return(nil, nil).Once()
-	botRepo.EXPECT().DeleteBot(mock.Anything, mock.Anything).Return(dao.ErrBotNotFound).Once()
+	botRepo.EXPECT().DeleteBot(mock.Anything, mock.Anything).Return(daoerr.ErrBotNotFound).Once()
 
 	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), repository.NewMockAuditLogRepository(t), user.NewMockService(t), openai.NewMockService(t), reloader)
 

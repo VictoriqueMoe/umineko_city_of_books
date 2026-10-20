@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 )
@@ -40,11 +41,6 @@ type (
 	}
 
 	liveStreamJoinRow = sqlcgen.GetLiveStreamByIDRow
-)
-
-var (
-	ErrLiveStreamCapacity     = errors.New("live stream capacity reached")
-	ErrLiveStreamActiveExists = errors.New("user already has an active live stream")
 )
 
 func liveStreamNullTime(nt sql.NullTime) sql.NullString {
@@ -86,10 +82,10 @@ func (r *liveStreamDAO) Create(ctx context.Context, s spec.NewLiveStream, tx ...
 		MaxConcurrent: int32(s.MaxConcurrent),
 	})
 	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" {
-		return nil, ErrLiveStreamActiveExists
+		return nil, daoerr.ErrLiveStreamActiveExists
 	}
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrLiveStreamCapacity
+		return nil, daoerr.ErrLiveStreamCapacity
 	}
 	if err != nil {
 		return nil, fmt.Errorf("create live stream: %w", err)

@@ -15,7 +15,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/corner"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
@@ -51,7 +51,7 @@ type (
 var (
 	errDB         = errors.New("db down")
 	errStop       = errors.New("stop goroutine")
-	errMissingRow = errors.Join(errors.New("no row"), dao.ErrNotFound)
+	errMissingRow = errors.Join(errors.New("no row"), daoerr.ErrNotFound)
 )
 
 func newTestService(t *testing.T) (*service, *testMocks) {

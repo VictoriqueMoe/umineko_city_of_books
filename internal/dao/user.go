@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 
@@ -410,7 +411,7 @@ func (r *userDAO) UpdateIP(ctx context.Context, s spec.UserIPUpdate, tx ...*sql.
 func (r *userDAO) GetIP(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (string, error) {
 	ip, err := genQueries(r.db, tx).GetUserIP(ctx, userID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", ErrNotFound
+		return "", daoerr.ErrNotFound
 	}
 	if err != nil {
 		return "", fmt.Errorf("get ip: %w", err)

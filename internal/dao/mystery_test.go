@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"testing"
 
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -254,11 +254,11 @@ func TestMysteryDAO_UnknownIDsReadAsNotFound(t *testing.T) {
 	_, attemptMysteryErr := repos.Mystery.GetAttemptMysteryID(ctx, missing)
 
 	// then
-	assert.ErrorIs(t, authorErr, dao.ErrNotFound)
-	assert.ErrorIs(t, solvedErr, dao.ErrNotFound)
-	assert.ErrorIs(t, pausedErr, dao.ErrNotFound)
-	assert.ErrorIs(t, attemptAuthorErr, dao.ErrNotFound)
-	assert.ErrorIs(t, attemptMysteryErr, dao.ErrNotFound)
+	assert.ErrorIs(t, authorErr, daoerr.ErrNotFound)
+	assert.ErrorIs(t, solvedErr, daoerr.ErrNotFound)
+	assert.ErrorIs(t, pausedErr, daoerr.ErrNotFound)
+	assert.ErrorIs(t, attemptAuthorErr, daoerr.ErrNotFound)
+	assert.ErrorIs(t, attemptMysteryErr, daoerr.ErrNotFound)
 }
 
 func TestMysteryDAO_Update(t *testing.T) {

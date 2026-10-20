@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -197,7 +198,7 @@ func (r *fanficDAO) Update(ctx context.Context, s spec.FanficUpdate, tx ...*sql.
 		}
 
 		if affected == 0 {
-			return fmt.Errorf("fanfic not found or not owned: %w", ErrNotFound)
+			return fmt.Errorf("fanfic not found or not owned: %w", daoerr.ErrNotFound)
 		}
 
 		published, err := queries.MarkFanficFirstPublished(ctx, s.ID)
@@ -575,7 +576,7 @@ func (r *fanficDAO) GetChapterFanficID(ctx context.Context, chapterID uuid.UUID,
 func (r *fanficDAO) GetChapterAuthorID(ctx context.Context, chapterID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	userID, err := genQueries(r.db, tx).GetFanficChapterAuthorID(ctx, chapterID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return uuid.Nil, fmt.Errorf("get chapter author: %w", ErrNotFound)
+		return uuid.Nil, fmt.Errorf("get chapter author: %w", daoerr.ErrNotFound)
 	}
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get chapter author: %w", err)

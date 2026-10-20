@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/audit"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
@@ -203,7 +203,7 @@ func (a *adminService) Delete(ctx context.Context, actorID uuid.UUID, id uuid.UU
 	}
 
 	if err := a.botRepo.DeleteBot(ctx, id); err != nil {
-		if errors.Is(err, dao.ErrBotNotFound) {
+		if errors.Is(err, daoerr.ErrBotNotFound) {
 			return ErrBotNotFound
 		}
 

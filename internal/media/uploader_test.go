@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/config"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/settings"
 
@@ -92,7 +92,7 @@ func TestTranscodeDone_ARowRemovedMeanwhileDiscardsTheTranscodedOutput(t *testin
 		name      string
 		updateErr error
 	}{
-		{name: "the row was rolled back or deleted", updateErr: fmt.Errorf("update media url 7: %w", dao.ErrNotFound)},
+		{name: "the row was rolled back or deleted", updateErr: fmt.Errorf("update media url 7: %w", daoerr.ErrNotFound)},
 		{name: "the update failed for another reason", updateErr: errors.New("db down")},
 	}
 

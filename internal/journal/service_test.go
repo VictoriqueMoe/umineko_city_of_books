@@ -15,7 +15,7 @@ import (
 	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/journal/params"
 	"umineko_city_of_books/internal/media"
@@ -61,7 +61,7 @@ type (
 var (
 	errBoom       = errors.New("boom")
 	errRollback   = errors.New("rollback failed")
-	errMissingRow = errors.Join(errors.New("no row"), dao.ErrNotFound)
+	errMissingRow = errors.Join(errors.New("no row"), daoerr.ErrNotFound)
 )
 
 func newTestService(t *testing.T) (*service, *testMocks) {

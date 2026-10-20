@@ -12,7 +12,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/corner"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/upload"
 
@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	artCtlNotOwned = errors.Join(errors.New("not found or not owned"), dao.ErrNotFound)
+	artCtlNotOwned = errors.Join(errors.New("not found or not owned"), daoerr.ErrNotFound)
 )
 
 type (
@@ -326,7 +326,7 @@ func TestArtRoutes_OptionalLinks(t *testing.T) {
 			outcomes: []artCtlLinkOutcome{
 				{artCtlOutcome{"sets the cover", nil, http.StatusNoContent, ""}, true},
 				{artCtlOutcome{"clears the cover", nil, http.StatusNoContent, ""}, false},
-				{artCtlOutcome{"foreign art", dao.ErrArtNotOwned, http.StatusNotFound, "gallery or art not found"}, false},
+				{artCtlOutcome{"foreign art", daoerr.ErrArtNotOwned, http.StatusNotFound, "gallery or art not found"}, false},
 				{artCtlOutcome{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to set cover"}, false},
 			},
 		},
@@ -340,7 +340,7 @@ func TestArtRoutes_OptionalLinks(t *testing.T) {
 			outcomes: []artCtlLinkOutcome{
 				{artCtlOutcome{"sets the gallery", nil, http.StatusNoContent, ""}, true},
 				{artCtlOutcome{"clears the gallery", nil, http.StatusNoContent, ""}, false},
-				{artCtlOutcome{"foreign gallery", dao.ErrArtNotOwned, http.StatusNotFound, "art or gallery not found"}, true},
+				{artCtlOutcome{"foreign gallery", daoerr.ErrArtNotOwned, http.StatusNotFound, "art or gallery not found"}, true},
 				{artCtlOutcome{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to set gallery"}, false},
 			},
 		},

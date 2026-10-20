@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"testing"
 
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -274,7 +274,7 @@ func TestSendDMMessage_RetryWithTheSameClientNonceAnswersWithTheStoredMessageAnd
 	m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(sampleUser(senderID), nil)
 	m.chatRepo.EXPECT().
 		InsertMessageAndMarkRead(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: "hi", ClientNonce: nonce}).
-		Return(nil, fmt.Errorf("insert message: %w", &dao.ChatMessageReplayError{Existing: stored}))
+		Return(nil, fmt.Errorf("insert message: %w", &daoerr.ChatMessageReplayError{Existing: stored}))
 	m.chatRepo.EXPECT().GetMessageMediaBatch(mock.Anything, []uuid.UUID{storedID}).Return(nil, nil)
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return(nil, nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, senderID).Return(nil, nil)

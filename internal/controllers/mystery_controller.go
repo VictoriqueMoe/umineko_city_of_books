@@ -9,7 +9,7 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	mysterysvc "umineko_city_of_books/internal/mystery"
 	"umineko_city_of_books/internal/upload"
@@ -202,7 +202,7 @@ func (s *Service) deleteMystery(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
 	if err := s.MysteryService.DeleteMystery(ctx.Context(), id, userID); err != nil {
-		if errors.Is(err, dao.ErrNotFound) {
+		if errors.Is(err, daoerr.ErrNotFound) {
 			return utils.Forbidden(ctx, "cannot delete this mystery")
 		}
 		return utils.InternalError(ctx, "failed to delete mystery", err)
@@ -253,7 +253,7 @@ func (s *Service) deleteAttempt(ctx fiber.Ctx) error {
 		if errors.Is(err, mysterysvc.ErrNotFound) {
 			return utils.NotFound(ctx, "attempt not found")
 		}
-		if errors.Is(err, dao.ErrNotFound) {
+		if errors.Is(err, daoerr.ErrNotFound) {
 			return utils.Forbidden(ctx, "cannot delete this attempt")
 		}
 		return utils.InternalError(ctx, "failed to delete attempt", err)

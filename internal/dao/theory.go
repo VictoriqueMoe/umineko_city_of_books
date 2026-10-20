@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -16,10 +17,6 @@ import (
 	"umineko_city_of_books/internal/utils"
 
 	"github.com/google/uuid"
-)
-
-var (
-	ErrRefutationRejected = errors.New("the response cannot refute this theory")
 )
 
 type (
@@ -409,7 +406,7 @@ func (r *theoryDAO) UpdateTheory(ctx context.Context, s spec.TheoryUpdate, tx ..
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("theory not found or not owned by user: %w", ErrNotFound)
+		return fmt.Errorf("theory not found or not owned by user: %w", daoerr.ErrNotFound)
 	}
 
 	return nil
@@ -449,7 +446,7 @@ func (r *theoryDAO) Delete(ctx context.Context, s spec.OwnedDeletion, tx ...*sql
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("theory not found or not owned by user: %w", ErrNotFound)
+		return fmt.Errorf("theory not found or not owned by user: %w", daoerr.ErrNotFound)
 	}
 
 	return nil
@@ -523,7 +520,7 @@ func (r *theoryDAO) DeleteResponse(ctx context.Context, s spec.OwnedDeletion, tx
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("response not found or not owned by user: %w", ErrNotFound)
+		return fmt.Errorf("response not found or not owned by user: %w", daoerr.ErrNotFound)
 	}
 
 	return nil
@@ -769,7 +766,7 @@ func (r *theoryDAO) responseSideCountsBatch(ctx context.Context, theoryIDs []uui
 func (r *theoryDAO) GetTheoryAuthorID(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	userID, err := genQueries(r.db, tx).GetTheoryAuthorID(ctx, theoryID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return uuid.Nil, fmt.Errorf("get theory author: %w", ErrNotFound)
+		return uuid.Nil, fmt.Errorf("get theory author: %w", daoerr.ErrNotFound)
 	}
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get theory author: %w", err)
@@ -781,7 +778,7 @@ func (r *theoryDAO) GetTheoryAuthorID(ctx context.Context, theoryID uuid.UUID, t
 func (r *theoryDAO) GetResponseInfo(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, uuid.UUID, error) {
 	row, err := genQueries(r.db, tx).GetTheoryResponseInfo(ctx, responseID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return uuid.Nil, uuid.Nil, fmt.Errorf("get response info: %w", ErrNotFound)
+		return uuid.Nil, uuid.Nil, fmt.Errorf("get response info: %w", daoerr.ErrNotFound)
 	}
 	if err != nil {
 		return uuid.Nil, uuid.Nil, fmt.Errorf("get response info: %w", err)
@@ -793,7 +790,7 @@ func (r *theoryDAO) GetResponseInfo(ctx context.Context, responseID uuid.UUID, t
 func (r *theoryDAO) GetTheorySeries(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (string, error) {
 	series, err := genQueries(r.db, tx).GetTheorySeries(ctx, theoryID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", fmt.Errorf("get theory series: %w", ErrNotFound)
+		return "", fmt.Errorf("get theory series: %w", daoerr.ErrNotFound)
 	}
 	if err != nil {
 		return "", fmt.Errorf("get theory series: %w", err)
@@ -805,7 +802,7 @@ func (r *theoryDAO) GetTheorySeries(ctx context.Context, theoryID uuid.UUID, tx 
 func (r *theoryDAO) GetTheoryTitle(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (string, error) {
 	title, err := genQueries(r.db, tx).GetTheoryTitle(ctx, theoryID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", fmt.Errorf("get theory title: %w", ErrNotFound)
+		return "", fmt.Errorf("get theory title: %w", daoerr.ErrNotFound)
 	}
 	if err != nil {
 		return "", fmt.Errorf("get theory title: %w", err)
@@ -925,7 +922,7 @@ func (r *theoryDAO) MarkRefuted(ctx context.Context, s spec.TheoryRefutation, tx
 	}
 
 	if affected == 0 {
-		return ErrRefutationRejected
+		return daoerr.ErrRefutationRejected
 	}
 
 	return nil
@@ -934,7 +931,7 @@ func (r *theoryDAO) MarkRefuted(ctx context.Context, s spec.TheoryRefutation, tx
 func (r *theoryDAO) GetResponseMeta(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx) (model.ResponseMeta, error) {
 	row, err := genQueries(r.db, tx).GetTheoryResponseMeta(ctx, responseID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return model.ResponseMeta{}, fmt.Errorf("get response meta: %w", ErrNotFound)
+		return model.ResponseMeta{}, fmt.Errorf("get response meta: %w", daoerr.ErrNotFound)
 	}
 	if err != nil {
 		return model.ResponseMeta{}, fmt.Errorf("get response meta: %w", err)

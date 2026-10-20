@@ -16,7 +16,7 @@ import (
 	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/journal/params"
@@ -346,7 +346,7 @@ func (s *service) UpdateJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 
 	authorID, err := s.repo.GetAuthorID(ctx, id)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {
@@ -389,7 +389,7 @@ func (s *service) UpdateJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 
 func (s *service) DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	authorID, err := s.repo.GetAuthorID(ctx, id)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {
@@ -455,7 +455,7 @@ func (s *service) clearPageCache(ctx context.Context, id string) {
 
 func (s *service) SetJournalPaused(ctx context.Context, id uuid.UUID, userID uuid.UUID, paused bool) error {
 	authorID, err := s.repo.GetAuthorID(ctx, id)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {
@@ -480,7 +480,7 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 	}
 
 	authorID, err := s.repo.GetAuthorID(ctx, journalID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return uuid.Nil, 0, ErrNotFound
 	}
 	if err != nil {
@@ -656,7 +656,7 @@ func (s *service) GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber
 	}
 
 	authorID, err := s.repo.GetAuthorID(ctx, journalID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return nil, nil, ErrNotFound
 	}
 	if err != nil {
@@ -700,7 +700,7 @@ func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uui
 	}
 
 	authorID, err := s.repo.GetAuthorID(ctx, existing.JournalID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {
@@ -790,7 +790,7 @@ func (s *service) DeleteEntry(ctx context.Context, entryID uuid.UUID, userID uui
 
 func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
 	authorID, err := s.repo.GetAuthorID(ctx, journalID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return uuid.Nil, ErrNotFound
 	}
 	if err != nil {
@@ -886,7 +886,7 @@ func (s *service) notifyAuthorComment(ctx context.Context, target spec.CommentTa
 
 func (s *service) UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
 	authorID, err := s.repo.GetEntryAuthorID(ctx, entryID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return nil, ErrNotFound
 	}
 	if err != nil {
@@ -922,7 +922,7 @@ func (s *service) UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userI
 
 func (s *service) DeleteEntryMedia(ctx context.Context, entryID uuid.UUID, mediaID int64, userID uuid.UUID) error {
 	authorID, err := s.repo.GetEntryAuthorID(ctx, entryID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {
@@ -943,7 +943,7 @@ func (s *service) DeleteEntryMedia(ctx context.Context, entryID uuid.UUID, media
 
 func (s *service) FollowJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	authorID, err := s.repo.GetAuthorID(ctx, id)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {

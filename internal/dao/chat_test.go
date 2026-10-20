@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -415,7 +415,7 @@ func TestChatDAO_UpdateRoom(t *testing.T) {
 			})
 
 			// then
-			require.ErrorIs(t, err, dao.ErrNotFound)
+			require.ErrorIs(t, err, daoerr.ErrNotFound)
 
 			after, err := repos.Chat.GetRoomByID(ctx, target)
 			require.NoError(t, err)

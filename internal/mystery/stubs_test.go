@@ -7,7 +7,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/model"
@@ -23,7 +23,7 @@ const (
 )
 
 var (
-	errMissingRow  = errors.Join(errors.New("no row"), dao.ErrNotFound)
+	errMissingRow  = errors.Join(errors.New("no row"), daoerr.ErrNotFound)
 	errStoreFailed = errors.New("store failed")
 )
 

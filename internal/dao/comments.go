@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 
@@ -22,7 +23,7 @@ type (
 func (c *commentDAO) table(kind spec.CommentKind) (commentQuerier, error) {
 	q, ok := c.tables[kind]
 	if !ok {
-		return nil, fmt.Errorf("%w: %q", ErrUnknownCommentKind, kind)
+		return nil, fmt.Errorf("%w: %q", daoerr.ErrUnknownCommentKind, kind)
 	}
 
 	return q, nil
@@ -54,7 +55,7 @@ func (c *commentDAO) UpdateComment(ctx context.Context, s spec.CommentUpdate, tx
 	}
 
 	if n == 0 {
-		return fmt.Errorf("comment not found or not owned: %w", ErrNotFound)
+		return fmt.Errorf("comment not found or not owned: %w", daoerr.ErrNotFound)
 	}
 
 	return nil
@@ -72,7 +73,7 @@ func (c *commentDAO) DeleteComment(ctx context.Context, s spec.CommentDeletion, 
 	}
 
 	if n == 0 && !s.AsAdmin {
-		return fmt.Errorf("comment not found or not owned: %w", ErrNotFound)
+		return fmt.Errorf("comment not found or not owned: %w", daoerr.ErrNotFound)
 	}
 
 	return nil
@@ -124,7 +125,7 @@ func (c *commentDAO) GetCommentTarget(ctx context.Context, r spec.CommentRef, tx
 
 	target, err := table.Target(ctx, c.queries(tx), r.CommentID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return spec.CommentTarget{}, fmt.Errorf("get comment target: %w", ErrNotFound)
+		return spec.CommentTarget{}, fmt.Errorf("get comment target: %w", daoerr.ErrNotFound)
 	}
 	if err != nil {
 		return spec.CommentTarget{}, fmt.Errorf("get comment target: %w", err)
@@ -145,7 +146,7 @@ func (c *commentDAO) GetCommentAuthorID(ctx context.Context, r spec.CommentRef, 
 
 	userID, err := table.AuthorID(ctx, c.queries(tx), r.CommentID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return uuid.Nil, fmt.Errorf("get comment author: %w", ErrNotFound)
+		return uuid.Nil, fmt.Errorf("get comment author: %w", daoerr.ErrNotFound)
 	}
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get comment author: %w", err)
@@ -162,7 +163,7 @@ func (c *commentDAO) GetTargetOwnerID(ctx context.Context, t spec.CommentTarget,
 
 	ownerID, err := table.Owner(ctx, c.queries(tx), t)
 	if errors.Is(err, sql.ErrNoRows) {
-		return uuid.Nil, fmt.Errorf("get comment target owner: %w", ErrNotFound)
+		return uuid.Nil, fmt.Errorf("get comment target owner: %w", daoerr.ErrNotFound)
 	}
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get comment target owner: %w", err)
@@ -264,7 +265,7 @@ func (c *commentDAO) UpdateCommentMediaURL(ctx context.Context, s spec.CommentMe
 	}
 
 	if n == 0 {
-		return fmt.Errorf("update comment media url %d: %w", s.ID, ErrNotFound)
+		return fmt.Errorf("update comment media url %d: %w", s.ID, daoerr.ErrNotFound)
 	}
 
 	return nil
@@ -282,7 +283,7 @@ func (c *commentDAO) UpdateCommentMediaThumbnail(ctx context.Context, s spec.Com
 	}
 
 	if n == 0 {
-		return fmt.Errorf("update comment media thumbnail %d: %w", s.ID, ErrNotFound)
+		return fmt.Errorf("update comment media thumbnail %d: %w", s.ID, daoerr.ErrNotFound)
 	}
 
 	return nil

@@ -119,6 +119,7 @@ components:
       - internal/coalesce
       - internal/config
       - internal/corner
+      - internal/daoerr
       - internal/dto
       - internal/fanfic/params
       - internal/journal/params

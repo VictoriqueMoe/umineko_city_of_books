@@ -8,7 +8,7 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/corner"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/follow"
 	postsvc "umineko_city_of_books/internal/post"
@@ -185,7 +185,7 @@ func (s *Service) updatePost(ctx fiber.Ctx) error {
 		if errors.Is(err, postsvc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		if errors.Is(err, dao.ErrNotFound) {
+		if errors.Is(err, daoerr.ErrNotFound) {
 			return utils.Forbidden(ctx, "cannot update this post")
 		}
 		return utils.InternalError(ctx, "failed to update post", err)
@@ -246,7 +246,7 @@ func (s *Service) uploadPostMedia(ctx fiber.Ctx) error {
 
 	result, err := s.PostService.UploadPostMedia(ctx.Context(), postID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader, isSpoilerUpload(ctx))
 	if err != nil {
-		if errors.Is(err, dao.ErrNotFound) {
+		if errors.Is(err, daoerr.ErrNotFound) {
 			return utils.NotFound(ctx, "not found")
 		}
 		if errors.Is(err, postsvc.ErrNotAuthor) {

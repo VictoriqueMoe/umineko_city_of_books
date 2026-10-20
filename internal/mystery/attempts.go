@@ -8,7 +8,7 @@ import (
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/mention"
@@ -60,7 +60,7 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 
 	if req.ParentID != nil {
 		parentAuthor, err := s.mysteryRepo.GetAttemptAuthorID(ctx, *req.ParentID)
-		if errors.Is(err, dao.ErrNotFound) {
+		if errors.Is(err, daoerr.ErrNotFound) {
 			return uuid.Nil, ErrNotFound
 		}
 		if err != nil {
@@ -150,7 +150,7 @@ func (s *service) DeleteAttempt(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 
 	attemptAuthorID, err := s.mysteryRepo.GetAttemptAuthorID(ctx, id)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {
@@ -180,7 +180,7 @@ func (s *service) VoteAttempt(ctx context.Context, attemptID uuid.UUID, userID u
 	}
 
 	attemptAuthorID, err := s.mysteryRepo.GetAttemptAuthorID(ctx, attemptID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {

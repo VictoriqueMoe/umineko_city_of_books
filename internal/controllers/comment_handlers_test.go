@@ -24,6 +24,7 @@ import (
 	ctrlutils "umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -78,7 +79,7 @@ var (
 		{name: "an empty body", err: comment.ErrEmptyBody, wantCode: http.StatusBadRequest, wantBody: "comment body is required"},
 		{name: "a missing target", err: comment.ErrTargetNotFound, wantCode: http.StatusNotFound, wantBody: "the content being commented on was not found"},
 		{name: "a missing comment", err: comment.ErrNotFound, wantCode: http.StatusNotFound, wantBody: "comment not found"},
-		{name: "a missing row from the database", err: fmt.Errorf("delete comment: %w", dao.ErrNotFound), wantCode: http.StatusNotFound, wantBody: "comment not found"},
+		{name: "a missing row from the database", err: fmt.Errorf("delete comment: %w", daoerr.ErrNotFound), wantCode: http.StatusNotFound, wantBody: "comment not found"},
 		{name: "someone else's comment", err: comment.ErrForbidden, wantCode: http.StatusForbidden, wantBody: "not allowed to change this comment"},
 		{name: "not the comment author", err: authz.ErrNotCommentAuthor, wantCode: http.StatusForbidden, wantBody: "not the comment author"},
 		{name: "a block between the users", err: block.ErrUserBlocked, wantCode: http.StatusForbidden, wantBody: "user is blocked"},

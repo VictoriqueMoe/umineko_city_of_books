@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
@@ -77,7 +77,7 @@ func TestOwnedWrites_AMissingOrForeignRowReadsAsNotFound(t *testing.T) {
 			err := tc.write(context.Background(), repos)
 
 			// then
-			require.ErrorIs(t, err, dao.ErrNotFound)
+			require.ErrorIs(t, err, daoerr.ErrNotFound)
 		})
 	}
 }

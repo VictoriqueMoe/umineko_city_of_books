@@ -15,7 +15,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	mysterysvc "umineko_city_of_books/internal/mystery"
@@ -532,7 +532,7 @@ func TestDeleteMystery(t *testing.T) {
 
 	mysteryCtlRunOutcomes(t, route, []mysteryCtlOutcome{
 		{"deleted", nil, http.StatusOK, `{"status":"ok"}`},
-		{"not owned", errors.Join(errors.New("mystery not found or not owned"), dao.ErrNotFound), http.StatusForbidden, "cannot delete this mystery"},
+		{"not owned", errors.Join(errors.New("mystery not found or not owned"), daoerr.ErrNotFound), http.StatusForbidden, "cannot delete this mystery"},
 		{"a server failure is a 500, not a 403", errors.New("boom"), http.StatusInternalServerError, "failed to delete mystery"},
 	})
 }
@@ -575,7 +575,7 @@ func TestDeleteAttempt(t *testing.T) {
 	mysteryCtlRunOutcomes(t, route, []mysteryCtlOutcome{
 		{"deleted", nil, http.StatusOK, `{"status":"ok"}`},
 		{"not found", mysterysvc.ErrNotFound, http.StatusNotFound, "attempt not found"},
-		{"not owned", errors.Join(errors.New("attempt not found or not owned"), dao.ErrNotFound), http.StatusForbidden, "cannot delete this attempt"},
+		{"not owned", errors.Join(errors.New("attempt not found or not owned"), daoerr.ErrNotFound), http.StatusForbidden, "cannot delete this attempt"},
 		{"a server failure is a 500, not a 403", errors.New("boom"), http.StatusInternalServerError, "failed to delete attempt"},
 	})
 }

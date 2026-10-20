@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/audit"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
@@ -104,7 +104,7 @@ func (a *adminService) UpdateBasePrompt(ctx context.Context, actorID uuid.UUID, 
 
 func (a *adminService) DeleteBasePrompt(ctx context.Context, actorID uuid.UUID, id uuid.UUID) error {
 	doomed, lookupErr := a.basePromptRepo.GetByID(ctx, id)
-	if lookupErr != nil && !errors.Is(lookupErr, dao.ErrBasePromptNotFound) {
+	if lookupErr != nil && !errors.Is(lookupErr, daoerr.ErrBasePromptNotFound) {
 		logger.Ctx(ctx).Error().Err(lookupErr).Str("base_prompt_id", id.String()).Msg("failed to read the base prompt before deleting it")
 	}
 

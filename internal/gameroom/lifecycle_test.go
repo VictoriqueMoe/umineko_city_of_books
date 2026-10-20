@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -203,7 +203,7 @@ func TestResign_PlayerSlotLookup(t *testing.T) {
 		slotErr error
 		wantErr error
 	}{
-		{name: "a user with no slot is not a participant", slotErr: fmt.Errorf("player not in room: %w", dao.ErrNotFound), wantErr: ErrNotParticipant},
+		{name: "a user with no slot is not a participant", slotErr: fmt.Errorf("player not in room: %w", daoerr.ErrNotFound), wantErr: ErrNotParticipant},
 		{name: "a failed lookup is returned, not read as a non participant", slotErr: dbDown, wantErr: dbDown},
 	}
 	for _, tc := range cases {

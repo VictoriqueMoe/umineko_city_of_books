@@ -8,6 +8,7 @@ import (
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 
 	"github.com/google/uuid"
@@ -88,12 +89,12 @@ func TestDeleteBot_DaoErrorSkipsInvalidation(t *testing.T) {
 	repo, chatbotDAO, client := newCachedChatbotRepo(t)
 	botID := uuid.New()
 	chatbotDAO.EXPECT().ListBots(mock.Anything).Return(nil, nil)
-	chatbotDAO.EXPECT().DeleteBot(mock.Anything, botID).Return(dao.ErrBotNotFound)
+	chatbotDAO.EXPECT().DeleteBot(mock.Anything, botID).Return(daoerr.ErrBotNotFound)
 	client.EXPECT().Do(gomock.Any(), gomock.Any()).Times(0)
 
 	// when
 	err := repo.DeleteBot(context.Background(), botID)
 
 	// then
-	require.ErrorIs(t, err, dao.ErrBotNotFound)
+	require.ErrorIs(t, err, daoerr.ErrBotNotFound)
 }

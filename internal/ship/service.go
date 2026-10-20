@@ -14,7 +14,7 @@ import (
 	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -221,7 +221,7 @@ func (s *service) UpdateShip(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	}
 
 	authorID, err := s.shipRepo.GetAuthorID(ctx, id)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {
@@ -375,7 +375,7 @@ func (s *service) buildShipList(ctx context.Context, rows []model.ShipRow, total
 
 func (s *service) UploadShipImage(ctx context.Context, shipID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error) {
 	authorID, err := s.shipRepo.GetAuthorID(ctx, shipID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return "", ErrNotFound
 	}
 	if err != nil {
@@ -405,7 +405,7 @@ func (s *service) UploadShipImage(ctx context.Context, shipID uuid.UUID, userID 
 
 func (s *service) Vote(ctx context.Context, userID uuid.UUID, shipID uuid.UUID, value int) error {
 	authorID, err := s.shipRepo.GetAuthorID(ctx, shipID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
 	"umineko_city_of_books/internal/model"
@@ -342,7 +342,7 @@ func TestFanficDAO_UpdateWithDetails_AFailedUpdatePublishesNothing(t *testing.T)
 	})
 
 	// then
-	require.ErrorIs(t, err, dao.ErrNotFound)
+	require.ErrorIs(t, err, daoerr.ErrNotFound)
 	assert.False(t, firstPublished)
 	assert.Nil(t, fanficRow(t, repos, id, owner.ID).PublishedAt)
 }
@@ -403,7 +403,7 @@ func TestFanficDAO_GetByID(t *testing.T) {
 	require.NoError(t, missingErr)
 	assert.Nil(t, missing)
 
-	require.ErrorIs(t, authorErr, dao.ErrNotFound)
+	require.ErrorIs(t, authorErr, daoerr.ErrNotFound)
 }
 
 func TestFanficDAO_DeleteFanfic(t *testing.T) {

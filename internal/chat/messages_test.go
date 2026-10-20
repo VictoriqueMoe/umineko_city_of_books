@@ -11,7 +11,7 @@ import (
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/bounds"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -805,7 +805,7 @@ func TestSendMessage_ResendWithTheSameClientNonce(t *testing.T) {
 			m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(sampleUser(senderID), nil)
 			m.chatRepo.EXPECT().
 				InsertMessageAndMarkRead(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: "hi", ClientNonce: nonce}).
-				Return(nil, fmt.Errorf("insert message: %w", &dao.ChatMessageReplayError{Existing: stored}))
+				Return(nil, fmt.Errorf("insert message: %w", &daoerr.ChatMessageReplayError{Existing: stored}))
 			if tc.wantErr == nil {
 				m.chatRepo.EXPECT().GetMessageMediaBatch(mock.Anything, []uuid.UUID{storedID}).Return(map[uuid.UUID][]dto.PostMediaResponse{storedID: storedMedia}, nil)
 				m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return(nil, nil)

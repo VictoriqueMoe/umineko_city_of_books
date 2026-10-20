@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/config"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model/spec"
@@ -200,7 +200,7 @@ func (u *Uploader) transcodeDone(ctx context.Context, subDir string, urlPath str
 }
 
 func logMissingRow(ctx context.Context, err error, rowID int64, goneMsg string, failedMsg string) {
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		logger.Ctx(ctx).Info().Err(err).Int64("media_id", rowID).Msg(goneMsg)
 
 		return
