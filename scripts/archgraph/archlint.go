@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -74,7 +75,7 @@ type (
 )
 
 func (l archLint) run(args ...string) ([]byte, error) {
-	cmd := exec.Command("go-arch-lint", append(args, "--arch-file", l.archFile, "--project-path", l.root)...)
+	cmd := exec.Command("go", slices.Concat([]string{"tool", "go-arch-lint"}, args, []string{"--arch-file", l.archFile, "--project-path", l.root})...)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

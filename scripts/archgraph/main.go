@@ -53,6 +53,7 @@ func main() {
 func run() error {
 	archFile := flag.String("arch", ".go-arch-lint.yml", "go-arch-lint archfile, relative to the working directory")
 	out := flag.String("out", "graphs/archgraph.html", "where to write the interactive page; go-arch-lint's rule graphs land beside it")
+	openPage := flag.Bool("open", true, "open the page in the default browser once it is written")
 	flag.Parse()
 
 	if !bytes.Contains(viewerPage, []byte(dataPlaceholder)) {
@@ -135,7 +136,11 @@ func run() error {
 
 	fmt.Printf("wrote %s: %d packages, %d references, %d fields, %d implementations, %d rule violations\n", *out, len(g.Packages), len(g.Refs), len(g.Fields), len(g.Impls), len(violations))
 	if deepScan > 0 {
-		fmt.Printf("go-arch-lint also reported %d deep-scan warnings the page does not draw; run go-arch-lint check to read them\n", deepScan)
+		fmt.Printf("go-arch-lint also reported %d deep-scan warnings the page does not draw; run go tool go-arch-lint check to read them\n", deepScan)
+	}
+
+	if !*openPage {
+		return nil
 	}
 
 	return openInBrowser(page)
