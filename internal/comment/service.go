@@ -12,7 +12,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/contentfilter"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/mention"
@@ -105,7 +105,7 @@ func (s *service) Create(ctx context.Context, target spec.CommentTarget, actorID
 	}
 
 	ownerID, err := s.repo.GetTargetOwnerID(ctx, target)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return uuid.Nil, ErrTargetNotFound
 	}
 	if err != nil {
@@ -338,7 +338,7 @@ func (s *service) Thread(ctx context.Context, target spec.CommentTarget, viewerI
 
 func (s *service) authorID(ctx context.Context, ref spec.CommentRef) (uuid.UUID, error) {
 	authorID, err := s.repo.GetCommentAuthorID(ctx, ref)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return uuid.Nil, ErrNotFound
 	}
 	if err != nil {

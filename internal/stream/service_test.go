@@ -9,7 +9,7 @@ import (
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/config"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/livekit"
 	"umineko_city_of_books/internal/model"
@@ -202,8 +202,8 @@ func TestStartStream_CreateRaceMapsErrors(t *testing.T) {
 		repoErr error
 		want    error
 	}{
-		{"capacity", dao.ErrLiveStreamCapacity, ErrAtCapacity},
-		{"duplicate", dao.ErrLiveStreamActiveExists, ErrAlreadyLive},
+		{"capacity", daoerr.ErrLiveStreamCapacity, ErrAtCapacity},
+		{"duplicate", daoerr.ErrLiveStreamActiveExists, ErrAlreadyLive},
 	}
 
 	for _, tc := range cases {

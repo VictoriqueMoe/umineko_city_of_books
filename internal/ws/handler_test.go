@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
@@ -246,11 +247,11 @@ func TestStillAuthorised(t *testing.T) {
 				repo.EXPECT().GetUserID(mock.Anything, "tok").Return(tt.validateFor, time.Now().Add(time.Hour), nil)
 			}
 
-			banChecker := NewMockBanChecker(t)
-			banChecker.EXPECT().IsBanned(mock.Anything, userID).Return(tt.banned).Maybe()
+			authzSvc := authz.NewMockService(t)
+			authzSvc.EXPECT().IsBanned(mock.Anything, userID).Return(tt.banned).Maybe()
 
 			// when
-			err := stillAuthorised(mgr, banChecker, "tok", userID)
+			err := stillAuthorised(mgr, authzSvc, "tok", userID)
 
 			// then
 			if tt.wantErr {

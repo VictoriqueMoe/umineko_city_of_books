@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -211,7 +212,7 @@ func (r *postDAO) UpdatePost(ctx context.Context, s spec.PostUpdate, tx ...*sql.
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("post not found or not owned: %w", ErrNotFound)
+		return fmt.Errorf("post not found or not owned: %w", daoerr.ErrNotFound)
 	}
 
 	return nil
@@ -935,7 +936,7 @@ func (r *postDAO) VotePoll(ctx context.Context, s spec.PostPollVote, tx ...*sql.
 	}
 
 	if affected == 0 {
-		return ErrAlreadyVoted
+		return daoerr.ErrAlreadyVoted
 	}
 
 	return nil

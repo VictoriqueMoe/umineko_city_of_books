@@ -11,7 +11,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/credibility"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/logger"
@@ -149,7 +149,7 @@ func (s *service) theoryTitle(ctx context.Context, theoryID uuid.UUID) string {
 
 func (s *service) theoryAuthor(ctx context.Context, theoryID uuid.UUID) (uuid.UUID, error) {
 	authorID, err := s.repo.GetTheoryAuthorID(ctx, theoryID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return uuid.Nil, ErrTheoryNotFound
 	}
 	if err != nil {
@@ -161,7 +161,7 @@ func (s *service) theoryAuthor(ctx context.Context, theoryID uuid.UUID) (uuid.UU
 
 func (s *service) responseInfo(ctx context.Context, responseID uuid.UUID) (uuid.UUID, uuid.UUID, error) {
 	authorID, theoryID, err := s.repo.GetResponseInfo(ctx, responseID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return uuid.Nil, uuid.Nil, ErrResponseNotFound
 	}
 	if err != nil {
@@ -572,7 +572,7 @@ func (s *service) RefuteTheory(ctx context.Context, theoryID uuid.UUID, userID u
 	}
 
 	meta, err := s.repo.GetResponseMeta(ctx, responseID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrResponseNotOnTheory
 	}
 	if err != nil {

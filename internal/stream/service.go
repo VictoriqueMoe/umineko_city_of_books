@@ -14,7 +14,7 @@ import (
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/coalesce"
 	"umineko_city_of_books/internal/config"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/livekit"
 	"umineko_city_of_books/internal/logger"
@@ -412,11 +412,11 @@ func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title strin
 	stream, err := s.repo.Create(ctx, spec.NewLiveStream{UserID: userID, Title: title, MaxConcurrent: s.maxConcurrent()})
 	if err != nil {
 		switch {
-		case errors.Is(err, dao.ErrLiveStreamActiveExists):
+		case errors.Is(err, daoerr.ErrLiveStreamActiveExists):
 			{
 				return nil, ErrAlreadyLive
 			}
-		case errors.Is(err, dao.ErrLiveStreamCapacity):
+		case errors.Is(err, daoerr.ErrLiveStreamCapacity):
 			{
 				return nil, ErrAtCapacity
 			}

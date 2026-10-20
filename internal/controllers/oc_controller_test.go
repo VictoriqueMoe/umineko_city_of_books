@@ -11,7 +11,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	ocsvc "umineko_city_of_books/internal/oc"
 	"umineko_city_of_books/internal/upload"
@@ -336,8 +336,8 @@ func TestOCWriteRoutes_ServiceOutcomes(t *testing.T) {
 		wantBody string
 	}
 
-	notOwned := fmt.Errorf("oc not found or not owned: %w", dao.ErrNotFound)
-	imageMissing := fmt.Errorf("gallery image not found or not in oc: %w", dao.ErrNotFound)
+	notOwned := fmt.Errorf("oc not found or not owned: %w", daoerr.ErrNotFound)
+	imageMissing := fmt.Errorf("gallery image not found or not in oc: %w", daoerr.ErrNotFound)
 	tooLarge := fmt.Errorf("%w: file size 9MB exceeds maximum 5MB", upload.ErrFileTooLarge)
 	dbDown := errors.New("pq: connection refused")
 	ocMissing := outcome{"missing oc", ocsvc.ErrNotFound, http.StatusNotFound, "oc not found"}

@@ -20,7 +20,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/corner"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
@@ -919,7 +919,7 @@ func TestAuthorGuards(t *testing.T) {
 	lookupErr := errors.New("lookup failed")
 	blockErr := errors.New("block lookup failed")
 	lookupFailureSurfaced := authorGuard{name: "surfaces an author lookup failure", lookupErr: lookupErr, wantErr: lookupErr}
-	vanishedIsNotFound := authorGuard{name: "maps a vanished target to not found", lookupErr: fmt.Errorf("get author: %w", dao.ErrNotFound), wantErr: ErrNotFound}
+	vanishedIsNotFound := authorGuard{name: "maps a vanished target to not found", lookupErr: fmt.Errorf("get author: %w", daoerr.ErrNotFound), wantErr: ErrNotFound}
 	blockedEitherWay := authorGuard{name: "is refused across a block", blocked: true, wantErr: block.ErrUserBlocked}
 	blockLookupFails := authorGuard{name: "is refused when the block lookup fails", blockErr: blockErr, wantErr: blockErr}
 	notPostAuthor := authorGuard{name: "refuses anyone but the post author", wantMsg: "not the post author"}
@@ -1171,7 +1171,7 @@ func TestVotePoll_Refused(t *testing.T) {
 		{name: "a poll lookup failure is surfaced", pollErr: pollErr, vote: 1, wantErr: pollErr},
 		{name: "a post without a poll is not found", vote: 1, wantErr: ErrNotFound},
 		{name: "an author lookup failure is surfaced", poll: pollExpiringIn(time.Hour), authorErr: authorErr, vote: 1, wantErr: authorErr},
-		{name: "a post that vanished before the vote is not found", poll: pollExpiringIn(time.Hour), authorErr: fmt.Errorf("get author: %w", dao.ErrNotFound), vote: 1, wantErr: ErrNotFound},
+		{name: "a post that vanished before the vote is not found", poll: pollExpiringIn(time.Hour), authorErr: fmt.Errorf("get author: %w", daoerr.ErrNotFound), vote: 1, wantErr: ErrNotFound},
 		{name: "a voter blocked either way cannot vote", poll: pollExpiringIn(time.Hour), blocked: true, vote: 1, wantErr: block.ErrUserBlocked},
 		{name: "a failed block lookup refuses the vote", poll: pollExpiringIn(time.Hour), blockErr: blockErr, vote: 1, wantErr: blockErr},
 		{name: "a second vote is refused", poll: pollExpiringIn(time.Hour), votedOption: new(1), vote: 1, wantErr: ErrAlreadyVoted},
@@ -1240,7 +1240,7 @@ func TestVotePoll(t *testing.T) {
 	}{
 		{name: "an unblocked voter is recorded and gets the refreshed poll"},
 		{name: "a vote failure is surfaced", voteErr: boom, wantErr: boom},
-		{name: "a duplicate vote caught by the database is already voted", voteErr: fmt.Errorf("vote: %w", dao.ErrAlreadyVoted), wantErr: ErrAlreadyVoted},
+		{name: "a duplicate vote caught by the database is already voted", voteErr: fmt.Errorf("vote: %w", daoerr.ErrAlreadyVoted), wantErr: ErrAlreadyVoted},
 		{name: "an unrelated failure whose text mentions a vote is not mistaken for a duplicate", voteErr: lockedErr, wantErr: lockedErr},
 		{name: "a refresh failure after voting is surfaced", refreshErr: boom, wantErr: boom},
 	}

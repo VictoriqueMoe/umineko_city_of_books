@@ -8,7 +8,7 @@ import (
 
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/mention"
@@ -260,7 +260,7 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		ReplyToID:   replyToID,
 		ClientNonce: req.ClientNonce,
 	})
-	if replay, ok := errors.AsType[*dao.ChatMessageReplayError](err); ok {
+	if replay, ok := errors.AsType[*daoerr.ChatMessageReplayError](err); ok {
 		return m.replayedMessage(ctx, roomID, sender, replay.Existing)
 	}
 	if err != nil {

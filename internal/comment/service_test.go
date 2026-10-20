@@ -14,7 +14,7 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/contentfilter"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
@@ -53,7 +53,7 @@ type fixture struct {
 var (
 	errBoom     = errors.New("boom")
 	errDiskFull = errors.New("disk full")
-	errMissing  = errors.Join(errors.New("no row"), dao.ErrNotFound)
+	errMissing  = errors.Join(errors.New("no row"), daoerr.ErrNotFound)
 )
 
 func newFixture(t *testing.T) *fixture {

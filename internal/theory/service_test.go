@@ -15,7 +15,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/credibility"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
@@ -49,7 +49,7 @@ type (
 
 var (
 	errBoom       = errors.New("boom")
-	errMissingRow = errors.Join(errors.New("no row"), dao.ErrNotFound)
+	errMissingRow = errors.Join(errors.New("no row"), daoerr.ErrNotFound)
 )
 
 func newTestService(t *testing.T) (*service, *testMocks) {
@@ -723,7 +723,7 @@ func TestDeleteResponse(t *testing.T) {
 				// then
 				synctest.Wait()
 				switch {
-				case errors.Is(tc.infoErr, dao.ErrNotFound):
+				case errors.Is(tc.infoErr, daoerr.ErrNotFound):
 					require.ErrorIs(t, err, ErrResponseNotFound)
 				case tc.infoErr != nil:
 					require.ErrorIs(t, err, tc.infoErr)

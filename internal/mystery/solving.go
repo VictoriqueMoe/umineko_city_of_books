@@ -7,7 +7,7 @@ import (
 	"strings"
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model/spec"
@@ -26,7 +26,7 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 	}
 
 	attemptAuthorID, err := s.mysteryRepo.GetAttemptAuthorID(ctx, attemptID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {
@@ -34,7 +34,7 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 	}
 
 	attemptMysteryID, err := s.mysteryRepo.GetAttemptMysteryID(ctx, attemptID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {

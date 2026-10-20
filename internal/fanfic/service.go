@@ -16,7 +16,7 @@ import (
 	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
 	"umineko_city_of_books/internal/logger"
@@ -405,7 +405,7 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 
 func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dto.UpdateFanficRequest) error {
 	authorID, err := s.fanficRepo.GetAuthorID(ctx, id)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {
@@ -523,7 +523,7 @@ func (s *service) firstChapterBody(ctx context.Context, fanficID uuid.UUID) (str
 
 func (s *service) DeleteFanfic(ctx context.Context, id, userID uuid.UUID) error {
 	authorID, err := s.fanficRepo.GetAuthorID(ctx, id)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {
@@ -645,7 +645,7 @@ func (s *service) ListFavourites(ctx context.Context, userID, viewerID uuid.UUID
 
 func (s *service) UploadCoverImage(ctx context.Context, fanficID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error) {
 	authorID, err := s.fanficRepo.GetAuthorID(ctx, fanficID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return "", ErrNotFound
 	}
 	if err != nil {
@@ -682,7 +682,7 @@ func (s *service) RemoveCoverImage(ctx context.Context, fanficID, userID uuid.UU
 
 func (s *service) CreateChapter(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateChapterRequest) (uuid.UUID, error) {
 	authorID, err := s.fanficRepo.GetAuthorID(ctx, fanficID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return uuid.Nil, ErrNotFound
 	}
 	if err != nil {
@@ -770,7 +770,7 @@ func (s *service) GetChapter(ctx context.Context, fanficID uuid.UUID, chapterNum
 
 func (s *service) UpdateChapter(ctx context.Context, chapterID, userID uuid.UUID, req dto.UpdateChapterRequest) error {
 	authorID, err := s.fanficRepo.GetChapterAuthorID(ctx, chapterID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {
@@ -817,7 +817,7 @@ func (s *service) UpdateChapter(ctx context.Context, chapterID, userID uuid.UUID
 
 func (s *service) DeleteChapter(ctx context.Context, chapterID, userID uuid.UUID) error {
 	authorID, err := s.fanficRepo.GetChapterAuthorID(ctx, chapterID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {

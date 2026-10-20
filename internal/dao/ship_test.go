@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -319,7 +319,7 @@ func TestShipDAO_UnknownIDs(t *testing.T) {
 	// then
 	require.NoError(t, rowErr)
 	assert.Nil(t, row)
-	require.ErrorIs(t, authorErr, dao.ErrNotFound)
+	require.ErrorIs(t, authorErr, daoerr.ErrNotFound)
 }
 
 func TestShipDAO_List_SortsAndPages(t *testing.T) {

@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 )
 
 var (
-	ErrNotFound      = fmt.Errorf("fanfic not found: %w", dao.ErrNotFound)
+	ErrNotFound      = fmt.Errorf("fanfic not found: %w", daoerr.ErrNotFound)
 	ErrEmptyTitle    = errors.New("title cannot be empty")
 	ErrEmptyBody     = errors.New("body cannot be empty")
 	ErrTooManyGenres = errors.New("maximum 2 genres allowed")

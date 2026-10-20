@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 )
@@ -68,10 +69,6 @@ type (
 	artJoinRow = sqlcgen.GetArtByIDRow
 
 	galleryJoinRow = sqlcgen.GetGalleryByIDRow
-)
-
-var (
-	ErrArtNotOwned = errors.New("art or gallery not found or not owned")
 )
 
 func toArtRow(row artJoinRow) model.ArtRow {
@@ -164,7 +161,7 @@ func (r *artDAO) UpdateArt(ctx context.Context, s spec.ArtUpdate, tx ...*sql.Tx)
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("art not found or not owned: %w", ErrNotFound)
+		return fmt.Errorf("art not found or not owned: %w", daoerr.ErrNotFound)
 	}
 
 	return nil
@@ -441,7 +438,7 @@ func (r *artDAO) SetGallery(ctx context.Context, s spec.ArtGalleryAssignment, tx
 	}
 
 	if affected == 0 {
-		return ErrArtNotOwned
+		return daoerr.ErrArtNotOwned
 	}
 
 	return nil
@@ -472,7 +469,7 @@ func (r *artDAO) UpdateGallery(ctx context.Context, s spec.GalleryUpdate, tx ...
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("gallery not found or not owned: %w", ErrNotFound)
+		return fmt.Errorf("gallery not found or not owned: %w", daoerr.ErrNotFound)
 	}
 
 	return nil
@@ -489,7 +486,7 @@ func (r *artDAO) SetGalleryCover(ctx context.Context, s spec.GalleryCoverUpdate,
 	}
 
 	if affected == 0 {
-		return ErrArtNotOwned
+		return daoerr.ErrArtNotOwned
 	}
 
 	return nil
@@ -517,7 +514,7 @@ func (r *artDAO) DeleteGalleryRow(ctx context.Context, s spec.GalleryRef, tx ...
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("gallery not found or not owned: %w", ErrNotFound)
+		return fmt.Errorf("gallery not found or not owned: %w", daoerr.ErrNotFound)
 	}
 
 	return nil

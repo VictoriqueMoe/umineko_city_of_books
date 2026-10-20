@@ -49,7 +49,6 @@ import (
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
 	"umineko_city_of_books/internal/report"
-	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/routes"
 	searchsvc "umineko_city_of_books/internal/search"
 	secretsvc "umineko_city_of_books/internal/secret"
@@ -148,7 +147,7 @@ func initServer() (*fiber.App, func()) {
 	repos, settingsSvc := initDatabase(cacheMgr)
 
 	svc := initServices(repos, settingsSvc, cacheMgr)
-	app := initApp(svc, repos, settingsSvc)
+	app := initApp(svc, settingsSvc)
 	stopJobs := registerListeners(settingsSvc, app, svc, repos)
 
 	cleanup := func() {
@@ -175,7 +174,7 @@ func initServer() (*fiber.App, func()) {
 	return app, cleanup
 }
 
-func initApp(svc *services, repos *repository.Repositories, settingsSvc settings.Service) *fiber.App {
+func initApp(svc *services, settingsSvc settings.Service) *fiber.App {
 	siteName := settingsSvc.Get(context.Background(), config.SettingSiteName)
 
 	app := fiber.New(fiber.Config{
@@ -195,7 +194,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	middleware.Setup(app, settingsSvc, svc.auth, svc.authz, svc.dronebl)
 	app.Use(middleware.Metrics())
 
-	lastSeenIP := middleware.NewLastSeenIP(repos.User)
+	lastSeenIP := middleware.NewLastSeenIP(svc.user)
 	app.Use(middleware.RecordLastSeenIP(lastSeenIP))
 
 	ctrlService := controllers.Service{

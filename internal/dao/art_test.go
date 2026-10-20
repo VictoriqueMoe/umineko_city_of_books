@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/audit"
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
@@ -304,7 +304,7 @@ func TestArtDAO_UnknownIDs(t *testing.T) {
 	require.NoError(t, galleryErr)
 	assert.Nil(t, gallery)
 
-	assert.ErrorIs(t, authorErr, dao.ErrNotFound)
+	assert.ErrorIs(t, authorErr, daoerr.ErrNotFound)
 	assert.Error(t, imageErr)
 	assert.Error(t, commentErr, "a comment on art that does not exist is refused by the database")
 }
@@ -677,7 +677,7 @@ func TestArtDAO_SetGalleryCover_Rejected(t *testing.T) {
 			err := repos.Art.SetGalleryCover(ctx, spec.GalleryCoverUpdate{GalleryID: galleryID, UserID: editor, CoverArtID: cover})
 
 			// then
-			require.ErrorIs(t, err, dao.ErrArtNotOwned)
+			require.ErrorIs(t, err, daoerr.ErrArtNotOwned)
 			row := artGallery(t, repos, galleryID)
 			require.NotNil(t, row)
 			require.NotNil(t, row.CoverArtID)
@@ -743,7 +743,7 @@ func TestArtDAO_SetGallery_Rejected(t *testing.T) {
 			err := repos.Art.SetGallery(ctx, spec.ArtGalleryAssignment{ArtID: artID, UserID: actor, GalleryID: &galleryID})
 
 			// then
-			require.ErrorIs(t, err, dao.ErrArtNotOwned)
+			require.ErrorIs(t, err, daoerr.ErrArtNotOwned)
 			row := artGetByID(t, repos, artID, owner.ID)
 			require.NotNil(t, row)
 			assert.Nil(t, row.GalleryID)

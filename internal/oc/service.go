@@ -14,7 +14,7 @@ import (
 	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -149,7 +149,7 @@ func (s *service) writeAudit(ctx context.Context, entry audit.NewEntry) {
 
 func (s *service) ocAuthor(ctx context.Context, ocID uuid.UUID) (uuid.UUID, error) {
 	authorID, err := s.ocRepo.GetAuthorID(ctx, ocID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return uuid.Nil, ErrNotFound
 	}
 	if err != nil {

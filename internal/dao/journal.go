@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
@@ -323,7 +324,7 @@ func (r *journalDAO) Update(ctx context.Context, s spec.JournalUpdate, tx ...*sq
 	}
 
 	if n == 0 {
-		return fmt.Errorf("journal not found or not owned: %w", ErrNotFound)
+		return fmt.Errorf("journal not found or not owned: %w", daoerr.ErrNotFound)
 	}
 
 	return nil
@@ -354,7 +355,7 @@ func (r *journalDAO) ListEntryIDs(ctx context.Context, journalID uuid.UUID, tx .
 func (r *journalDAO) GetTitle(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (string, error) {
 	title, err := genQueries(r.db, tx).GetJournalTitle(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", fmt.Errorf("get journal title: %w", ErrNotFound)
+		return "", fmt.Errorf("get journal title: %w", daoerr.ErrNotFound)
 	}
 	if err != nil {
 		return "", fmt.Errorf("get journal title: %w", err)
@@ -409,7 +410,7 @@ func (r *journalDAO) SetPaused(ctx context.Context, s spec.JournalPause, tx ...*
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("journal not found or not owned: %w", ErrNotFound)
+		return fmt.Errorf("journal not found or not owned: %w", daoerr.ErrNotFound)
 	}
 
 	return nil
@@ -641,7 +642,7 @@ func (r *journalDAO) GetNextEntryNumber(ctx context.Context, journalID uuid.UUID
 func (r *journalDAO) GetEntryAuthorID(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	userID, err := genQueries(r.db, tx).GetJournalEntryAuthorID(ctx, entryID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return uuid.Nil, fmt.Errorf("get entry author id: %w", ErrNotFound)
+		return uuid.Nil, fmt.Errorf("get entry author id: %w", daoerr.ErrNotFound)
 	}
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get entry author id: %w", err)

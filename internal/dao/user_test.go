@@ -9,8 +9,8 @@ import (
 
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -354,7 +354,7 @@ func TestUserDAO_GetIP(t *testing.T) {
 	}{
 		{name: "a stored ip", userID: withIP.ID, want: "10.0.0.1"},
 		{name: "a user who never had an ip recorded", userID: withoutIP.ID, want: ""},
-		{name: "a missing user", userID: uuid.New(), wantErr: dao.ErrNotFound},
+		{name: "a missing user", userID: uuid.New(), wantErr: daoerr.ErrNotFound},
 	}
 
 	for _, tc := range cases {

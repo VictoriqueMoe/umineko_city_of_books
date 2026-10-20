@@ -16,7 +16,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/corner"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/logger"
@@ -342,7 +342,7 @@ func (s *service) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 
 func (s *service) DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, id)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {
@@ -523,7 +523,7 @@ func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total
 
 func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return nil, ErrNotFound
 	}
 	if err != nil {
@@ -552,7 +552,7 @@ func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID 
 
 func (s *service) DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID int64, userID uuid.UUID) error {
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {
@@ -593,7 +593,7 @@ func (s *service) broadcastLikeUpdate(postID uuid.UUID, delta int) {
 
 func (s *service) LikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error {
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {
@@ -707,7 +707,7 @@ func (s *service) VotePoll(ctx context.Context, postID uuid.UUID, userID uuid.UU
 	}
 
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return nil, ErrNotFound
 	}
 	if err != nil {
@@ -745,7 +745,7 @@ func (s *service) VotePoll(ctx context.Context, postID uuid.UUID, userID uuid.UU
 	}
 
 	if err := s.postRepo.VotePoll(ctx, spec.PostPollVote{PollID: pollID, UserID: userID, OptionID: optionID}); err != nil {
-		if errors.Is(err, dao.ErrAlreadyVoted) {
+		if errors.Is(err, daoerr.ErrAlreadyVoted) {
 			return nil, ErrAlreadyVoted
 		}
 		return nil, err

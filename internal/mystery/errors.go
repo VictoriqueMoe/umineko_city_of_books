@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 )
 
 var (
-	ErrNotFound       = fmt.Errorf("mystery not found: %w", dao.ErrNotFound)
+	ErrNotFound       = fmt.Errorf("mystery not found: %w", daoerr.ErrNotFound)
 	ErrEmptyBody      = errors.New("body is required")
 	ErrEmptyTitle     = errors.New("title and body are required")
 	ErrAlreadySolved  = errors.New("this mystery has already been solved")

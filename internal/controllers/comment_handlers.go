@@ -8,7 +8,7 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/controllers/utils"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/upload"
@@ -216,7 +216,7 @@ func commentError(ctx fiber.Ctx, err error, failure string) error {
 	if errors.Is(err, comment.ErrTargetNotFound) {
 		return utils.NotFound(ctx, err.Error())
 	}
-	if errors.Is(err, comment.ErrNotFound) || errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, comment.ErrNotFound) || errors.Is(err, daoerr.ErrNotFound) {
 		return utils.NotFound(ctx, "comment not found")
 	}
 	if errors.Is(err, comment.ErrForbidden) || errors.Is(err, authz.ErrNotCommentAuthor) {

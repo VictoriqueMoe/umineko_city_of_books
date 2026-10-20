@@ -13,7 +13,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/contentfilter"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -133,7 +133,7 @@ func (s *service) audit(ctx context.Context, entry audit.NewEntry) {
 
 func (s *service) mysteryAuthor(ctx context.Context, mysteryID uuid.UUID) (uuid.UUID, error) {
 	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return uuid.Nil, ErrNotFound
 	}
 	if err != nil {
@@ -145,7 +145,7 @@ func (s *service) mysteryAuthor(ctx context.Context, mysteryID uuid.UUID) (uuid.
 
 func (s *service) CreateComment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
 	solved, err := s.mysteryRepo.IsSolved(ctx, mysteryID)
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return uuid.Nil, ErrNotFound
 	}
 	if err != nil {

@@ -726,7 +726,7 @@ func (r *roomsService) SetRoomNickname(ctx context.Context, roomID, userID uuid.
 	return r.broadcastAndBuildMember(ctx, roomID, userID)
 }
 
-func (r *roomsService) SetRoomAvatar(ctx context.Context, roomID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.ChatRoomMemberResponse, error) {
+func (r *roomsService) SetRoomAvatar(ctx context.Context, roomID, userID uuid.UUID, _ string, fileSize int64, reader io.Reader) (*dto.ChatRoomMemberResponse, error) {
 	if err := r.assertRoomMember(ctx, roomID, userID); err != nil {
 		return nil, err
 	}

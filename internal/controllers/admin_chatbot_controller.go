@@ -8,7 +8,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/chatbot"
 	"umineko_city_of_books/internal/controllers/utils"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/openai"
@@ -254,11 +254,11 @@ func handleChatbotError(ctx fiber.Ctx, err error) error {
 		return utils.BadRequest(ctx, "that username is already taken")
 	case errors.Is(err, chatbot.ErrBotInvalid), errors.Is(err, chatbot.ErrBotUnknownModel):
 		return utils.BadRequest(ctx, err.Error())
-	case errors.Is(err, dao.ErrBasePromptNotFound):
+	case errors.Is(err, daoerr.ErrBasePromptNotFound):
 		return utils.NotFound(ctx, "base prompt not found")
-	case errors.Is(err, dao.ErrBasePromptNameUsed):
+	case errors.Is(err, daoerr.ErrBasePromptNameUsed):
 		return utils.BadRequest(ctx, "that base prompt name is already taken")
-	case errors.Is(err, dao.ErrBasePromptInUse):
+	case errors.Is(err, daoerr.ErrBasePromptInUse):
 		return utils.BadRequest(ctx, "unassign that base prompt from every chatbot before deleting it")
 	default:
 		return utils.InternalError(ctx, "chatbot action failed", err)

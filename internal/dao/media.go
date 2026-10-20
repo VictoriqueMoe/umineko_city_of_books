@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 
@@ -53,7 +54,7 @@ func (m *mediaDAO) UpdateMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx
 	}
 
 	if n == 0 {
-		return fmt.Errorf("update media url %d: %w", s.ID, ErrNotFound)
+		return fmt.Errorf("update media url %d: %w", s.ID, daoerr.ErrNotFound)
 	}
 
 	return nil
@@ -66,7 +67,7 @@ func (m *mediaDAO) UpdateMediaThumbnail(ctx context.Context, s spec.MediaURLUpda
 	}
 
 	if n == 0 {
-		return fmt.Errorf("update media thumbnail %d: %w", s.ID, ErrNotFound)
+		return fmt.Errorf("update media thumbnail %d: %w", s.ID, daoerr.ErrNotFound)
 	}
 
 	return nil

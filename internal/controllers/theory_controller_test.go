@@ -8,7 +8,7 @@ import (
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	theorysvc "umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/theory/params"
@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	errTheoryCtlNotOwned = fmt.Errorf("theory not found or not owned by user: %w", dao.ErrNotFound)
+	errTheoryCtlNotOwned = fmt.Errorf("theory not found or not owned by user: %w", daoerr.ErrNotFound)
 )
 
 func newTheoryHarness(t *testing.T) (*testutil.Harness, *theorysvc.MockService) {

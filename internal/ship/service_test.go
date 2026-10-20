@@ -14,7 +14,7 @@ import (
 	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
@@ -53,7 +53,7 @@ const (
 )
 
 var (
-	errNoRow    = errors.Join(errors.New("no row"), dao.ErrNotFound)
+	errNoRow    = errors.Join(errors.New("no row"), daoerr.ErrNotFound)
 	errBoom     = errors.New("boom")
 	errDiskFull = errors.New("disk full")
 	errNotOwner = errors.New("not owner")

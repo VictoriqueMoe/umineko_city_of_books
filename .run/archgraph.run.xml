@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Architecture graph" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="umineko_city_of_books" />
+    <working_directory value="$PROJECT_DIR$" />
+    <kind value="PACKAGE" />
+    <package value="umineko_city_of_books/scripts/archgraph" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/scripts/archgraph/main.go" />
+    <method v="2" />
+  </configuration>
+</component>

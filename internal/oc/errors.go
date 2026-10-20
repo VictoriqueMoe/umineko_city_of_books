@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 )
 
 var (
-	ErrNotFound          = fmt.Errorf("oc not found: %w", dao.ErrNotFound)
+	ErrNotFound          = fmt.Errorf("oc not found: %w", daoerr.ErrNotFound)
 	ErrEmptyName         = errors.New("oc name cannot be empty")
 	ErrInvalidSeries     = errors.New("oc series must be one of umineko, higurashi, ciconia, custom")
 	ErrEmptyCustomSeries = errors.New("custom series name is required when series is custom")

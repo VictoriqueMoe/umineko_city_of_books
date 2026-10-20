@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
@@ -30,7 +31,7 @@ func (o *ownedDAO) Delete(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.
 	}
 
 	if n == 0 {
-		return fmt.Errorf("%s not found or not owned: %w", o.entity, ErrNotFound)
+		return fmt.Errorf("%s not found or not owned: %w", o.entity, daoerr.ErrNotFound)
 	}
 
 	return nil
@@ -47,7 +48,7 @@ func (o *ownedDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.T
 func (o *ownedDAO) GetAuthorID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	userID, err := o.q.AuthorID(ctx, o.queries(tx), id)
 	if errors.Is(err, sql.ErrNoRows) {
-		return uuid.Nil, fmt.Errorf("get %s author: %w", o.entity, ErrNotFound)
+		return uuid.Nil, fmt.Errorf("get %s author: %w", o.entity, daoerr.ErrNotFound)
 	}
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get %s author: %w", o.entity, err)

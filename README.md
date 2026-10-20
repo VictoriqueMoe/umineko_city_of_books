@@ -91,6 +91,8 @@ The server is a single Go binary that embeds the compiled Vite bundle and serves
 
 Voice, watch parties, and live streaming run on a separate media plane: audio and video travel from the browser to the LiveKit SFU (or to the Hyperbeam VM) directly, and the Go process only mints signed tokens and tracks presence, so none of that traffic passes through the layers above.
 
+Those layer boundaries are enforced by go-arch-lint in CI, and an [interactive dependency graph](https://victoriquemoe.github.io/umineko_city_of_books/) of the backend, including [the declared rules](https://victoriquemoe.github.io/umineko_city_of_books/#rules), is rebuilt from `main` on every merge.
+
 [ARCHITECTURE.md](docs/ARCHITECTURE.md) has the rest: the full component map, the request lifecycle, the rule each layer boundary enforces, and a chapter per subsystem (data layer, cache, auth, permissions, content filter, WebSocket hub, notifications, media pipeline, background jobs, OG and SEO, observability).
 
 ## Getting Started
@@ -255,17 +257,19 @@ docker compose exec postgres psql -U umineko -d umineko_city_of_books
 ### Backend
 
 ```bash
-go build ./...            # compile
-go vet ./...              # static analysis
-go tool staticcheck ./... # linter, pinned by the tool directive in go.mod
-go test ./...             # run tests
-./scripts/test.sh         # regenerate mocks, then vet, staticcheck, test
-./scripts/regen_mocks.sh  # regenerate mockery mocks only
-./scripts/regen_sqlc.sh   # expand query templates, then regenerate sqlc
-./scripts/security.sh     # govulncheck, gosec and gitleaks; pass one name to run only that check
+go build ./...             # compile
+go vet ./...               # static analysis
+go tool staticcheck ./...  # linter, pinned by the tool directive in go.mod
+go tool go-arch-lint check # architecture rules from .go-arch-lint.yml, pinned the same way
+go test ./...              # run tests
+go run ./scripts/archgraph # build the architecture graph and open it in your browser
+./scripts/test.sh          # regenerate mocks, then vet, staticcheck, architecture rules, test
+./scripts/regen_mocks.sh   # regenerate mockery mocks only
+./scripts/regen_sqlc.sh    # expand query templates, then regenerate sqlc
+./scripts/security.sh      # govulncheck, gosec and gitleaks; pass one name to run only that check
 ```
 
-The three security tools are pinned by the `tool` block in `go.mod` like staticcheck, so `go tool govulncheck`, `go tool gosec` and `go tool gitleaks` need no separate install. gosec skips G115 (integer conversions) and G118 (goroutines given a fresh context) everywhere, and skips a few rules in specific files where they flag intended behaviour: the ffmpeg and cwebp subprocesses in `internal/media`, upload directory permissions that other containers read, and the seeded generators in Minesweeper and Pong. That list lives in `scripts/security.sh`. Known gitleaks false positives are listed by fingerprint in `.gitleaksignore`.
+The three security tools are pinned by the `tool` block in `go.mod` like staticcheck, so `go tool govulncheck`, `go tool gosec` and `go tool gitleaks` need no separate install. gosec skips G115 (integer conversions) and G118 (goroutines given a fresh context) everywhere, and skips a few rules in specific files where they flag intended behaviour: the ffmpeg and cwebp subprocesses in `internal/media`, upload directory permissions that other containers read, the seeded generators in Minesweeper and Pong, and the go-arch-lint and browser subprocesses and world-readable output of `scripts/archgraph`. That list lives in `scripts/security.sh`. Known gitleaks false positives are listed by fingerprint in `.gitleaksignore`.
 
 All of those need `static/` to exist first, because the root package embeds it. See [Running Locally](#running-locally). The repository and DAO tests boot a real Postgres through testcontainers-go, so Docker has to be running for `go test ./...` to pass.
 

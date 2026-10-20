@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
@@ -53,7 +53,7 @@ func TestLiveStreamDAO_Lifecycle(t *testing.T) {
 	_, err = repo.Create(ctx, spec.NewLiveStream{UserID: user.ID, Title: "Another", MaxConcurrent: 3})
 
 	// then
-	require.ErrorIs(t, err, dao.ErrLiveStreamActiveExists)
+	require.ErrorIs(t, err, daoerr.ErrLiveStreamActiveExists)
 
 	// when
 	room := "live_" + id.String()
@@ -135,7 +135,7 @@ func TestLiveStreamDAO_Capacity(t *testing.T) {
 	_, err = repo.Create(ctx, spec.NewLiveStream{UserID: u3.ID, Title: "c", MaxConcurrent: 2})
 
 	// then
-	require.ErrorIs(t, err, dao.ErrLiveStreamCapacity)
+	require.ErrorIs(t, err, daoerr.ErrLiveStreamCapacity)
 }
 
 func TestLiveStreamDAO_ListStartingBefore(t *testing.T) {

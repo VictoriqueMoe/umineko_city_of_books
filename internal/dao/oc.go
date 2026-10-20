@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 
@@ -133,7 +134,7 @@ func (r *ocDAO) Update(ctx context.Context, s spec.OCUpdate, tx ...*sql.Tx) erro
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("oc not found or not owned: %w", ErrNotFound)
+		return fmt.Errorf("oc not found or not owned: %w", daoerr.ErrNotFound)
 	}
 
 	return nil
@@ -442,7 +443,7 @@ func (r *ocDAO) UpdateGalleryImage(ctx context.Context, s spec.OCGalleryImageUpd
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("gallery image not found or not in oc: %w", ErrNotFound)
+		return fmt.Errorf("gallery image not found or not in oc: %w", daoerr.ErrNotFound)
 	}
 
 	return nil
@@ -458,7 +459,7 @@ func (r *ocDAO) DeleteGalleryImage(ctx context.Context, s spec.MediaDeletion, tx
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("gallery image not found or not in oc: %w", ErrNotFound)
+		return fmt.Errorf("gallery image not found or not in oc: %w", daoerr.ErrNotFound)
 	}
 
 	return nil

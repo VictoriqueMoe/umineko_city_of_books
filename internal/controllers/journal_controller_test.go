@@ -14,7 +14,7 @@ import (
 	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	journalsvc "umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/journal/params"
@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	journalCtlNotOwned = errors.Join(errors.New("not found or not owned"), dao.ErrNotFound)
+	journalCtlNotOwned = errors.Join(errors.New("not found or not owned"), daoerr.ErrNotFound)
 )
 
 type (

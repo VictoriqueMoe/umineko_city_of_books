@@ -8,7 +8,7 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/corner"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 
 	"github.com/gofiber/fiber/v3"
@@ -192,7 +192,7 @@ func (s *Service) updateArt(ctx fiber.Ctx) error {
 		if errors.Is(err, artsvc.ErrEmptyTitle) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		if errors.Is(err, dao.ErrNotFound) {
+		if errors.Is(err, daoerr.ErrNotFound) {
 			return utils.Forbidden(ctx, "cannot update this art")
 		}
 		return utils.InternalError(ctx, "failed to update art", err)
@@ -211,7 +211,7 @@ func (s *Service) deleteArt(ctx fiber.Ctx) error {
 		if errors.Is(err, artsvc.ErrNotFound) {
 			return utils.NotFound(ctx, "art not found")
 		}
-		if errors.Is(err, dao.ErrNotFound) {
+		if errors.Is(err, daoerr.ErrNotFound) {
 			return utils.Forbidden(ctx, "cannot delete this art")
 		}
 		return utils.InternalError(ctx, "failed to delete art", err)
@@ -349,7 +349,7 @@ func (s *Service) updateGallery(ctx fiber.Ctx) error {
 		if errors.Is(err, artsvc.ErrEmptyTitle) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		if errors.Is(err, dao.ErrNotFound) {
+		if errors.Is(err, daoerr.ErrNotFound) {
 			return utils.Forbidden(ctx, "cannot update this gallery")
 		}
 		return utils.InternalError(ctx, "failed to update gallery", err)
@@ -372,7 +372,7 @@ func (s *Service) setGalleryCover(ctx fiber.Ctx) error {
 	}
 
 	if err := s.ArtService.SetGalleryCover(ctx.Context(), galleryID, userID, body.CoverArtID); err != nil {
-		if errors.Is(err, dao.ErrArtNotOwned) {
+		if errors.Is(err, daoerr.ErrArtNotOwned) {
 			return utils.NotFound(ctx, "gallery or art not found")
 		}
 
@@ -392,7 +392,7 @@ func (s *Service) deleteGallery(ctx fiber.Ctx) error {
 		if errors.Is(err, artsvc.ErrNotFound) {
 			return utils.NotFound(ctx, "gallery not found")
 		}
-		if errors.Is(err, dao.ErrNotFound) {
+		if errors.Is(err, daoerr.ErrNotFound) {
 			return utils.Forbidden(ctx, "cannot delete this gallery")
 		}
 		return utils.InternalError(ctx, "failed to delete gallery", err)
@@ -453,7 +453,7 @@ func (s *Service) setArtGallery(ctx fiber.Ctx) error {
 	}
 
 	if err := s.ArtService.SetArtGallery(ctx.Context(), artID, userID, body.GalleryID); err != nil {
-		if errors.Is(err, dao.ErrArtNotOwned) {
+		if errors.Is(err, daoerr.ErrArtNotOwned) {
 			return utils.NotFound(ctx, "art or gallery not found")
 		}
 

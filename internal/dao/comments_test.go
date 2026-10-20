@@ -8,8 +8,8 @@ import (
 
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
@@ -178,10 +178,10 @@ func TestCommentDAO_OnlyTheAuthorOrAnAdminCanChangeAComment(t *testing.T) {
 			adminDelete := repos.Comment.DeleteComment(context.Background(), spec.CommentDeletion{CommentRef: doomed, UserID: stranger.ID, AsAdmin: true})
 
 			// then a stranger's attempt reads as not found, never as a database failure
-			require.ErrorIs(t, strangerEdit, dao.ErrNotFound)
+			require.ErrorIs(t, strangerEdit, daoerr.ErrNotFound)
 			require.NoError(t, ownEdit)
 			require.NoError(t, adminEdit)
-			require.ErrorIs(t, strangerDelete, dao.ErrNotFound)
+			require.ErrorIs(t, strangerDelete, daoerr.ErrNotFound)
 			require.NoError(t, adminDelete)
 
 			rows, total := listComments(t, repos, target, author.ID)
@@ -300,7 +300,7 @@ func TestCommentDAO_MediaIsRecordedReadAndRewrittenPerComment(t *testing.T) {
 			empty, emptyErr := repos.Comment.GetCommentMediaBatch(context.Background(), spec.CommentMediaBatch{Kind: kc.kind})
 
 			// then
-			require.ErrorIs(t, missingURL, dao.ErrNotFound)
+			require.ErrorIs(t, missingURL, daoerr.ErrNotFound)
 			require.NoError(t, errors.Join(batchErr, singleErr, emptyErr))
 			require.Len(t, batch[withTwo], 2)
 			assert.Equal(t, "/u/one.webm", batch[withTwo][0].MediaURL)
@@ -361,8 +361,8 @@ func TestCommentDAO_UnknownIDsReadAsNotFound(t *testing.T) {
 			// then
 			require.NoError(t, rowErr)
 			assert.Nil(t, row)
-			assert.ErrorIs(t, targetErr, dao.ErrNotFound)
-			assert.ErrorIs(t, authorErr, dao.ErrNotFound)
+			assert.ErrorIs(t, targetErr, daoerr.ErrNotFound)
+			assert.ErrorIs(t, authorErr, daoerr.ErrNotFound)
 		})
 	}
 }
@@ -381,7 +381,7 @@ func TestCommentDAO_AMissingOwnedTargetReadsAsNotFound(t *testing.T) {
 			_, err := repos.Comment.GetTargetOwnerID(context.Background(), spec.CommentTarget{Kind: kc.kind, ID: uuid.New()})
 
 			// then
-			assert.ErrorIs(t, err, dao.ErrNotFound)
+			assert.ErrorIs(t, err, daoerr.ErrNotFound)
 		})
 	}
 }
@@ -396,8 +396,8 @@ func TestCommentDAO_AnUnknownKindIsRefused(t *testing.T) {
 	_, dirErr := repos.Comment.GetCommentMediaDir(unknown)
 
 	// then
-	assert.ErrorIs(t, createErr, dao.ErrUnknownCommentKind)
-	assert.ErrorIs(t, dirErr, dao.ErrUnknownCommentKind)
+	assert.ErrorIs(t, createErr, daoerr.ErrUnknownCommentKind)
+	assert.ErrorIs(t, dirErr, daoerr.ErrUnknownCommentKind)
 }
 
 func TestCommentDAO_JournalEntryCommentsStayOnTheirOwnEntry(t *testing.T) {
@@ -441,7 +441,7 @@ func TestCommentRepository_AnAdminEditIsAuditedInTheSameWrite(t *testing.T) {
 		wantBody  string
 	}{
 		{name: "an admin edit lands with its audit row", asAdmin: true, wantAudit: true, wantBody: "moderated"},
-		{name: "a refused edit leaves the comment and writes no audit row", wantErr: dao.ErrNotFound, wantBody: "original"},
+		{name: "a refused edit leaves the comment and writes no audit row", wantErr: daoerr.ErrNotFound, wantBody: "original"},
 	}
 
 	for _, tc := range cases {
@@ -493,7 +493,7 @@ func TestCommentRepository_ADeleteReturnsThatCommentsFilesAndIsAudited(t *testin
 		wantAudit   bool
 	}{
 		{name: "the author's delete removes the thread, returns its files and is audited", byAuthor: true, wantPaths: []string{"/u/doomed.png", "/u/doomed-thumb.png", "/u/reply.png"}, wantLeft: 1, wantAudit: true},
-		{name: "a stranger's delete leaves everything in place and writes no audit row", wantErr: dao.ErrNotFound, wantLeft: 3},
+		{name: "a stranger's delete leaves everything in place and writes no audit row", wantErr: daoerr.ErrNotFound, wantLeft: 3},
 		{name: "an audit row that cannot be written rolls the delete back", byAuthor: true, forgedActor: true, wantLeft: 3},
 	}
 

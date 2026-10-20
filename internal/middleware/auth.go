@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"errors"
 	"strings"
 
@@ -20,10 +19,6 @@ const (
 )
 
 type (
-	Authenticator interface {
-		Authenticate(ctx context.Context, token string) (model.SessionAuthState, error)
-	}
-
 	authResult struct {
 		token string
 		state model.SessionAuthState
@@ -39,19 +34,19 @@ func SessionToken(ctx fiber.Ctx) string {
 	return ctx.Cookies(session.CookieName)
 }
 
-func authenticate(ctx fiber.Ctx, authenticator Authenticator, token string) (model.SessionAuthState, error) {
+func authenticate(ctx fiber.Ctx, authSvc auth.Service, token string) (model.SessionAuthState, error) {
 	if cached, ok := ctx.Locals(authResultLocal).(authResult); ok && cached.token == token {
 		return cached.state, cached.err
 	}
 
-	state, err := authenticator.Authenticate(ctx.Context(), token)
+	state, err := authSvc.Authenticate(ctx.Context(), token)
 	ctx.SetLocal(authResultLocal, authResult{token: token, state: state, err: err})
 
 	return state, err
 }
 
-func hasSession(ctx fiber.Ctx, authenticator Authenticator) bool {
-	if authenticator == nil {
+func hasSession(ctx fiber.Ctx, authSvc auth.Service) bool {
+	if authSvc == nil {
 		return false
 	}
 
@@ -60,13 +55,13 @@ func hasSession(ctx fiber.Ctx, authenticator Authenticator) bool {
 		return false
 	}
 
-	_, err := authenticate(ctx, authenticator, token)
+	_, err := authenticate(ctx, authSvc, token)
 
 	return err == nil
 }
 
-func hasQuerySession(ctx fiber.Ctx, authenticator Authenticator) bool {
-	if authenticator == nil {
+func hasQuerySession(ctx fiber.Ctx, authSvc auth.Service) bool {
+	if authSvc == nil {
 		return false
 	}
 
@@ -75,7 +70,7 @@ func hasQuerySession(ctx fiber.Ctx, authenticator Authenticator) bool {
 		return false
 	}
 
-	_, err := authenticate(ctx, authenticator, token)
+	_, err := authenticate(ctx, authSvc, token)
 
 	return err == nil
 }
@@ -130,9 +125,9 @@ func isLockExemptPath(method, path string) bool {
 	return false
 }
 
-func RequirePermission(authenticator Authenticator, authzSvc authz.Service, perm authz.Permission) fiber.Handler {
+func RequirePermission(authSvc auth.Service, authzSvc authz.Service, perm authz.Permission) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
-		userID, ok := requireAccount(ctx, authenticator)
+		userID, ok := requireAccount(ctx, authSvc)
 		if !ok {
 			return nil
 		}
@@ -149,7 +144,7 @@ func RequirePermission(authenticator Authenticator, authzSvc authz.Service, perm
 	}
 }
 
-func OptionalAuth(authenticator Authenticator) fiber.Handler {
+func OptionalAuth(authSvc auth.Service) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		token := SessionToken(ctx)
 		if token == "" {
@@ -157,7 +152,7 @@ func OptionalAuth(authenticator Authenticator) fiber.Handler {
 			return ctx.Next()
 		}
 
-		state, err := authenticate(ctx, authenticator, token)
+		state, err := authenticate(ctx, authSvc, token)
 		if err != nil {
 			ctx.SetLocal("userID", uuid.Nil)
 			return ctx.Next()
@@ -169,9 +164,9 @@ func OptionalAuth(authenticator Authenticator) fiber.Handler {
 	}
 }
 
-func RequireAuth(authenticator Authenticator) fiber.Handler {
+func RequireAuth(authSvc auth.Service) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
-		userID, ok := requireAccount(ctx, authenticator)
+		userID, ok := requireAccount(ctx, authSvc)
 		if !ok {
 			return nil
 		}
@@ -182,7 +177,7 @@ func RequireAuth(authenticator Authenticator) fiber.Handler {
 	}
 }
 
-func requireAccount(ctx fiber.Ctx, authenticator Authenticator) (uuid.UUID, bool) {
+func requireAccount(ctx fiber.Ctx, authSvc auth.Service) (uuid.UUID, bool) {
 	token := SessionToken(ctx)
 	if token == "" {
 		_ = ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -191,7 +186,7 @@ func requireAccount(ctx fiber.Ctx, authenticator Authenticator) (uuid.UUID, bool
 		return uuid.Nil, false
 	}
 
-	state, err := authenticate(ctx, authenticator, token)
+	state, err := authenticate(ctx, authSvc, token)
 	if errors.Is(err, auth.ErrUserBanned) {
 		_ = ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "your account has been banned",

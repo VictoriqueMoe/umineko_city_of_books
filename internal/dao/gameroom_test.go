@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
@@ -80,7 +80,7 @@ func TestGameRoomDAO_GetPlayerSlot_AnOutsiderReadsAsNotFound(t *testing.T) {
 	// then
 	require.NoError(t, aliceErr)
 	assert.Equal(t, 1, aliceSlot)
-	require.ErrorIs(t, outsiderErr, dao.ErrNotFound)
+	require.ErrorIs(t, outsiderErr, daoerr.ErrNotFound)
 }
 
 func TestGameRoomRepository_StartWritesStateOntoTheNowActiveRoom(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -131,7 +132,7 @@ func (r *shipDAO) UpdateDetails(ctx context.Context, s spec.ShipDetailsUpdate, t
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("ship not found or not owned: %w", ErrNotFound)
+		return fmt.Errorf("ship not found or not owned: %w", daoerr.ErrNotFound)
 	}
 
 	return nil

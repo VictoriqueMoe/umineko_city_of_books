@@ -17,7 +17,7 @@ import (
 	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
 	"umineko_city_of_books/internal/media"
@@ -72,7 +72,7 @@ const (
 
 var (
 	errDB            = errors.New("db")
-	fanficMissingRow = errors.Join(errors.New("get author"), dao.ErrNotFound)
+	fanficMissingRow = errors.Join(errors.New("get author"), daoerr.ErrNotFound)
 )
 
 func newTestService(t *testing.T) (*service, *testMocks) {

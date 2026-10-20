@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/audit"
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
@@ -893,7 +893,7 @@ func TestPostDAO_VotePoll(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	require.ErrorIs(t, duplicateErr, dao.ErrAlreadyVoted)
+	require.ErrorIs(t, duplicateErr, daoerr.ErrAlreadyVoted)
 
 	_, counted, voted, err := repos.Post.GetPollByPostID(ctx, spec.PostPollQuery{PostID: postID, ViewerID: user.ID})
 	require.NoError(t, err)

@@ -10,7 +10,7 @@ import (
 
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/contentfilter"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
@@ -159,7 +159,7 @@ func (s *service) loadRoomForActor(ctx context.Context, roomID, userID uuid.UUID
 		return nil, 0, statusErr
 	}
 	slot, err := s.repo.GetPlayerSlot(ctx, spec.GameRoomPlayerRef{RoomID: roomID, UserID: userID})
-	if errors.Is(err, dao.ErrNotFound) {
+	if errors.Is(err, daoerr.ErrNotFound) {
 		return nil, 0, ErrNotParticipant
 	}
 	if err != nil {
@@ -196,7 +196,7 @@ func (s *service) finishAndBroadcast(ctx context.Context, roomID uuid.UUID, winn
 		Result:    result,
 		StateJSON: stateJSON,
 	}); err != nil {
-		if errors.Is(err, dao.ErrRoomNotActive) {
+		if errors.Is(err, daoerr.ErrRoomNotActive) {
 			return nil, ErrRoomNotActive
 		}
 

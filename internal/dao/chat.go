@@ -12,6 +12,7 @@ import (
 
 	"umineko_city_of_books/internal/dao/dynamicsql"
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -349,7 +350,7 @@ func (r *chatDAO) UpdateRoom(ctx context.Context, s spec.UpdateChatRoom, tx ...*
 	}
 
 	if n == 0 {
-		return fmt.Errorf("room not found or not editable: %w", ErrNotFound)
+		return fmt.Errorf("room not found or not editable: %w", daoerr.ErrNotFound)
 	}
 
 	return nil
@@ -810,7 +811,7 @@ func (r *chatDAO) InsertMessageRow(ctx context.Context, s spec.NewChatMessage, t
 			return nil, fmt.Errorf("load message sent with this client nonce: %w", lookupErr)
 		}
 
-		return nil, &ChatMessageReplayError{Existing: toChatMessageRow(chatMessageJoinRow(existing))}
+		return nil, &daoerr.ChatMessageReplayError{Existing: toChatMessageRow(chatMessageJoinRow(existing))}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("insert message: %w", err)

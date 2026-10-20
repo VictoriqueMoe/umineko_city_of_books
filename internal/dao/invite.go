@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 )
@@ -24,10 +25,6 @@ type (
 	inviteDAO struct {
 		db *sql.DB
 	}
-)
-
-var (
-	ErrInviteUnavailable = errors.New("invite code is missing or already used")
 )
 
 func toInvite(row sqlcgen.Invite) model.Invite {
@@ -74,7 +71,7 @@ func (r *inviteDAO) MarkUsed(ctx context.Context, s spec.InviteRedemption, tx ..
 	}
 
 	if claimed == 0 {
-		return ErrInviteUnavailable
+		return daoerr.ErrInviteUnavailable
 	}
 
 	return nil

@@ -3,9 +3,9 @@ package secret
 import (
 	"fmt"
 
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 )
 
 var (
-	ErrNotFound = fmt.Errorf("secret not found: %w", dao.ErrNotFound)
+	ErrNotFound = fmt.Errorf("secret not found: %w", daoerr.ErrNotFound)
 )

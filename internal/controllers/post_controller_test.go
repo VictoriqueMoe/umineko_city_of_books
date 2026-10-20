@@ -12,7 +12,7 @@ import (
 	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/corner"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/follow"
 	"umineko_city_of_books/internal/model"
@@ -373,7 +373,7 @@ func TestUpdatePost(t *testing.T) {
 	cases := []postCtlOutcome{
 		{"ok", nil, http.StatusNoContent, ""},
 		{"empty body", postsvc.ErrEmptyBody, http.StatusBadRequest, "empty"},
-		{"not owned", errors.Join(errors.New("post not found or not owned"), dao.ErrNotFound), http.StatusForbidden, "cannot update this post"},
+		{"not owned", errors.Join(errors.New("post not found or not owned"), daoerr.ErrNotFound), http.StatusForbidden, "cannot update this post"},
 		{"internal error", errors.New("boom"), http.StatusInternalServerError, "failed to update post"},
 	}
 	for _, tc := range cases {

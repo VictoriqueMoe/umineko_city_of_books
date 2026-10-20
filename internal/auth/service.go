@@ -15,7 +15,7 @@ import (
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/logger"
@@ -221,7 +221,7 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 
 	created, err := s.userRepo.RegisterAccount(ctx, registration)
 	if err != nil {
-		if errors.Is(err, dao.ErrInviteUnavailable) {
+		if errors.Is(err, daoerr.ErrInviteUnavailable) {
 			return nil, "", ErrInvalidInvite
 		}
 

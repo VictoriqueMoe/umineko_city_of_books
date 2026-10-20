@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
-	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 )
 
 var (
-	ErrNotFound         = fmt.Errorf("post not found: %w", dao.ErrNotFound)
+	ErrNotFound         = fmt.Errorf("post not found: %w", daoerr.ErrNotFound)
 	ErrNotAuthor        = errors.New("not the post author")
 	ErrNotAuthorised    = errors.New("not authorised")
 	ErrEmptyBody        = errors.New("post body cannot be empty")
