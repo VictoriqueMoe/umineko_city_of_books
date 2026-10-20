@@ -75,6 +75,9 @@ jobs:
       - name: Staticcheck
         run: go tool staticcheck ./...
 
+      - name: Architecture rules
+        run: go tool go-arch-lint check
+
       - name: Check generated code is up to date
         run: |
           ./scripts/regen_sqlc.sh

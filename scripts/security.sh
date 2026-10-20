@@ -11,6 +11,7 @@ gosec_excluded_by_path=(
     'internal[/\\]upload[/\\]service\.go:G301'
     'internal[/\\]game[/\\]minesweeper[/\\]handler\.go:G404'
     'internal[/\\]game[/\\]pong[/\\]handler\.go:G404'
+    'scripts[/\\]archgraph[/\\].*:G204,G301,G306'
 )
 
 run_govulncheck() {
