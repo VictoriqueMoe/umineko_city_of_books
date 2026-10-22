@@ -1,4 +1,5 @@
 .composer {
+    position: relative;
     padding: 0.85rem 1.25rem;
     border-top: 1px solid rgba(var(--purple-rgb), 0.2);
     background: var(--bg-card);
@@ -8,7 +9,6 @@
     min-height: 110px;
     flex-shrink: 0;
     box-sizing: border-box;
-    contain: layout;
 }
 
 .textareaWrapper {
@@ -114,10 +114,6 @@
         gap: 0.5rem;
     }
 
-    .actions {
-        flex-wrap: nowrap;
-    }
-
     .send {
         margin-left: auto;
         flex: 0 0 auto;
@@ -133,6 +129,10 @@
 
     .actions {
         flex-wrap: nowrap;
+    }
+
+    .gifAnchor {
+        position: static;
     }
 
     .send {

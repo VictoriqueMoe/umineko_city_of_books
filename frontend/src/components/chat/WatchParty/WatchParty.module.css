@@ -459,14 +459,15 @@
 }
 
 @media (max-width: 600px) {
+    .buttonAnchor {
+        position: static;
+    }
+
     .picker {
-        position: fixed;
         left: 0.5rem;
         right: 0.5rem;
-        bottom: auto;
-        top: 0.5rem;
         width: auto;
-        max-height: calc(100dvh - 1rem);
+        max-height: 60dvh;
     }
 }
 

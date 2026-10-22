@@ -330,6 +330,15 @@
     box-sizing: border-box;
 }
 
+.watchLayoutTheatre {
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    padding: 0.5rem;
+    gap: 0.5rem;
+    background: var(--bg-void);
+}
+
 .watchMain {
     flex: 1 1 auto;
     min-width: 0;
@@ -345,7 +354,8 @@
     min-height: 0;
 }
 
-.fullscreenBtn {
+.fullscreenBtn,
+.theatreBtn {
     position: absolute;
     bottom: 0.6rem;
     right: 0.6rem;
@@ -360,7 +370,12 @@
     cursor: pointer;
 }
 
-.fullscreenBtn:hover {
+.theatreBtn {
+    right: 3.25rem;
+}
+
+.fullscreenBtn:hover,
+.theatreBtn:hover {
     background: rgba(0, 0, 0, 0.8);
 }
 

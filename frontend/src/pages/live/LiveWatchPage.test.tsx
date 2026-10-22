@@ -343,6 +343,37 @@ describe("LiveWatchPage controls", () => {
         expect(exitFullscreen).toHaveBeenCalledTimes(1);
         Object.defineProperty(document, "fullscreenElement", { configurable: true, value: null });
     });
+
+    it("keeps only the video and the chat in theatre mode", async () => {
+        // given
+        const pointer = userEvent.setup();
+        renderWatch();
+        await screen.findByTestId("stream-viewers");
+
+        // when
+        await pointer.click(screen.getByRole("button", { name: "Toggle theatre mode" }));
+
+        // then
+        expect(screen.getByTestId("stream-stage")).toBeInTheDocument();
+        expect(screen.getByTestId("stream-chat")).toBeInTheDocument();
+        expect(screen.queryByRole("heading", { name: "Reading Episode 4" })).not.toBeInTheDocument();
+        expect(screen.queryByTestId("stream-viewers")).not.toBeInTheDocument();
+    });
+
+    it("brings the stream details back when theatre mode is switched off", async () => {
+        // given
+        const pointer = userEvent.setup();
+        renderWatch();
+        await screen.findByTestId("stream-viewers");
+        await pointer.click(screen.getByRole("button", { name: "Toggle theatre mode" }));
+
+        // when
+        await pointer.click(screen.getByRole("button", { name: "Toggle theatre mode" }));
+
+        // then
+        expect(screen.getByRole("heading", { name: "Reading Episode 4" })).toBeInTheDocument();
+        expect(screen.getByTestId("stream-viewers")).toBeInTheDocument();
+    });
 });
 
 describe("LiveWatchPage meta", () => {

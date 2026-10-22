@@ -6,6 +6,7 @@ import { useIsMobile } from "../../hooks/useIsMobile";
 import { useLiveStream } from "../../hooks/useLiveStream";
 import { useStreamChatPopout } from "../../hooks/useStreamPopout";
 import { useStreamThumbnailCapture } from "../../hooks/useStreamThumbnailCapture";
+import { useTheatreMode } from "../../hooks/useTheatreMode";
 import { VolumeSlider } from "../../components/VolumeSlider/VolumeSlider";
 import { StreamChatPanel } from "./StreamChatPanel";
 import { StreamStage, StreamUptime, StreamViewers } from "./streamParts";
@@ -35,6 +36,7 @@ export function LiveWatchPage() {
     });
 
     const chat = useStreamChatPopout(username, stream?.id);
+    const { theatre, setTheatre } = useTheatreMode();
 
     function toggleFullscreen() {
         const el = stageRef.current;
@@ -80,7 +82,7 @@ export function LiveWatchPage() {
     }
 
     return (
-        <div className={styles.watchLayout}>
+        <div className={theatre ? `${styles.watchLayout} ${styles.watchLayoutTheatre}` : styles.watchLayout}>
             <div className={styles.watchMain}>
                 <div className={styles.stage} ref={stageRef}>
                     {!isLive ? (
@@ -143,6 +145,16 @@ export function LiveWatchPage() {
                     {isLive && <StreamUptime startedAt={stream.startedAt} />}
                     <button
                         type="button"
+                        className={styles.theatreBtn}
+                        onClick={() => setTheatre(prev => !prev)}
+                        aria-label="Toggle theatre mode"
+                        aria-pressed={theatre}
+                        title="Theatre mode (T)"
+                    >
+                        {"▭"}
+                    </button>
+                    <button
+                        type="button"
                         className={styles.fullscreenBtn}
                         onClick={toggleFullscreen}
                         aria-label="Toggle fullscreen"
@@ -152,32 +164,34 @@ export function LiveWatchPage() {
                     </button>
                 </div>
 
-                <div className={styles.watchMeta}>
-                    <h1 dir="auto" className={styles.watchTitle}>
-                        {stream.title}
-                    </h1>
-                    <Link to={`/user/${stream.streamerUsername}`} className={styles.watchStreamer}>
-                        {stream.streamerAvatarUrl && (
-                            <img src={stream.streamerAvatarUrl} alt="" className={styles.cardAvatar} />
+                {!theatre && (
+                    <div className={styles.watchMeta}>
+                        <h1 dir="auto" className={styles.watchTitle}>
+                            {stream.title}
+                        </h1>
+                        <Link to={`/user/${stream.streamerUsername}`} className={styles.watchStreamer}>
+                            {stream.streamerAvatarUrl && (
+                                <img src={stream.streamerAvatarUrl} alt="" className={styles.cardAvatar} />
+                            )}
+                            <span dir="auto">{name}</span>
+                        </Link>
+                        <Link to="/live" className={styles.backLink}>
+                            {"←"} All live streams
+                        </Link>
+                        {thumbnails.lastError && (
+                            <p role="status" className={styles.thumbnailWarning}>
+                                {thumbnails.lastError}
+                            </p>
                         )}
-                        <span dir="auto">{name}</span>
-                    </Link>
-                    <Link to="/live" className={styles.backLink}>
-                        {"←"} All live streams
-                    </Link>
-                    {thumbnails.lastError && (
-                        <p role="status" className={styles.thumbnailWarning}>
-                            {thumbnails.lastError}
-                        </p>
-                    )}
-                    {chat.poppedOut && (
-                        <button type="button" className={styles.chatRestoreBtn} onClick={chat.bringBack}>
-                            Chat is in its own window. Bring it back
-                        </button>
-                    )}
-                </div>
+                        {chat.poppedOut && (
+                            <button type="button" className={styles.chatRestoreBtn} onClick={chat.bringBack}>
+                                Chat is in its own window. Bring it back
+                            </button>
+                        )}
+                    </div>
+                )}
 
-                {isLive && room && (
+                {!theatre && isLive && room && (
                     <RoomContext.Provider value={room}>
                         <StreamViewers />
                     </RoomContext.Provider>

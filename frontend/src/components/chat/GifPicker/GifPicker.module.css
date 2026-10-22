@@ -213,6 +213,14 @@
     }
 }
 
+@container streamchat (max-width: 420px) {
+    .wrapper {
+        left: 0.5rem;
+        right: 0.5rem;
+        width: auto;
+    }
+}
+
 @media (hover: none) {
     .star {
         opacity: 0.6;
