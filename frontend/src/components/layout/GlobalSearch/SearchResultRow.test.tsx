@@ -126,7 +126,7 @@ describe("SearchResultRow", () => {
         renderWithProviders(<SearchResultRow result={result} />);
 
         // then
-        expect(screen.getByText("Comment")).toHaveStyle({ background: "#34d399" });
+        expect(screen.getByText("Comment")).toHaveStyle({ backgroundColor: "#34d399" });
     });
 
     it("falls back to a placeholder title for an untitled result", () => {
