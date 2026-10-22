@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { sendRealtime } from "../../../api/realtime/outbound";
 import { useRealtimeStatus } from "../../../api/realtime/useRealtime";
+import { isEditableTarget } from "../../../utils/editableTarget";
 import { sampleHistory, type TargetSample } from "../interpolate";
 import {
     PONG_INPUT_EPSILON,
@@ -29,7 +30,6 @@ export interface PongInputHandle {
 
 const UP_KEYS = new Set(["ArrowUp", "w", "W"]);
 const DOWN_KEYS = new Set(["ArrowDown", "s", "S"]);
-const EDITABLE_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
 function clamp(value: number, min: number, max: number): number {
     if (value < min) {
@@ -39,17 +39,6 @@ function clamp(value: number, min: number, max: number): number {
         return max;
     }
     return value;
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-    if (!(target instanceof HTMLElement)) {
-        return false;
-    }
-    if (target.isContentEditable) {
-        return true;
-    }
-
-    return EDITABLE_TAGS.has(target.tagName);
 }
 
 export function usePongInput(options: UsePongInputOptions): PongInputHandle {

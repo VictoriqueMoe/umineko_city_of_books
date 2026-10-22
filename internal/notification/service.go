@@ -391,20 +391,19 @@ func (s *service) pushNotification(ctx context.Context, row *model.NotificationR
 	}
 
 	if s.pushSvc != nil && !s.hub.IsOnline(recipientID) {
-		siteName := s.settingsSvc.Get(ctx, config.SettingSiteName)
-		go s.pushSvc.SendToUser(context.Background(), recipientID, pushPayload(resp, siteName))
+		title := resp.Actor.DisplayName
+		if title == "" {
+			title = resp.Actor.Username
+		}
+		if title == "" {
+			title = s.settingsSvc.Get(ctx, config.SettingSiteName)
+		}
+
+		go s.pushSvc.SendToUser(context.Background(), recipientID, pushPayload(resp, title))
 	}
 }
 
-func pushPayload(resp dto.NotificationResponse, siteName string) push.Notification {
-	title := resp.Actor.DisplayName
-	if title == "" {
-		title = resp.Actor.Username
-	}
-	if title == "" {
-		title = siteName
-	}
-
+func pushPayload(resp dto.NotificationResponse, title string) push.Notification {
 	body := resp.Message
 	if body == "" || resp.Type == dto.NotifContentEdited {
 		body = notifText[resp.Type]
