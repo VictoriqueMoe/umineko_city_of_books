@@ -2,6 +2,7 @@ package media
 
 import (
 	"net/netip"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -160,6 +161,43 @@ func TestLinkEmbed_DropsAResultWithNothingWorthShowing(t *testing.T) {
 			require.NotNil(t, got)
 			assert.Equal(t, EmbedTypeLink, got.Type)
 			assert.Equal(t, "https://example.com", got.URL)
+		})
+	}
+}
+
+func TestParseOGFromHTML(t *testing.T) {
+	tests := []struct {
+		name string
+		html string
+		want map[string]string
+	}{
+		{
+			name: "tags in the head",
+			html: `<html><head><meta property="og:title" content="Rokkenjima"/></head><body></body></html>`,
+			want: map[string]string{"og:title": "Rokkenjima"},
+		},
+		{
+			name: "tags streamed into the body",
+			html: `<html><head></head><body><div hidden id="S:1"><title>Rokkenjima</title><meta property="og:title" content="Rokkenjima"/><meta property="og:image" content="https://example.com/a.png"/></div></body></html>`,
+			want: map[string]string{"og:title": "Rokkenjima", "og:image": "https://example.com/a.png"},
+		},
+		{
+			name: "the head wins over a later duplicate in the body",
+			html: `<html><head><meta property="og:title" content="Rokkenjima"/></head><body><meta property="og:title" content="Kinzo"/></body></html>`,
+			want: map[string]string{"og:title": "Rokkenjima"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			r := strings.NewReader(tc.html)
+
+			// when
+			got := parseOGFromHTML(r)
+
+			// then
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }

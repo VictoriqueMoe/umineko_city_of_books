@@ -180,9 +180,6 @@ func parseOGFromHTML(r io.Reader) map[string]string {
 
 		t := tokenizer.Token()
 		if t.Data != "meta" {
-			if t.Data == "body" {
-				break
-			}
 			continue
 		}
 
