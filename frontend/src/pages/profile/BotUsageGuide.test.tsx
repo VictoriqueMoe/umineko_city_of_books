@@ -42,7 +42,7 @@ describe("BotUsageGuide", () => {
         expect(screen.queryByText(/direct messages and chat rooms/i)).not.toBeInTheDocument();
     });
 
-    it("reads both limits from the live settings rather than a constant", () => {
+    describe("reads both limits from the live settings rather than a constant", () => {
         const cases: { name: string; siteInfo: Partial<SiteInfo>; context: RegExp; replyChain: RegExp }[] = [
             {
                 name: "defaults",
@@ -64,19 +64,17 @@ describe("BotUsageGuide", () => {
             },
         ];
 
-        for (const testCase of cases) {
+        it.each(cases)("$name", ({ siteInfo, context, replyChain }) => {
             // given / when
-            const { unmount } = renderWithProviders(<BotUsageGuide />, { siteInfo: testCase.siteInfo });
+            renderWithProviders(<BotUsageGuide />, { siteInfo });
 
             // then
-            expect(screen.getByText(testCase.context), testCase.name).toBeInTheDocument();
-            expect(screen.getByText(testCase.replyChain), testCase.name).toBeInTheDocument();
-
-            unmount();
-        }
+            expect(screen.getByText(context)).toBeInTheDocument();
+            expect(screen.getByText(replyChain)).toBeInTheDocument();
+        });
     });
 
-    it("degrades to plain wording when a limit is missing or not positive", () => {
+    describe("degrades to plain wording when a limit is missing or not positive", () => {
         const cases: { name: string; siteInfo: Partial<SiteInfo> }[] = [
             { name: "zero", siteInfo: { chatbot_context_messages: 0, chatbot_max_reply_chain: 0 } },
             { name: "negative", siteInfo: { chatbot_context_messages: -5, chatbot_max_reply_chain: -1 } },
@@ -96,21 +94,16 @@ describe("BotUsageGuide", () => {
             },
         ];
 
-        for (const testCase of cases) {
+        it.each(cases)("$name", ({ siteInfo }) => {
             // given / when
-            const { unmount } = renderWithProviders(<BotUsageGuide />, { siteInfo: testCase.siteInfo });
+            renderWithProviders(<BotUsageGuide />, { siteInfo });
 
             // then
-            expect(
-                screen.getByText(/read back over a limited number of recent messages/),
-                testCase.name,
-            ).toBeInTheDocument();
-            expect(screen.getByText(/back through a limited number of messages/), testCase.name).toBeInTheDocument();
-            expect(screen.queryByText(/read back over the last/), testCase.name).not.toBeInTheDocument();
-            expect(screen.queryByText(/back through up to/), testCase.name).not.toBeInTheDocument();
-            expect(screen.queryByText(/\d+ messages/), testCase.name).not.toBeInTheDocument();
-
-            unmount();
-        }
+            expect(screen.getByText(/read back over a limited number of recent messages/)).toBeInTheDocument();
+            expect(screen.getByText(/back through a limited number of messages/)).toBeInTheDocument();
+            expect(screen.queryByText(/read back over the last/)).not.toBeInTheDocument();
+            expect(screen.queryByText(/back through up to/)).not.toBeInTheDocument();
+            expect(screen.queryByText(/\d+ messages/)).not.toBeInTheDocument();
+        });
     });
 });

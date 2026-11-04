@@ -69,7 +69,7 @@ const onAction = vi.fn<(action: Record<string, unknown>) => Promise<void>>();
 const onResign = vi.fn<() => Promise<void>>();
 
 function marks(...set: number[]): boolean[] {
-    const out = new Array<boolean>(CELLS).fill(false);
+    const out = Array.from({ length: CELLS }, () => false);
     for (const idx of set) {
         out[idx] = true;
     }
@@ -83,7 +83,7 @@ function makeState(overrides: Partial<MinesweeperState> = {}): MinesweeperState 
         revealed: [marks(), marks()],
         flagged: [marks(0, 1), marks(2)],
         revealed_count: [12, 5],
-        values: [new Array<number>(CELLS).fill(0), new Array<number>(CELLS).fill(0)],
+        values: [Array.from({ length: CELLS }, () => 0), Array.from({ length: CELLS }, () => 0)],
         mines: marks(4),
         ...overrides,
     });

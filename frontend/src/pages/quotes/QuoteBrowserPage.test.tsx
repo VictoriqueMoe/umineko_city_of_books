@@ -15,11 +15,7 @@ vi.mock("../../hooks/queries/quote", () => ({ useBrowseQuotes: mocks.useBrowseQu
 vi.mock("../../hooks/queries/quoteCharacters", () => ({ useCharacterGroups: mocks.useCharacterGroups }));
 
 vi.mock("../../components/truth/TruthCard/TruthCard", () => ({
-    TruthCard: ({ quote, lang }: { quote: Quote; lang?: string }) => (
-        <div data-testid="truth-card" data-lang={lang ?? ""}>
-            {quote.text}
-        </div>
-    ),
+    TruthCard: ({ quote }: { quote: Quote }) => <div data-testid="truth-card">{quote.text}</div>,
 }));
 
 function makeQuote(overrides: Partial<Quote> = {}): Quote {
@@ -337,17 +333,6 @@ describe("QuoteBrowserPage results", () => {
 
         // then
         expect(screen.getAllByTestId("truth-card")).toHaveLength(2);
-    });
-
-    it("passes the chosen language down to each card", async () => {
-        // given
-        const { user } = setup();
-
-        // when
-        await user.selectOptions(selectHolding("Default Language"), "ja");
-
-        // then
-        expect(screen.getByTestId("truth-card")).toHaveAttribute("data-lang", "ja");
     });
 
     it("walks forward through the quotes", async () => {

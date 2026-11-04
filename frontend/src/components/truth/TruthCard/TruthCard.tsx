@@ -5,7 +5,6 @@ interface TruthCardProps {
     quote: Quote;
     onClick?: () => void;
     selected?: boolean;
-    lang?: string;
 }
 
 function cardClass(quote: Quote): string {
@@ -24,14 +23,7 @@ function cardClass(quote: Quote): string {
     return "";
 }
 
-function getDisplayHtml(quote: Quote, lang?: string): string {
-    if (lang === "ja" && (quote.textJpHtml || quote.textJp)) {
-        return quote.textJpHtml || quote.textJp || "";
-    }
-    return quote.textHtml;
-}
-
-export function TruthCard({ quote, onClick, selected, lang }: TruthCardProps) {
+export function TruthCard({ quote, onClick, selected }: TruthCardProps) {
     return (
         <div
             className={`${styles.card} ${cardClass(quote)}${selected ? ` ${styles.selected}` : ""}`}
@@ -46,7 +38,7 @@ export function TruthCard({ quote, onClick, selected, lang }: TruthCardProps) {
             }}
         >
             {/* This comes from quotes.auaurora.moe, which I own, and is rendered unsanitised because the formatting tags are deliberate.*/}
-            <div className={styles.text} dangerouslySetInnerHTML={{ __html: getDisplayHtml(quote, lang) }} />
+            <div className={styles.text} dangerouslySetInnerHTML={{ __html: quote.textHtml }} />
             <div className={styles.meta}>
                 <span className={styles.speaker}>{quote.character}</span>
                 <span className={styles.episode}>{quote.arc || `Episode ${quote.episode}`}</span>

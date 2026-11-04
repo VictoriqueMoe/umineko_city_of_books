@@ -13,7 +13,7 @@ export function useMarkSidebarVisited() {
 
             const visitedAt = new Date().toISOString();
             qc.setQueryData<SidebarLastVisitedResponse>(LAST_VISITED_KEY, prev => {
-                const visited = { ...(prev?.visited ?? {}), [key]: visitedAt };
+                const visited = { ...prev?.visited, [key]: visitedAt };
                 return { visited };
             });
 

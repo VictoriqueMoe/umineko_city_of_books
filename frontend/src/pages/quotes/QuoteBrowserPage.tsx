@@ -196,8 +196,7 @@ export function QuoteBrowserPage() {
 
             {!loading && data && data.quotes.length === 0 && <div className="empty-state">No quotes found.</div>}
 
-            {!loading &&
-                data?.quotes.map((q, i) => <TruthCard key={q.audioId || i} quote={q} lang={lang || undefined} />)}
+            {!loading && data?.quotes.map((q, i) => <TruthCard key={q.audioId || i} quote={q} />)}
 
             {!loading && data && (
                 <Pagination

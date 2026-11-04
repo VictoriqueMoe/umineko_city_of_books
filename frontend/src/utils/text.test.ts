@@ -13,6 +13,17 @@ describe("charCount", () => {
         expect(value.length).toBe(4);
         expect(count).toBe(2);
     });
+
+    it("counts a flag or a joined family emoji as one character", () => {
+        // given
+        const value = "🇯🇵👨‍👩‍👧";
+
+        // when
+        const count = charCount(value);
+
+        // then
+        expect(count).toBe(2);
+    });
 });
 
 describe("clampChars", () => {
@@ -37,6 +48,17 @@ describe("clampChars", () => {
         // then
         expect(clipped).toBe("ab🎲");
         expect(clipped).not.toContain("�");
+    });
+
+    it("keeps a flag whole when it is the first character", () => {
+        // given
+        const value = "🇯🇵 Hinamizawa";
+
+        // when
+        const clipped = clampChars(value, 1);
+
+        // then
+        expect(clipped).toBe("🇯🇵");
     });
 
     it("counts Japanese characters one at a time", () => {

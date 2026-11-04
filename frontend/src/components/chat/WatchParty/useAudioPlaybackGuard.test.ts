@@ -32,7 +32,7 @@ function makeRoom(canPlaybackAudio: boolean): FakeRoom {
             }
         }),
         fire: () => {
-            for (const handler of [...handlers]) {
+            for (const handler of handlers) {
                 handler();
             }
         },

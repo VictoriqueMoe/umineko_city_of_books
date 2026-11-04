@@ -61,7 +61,7 @@ export function useSidebarBadges() {
     const [activityOverlay, setActivityOverlay] = useState<Record<string, string>>({});
 
     const latestActivity = useMemo<Record<string, string>>(() => {
-        const merged: Record<string, string> = { ...(activityResp?.activity ?? {}) };
+        const merged: Record<string, string> = { ...activityResp?.activity };
 
         for (const [key, at] of Object.entries(activityOverlay)) {
             const serverAt = merged[key];

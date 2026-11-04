@@ -460,13 +460,59 @@ describe("RoomPage permissions", () => {
 });
 
 describe("RoomPage controls", () => {
-    const controlCases: {
+    type ControlCase = {
         name: string;
         setup: RoomSetup;
         button: string;
         handler: (controller: RoomController) => unknown;
-        args?: unknown[];
-    }[] = [
+    };
+
+    const controlCases: ControlCase[] = [
+        {
+            name: "collapses the info panel when it is already expanded",
+            setup: { room: makeChatRoom({ description: "Tea" }), prefs: { descExpanded: true } },
+            button: "Hide info ▲",
+            handler: controller => controller.prefs.toggleDescExpanded,
+        },
+        {
+            name: "offers to mute the room's notifications",
+            setup: {},
+            button: "Mute notifications",
+            handler: controller => controller.room.toggleMute,
+        },
+        {
+            name: "offers to unmute a room that is already muted",
+            setup: { room: makeChatRoom({ viewer_muted: true }) },
+            button: "Unmute notifications",
+            handler: controller => controller.room.toggleMute,
+        },
+        {
+            name: "collapses the member sidebar when asked",
+            setup: {},
+            button: "Hide members",
+            handler: controller => controller.prefs.toggleSidebar,
+        },
+        {
+            name: "offers a rail to bring the sidebar back once it is collapsed",
+            setup: { prefs: { sidebarCollapsed: true } },
+            button: "Show members",
+            handler: controller => controller.prefs.toggleSidebar,
+        },
+    ];
+
+    it.each(controlCases)("$name", async ({ setup, button, handler }) => {
+        // given the page and the control, from the table row
+        const pointer = userEvent.setup();
+        const { controller } = renderRoom(setup);
+
+        // when
+        await pointer.click(screen.getByRole("button", { name: button }));
+
+        // then
+        expect(handler(controller)).toHaveBeenCalledOnce();
+    });
+
+    const controlCallCases: (ControlCase & { args: unknown[] })[] = [
         {
             name: "opens the message search when asked",
             setup: {},
@@ -480,12 +526,6 @@ describe("RoomPage controls", () => {
             button: "Pinned messages",
             handler: controller => controller.panels.openPanel,
             args: ["pins"],
-        },
-        {
-            name: "collapses the info panel when it is already expanded",
-            setup: { room: makeChatRoom({ description: "Tea" }), prefs: { descExpanded: true } },
-            button: "Hide info ▲",
-            handler: controller => controller.prefs.toggleDescExpanded,
         },
         {
             name: "lets the viewer edit their own profile in the room",
@@ -530,30 +570,6 @@ describe("RoomPage controls", () => {
             args: ["member-1"],
         },
         {
-            name: "offers to mute the room's notifications",
-            setup: {},
-            button: "Mute notifications",
-            handler: controller => controller.room.toggleMute,
-        },
-        {
-            name: "offers to unmute a room that is already muted",
-            setup: { room: makeChatRoom({ viewer_muted: true }) },
-            button: "Unmute notifications",
-            handler: controller => controller.room.toggleMute,
-        },
-        {
-            name: "collapses the member sidebar when asked",
-            setup: {},
-            button: "Hide members",
-            handler: controller => controller.prefs.toggleSidebar,
-        },
-        {
-            name: "offers a rail to bring the sidebar back once it is collapsed",
-            setup: { prefs: { sidebarCollapsed: true } },
-            button: "Show members",
-            handler: controller => controller.prefs.toggleSidebar,
-        },
-        {
             name: "goes back to the rooms list from the sidebar",
             setup: {},
             button: "Back to rooms",
@@ -562,7 +578,7 @@ describe("RoomPage controls", () => {
         },
     ];
 
-    it.each(controlCases)("$name", async ({ setup, button, handler, args }) => {
+    it.each(controlCallCases)("$name", async ({ setup, button, handler, args }) => {
         // given the page and the control, from the table row
         const pointer = userEvent.setup();
         const { controller } = renderRoom(setup);
@@ -571,11 +587,7 @@ describe("RoomPage controls", () => {
         await pointer.click(screen.getByRole("button", { name: button }));
 
         // then
-        if (args === undefined) {
-            expect(handler(controller)).toHaveBeenCalledOnce();
-        } else {
-            expect(handler(controller)).toHaveBeenCalledExactlyOnceWith(...args);
-        }
+        expect(handler(controller)).toHaveBeenCalledExactlyOnceWith(...args);
     });
 });
 

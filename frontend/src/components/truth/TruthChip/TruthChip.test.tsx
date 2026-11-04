@@ -101,39 +101,15 @@ describe("TruthChip", () => {
         expect(screen.getByRole("button", { name: "show more" })).toBeInTheDocument();
     });
 
-    it("shows the Japanese text for the language value the picker hands back", () => {
+    it("shows a Japanese quote's own text", () => {
         // given
-        const quote = makeQuote({ textJp: "愛がなければ、視えない" });
+        const quote = makeQuote({ text: "愛がなければ、視えない" });
 
         // when
-        renderWithProviders(<TruthChip quote={quote} lang="ja" />);
+        renderWithProviders(<TruthChip quote={quote} />);
 
         // then
         expect(screen.getByText("愛がなければ、視えない")).toBeInTheDocument();
-        expect(screen.queryByText("Without love, it cannot be seen.")).not.toBeInTheDocument();
-    });
-
-    it("falls back to the default text when the quote has no Japanese version", () => {
-        // given
-        const quote = makeQuote();
-
-        // when
-        renderWithProviders(<TruthChip quote={quote} lang="ja" />);
-
-        // then
-        expect(screen.getByText("Without love, it cannot be seen.")).toBeInTheDocument();
-    });
-
-    it("keeps the default text for any language other than Japanese", () => {
-        // given
-        const quote = makeQuote({ textJp: "愛がなければ、視えない" });
-
-        // when
-        renderWithProviders(<TruthChip quote={quote} lang="ru" />);
-
-        // then
-        expect(screen.getByText("Without love, it cannot be seen.")).toBeInTheDocument();
-        expect(screen.queryByText("愛がなければ、視えない")).not.toBeInTheDocument();
     });
 
     it("shows the speaker and a short episode label", () => {

@@ -11,7 +11,7 @@ const WIDTH = 3;
 const HEIGHT = 2;
 
 function flags(...set: number[]): boolean[] {
-    const out = new Array<boolean>(WIDTH * HEIGHT).fill(false);
+    const out = Array.from({ length: WIDTH * HEIGHT }, () => false);
     for (const idx of set) {
         out[idx] = true;
     }
@@ -26,7 +26,7 @@ function makeState(overrides: Partial<MinesweeperState> = {}): MinesweeperState 
         revealed: [flags(0), flags()],
         flagged: [flags(1), flags()],
         revealed_count: [1, 0],
-        values: [[2, 0, 0, 0, 0, 0], new Array<number>(WIDTH * HEIGHT).fill(0)],
+        values: [[2, 0, 0, 0, 0, 0], Array.from({ length: WIDTH * HEIGHT }, () => 0)],
         mines: flags(4),
         ...overrides,
     });

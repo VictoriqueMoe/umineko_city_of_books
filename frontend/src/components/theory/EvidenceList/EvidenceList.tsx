@@ -22,7 +22,7 @@ export function EvidenceList({ evidence, series = "umineko" }: EvidenceListProps
                 const key = ev.audio_id ? `audio:${ev.audio_id}` : `index:${ev.quote_index}`;
                 const quote = quotes.get(key);
                 if (quote) {
-                    return <TruthChip key={ev.id} quote={quote} note={ev.note} lang={ev.lang} />;
+                    return <TruthChip key={ev.id} quote={quote} note={ev.note} />;
                 }
                 return (
                     <div key={ev.id} className="truth-chip">

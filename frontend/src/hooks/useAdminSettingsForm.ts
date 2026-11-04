@@ -47,7 +47,7 @@ export function useAdminSettingsForm() {
     const [customDraft, setCustomDraft] = useState<CrawlerFeed[] | null>(null);
 
     const saving = updateSettingsMutation.isPending;
-    const settings: SiteSettings = { ...(loadedSettings ?? {}), ...draft };
+    const settings: SiteSettings = { ...loadedSettings, ...draft };
     const ignoredClasses = parseIgnoredClasses(settings.dronebl_ignored_classes ?? "");
     const custom = customDraft ?? customFeeds(settings.crawler_feeds ?? "");
 

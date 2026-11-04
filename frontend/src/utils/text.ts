@@ -1,9 +1,11 @@
+const graphemes = new Intl.Segmenter();
+
 export function charCount(value: string): number {
-    return [...value].length;
+    return Array.from(graphemes.segment(value)).length;
 }
 
 export function clampChars(value: string, max: number): string {
-    const chars = [...value];
+    const chars = Array.from(graphemes.segment(value), part => part.segment);
     if (chars.length <= max) {
         return value;
     }

@@ -59,49 +59,15 @@ describe("TruthCard", () => {
         expect(screen.queryByText("Episode 2")).not.toBeInTheDocument();
     });
 
-    it("shows the Japanese markup when Japanese is the chosen language", () => {
+    it("shows a Japanese quote's own markup", () => {
         // given
-        const quote = makeQuote({ textJp: "愛がなければ", textJpHtml: "<b>愛の真実</b>" });
+        const quote = makeQuote({ text: "愛がなければ", textHtml: "<b>愛の真実</b>" });
 
         // when
-        renderWithProviders(<TruthCard quote={quote} lang="ja" />);
+        renderWithProviders(<TruthCard quote={quote} />);
 
         // then
-        expect(screen.getByText("愛の真実")).toBeInTheDocument();
-        expect(screen.queryByText("Without love, it cannot be seen.")).not.toBeInTheDocument();
-    });
-
-    it("falls back to the plain Japanese text when there is no Japanese markup", () => {
-        // given
-        const quote = makeQuote({ textJp: "愛がなければ" });
-
-        // when
-        renderWithProviders(<TruthCard quote={quote} lang="ja" />);
-
-        // then
-        expect(screen.getByText("愛がなければ")).toBeInTheDocument();
-    });
-
-    it("keeps the default text when Japanese is asked for but the quote has none", () => {
-        // given
-        const quote = makeQuote();
-
-        // when
-        renderWithProviders(<TruthCard quote={quote} lang="ja" />);
-
-        // then
-        expect(screen.getByText("Without love, it cannot be seen.")).toBeInTheDocument();
-    });
-
-    it("keeps the default text for any other language", () => {
-        // given
-        const quote = makeQuote({ textJpHtml: "<b>愛の真実</b>" });
-
-        // when
-        renderWithProviders(<TruthCard quote={quote} lang="ru" />);
-
-        // then
-        expect(screen.getByText("Without love, it cannot be seen.")).toBeInTheDocument();
+        expect(screen.getByText("愛の真実").tagName).toBe("B");
     });
 
     it("is not interactive when no click handler is given", () => {

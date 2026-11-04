@@ -6,28 +6,28 @@ type CommentLikeBody = undefined | Record<string, never>;
 
 function commentEndpoints(parentPath: string, commentPath: string, likeBody: CommentLikeBody) {
     return {
-        async create(
+        create: async (
             parentId: string,
             body: string,
             replyToId?: string,
             media: readonly MediaUpload[] = [],
-        ): Promise<{ id: string }> {
+        ): Promise<{ id: string }> => {
             return postCreate<{ id: string }, { body: string; parent_id?: string }>(
                 `${parentPath}/${parentId}/comments`,
                 { body, parent_id: replyToId },
                 { media },
             );
         },
-        async update(id: string, body: string): Promise<void> {
+        update: async (id: string, body: string): Promise<void> => {
             await apiPut<unknown, { body: string }>(`${commentPath}/${id}`, { body });
         },
-        async remove(id: string): Promise<void> {
+        remove: async (id: string): Promise<void> => {
             await apiDelete(`${commentPath}/${id}`);
         },
-        async like(id: string): Promise<void> {
+        like: async (id: string): Promise<void> => {
             await apiPost<unknown, CommentLikeBody>(`${commentPath}/${id}/like`, likeBody);
         },
-        async unlike(id: string): Promise<void> {
+        unlike: async (id: string): Promise<void> => {
             await apiDelete(`${commentPath}/${id}/like`);
         },
     };
