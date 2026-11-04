@@ -22,7 +22,7 @@ function walk(value: unknown, userId: string, patch: UserPatch): unknown {
 
     if (Array.isArray(value)) {
         let changed = false;
-        const next: unknown[] = new Array(value.length);
+        const next: unknown[] = [];
         for (let i = 0; i < value.length; i++) {
             const child = walk(value[i], userId, patch);
             if (child !== value[i]) {

@@ -43,7 +43,9 @@ describe("expectInvalidated", () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.chat.rooms() });
 
         // then
-        expect(() => expectInvalidated(queryClient, queryKeys.chat.unreadCount())).toThrow();
+        expect(() => expectInvalidated(queryClient, queryKeys.chat.unreadCount())).toThrow(
+            /to be called with arguments/,
+        );
     });
 
     it("fails when nothing was invalidated", () => {
@@ -52,7 +54,9 @@ describe("expectInvalidated", () => {
 
         // when
         // then
-        expect(() => expectInvalidated(queryClient, queryKeys.chat.unreadCount())).toThrow();
+        expect(() => expectInvalidated(queryClient, queryKeys.chat.unreadCount())).toThrow(
+            /to be called with arguments/,
+        );
     });
 
     it("matches on the whole key, not a prefix of it", () => {
@@ -63,7 +67,9 @@ describe("expectInvalidated", () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.chat.room("room-1") });
 
         // then
-        expect(() => expectInvalidated(queryClient, queryKeys.chat.roomMembers("room-1"))).toThrow();
+        expect(() => expectInvalidated(queryClient, queryKeys.chat.roomMembers("room-1"))).toThrow(
+            /to be called with arguments/,
+        );
     });
 
     it("ignores an invalidation that carried extra options", () => {
@@ -74,7 +80,9 @@ describe("expectInvalidated", () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.chat.unreadCount(), exact: true });
 
         // then
-        expect(() => expectInvalidated(queryClient, queryKeys.chat.unreadCount())).toThrow();
+        expect(() => expectInvalidated(queryClient, queryKeys.chat.unreadCount())).toThrow(
+            /to be called with arguments/,
+        );
     });
 
     it("says so when the client was never spied on", () => {

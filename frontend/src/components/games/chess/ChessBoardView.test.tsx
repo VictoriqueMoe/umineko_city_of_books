@@ -92,7 +92,7 @@ const onDeclineDraw = vi.fn<() => Promise<void>>();
 function emptyBoard(): Array<Array<BoardSquare | null>> {
     const rows: Array<Array<BoardSquare | null>> = [];
     for (let r = 0; r < 8; r++) {
-        rows.push(new Array<BoardSquare | null>(8).fill(null));
+        rows.push(Array.from({ length: 8 }, (): BoardSquare | null => null));
     }
     return rows;
 }

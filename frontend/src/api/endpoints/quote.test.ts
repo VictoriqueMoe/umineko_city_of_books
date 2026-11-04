@@ -38,15 +38,28 @@ describe("the quote API", () => {
         );
     });
 
-    it("searchQuotes drops the language filter for the other series", async () => {
+    it("searchQuotes keeps the language filter for the other series", async () => {
         // given
-        const params = { query: "gold", lang: "jp", series: "higurashi" as const };
+        const params = { query: "奇跡", lang: "ja", series: "higurashi" as const };
 
         // when
         await api.searchQuotes(params);
 
         // then
-        expect(globalFetch).toHaveBeenCalledWith("https://quotes.auaurora.moe/api/v1/higurashi/search?q=gold&limit=30");
+        expect(globalFetch).toHaveBeenCalledWith(
+            `https://quotes.auaurora.moe/api/v1/higurashi/search?q=${encodeURIComponent("奇跡")}&lang=ja&limit=30`,
+        );
+    });
+
+    it("browseQuotes keeps the language filter for the other series", async () => {
+        // given
+        const params = { lang: "ja", series: "ciconia" as const };
+
+        // when
+        await api.browseQuotes(params);
+
+        // then
+        expect(globalFetch).toHaveBeenCalledWith("https://quotes.auaurora.moe/api/v1/ciconia/browse?lang=ja&limit=30");
     });
 
     it("browseQuotes pages through a character's lines", async () => {

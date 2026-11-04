@@ -10,28 +10,28 @@ interface CommentApi {
 
 export function commentMutations(domain: ViewDomain, api: CommentApi) {
     return {
-        useUpdate(_parentId?: string) {
+        useUpdate: (_parentId?: string) => {
             const qc = useQueryClient();
             return useMutation({
                 mutationFn: ({ id, body }: { id: string; body: string }) => api.update(id, body),
                 onSuccess: () => invalidateViews(qc, domain),
             });
         },
-        useDelete(_parentId?: string) {
+        useDelete: (_parentId?: string) => {
             const qc = useQueryClient();
             return useMutation({
                 mutationFn: (id: string) => api.remove(id),
                 onSuccess: () => invalidateViews(qc, domain),
             });
         },
-        useLike(_parentId?: string) {
+        useLike: (_parentId?: string) => {
             const qc = useQueryClient();
             return useMutation({
                 mutationFn: (id: string) => api.like(id),
                 onSuccess: () => invalidateViews(qc, domain),
             });
         },
-        useUnlike(_parentId?: string) {
+        useUnlike: (_parentId?: string) => {
             const qc = useQueryClient();
             return useMutation({
                 mutationFn: (id: string) => api.unlike(id),

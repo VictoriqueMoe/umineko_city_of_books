@@ -87,7 +87,7 @@ vi.mock("../../components/art/ArtGrid/ArtGrid", () => ({
     ArtGrid: ({ art }: { art: { id: string }[] }) => <div data-testid="art-grid">{art.length} pieces of art</div>,
 }));
 
-interface ProfileCase {
+type ProfileCase = {
     name: string;
     viewer?: SessionUser | null;
     siteInfo?: Partial<SiteInfo>;
@@ -103,12 +103,15 @@ interface ProfileCase {
     noButtons?: string[];
     reads?: [Matcher, string][];
     links?: [RegExp, string][];
-    socialLinks?: [string, string][];
     cards?: [string, string][];
-    fetches?: [Mock, ...unknown[]];
     once?: Mock[];
-    calls?: [Mock, ...unknown[]];
-}
+};
+
+type SocialLinksCase = ProfileCase & { socialLinks: [string, string][] };
+
+type FetchCase = ProfileCase & { fetches: [Mock, ...unknown[]] };
+
+type CallCase = ProfileCase & { calls: [Mock, ...unknown[]] };
 
 const profileId = "profile-1";
 const viewerId = "viewer-1";
@@ -303,31 +306,37 @@ async function checkProfileCase(testCase: ProfileCase) {
         expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
     }
 
-    if (testCase.socialLinks) {
-        const links = screen
-            .queryAllByRole("link")
-            .filter(link => /^https?:\/\//.test(link.getAttribute("href") ?? ""))
-            .map(link => [link.textContent, link.getAttribute("href")]);
-        expect(links).toEqual(testCase.socialLinks);
-    }
-
     for (const [testId, content] of testCase.cards ?? []) {
         expect(screen.getByTestId(testId)).toHaveTextContent(content);
-    }
-
-    if (testCase.fetches) {
-        const [hook, ...args] = testCase.fetches;
-        expect(hook).toHaveBeenLastCalledWith(...args);
     }
 
     for (const spy of testCase.once ?? []) {
         expect(spy).toHaveBeenCalledOnce();
     }
+}
 
-    if (testCase.calls) {
-        const [spy, ...args] = testCase.calls;
-        expect(spy).toHaveBeenCalledExactlyOnceWith(...args);
-    }
+async function checkSocialLinksCase(testCase: SocialLinksCase) {
+    await checkProfileCase(testCase);
+
+    const links = screen
+        .queryAllByRole("link")
+        .filter(link => /^https?:\/\//.test(link.getAttribute("href") ?? ""))
+        .map(link => [link.textContent, link.getAttribute("href")]);
+    expect(links).toEqual(testCase.socialLinks);
+}
+
+async function checkFetchCase(testCase: FetchCase) {
+    await checkProfileCase(testCase);
+
+    const [hook, ...args] = testCase.fetches;
+    expect(hook).toHaveBeenLastCalledWith(...args);
+}
+
+async function checkCallCase(testCase: CallCase) {
+    await checkProfileCase(testCase);
+
+    const [spy, ...args] = testCase.calls;
+    expect(spy).toHaveBeenCalledExactlyOnceWith(...args);
 }
 
 beforeEach(() => {
@@ -478,7 +487,7 @@ describe("ProfilePage header", () => {
 });
 
 describe("ProfilePage social links", () => {
-    const socialCases: ProfileCase[] = [
+    const socialCases: SocialLinksCase[] = [
         {
             name: "turns a bare handle into a link to the service",
             profile: {
@@ -513,7 +522,7 @@ describe("ProfilePage social links", () => {
         },
     ];
 
-    it.each(socialCases)("$name", checkProfileCase);
+    it.each(socialCases)("$name", checkSocialLinksCase);
 });
 
 describe("ProfilePage viewer gates", () => {
@@ -544,11 +553,6 @@ describe("ProfilePage viewer gates", () => {
             shown: ["Follows you"],
         },
         {
-            name: "opens a direct message with the player from the profile",
-            press: ["Message"],
-            calls: [mocks.navigate, "/chat", { state: { dmUserId: profileId } }],
-        },
-        {
             name: "hides the message shortcut when the player takes no direct messages",
             profile: { dms_enabled: false },
             noButtons: ["Message"],
@@ -576,12 +580,6 @@ describe("ProfilePage viewer gates", () => {
             noButtons: ["Block"],
         },
         {
-            name: "offers staff a way through to the account management screen",
-            viewer: staff,
-            press: ["Manage account"],
-            calls: [mocks.navigate, `/admin/users/${profileId}`],
-        },
-        {
             name: "keeps account management away from an ordinary member",
             noButtons: ["Manage account"],
         },
@@ -593,6 +591,22 @@ describe("ProfilePage viewer gates", () => {
     ];
 
     it.each(gateCases)("$name", checkProfileCase);
+
+    const gateCallCases: CallCase[] = [
+        {
+            name: "opens a direct message with the player from the profile",
+            press: ["Message"],
+            calls: [mocks.navigate, "/chat", { state: { dmUserId: profileId } }],
+        },
+        {
+            name: "offers staff a way through to the account management screen",
+            viewer: staff,
+            press: ["Manage account"],
+            calls: [mocks.navigate, `/admin/users/${profileId}`],
+        },
+    ];
+
+    it.each(gateCallCases)("$name", checkCallCase);
 });
 
 describe("ProfilePage stats", () => {
@@ -628,25 +642,6 @@ describe("ProfilePage stats", () => {
 
 describe("ProfilePage tabs", () => {
     const tabCases: ProfileCase[] = [
-        {
-            name: "opens on posts and says when the player has written none",
-            shown: ["No posts yet."],
-            fetches: [mocks.useUserPosts, profileId, 20, 0],
-        },
-        {
-            name: "opens on the tab the player chose as their default",
-            profile: { private: { default_profile_tab: "mysteries" } },
-            shown: ["No mysteries declared yet."],
-            fetches: [mocks.useUserMysteries, profileId, 20, 0],
-        },
-        {
-            name: "fetches the player's ships once the tab is opened and describes each with its pairing and score",
-            serves: [mocks.useUserShips, { ships: [makeShip()], total: 1, loading: false }],
-            press: ["Ships"],
-            shown: ["Beato and Battler", "Beatrice × Battler"],
-            links: [[/Beato and Battler/, "/ships/ship-1"]],
-            fetches: [mocks.useUserShips, profileId, 20, 0],
-        },
         {
             name: "waits while the ships of the tab are being fetched",
             serves: [mocks.useUserShips, { ships: [], total: 0, loading: true }],
@@ -692,16 +687,6 @@ describe("ProfilePage tabs", () => {
             shown: ["Golden Land", /12,000 words/, /1 chapter$/],
         },
         {
-            name: "keeps saved fanfictions apart from the ones the player wrote",
-            serves: [
-                mocks.useUserFanficFavourites,
-                { fanfics: [makeFanfic({ id: "fanfic-2", title: "Rokkenjima Nights" })], total: 1, loading: false },
-            ],
-            press: ["Saved Fics"],
-            shown: ["Rokkenjima Nights"],
-            fetches: [mocks.useUserFanficFavourites, profileId, 20, 0],
-        },
-        {
             name: "lists the reading journals through their cards",
             serves: [
                 mocks.useUserJournals,
@@ -733,10 +718,44 @@ describe("ProfilePage tabs", () => {
     ];
 
     it.each(tabCases)("$name", checkProfileCase);
+
+    const tabFetchCases: FetchCase[] = [
+        {
+            name: "opens on posts and says when the player has written none",
+            shown: ["No posts yet."],
+            fetches: [mocks.useUserPosts, profileId, 20, 0],
+        },
+        {
+            name: "opens on the tab the player chose as their default",
+            profile: { private: { default_profile_tab: "mysteries" } },
+            shown: ["No mysteries declared yet."],
+            fetches: [mocks.useUserMysteries, profileId, 20, 0],
+        },
+        {
+            name: "fetches the player's ships once the tab is opened and describes each with its pairing and score",
+            serves: [mocks.useUserShips, { ships: [makeShip()], total: 1, loading: false }],
+            press: ["Ships"],
+            shown: ["Beato and Battler", "Beatrice × Battler"],
+            links: [[/Beato and Battler/, "/ships/ship-1"]],
+            fetches: [mocks.useUserShips, profileId, 20, 0],
+        },
+        {
+            name: "keeps saved fanfictions apart from the ones the player wrote",
+            serves: [
+                mocks.useUserFanficFavourites,
+                { fanfics: [makeFanfic({ id: "fanfic-2", title: "Rokkenjima Nights" })], total: 1, loading: false },
+            ],
+            press: ["Saved Fics"],
+            shown: ["Rokkenjima Nights"],
+            fetches: [mocks.useUserFanficFavourites, profileId, 20, 0],
+        },
+    ];
+
+    it.each(tabFetchCases)("$name", checkFetchCase);
 });
 
 describe("ProfilePage activity tab", () => {
-    const activityCases: ProfileCase[] = [
+    const activityFetchCases: FetchCase[] = [
         {
             name: "says when the player has done nothing yet",
             press: ["Activity"],
@@ -749,6 +768,11 @@ describe("ProfilePage activity tab", () => {
             press: ["Activity", "Next"],
             fetches: [mocks.useUserActivity, "beatrice", 20, 20],
         },
+    ];
+
+    it.each(activityFetchCases)("$name", checkFetchCase);
+
+    const activityCases: ProfileCase[] = [
         {
             name: "labels a theory the player created and leaves the pager out while it fits on one page",
             serves: [mocks.useUserActivity, { activity: [makeActivity()], total: 1, loading: false }],
@@ -781,7 +805,7 @@ describe("ProfilePage activity tab", () => {
 });
 
 describe("ProfilePage follow lists", () => {
-    const followListCases: ProfileCase[] = [
+    const followListCases: FetchCase[] = [
         {
             name: "lists the players following this profile",
             serves: [
@@ -800,7 +824,7 @@ describe("ProfilePage follow lists", () => {
         },
     ];
 
-    it.each(followListCases)("$name", checkProfileCase);
+    it.each(followListCases)("$name", checkFetchCase);
 });
 
 describe("ProfilePage galleries tab", () => {
@@ -904,6 +928,11 @@ describe("ProfilePage pagination", () => {
             serves: onePostOf(1),
             noButtons: ["Next"],
         },
+    ];
+
+    it.each(pagerCases)("$name", checkProfileCase);
+
+    const pagerFetchCases: FetchCase[] = [
         {
             name: "walks the posts on to the next page",
             serves: onePostOf(45),
@@ -918,7 +947,7 @@ describe("ProfilePage pagination", () => {
         },
     ];
 
-    it.each(pagerCases)("$name", checkProfileCase);
+    it.each(pagerFetchCases)("$name", checkFetchCase);
 });
 
 describe("ProfilePage character guide", () => {

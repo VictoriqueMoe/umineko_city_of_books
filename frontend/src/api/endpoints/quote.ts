@@ -23,7 +23,7 @@ export async function searchQuotes(params: {
         arc: params.arc,
         chapter: params.chapter,
         truth: params.truth,
-        lang: series === "umineko" ? params.lang : undefined,
+        lang: params.lang,
         limit: params.limit ?? 30,
         offset: params.offset,
     });
@@ -52,7 +52,7 @@ export async function browseQuotes(params: {
         truth: params.truth,
         arc: params.arc,
         chapter: params.chapter,
-        lang: series === "umineko" ? params.lang : undefined,
+        lang: params.lang,
         limit: params.limit ?? 30,
         offset: params.offset,
     });

@@ -215,10 +215,10 @@ describe("MediaPreviews", () => {
 
         // then only the urls that nothing points at any more are released
         const after = screen.getAllByRole("presentation").map(img => img.getAttribute("src"));
-        for (const url of before) {
-            if (!after.includes(url)) {
-                expect(revoked).toHaveBeenCalledWith(url);
-            }
+        const dropped = before.filter(url => !after.includes(url));
+        expect(dropped).toContain(before[1]);
+        for (const url of dropped) {
+            expect(revoked).toHaveBeenCalledWith(url);
         }
         for (const url of after) {
             expect(revoked).not.toHaveBeenCalledWith(url);

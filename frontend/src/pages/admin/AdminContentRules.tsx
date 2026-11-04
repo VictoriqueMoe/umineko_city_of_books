@@ -41,7 +41,7 @@ export function AdminContentRules() {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
-    const settings: SiteSettings = { ...(loadedSettings ?? {}), ...draft };
+    const settings: SiteSettings = { ...loadedSettings, ...draft };
 
     async function handleSave() {
         setError("");

@@ -44,18 +44,26 @@ export function lastFormData(): FormData {
 }
 
 export function runRequestCases(cases: RequestCase[]): void {
-    it.each(cases)("$name", async ({ call, transport, request, strict }) => {
+    const looseCases = cases.filter(entry => !entry.strict);
+    const strictCases = cases.filter(entry => entry.strict);
+
+    it.each(looseCases)("$name", async ({ call, transport, request }) => {
         // given the call and the request it should produce, from the table row
 
         // when
         await call();
 
         // then
-        if (strict) {
-            expect(transport.mock.lastCall).toStrictEqual(request);
-            return;
-        }
-
         expect(transport).toHaveBeenCalledWith(...request);
+    });
+
+    it.each(strictCases)("$name", async ({ call, transport, request }) => {
+        // given the call and the exact request it should produce, from the table row
+
+        // when
+        await call();
+
+        // then
+        expect(transport.mock.lastCall).toStrictEqual(request);
     });
 }

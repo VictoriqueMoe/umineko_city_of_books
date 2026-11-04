@@ -184,34 +184,19 @@ describe("the comment family table", () => {
 });
 
 describe("the comment endpoint factory", () => {
-    it.each(families)(
-        "$family comments create, update, delete, like and unlike against their own paths",
-        async family => {
-            // given
-            const parentId = "parent-1";
+    it.each(families)("$family comments update, delete, like and unlike against their own paths", async family => {
+        // when
+        await family.update("c-1", "on second thoughts");
+        await family.remove("c-1");
+        await family.like("c-1");
+        await family.unlike("c-1");
 
-            // when
-            if (family.create) {
-                await family.create(parentId, "lovely");
-            }
-            await family.update("c-1", "on second thoughts");
-            await family.remove("c-1");
-            await family.like("c-1");
-            await family.unlike("c-1");
-
-            // then
-            if (family.create) {
-                expect(postMock.mock.calls[0]).toStrictEqual([
-                    `${family.parentPath}/${parentId}/comments`,
-                    { body: "lovely", parent_id: undefined },
-                ]);
-            }
-            expect(putMock.mock.lastCall).toStrictEqual([`${family.commentPath}/c-1`, { body: "on second thoughts" }]);
-            expect(postMock.mock.lastCall).toStrictEqual([`${family.commentPath}/c-1/like`, family.likeBody]);
-            expect(deleteMock.mock.calls).toEqual([[`${family.commentPath}/c-1`], [`${family.commentPath}/c-1/like`]]);
-            expect(postFormDataMock).not.toHaveBeenCalled();
-        },
-    );
+        // then
+        expect(putMock.mock.lastCall).toStrictEqual([`${family.commentPath}/c-1`, { body: "on second thoughts" }]);
+        expect(postMock.mock.lastCall).toStrictEqual([`${family.commentPath}/c-1/like`, family.likeBody]);
+        expect(deleteMock.mock.calls).toEqual([[`${family.commentPath}/c-1`], [`${family.commentPath}/c-1/like`]]);
+        expect(postFormDataMock).not.toHaveBeenCalled();
+    });
 
     it.each(creatable)("$family comments send the text and every file in one multipart request", async family => {
         // given

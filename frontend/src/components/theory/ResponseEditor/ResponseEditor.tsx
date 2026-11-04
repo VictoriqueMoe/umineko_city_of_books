@@ -109,7 +109,7 @@ export function ResponseEditor({
                     <div className={styles.evidenceSection}>
                         {ev.evidence.map((item, i) => (
                             <div key={item.quote.audioId} className={styles.evidenceItem}>
-                                <TruthChip quote={item.quote} lang={item.lang} onRemove={() => ev.removeAt(i)} />
+                                <TruthChip quote={item.quote} onRemove={() => ev.removeAt(i)} />
                                 <Input
                                     type="text"
                                     fullWidth

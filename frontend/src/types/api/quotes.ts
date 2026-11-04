@@ -3,8 +3,6 @@ import type { PaginationFields } from "./common";
 export interface Quote {
     text: string;
     textHtml: string;
-    textJp?: string;
-    textJpHtml?: string;
     characterId: string;
     character: string;
     audioId: string;

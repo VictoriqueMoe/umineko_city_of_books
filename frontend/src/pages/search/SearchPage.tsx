@@ -60,7 +60,8 @@ export function SearchPage() {
     function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
         e.preventDefault();
         const data = new FormData(e.currentTarget);
-        setQ(String(data.get("q") ?? ""));
+        const q = data.get("q");
+        setQ(typeof q === "string" ? q : "");
     }
 
     return (

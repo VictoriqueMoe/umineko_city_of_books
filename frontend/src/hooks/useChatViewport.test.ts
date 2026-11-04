@@ -53,7 +53,7 @@ function installVisualViewport(height: number, offsetTop = 0): ViewportHandle {
             viewport.offsetTop = next;
         },
         emit(type: string) {
-            for (const listener of [...(listeners.get(type) ?? [])]) {
+            for (const listener of listeners.get(type) ?? []) {
                 listener(new Event(type));
             }
         },

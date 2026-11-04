@@ -19,7 +19,7 @@ const onAcceptDraw = vi.fn<() => Promise<void>>();
 const onDeclineDraw = vi.fn<() => Promise<void>>();
 
 function boardWith(pieces: Record<string, string>): string {
-    const cells = new Array<string>(64).fill(".");
+    const cells = Array.from({ length: 64 }, () => ".");
     for (const [square, piece] of Object.entries(pieces)) {
         const col = square.charCodeAt(0) - "a".charCodeAt(0);
         const row = Number(square[1]) - 1;

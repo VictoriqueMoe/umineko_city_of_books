@@ -242,7 +242,6 @@ function TruthPickerInner({ isOpen, onClose, onSelect, selectedKeys, series = "u
                         quote={q}
                         onClick={() => onSelect(q, lang || "en")}
                         selected={selectedKeys.includes(quoteKey(q))}
-                        lang={lang || undefined}
                     />
                 ))}
                 {!loading && quotes.length === 0 && <div className="empty-state">No quotes found.</div>}
