@@ -156,9 +156,10 @@ func firstError(resps []valkey.ValkeyResult) error {
 
 func observe(span trace.Span, command string, start time.Time, err error) {
 	commandDuration.WithLabelValues(command).Observe(time.Since(start).Seconds())
+	failures := commandErrors.WithLabelValues(command)
 
 	if err != nil && !valkey.IsValkeyNil(err) {
-		commandErrors.WithLabelValues(command).Inc()
+		failures.Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 	}
