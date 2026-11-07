@@ -1,17 +1,38 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import type { OutgoingChatMessage } from "../../../domain/chat/optimisticSend";
 import type { ChatSender, DraftSender } from "../../../hooks/chat/useOptimisticSends";
+import { makePendingUpload } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { SiteInfo } from "../../../types/api";
 import { ChatComposer, type ComposerTarget } from "./ChatComposer";
 
-const mocks = vi.hoisted(() => ({
-    useIsMobile: vi.fn(),
+const { mocks, uploads } = vi.hoisted(() => ({
+    mocks: { useIsMobile: vi.fn() },
+    uploads: { begin: vi.fn(), remove: vi.fn(), statuses: vi.fn() },
 }));
 
 vi.mock("../../../hooks/useIsMobile", () => ({ useIsMobile: mocks.useIsMobile }));
+
+vi.mock("../../../hooks/mutations/uploads", () => ({
+    useBeginUpload: () => ({ mutateAsync: uploads.begin }),
+    useRemoveUpload: () => ({ mutateAsync: uploads.remove }),
+    useUploadStatuses: () => ({ mutateAsync: uploads.statuses }),
+}));
+
+beforeEach(() => {
+    uploads.remove.mockResolvedValue(undefined);
+    uploads.statuses.mockResolvedValue([]);
+    uploads.begin.mockImplementation(({ file }: { file: File }) =>
+        Promise.resolve(makePendingUpload({ id: `upload-${file.name}`, filename: file.name })),
+    );
+});
+
+async function attach(user: ReturnType<typeof userEvent.setup>, container: HTMLElement, files: File[]): Promise<void> {
+    await user.upload(container.querySelector('input[type="file"]') as HTMLInputElement, files);
+    await waitFor(() => expect(screen.queryByRole("progressbar")).not.toBeInTheDocument());
+}
 
 vi.mock("../GifPicker/GifPicker", () => ({
     GifPicker: ({ onPick, onClose }: { onPick: (gif: { id: string; url: string }) => void; onClose: () => void }) => (
@@ -247,7 +268,7 @@ describe("ChatComposer in a room", () => {
         const user = userEvent.setup();
         const file = new File(["portrait"], "beatrice.png", { type: "image/png" });
         const { container, sender } = renderComposer();
-        await user.upload(container.querySelector('input[type="file"]') as HTMLInputElement, file);
+        await attach(user, container, [file]);
 
         // when
         await user.click(screen.getByRole("button", { name: "Mark as spoiler" }));
@@ -257,7 +278,7 @@ describe("ChatComposer in a room", () => {
         expect(sender.send).toHaveBeenCalledExactlyOnceWith({
             body: "",
             replyTo: null,
-            attachments: [{ file, spoiler: true }],
+            attachments: [{ file, spoiler: true, uploadId: "upload-beatrice.png" }],
         });
     });
 
@@ -267,7 +288,7 @@ describe("ChatComposer in a room", () => {
         const first = new File(["one"], "one.png", { type: "image/png" });
         const second = new File(["two"], "two.png", { type: "image/png" });
         const { container, sender } = renderComposer();
-        await user.upload(container.querySelector('input[type="file"]') as HTMLInputElement, [first, second]);
+        await attach(user, container, [first, second]);
         await user.click(screen.getAllByRole("button", { name: "Mark as spoiler" })[1]);
 
         // when the first attachment is removed
@@ -278,8 +299,9 @@ describe("ChatComposer in a room", () => {
         expect(sender.send).toHaveBeenCalledExactlyOnceWith({
             body: "",
             replyTo: null,
-            attachments: [{ file: second, spoiler: true }],
+            attachments: [{ file: second, spoiler: true, uploadId: "upload-two.png" }],
         });
+        expect(uploads.remove).toHaveBeenCalledExactlyOnceWith("upload-one.png");
     });
 
     it("lets an attachment stand in for a body and clears it once handed over", async () => {
@@ -290,16 +312,34 @@ describe("ChatComposer in a room", () => {
         expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
 
         // when
-        await user.upload(container.querySelector('input[type="file"]') as HTMLInputElement, file);
+        await attach(user, container, [file]);
         await user.click(screen.getByRole("button", { name: "Send" }));
 
         // then
         expect(sender.send).toHaveBeenCalledExactlyOnceWith({
             body: "",
             replyTo: null,
-            attachments: [{ file, spoiler: false }],
+            attachments: [{ file, spoiler: false, uploadId: "upload-beatrice.png" }],
         });
         expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
+    });
+
+    it("holds the message, even with words in it, until every attachment has finished uploading", async () => {
+        // given an upload the server has not answered yet
+        const user = userEvent.setup();
+        uploads.begin.mockReturnValue(new Promise(() => {}));
+        const { container, sender } = renderComposer();
+        await user.upload(container.querySelector('input[type="file"]') as HTMLInputElement, [
+            new File(["portrait"], "beatrice.png", { type: "image/png" }),
+        ]);
+
+        // when
+        await user.type(screen.getByPlaceholderText(ENTER_PLACEHOLDER), "look{Enter}");
+
+        // then
+        expect(screen.getByRole("progressbar", { name: "Upload progress" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+        expect(sender.send).not.toHaveBeenCalled();
     });
 
     it("drops an attachment again when its remove control is used", async () => {
@@ -307,7 +347,7 @@ describe("ChatComposer in a room", () => {
         const user = userEvent.setup();
         const file = new File(["portrait"], "beatrice.png", { type: "image/png" });
         const { container } = renderComposer();
-        await user.upload(container.querySelector('input[type="file"]') as HTMLInputElement, file);
+        await attach(user, container, [file]);
         expect(screen.getByRole("button", { name: "Send" })).toBeEnabled();
 
         // when

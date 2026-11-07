@@ -32,7 +32,6 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 	if err := svc.chat.EnsureSystemRooms(context.Background()); err != nil {
 		logger.Log.Error().Err(err).Msg("ensure system chat rooms at startup")
 	}
-
 	scheduleJob(stop, wg, "clean orphaned uploads", "cleaned orphaned upload files", 24*time.Hour, func() (int, error) {
 		return upload.CleanOrphanedFiles(context.Background(), repos.Upload, repos.StoredFile, svc.storage)
 	})
@@ -41,6 +40,9 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 	})
 	scheduleJob(stop, wg, "clean abandoned upload staging", "cleaned abandoned upload staging directories", time.Hour, func() (int, error) {
 		return svc.upload.CleanStaging(time.Hour)
+	})
+	scheduleJob(stop, wg, "expire unposted uploads", "expired unposted uploads", upload.PendingUploadLifetime, func() (int, error) {
+		return svc.upload.ExpireUploads(context.Background())
 	})
 	scheduleJob(stop, wg, "prune old notifications", "pruned old notifications", 24*time.Hour, func() (int, error) {
 		return svc.notification.PruneOld(context.Background())

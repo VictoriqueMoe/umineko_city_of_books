@@ -11,7 +11,6 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/journal/params"
-	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -324,8 +323,8 @@ func (s *Service) createJournalComment(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	return handleCreateComment(ctx, func(c context.Context, req dto.CreateJournalCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
-		return s.JournalService.CreateComment(c, journalID, userID, req, files)
+	return handleCreateComment(ctx, func(c context.Context, req dto.CreateJournalCommentRequest) (uuid.UUID, error) {
+		return s.JournalService.CreateComment(c, journalID, userID, req)
 	}, []errorResponse{
 		{err: journal.ErrArchived, respond: utils.Forbidden, message: "journal is archived"},
 		{err: journal.ErrNotFound, respond: utils.NotFound, message: "journal not found"},
@@ -364,18 +363,12 @@ func (s *Service) uploadJournalEntryMedia(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	file, err := ctx.FormFile("media")
-	if err != nil {
-		return utils.BadRequest(ctx, "no media file provided")
+	media, ok := utils.BindJSON[dto.UploadRef](ctx)
+	if !ok {
+		return nil
 	}
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file", err)
-	}
-	defer reader.Close()
 
-	contentType := file.Header.Get("Content-Type")
-	result, err := s.JournalService.UploadEntryMedia(ctx.Context(), entryID, userID, contentType, file.Filename, file.Size, reader, isSpoilerUpload(ctx))
+	result, err := s.JournalService.AttachEntryMedia(ctx.Context(), entryID, userID, media)
 	if err != nil {
 		if errors.Is(err, journal.ErrNotAuthor) {
 			return utils.Forbidden(ctx, "not the entry author")
@@ -384,9 +377,9 @@ func (s *Service) uploadJournalEntryMedia(ctx fiber.Ctx) error {
 			return utils.NotFound(ctx, "entry not found")
 		}
 		if utils.IsUploadRejection(err) {
-			return utils.BadRequest(ctx, err.Error())
+			return utils.UploadRejected(ctx, err)
 		}
-		return utils.InternalError(ctx, "failed to upload media", err)
+		return utils.InternalError(ctx, "failed to attach media", err)
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(result)
 }
@@ -420,12 +413,12 @@ func (s *Service) createJournalEntry(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	req, ok := utils.BindWithMedia[dto.CreateJournalEntryRequest](ctx)
+	req, ok := utils.BindJSON[dto.CreateJournalEntryRequest](ctx)
 	if !ok {
 		return nil
 	}
 
-	id, entryNumber, err := s.JournalService.CreateEntry(ctx.Context(), journalID, userID, req.Payload, req.Media)
+	id, entryNumber, err := s.JournalService.CreateEntry(ctx.Context(), journalID, userID, req)
 	if err != nil {
 		if utils.MapFilterError(ctx, err) {
 			return nil

@@ -53,41 +53,7 @@ beforeEach(() => {
     mocks.setEmail.mockResolvedValue(undefined);
 });
 
-describe("SetEmailPage gating", () => {
-    it("waits quietly while the session is still being restored", () => {
-        // given
-        const loading = true;
-
-        // when
-        setup({ loading });
-
-        // then
-        expect(screen.getByText("Loading...")).toBeInTheDocument();
-        expect(screen.queryByPlaceholderText("Email")).not.toBeInTheDocument();
-    });
-
-    it("sends a signed out visitor to the sign in page", () => {
-        // given
-        const signedOut = null;
-
-        // when
-        setup({ user: signedOut });
-
-        // then
-        expect(screen.getByText("sign in page")).toBeInTheDocument();
-    });
-
-    it("sends a member who already has an email back to the city", () => {
-        // given
-        const user = makeUser({ email: "beato@example.com" });
-
-        // when
-        setup({ user });
-
-        // then
-        expect(screen.getByText("city of books")).toBeInTheDocument();
-    });
-
+describe("SetEmailPage", () => {
     it("asks a member without an email to add one", () => {
         // given
         const user = makeUser({ email: undefined });

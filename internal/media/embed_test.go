@@ -1,9 +1,12 @@
 package media
 
 import (
+	"errors"
+	"io"
 	"net/netip"
 	"strings"
 	"testing"
+	"testing/iotest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -194,12 +197,26 @@ func TestParseOGFromHTML(t *testing.T) {
 			r := strings.NewReader(tc.html)
 
 			// when
-			got := parseOGFromHTML(r)
+			got, err := parseOGFromHTML(r)
 
 			// then
+			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestParseOGFromHTML_AConnectionThatDiesMidPageIsAnErrorNotAShortPage(t *testing.T) {
+	// given a page whose title arrives before the connection resets
+	reset := errors.New("connection reset by peer")
+	r := io.MultiReader(strings.NewReader(`<html><head><meta property="og:title" content="Rokkenjima"/>`), iotest.ErrReader(reset))
+
+	// when
+	got, err := parseOGFromHTML(r)
+
+	// then nothing half-read is handed on as a finished preview
+	require.ErrorIs(t, err, reset)
+	assert.Nil(t, got)
 }
 
 func TestLinkEmbed_CarriesEveryOpenGraphField(t *testing.T) {

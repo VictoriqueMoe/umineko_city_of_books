@@ -254,7 +254,7 @@ describe("useCreateShipComment", () => {
     it("sends the staged media with the comment in the same request", async () => {
         // given
         const { result } = setup(() => useCreateShipComment(shipId));
-        const media = [{ file: new File(["fanart"], "art.png", { type: "image/png" }), isSpoiler: false }];
+        const media = [{ upload_id: "upload-1", is_spoiler: false }];
 
         // when
         act(() => {

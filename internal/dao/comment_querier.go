@@ -22,14 +22,11 @@ type (
 		Target(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (spec.CommentTarget, error)
 		AuthorID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID) (uuid.UUID, error)
 		Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error)
-		MediaDir() string
 		Like(ctx context.Context, q *sqlcgen.Queries, s spec.CommentLike) error
 		Unlike(ctx context.Context, q *sqlcgen.Queries, s spec.CommentLike) error
 		AddMedia(ctx context.Context, q *sqlcgen.Queries, s spec.NewMedia) (int64, error)
 		Media(ctx context.Context, q *sqlcgen.Queries, commentID uuid.UUID) ([]model.PostMediaRow, error)
 		MediaBatch(ctx context.Context, q *sqlcgen.Queries, ids []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error)
-		SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error)
-		SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error)
 		Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error)
 		SinglePaths(ctx context.Context, q *sqlcgen.Queries, commentID uuid.UUID) ([]string, error)
 	}

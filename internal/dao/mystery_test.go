@@ -2,8 +2,8 @@ package dao_test
 
 import (
 	"context"
-	"database/sql"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/daoerr"
@@ -325,12 +325,15 @@ func TestMysteryDAO_UpdateAsAdmin(t *testing.T) {
 }
 
 func TestMysteryRepo_CreateWithClues(t *testing.T) {
-	// given
+	// given a finished picture and a finished document
 	repos := daotest.NewRepos(t)
+	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
+	board := daotest.ReadyUpload(t, repos, user.ID, "image", "/uploads/media/board.webp")
+	notes := daotest.ReadyUpload(t, repos, user.ID, "file", "/uploads/attachments/notes.pdf")
 
 	// when
-	created, err := repos.Mystery.CreateWithClues(context.Background(), spec.NewMysteryWithClues{
+	created, err := repos.Mystery.CreateWithClues(ctx, spec.NewMysteryWithClues{
 		UserID:     user.ID,
 		Title:      "Locked Room",
 		Body:       "How?",
@@ -340,15 +343,63 @@ func TestMysteryRepo_CreateWithClues(t *testing.T) {
 			{Body: "first", TruthType: "red", SortOrder: 0},
 			{Body: "second", TruthType: "blue", SortOrder: 1},
 		},
+		Media:       spec.ClaimedUploads{UserID: user.ID, Uploads: []spec.UploadRef{{ID: board}}, MediaTypes: []string{"image", "video", "audio"}, MaxAge: time.Hour},
+		Attachments: spec.ClaimedUploads{UserID: user.ID, Uploads: []spec.UploadRef{{ID: notes}}, MediaTypes: []string{"file"}, MaxAge: time.Hour},
 	})
 
-	// then
+	// then the mystery, its clues, its media and its attachments were all written, and both uploads were claimed
 	require.NoError(t, err)
 
 	row := mysteryGet(t, repos, created.ID)
 	require.NotNil(t, row)
 	assert.Equal(t, "Locked Room", row.Title)
 	assert.Equal(t, []string{"first", "second"}, mysteryClueBodies(t, repos, created.ID))
+
+	media, err := repos.Mystery.GetMedia(ctx, created.ID)
+	require.NoError(t, err)
+	require.Len(t, media, 1)
+	assert.Equal(t, "/uploads/media/board.webp", media[0].MediaURL)
+
+	attachments, err := repos.Mystery.GetAttachments(ctx, created.ID)
+	require.NoError(t, err)
+	require.Len(t, attachments, 1)
+	assert.Equal(t, "/uploads/attachments/notes.pdf", attachments[0].FileURL)
+	assert.Equal(t, 10, attachments[0].FileSize)
+
+	pending, err := repos.PendingUpload.List(ctx, spec.UserUploads{UserID: user.ID, IDs: []uuid.UUID{board, notes}})
+	require.NoError(t, err)
+	assert.Empty(t, pending)
+}
+
+func TestMysteryRepo_CreateWithClues_AnUnclaimableAttachmentLeavesNoMystery(t *testing.T) {
+	// given a finished picture, and a picture sent where a document belongs
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	user := daotest.CreateUser(t, repos)
+	board := daotest.ReadyUpload(t, repos, user.ID, "image", "/uploads/media/board.webp")
+	notADocument := daotest.ReadyUpload(t, repos, user.ID, "image", "/uploads/media/other.webp")
+
+	// when
+	_, err := repos.Mystery.CreateWithClues(ctx, spec.NewMysteryWithClues{
+		UserID:      user.ID,
+		Title:       "Half Built",
+		Body:        "Never",
+		Difficulty:  "hard",
+		Knox:        dto.DefaultKnoxContract(),
+		Media:       spec.ClaimedUploads{UserID: user.ID, Uploads: []spec.UploadRef{{ID: board}}, MediaTypes: []string{"image", "video", "audio"}, MaxAge: time.Hour},
+		Attachments: spec.ClaimedUploads{UserID: user.ID, Uploads: []spec.UploadRef{{ID: notADocument}}, MediaTypes: []string{"file"}, MaxAge: time.Hour},
+	})
+
+	// then the whole create rolled back, and both uploads are still pending
+	require.ErrorIs(t, err, daoerr.ErrUploadUnavailable)
+
+	var count int
+	require.NoError(t, repos.DB().QueryRowContext(ctx, `SELECT COUNT(*) FROM mysteries WHERE title = 'Half Built'`).Scan(&count))
+	assert.Zero(t, count)
+
+	pending, err := repos.PendingUpload.List(ctx, spec.UserUploads{UserID: user.ID, IDs: []uuid.UUID{board, notADocument}})
+	require.NoError(t, err)
+	assert.Len(t, pending, 2)
 }
 
 func TestMysteryRepo_UpdateWithClues_ReplacesPublicCluesOnly(t *testing.T) {
@@ -566,27 +617,63 @@ func TestMysteryDAO_DeleteClues_SkipsPrivate(t *testing.T) {
 }
 
 func TestMysteryDAO_DeleteClue(t *testing.T) {
-	// given
-	fx := mysteryWithClues(t)
+	cases := []struct {
+		name        string
+		viaOther    bool
+		wantErr     error
+		wantRemains []string
+	}{
+		{name: "the clue's own mystery removes it", wantRemains: []string{"other", "private"}},
+		{name: "another mystery's id cannot reach it", viaOther: true, wantErr: daoerr.ErrNotFound, wantRemains: []string{"old", "other", "private"}},
+	}
 
-	// when
-	err := fx.repos.Mystery.DeleteClue(context.Background(), fx.oldClueID)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			fx := mysteryWithClues(t)
+			mysteryID := fx.mysteryID
+			if tc.viaOther {
+				mysteryID = createMystery(t, fx.repos, daotest.CreateUser(t, fx.repos).ID, "Other", "easy", false)
+			}
 
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, []string{"other", "private"}, mysteryClueBodies(t, fx.repos, fx.mysteryID))
+			// when
+			err := fx.repos.Mystery.DeleteClue(context.Background(), spec.MysteryClueDeletion{MysteryID: mysteryID, ClueID: fx.oldClueID})
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+			assert.Equal(t, tc.wantRemains, mysteryClueBodies(t, fx.repos, fx.mysteryID))
+		})
+	}
 }
 
 func TestMysteryDAO_UpdateClue(t *testing.T) {
-	// given
-	fx := mysteryWithClues(t)
+	cases := []struct {
+		name       string
+		viaOther   bool
+		wantErr    error
+		wantBodies []string
+	}{
+		{name: "the clue's own mystery rewrites it", wantBodies: []string{"new", "other", "private"}},
+		{name: "another mystery's id cannot reach it", viaOther: true, wantErr: daoerr.ErrNotFound, wantBodies: []string{"old", "other", "private"}},
+	}
 
-	// when
-	err := fx.repos.Mystery.UpdateClue(context.Background(), spec.MysteryClueUpdate{ClueID: fx.oldClueID, Body: "new"})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			fx := mysteryWithClues(t)
+			mysteryID := fx.mysteryID
+			if tc.viaOther {
+				mysteryID = createMystery(t, fx.repos, daotest.CreateUser(t, fx.repos).ID, "Other", "easy", false)
+			}
 
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, []string{"new", "other", "private"}, mysteryClueBodies(t, fx.repos, fx.mysteryID))
+			// when
+			err := fx.repos.Mystery.UpdateClue(context.Background(), spec.MysteryClueUpdate{MysteryID: mysteryID, ClueID: fx.oldClueID, Body: "new"})
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+			assert.Equal(t, tc.wantBodies, mysteryClueBodies(t, fx.repos, fx.mysteryID))
+		})
+	}
 }
 
 func TestMysteryDAO_CreateAttempt(t *testing.T) {
@@ -937,38 +1024,22 @@ func TestMysteryDAO_Media(t *testing.T) {
 	assert.Equal(t, 1, media[1].SortOrder)
 }
 
-func TestMysteryDAO_UpdateMedia(t *testing.T) {
-	cases := []struct {
-		name          string
-		update        func(repository.MysteryRepository, context.Context, spec.MediaURLUpdate, ...*sql.Tx) error
-		wantURL       string
-		wantThumbnail string
-	}{
-		{name: "UpdateMediaURL swaps a mystery image's url and keeps its thumbnail", update: repository.MysteryRepository.UpdateMediaURL, wantURL: "/new.png", wantThumbnail: "/old.png"},
-		{name: "UpdateMediaThumbnail swaps a mystery image's thumbnail and keeps its url", update: repository.MysteryRepository.UpdateMediaThumbnail, wantURL: "/a.png", wantThumbnail: "/new.png"},
-	}
+func TestMysteryRepo_AttachFile_ClaimsADocument(t *testing.T) {
+	// given a mystery and a finished document
+	repos, gm, id := mysteryByGM(t)
+	ctx := context.Background()
+	notes := daotest.ReadyUpload(t, repos, gm.ID, "file", "/uploads/attachments/notes.pdf")
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			repos, _, id := mysteryByGM(t)
-			ctx := context.Background()
-			mediaID, err := repos.Mystery.AddMedia(ctx, spec.NewMedia{TargetID: id, MediaURL: "/a.png", MediaType: "image", ThumbnailURL: "/old.png"})
-			require.NoError(t, err)
+	// when
+	attached, err := repos.Mystery.AttachFile(ctx, spec.MediaAttachment{TargetID: id, Uploads: spec.ClaimedUploads{UserID: gm.ID, Uploads: []spec.UploadRef{{ID: notes}}, MediaTypes: []string{"file"}, MaxAge: time.Hour}})
 
-			// when
-			err = tc.update(repos.Mystery, ctx, spec.MediaURLUpdate{ID: mediaID, URL: "/new.png"})
-
-			// then
-			require.NoError(t, err)
-
-			media, err := repos.Mystery.GetMedia(ctx, id)
-			require.NoError(t, err)
-			require.Len(t, media, 1)
-			assert.Equal(t, tc.wantURL, media[0].MediaURL)
-			assert.Equal(t, tc.wantThumbnail, media[0].ThumbnailURL)
-		})
-	}
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, "/uploads/attachments/notes.pdf", attached.FileURL)
+	attachments, err := repos.Mystery.GetAttachments(ctx, id)
+	require.NoError(t, err)
+	require.Len(t, attachments, 1)
+	assert.Equal(t, attached.ID, attachments[0].ID)
 }
 
 func TestMysteryDAO_AddAttachment_AndGet(t *testing.T) {

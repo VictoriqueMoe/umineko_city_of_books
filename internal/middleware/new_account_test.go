@@ -31,11 +31,17 @@ func newAccountApp(t *testing.T, userID uuid.UUID, restricted bool) *fiber.App {
 		ctx.SetLocal("userID", userID)
 
 		return ctx.Next()
-	}, RequireEstablishedAccount(authzSvc, settingsSvc), func(ctx fiber.Ctx) error {
-		return ctx.SendString("handler reached")
-	})
+	}, RequireEstablishedAccount(authzSvc, settingsSvc), reportRestriction)
 
 	return app
+}
+
+func reportRestriction(ctx fiber.Ctx) error {
+	if _, restricted := ctx.Locals(RestrictedUploadHoursLocal).(int); restricted {
+		return ctx.SendStatus(fiber.StatusForbidden)
+	}
+
+	return ctx.SendStatus(fiber.StatusOK)
 }
 
 func postWithFile(t *testing.T, app *fiber.App) int {
@@ -77,26 +83,17 @@ func postWithoutFile(t *testing.T, app *fiber.App) int {
 	return resp.StatusCode
 }
 
-func TestRequireEstablishedAccount_BlocksARestrictedAccountCarryingAFile(t *testing.T) {
+func TestRequireEstablishedAccount_FlagsARestrictedAccountsUploadWithoutReadingIt(t *testing.T) {
 	// given a member inside the new account window
 	app := newAccountApp(t, uuid.New(), true)
 
-	// when they attach a file
-	status := postWithFile(t, app)
+	// when they send a multipart request, with or without a file
+	withFile := postWithFile(t, app)
+	textOnly := postWithoutFile(t, app)
 
-	// then the upload never reaches the handler
-	assert.Equal(t, fiber.StatusForbidden, status)
-}
-
-func TestRequireEstablishedAccount_LetsARestrictedAccountPostTextOnly(t *testing.T) {
-	// given the same member, because chat sends text and files through one route
-	app := newAccountApp(t, uuid.New(), true)
-
-	// when the request carries no file
-	status := postWithoutFile(t, app)
-
-	// then talking is still allowed
-	assert.Equal(t, fiber.StatusOK, status)
+	// then the request is flagged for the upload receiver, which refuses only the files once it has read them
+	assert.Equal(t, fiber.StatusForbidden, withFile)
+	assert.Equal(t, fiber.StatusForbidden, textOnly)
 }
 
 func TestRequireEstablishedAccount_LetsARestrictedAccountSendAJSONRequest(t *testing.T) {
@@ -136,9 +133,7 @@ func TestRequireEstablishedAccount_IgnoresAnonymousRequests(t *testing.T) {
 		ctx.SetLocal("userID", uuid.Nil)
 
 		return ctx.Next()
-	}, RequireEstablishedAccount(authzSvc, settingsSvc), func(ctx fiber.Ctx) error {
-		return ctx.SendString("handler reached")
-	})
+	}, RequireEstablishedAccount(authzSvc, settingsSvc), reportRestriction)
 
 	// when
 	status := postWithFile(t, app)
@@ -154,9 +149,7 @@ func TestRequireEstablishedAccount_AllowsEverythingWhenUnwired(t *testing.T) {
 		ctx.SetLocal("userID", uuid.New())
 
 		return ctx.Next()
-	}, RequireEstablishedAccount(nil, nil), func(ctx fiber.Ctx) error {
-		return ctx.SendString("handler reached")
-	})
+	}, RequireEstablishedAccount(nil, nil), reportRestriction)
 
 	// when
 	status := postWithFile(t, app)

@@ -57,6 +57,7 @@ type (
 		ReplyToID   *uuid.UUID
 		IsSystem    bool
 		ClientNonce string
+		Media       ClaimedUploads
 	}
 
 	NewChatMessageMedia struct {

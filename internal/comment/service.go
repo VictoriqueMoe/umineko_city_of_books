@@ -2,10 +2,8 @@ package comment
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 
 	"umineko_city_of_books/internal/audit"
@@ -38,12 +36,12 @@ const (
 
 type (
 	Service interface {
-		Create(ctx context.Context, target spec.CommentTarget, actorID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error)
+		Create(ctx context.Context, target spec.CommentTarget, actorID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)
 		Update(ctx context.Context, ref spec.CommentRef, actorID uuid.UUID, body string) error
 		Delete(ctx context.Context, ref spec.CommentRef, actorID uuid.UUID) error
 		Like(ctx context.Context, ref spec.CommentRef, actorID uuid.UUID) error
 		Unlike(ctx context.Context, ref spec.CommentRef, actorID uuid.UUID) error
-		UploadMedia(ctx context.Context, ref spec.CommentRef, actorID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
+		AttachMedia(ctx context.Context, ref spec.CommentRef, actorID uuid.UUID, media dto.UploadRef) (*dto.PostMediaResponse, error)
 		Thread(ctx context.Context, target spec.CommentTarget, viewerID uuid.UUID) ([]dto.CommentResponse, error)
 	}
 
@@ -55,7 +53,6 @@ type (
 		notifSvc      notification.Service
 		mentionSvc    mention.Service
 		uploadSvc     upload.Service
-		uploader      upload.MediaRecorder
 		settingsSvc   settings.Service
 		contentFilter *contentfilter.Manager
 	}
@@ -69,7 +66,6 @@ func NewService(
 	notifSvc notification.Service,
 	mentionSvc mention.Service,
 	uploadSvc upload.Service,
-	uploader upload.MediaRecorder,
 	settingsSvc settings.Service,
 	contentFilter *contentfilter.Manager,
 ) Service {
@@ -81,15 +77,14 @@ func NewService(
 		notifSvc:      notifSvc,
 		mentionSvc:    mentionSvc,
 		uploadSvc:     uploadSvc,
-		uploader:      uploader,
 		settingsSvc:   settingsSvc,
 		contentFilter: contentFilter,
 	}
 }
 
-func (s *service) Create(ctx context.Context, target spec.CommentTarget, actorID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
+func (s *service) Create(ctx context.Context, target spec.CommentTarget, actorID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
 	body := strings.TrimSpace(req.Body)
-	if body == "" && len(files) == 0 {
+	if body == "" && len(req.Media) == 0 {
 		return uuid.Nil, ErrEmptyBody
 	}
 
@@ -97,11 +92,6 @@ func (s *service) Create(ctx context.Context, target spec.CommentTarget, actorID
 		if err := s.contentFilter.Check(ctx, body); err != nil {
 			return uuid.Nil, err
 		}
-	}
-
-	validated, err := upload.ValidateMedia(ctx, s.settingsSvc, files)
-	if err != nil {
-		return uuid.Nil, err
 	}
 
 	ownerID, err := s.repo.GetTargetOwnerID(ctx, target)
@@ -122,23 +112,8 @@ func (s *service) Create(ctx context.Context, target spec.CommentTarget, actorID
 		}
 	}
 
-	mediaDir, err := s.repo.GetCommentMediaDir(target.Kind)
+	created, err := s.repo.CreateCommentWithMedia(ctx, spec.NewComment{Target: target, ParentID: req.ParentID, UserID: actorID, Body: body, Media: upload.MediaClaim(actorID, req.Media)})
 	if err != nil {
-		return uuid.Nil, err
-	}
-
-	created, err := s.repo.CreateComment(ctx, spec.NewComment{Target: target, ParentID: req.ParentID, UserID: actorID, Body: body})
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	ref := spec.CommentRef{Kind: target.Kind, CommentID: created.ID}
-	if _, err := validated.Save(ctx, s.uploader, s.uploadSvc, s.mediaTarget(ctx, ref, mediaDir)); err != nil {
-		rollback := spec.CommentDeletion{CommentRef: ref, UserID: actorID, AsAdmin: true}
-		if deleteErr := s.repo.DeleteComment(context.WithoutCancel(ctx), rollback); deleteErr != nil {
-			return uuid.Nil, errors.Join(err, fmt.Errorf("roll back comment %s: %w", created.ID, deleteErr))
-		}
-
 		return uuid.Nil, err
 	}
 
@@ -170,7 +145,7 @@ func (s *service) Update(ctx context.Context, ref spec.CommentRef, actorID uuid.
 		return s.repo.UpdateComment(ctx, update)
 	}
 
-	if !s.authz.Can(ctx, actorID, authz.PermEditAnyComment) {
+	if !s.authz.Can(ctx, actorID, authz.PermEditAnyPost) {
 		return ErrForbidden
 	}
 
@@ -194,7 +169,7 @@ func (s *service) Delete(ctx context.Context, ref spec.CommentRef, actorID uuid.
 	deletion := spec.CommentDeletion{CommentRef: ref, UserID: actorID}
 	action := "delete"
 	if authorID != actorID {
-		if !s.authz.Can(ctx, actorID, authz.PermDeleteAnyComment) {
+		if !s.authz.Can(ctx, actorID, authz.PermDeleteAnyPost) {
 			return ErrForbidden
 		}
 
@@ -244,7 +219,7 @@ func (s *service) Unlike(ctx context.Context, ref spec.CommentRef, actorID uuid.
 	return s.repo.UnlikeComment(ctx, spec.CommentLike{CommentRef: ref, UserID: actorID})
 }
 
-func (s *service) UploadMedia(ctx context.Context, ref spec.CommentRef, actorID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
+func (s *service) AttachMedia(ctx context.Context, ref spec.CommentRef, actorID uuid.UUID, media dto.UploadRef) (*dto.PostMediaResponse, error) {
 	authorID, err := s.authorID(ctx, ref)
 	if err != nil {
 		return nil, err
@@ -253,44 +228,20 @@ func (s *service) UploadMedia(ctx context.Context, ref spec.CommentRef, actorID 
 		return nil, authz.ErrNotCommentAuthor
 	}
 
-	mediaDir, err := s.repo.GetCommentMediaDir(ref.Kind)
-	if err != nil {
-		return nil, err
-	}
-
 	existing, err := s.repo.GetCommentMedia(ctx, ref)
 	if err != nil {
 		return nil, fmt.Errorf("existing comment media: %w", err)
 	}
 
-	sortOrder := len(existing)
-	target := s.mediaTarget(ctx, ref, mediaDir)
-
-	resp, err := s.uploader.SaveAndRecord(ctx, mediaDir, contentType, filename, fileSize, reader, isSpoiler,
-		func(mediaURL, mediaType, thumbURL, savedName string, _ int) (int64, error) {
-			return s.repo.AddCommentMedia(ctx, spec.NewCommentMedia{
-				Kind: ref.Kind,
-				NewMedia: spec.NewMedia{
-					TargetID:     ref.CommentID,
-					MediaURL:     mediaURL,
-					MediaType:    mediaType,
-					ThumbnailURL: thumbURL,
-					Filename:     savedName,
-					SortOrder:    sortOrder,
-					IsSpoiler:    isSpoiler,
-				},
-			})
-		},
-		target.UpdateURL,
-		target.UpdateThumb,
-	)
+	attached, err := s.repo.AttachCommentMedia(ctx, spec.CommentMediaAttachment{
+		Kind:            ref.Kind,
+		MediaAttachment: spec.MediaAttachment{TargetID: ref.CommentID, SortOrder: len(existing), Uploads: upload.MediaClaim(actorID, []dto.UploadRef{media})},
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	resp.SortOrder = sortOrder
-
-	return resp, nil
+	return new(attached.ToResponse()), nil
 }
 
 func (s *service) Thread(ctx context.Context, target spec.CommentTarget, viewerID uuid.UUID) ([]dto.CommentResponse, error) {
@@ -346,21 +297,6 @@ func (s *service) authorID(ctx context.Context, ref spec.CommentRef) (uuid.UUID,
 	}
 
 	return authorID, nil
-}
-
-func (s *service) mediaTarget(ctx context.Context, ref spec.CommentRef, mediaDir string) upload.MediaTarget {
-	return upload.MediaTarget{
-		SubDir: mediaDir,
-		Record: func(r upload.MediaRecord) (int64, error) {
-			return s.repo.AddCommentMedia(ctx, spec.NewCommentMedia{Kind: ref.Kind, NewMedia: r.NewMedia(ref.CommentID)})
-		},
-		UpdateURL: func(ctx context.Context, u spec.MediaURLUpdate, tx ...*sql.Tx) error {
-			return s.repo.UpdateCommentMediaURL(ctx, spec.CommentMediaURLUpdate{Kind: ref.Kind, MediaURLUpdate: u}, tx...)
-		},
-		UpdateThumb: func(ctx context.Context, u spec.MediaURLUpdate, tx ...*sql.Tx) error {
-			return s.repo.UpdateCommentMediaThumbnail(ctx, spec.CommentMediaURLUpdate{Kind: ref.Kind, MediaURLUpdate: u}, tx...)
-		},
-	}
 }
 
 func (s *service) notifyCreated(ctx context.Context, reference mention.Reference, actorID uuid.UUID, ownerID uuid.UUID, parentID *uuid.UUID) {

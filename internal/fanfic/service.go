@@ -20,7 +20,6 @@ import (
 	"umineko_city_of_books/internal/dto"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -68,7 +67,7 @@ type (
 		GetSeries(ctx context.Context) ([]string, error)
 		SearchOCCharacters(ctx context.Context, query string) ([]string, error)
 
-		CreateComment(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error)
+		CreateComment(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)
 	}
 
 	fanficFields struct {
@@ -89,8 +88,6 @@ type (
 		mentionSvc    mention.Service
 		commentSvc    comment.Service
 		uploadSvc     upload.Service
-		mediaProc     *media.Processor
-		uploader      upload.MediaRecorder
 		settingsSvc   settings.Service
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
@@ -109,7 +106,6 @@ func NewService(
 	mentionSvc mention.Service,
 	commentSvc comment.Service,
 	uploadSvc upload.Service,
-	mediaProc *media.Processor,
 	settingsSvc settings.Service,
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
@@ -126,8 +122,6 @@ func NewService(
 		mentionSvc:    mentionSvc,
 		commentSvc:    commentSvc,
 		uploadSvc:     uploadSvc,
-		mediaProc:     mediaProc,
-		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		settingsSvc:   settingsSvc,
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
@@ -413,7 +407,7 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 	}
 
 	asAdmin := authorID != userID
-	if asAdmin && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+	if asAdmin && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return ErrNotAuthor
 	}
 	if err := s.contentFilter.Check(ctx, req.Title, req.Summary); err != nil {
@@ -530,7 +524,7 @@ func (s *service) DeleteFanfic(ctx context.Context, id, userID uuid.UUID) error 
 		return err
 	}
 
-	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
+	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermDeleteAnyWork)
 
 	deletion := spec.FanficDelete{
 		ID:      id,
@@ -651,7 +645,7 @@ func (s *service) UploadCoverImage(ctx context.Context, fanficID, userID uuid.UU
 	if err != nil {
 		return "", err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return "", fmt.Errorf("not the fanfic author")
 	}
 
@@ -674,7 +668,7 @@ func (s *service) RemoveCoverImage(ctx context.Context, fanficID, userID uuid.UU
 	if err != nil {
 		return err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return fmt.Errorf("not authorised")
 	}
 	return s.fanficRepo.UpdateCoverImage(ctx, spec.FanficCoverUpdate{ID: fanficID, ImageURL: "", ThumbnailURL: ""})
@@ -722,7 +716,7 @@ func (s *service) CreateChapter(ctx context.Context, fanficID, userID uuid.UUID,
 }
 
 func (s *service) hiddenDraft(ctx context.Context, row *model.FanficRow, viewerID uuid.UUID) bool {
-	return row.Status == statusDraft && row.UserID != viewerID && !s.authz.Can(ctx, viewerID, authz.PermEditAnyTheory)
+	return row.Status == statusDraft && row.UserID != viewerID && !s.authz.Can(ctx, viewerID, authz.PermEditAnyWork)
 }
 
 func (s *service) GetChapter(ctx context.Context, fanficID uuid.UUID, chapterNumber int, viewerID uuid.UUID) (*dto.FanficChapterResponse, error) {
@@ -778,7 +772,7 @@ func (s *service) UpdateChapter(ctx context.Context, chapterID, userID uuid.UUID
 	}
 
 	asAdmin := authorID != userID
-	if asAdmin && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+	if asAdmin && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return ErrNotAuthor
 	}
 	if err := s.contentFilter.Check(ctx, req.Title, req.Body); err != nil {
@@ -825,7 +819,7 @@ func (s *service) DeleteChapter(ctx context.Context, chapterID, userID uuid.UUID
 	}
 
 	asAdmin := authorID != userID
-	if asAdmin && !s.authz.Can(ctx, userID, authz.PermDeleteAnyPost) {
+	if asAdmin && !s.authz.Can(ctx, userID, authz.PermDeleteAnyWork) {
 		return ErrNotAuthor
 	}
 
@@ -915,7 +909,7 @@ func (s *service) SearchOCCharacters(ctx context.Context, query string) ([]strin
 	return s.fanficRepo.SearchOCCharacters(ctx, strings.TrimSpace(query))
 }
 
-func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
+func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
 	fanfic, err := s.fanficRepo.GetByID(ctx, spec.FanficLookup{ID: fanficID, ViewerID: userID})
 	if err != nil {
 		return uuid.Nil, err
@@ -924,5 +918,5 @@ func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID,
 		return uuid.Nil, ErrNotFound
 	}
 
-	return s.commentSvc.Create(ctx, spec.CommentTarget{Kind: spec.CommentKindFanfic, ID: fanficID}, userID, req, files)
+	return s.commentSvc.Create(ctx, spec.CommentTarget{Kind: spec.CommentKindFanfic, ID: fanficID}, userID, req)
 }

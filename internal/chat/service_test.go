@@ -13,7 +13,6 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/hyperbeam"
 	"umineko_city_of_books/internal/livekit"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
@@ -72,11 +71,10 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	blockSvc := block.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
-	mediaProc := &media.Processor{}
 	hub := ws.NewHub()
 	hyperbeamSvc := hyperbeam.NewMockService(t)
 	livekitSvc := livekit.NewService(settingsSvc)
-	svc := NewService(chatRepo, userRepo, roleRepo, vanityRoleRepo, banRepo, bannedWordRepo, watchPartyRepo, auditRepo, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, hyperbeamSvc, livekitSvc, contentfilter.New(), nil, hub).(*service)
+	svc := NewService(chatRepo, userRepo, roleRepo, vanityRoleRepo, banRepo, bannedWordRepo, watchPartyRepo, auditRepo, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, hub, hyperbeamSvc, livekitSvc, contentfilter.New(), nil, hub).(*service)
 
 	chatRepo.EXPECT().HasGhostMembers(mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	chatRepo.EXPECT().IsGhostMember(mock.Anything, mock.Anything).Return(false, nil).Maybe()

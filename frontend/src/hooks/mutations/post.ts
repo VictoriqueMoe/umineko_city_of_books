@@ -8,11 +8,11 @@ import {
     unlikePost,
     unresolveSuggestion,
     updatePost,
-    uploadPostMedia,
+    attachPostMedia,
     votePoll,
 } from "../../api/endpoints/post";
 import { createComment, deleteComment, likeComment, unlikeComment, updateComment } from "../../api/endpoints/comments";
-import type { CreatePollPayload, MediaUpload } from "../../types/api";
+import type { CreatePollPayload, UploadRef } from "../../types/api";
 import { ApiError } from "../../api/client";
 import { invalidateViews } from "../../api/cache/invalidate";
 import { queryKeys } from "../../api/queryKeys";
@@ -23,7 +23,7 @@ type CreatePostInput = {
     poll?: CreatePollPayload;
     sharedContentId?: string;
     sharedContentType?: string;
-    media?: readonly MediaUpload[];
+    media?: readonly UploadRef[];
 };
 
 export function useCreatePost() {
@@ -74,11 +74,10 @@ export function useDeletePost() {
     });
 }
 
-export function useUploadPostMedia(id: string) {
+export function useAttachPostMedia(id: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ file, isSpoiler }: { file: File; isSpoiler?: boolean }) =>
-            uploadPostMedia(id, file, isSpoiler ?? false),
+        mutationFn: (media: UploadRef) => attachPostMedia(id, media),
         onSuccess: () => {
             invalidateViews(qc, "post");
         },
@@ -148,7 +147,7 @@ export function useUnresolveSuggestion() {
 export function useCreateComment(postId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly MediaUpload[] }) =>
+        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly UploadRef[] }) =>
             createComment(postId, body, parentId, media),
         onSuccess: () => {
             invalidateViews(qc, "post");

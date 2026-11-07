@@ -6,10 +6,8 @@ package mystery
 
 import (
 	"context"
-	"io"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -120,6 +118,166 @@ func (_c *MockService_AddClue_Call) RunAndReturn(run func(ctx context.Context, m
 	return _c
 }
 
+// AttachFile provides a mock function for the type MockService
+func (_mock *MockService) AttachFile(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, ref dto.UploadRef) (*dto.MysteryAttachment, error) {
+	ret := _mock.Called(ctx, mysteryID, userID, ref)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AttachFile")
+	}
+
+	var r0 *dto.MysteryAttachment
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.UploadRef) (*dto.MysteryAttachment, error)); ok {
+		return returnFunc(ctx, mysteryID, userID, ref)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.UploadRef) *dto.MysteryAttachment); ok {
+		r0 = returnFunc(ctx, mysteryID, userID, ref)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.MysteryAttachment)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.UploadRef) error); ok {
+		r1 = returnFunc(ctx, mysteryID, userID, ref)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_AttachFile_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AttachFile'
+type MockService_AttachFile_Call struct {
+	*mock.Call
+}
+
+// AttachFile is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - userID uuid.UUID
+//   - ref dto.UploadRef
+func (_e *MockService_Expecter) AttachFile(ctx any, mysteryID any, userID any, ref any) *MockService_AttachFile_Call {
+	return &MockService_AttachFile_Call{Call: _e.mock.On("AttachFile", ctx, mysteryID, userID, ref)}
+}
+
+func (_c *MockService_AttachFile_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, ref dto.UploadRef)) *MockService_AttachFile_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 dto.UploadRef
+		if args[3] != nil {
+			arg3 = args[3].(dto.UploadRef)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_AttachFile_Call) Return(mysteryAttachment *dto.MysteryAttachment, err error) *MockService_AttachFile_Call {
+	_c.Call.Return(mysteryAttachment, err)
+	return _c
+}
+
+func (_c *MockService_AttachFile_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, ref dto.UploadRef) (*dto.MysteryAttachment, error)) *MockService_AttachFile_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// AttachMedia provides a mock function for the type MockService
+func (_mock *MockService) AttachMedia(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, ref dto.UploadRef) (*dto.PostMediaResponse, error) {
+	ret := _mock.Called(ctx, mysteryID, userID, ref)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AttachMedia")
+	}
+
+	var r0 *dto.PostMediaResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.UploadRef) (*dto.PostMediaResponse, error)); ok {
+		return returnFunc(ctx, mysteryID, userID, ref)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.UploadRef) *dto.PostMediaResponse); ok {
+		r0 = returnFunc(ctx, mysteryID, userID, ref)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.PostMediaResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.UploadRef) error); ok {
+		r1 = returnFunc(ctx, mysteryID, userID, ref)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_AttachMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AttachMedia'
+type MockService_AttachMedia_Call struct {
+	*mock.Call
+}
+
+// AttachMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - userID uuid.UUID
+//   - ref dto.UploadRef
+func (_e *MockService_Expecter) AttachMedia(ctx any, mysteryID any, userID any, ref any) *MockService_AttachMedia_Call {
+	return &MockService_AttachMedia_Call{Call: _e.mock.On("AttachMedia", ctx, mysteryID, userID, ref)}
+}
+
+func (_c *MockService_AttachMedia_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, ref dto.UploadRef)) *MockService_AttachMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 dto.UploadRef
+		if args[3] != nil {
+			arg3 = args[3].(dto.UploadRef)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_AttachMedia_Call) Return(postMediaResponse *dto.PostMediaResponse, err error) *MockService_AttachMedia_Call {
+	_c.Call.Return(postMediaResponse, err)
+	return _c
+}
+
+func (_c *MockService_AttachMedia_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, ref dto.UploadRef) (*dto.PostMediaResponse, error)) *MockService_AttachMedia_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateAttempt provides a mock function for the type MockService
 func (_mock *MockService) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateAttemptRequest) (uuid.UUID, error) {
 	ret := _mock.Called(ctx, mysteryID, userID, req)
@@ -201,8 +359,8 @@ func (_c *MockService_CreateAttempt_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // CreateComment provides a mock function for the type MockService
-func (_mock *MockService) CreateComment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, mysteryID, userID, req, files)
+func (_mock *MockService) CreateComment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
+	ret := _mock.Called(ctx, mysteryID, userID, req)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateComment")
@@ -210,18 +368,18 @@ func (_mock *MockService) CreateComment(ctx context.Context, mysteryID uuid.UUID
 
 	var r0 uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest, []upload.FileUpload) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, mysteryID, userID, req, files)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, mysteryID, userID, req)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest, []upload.FileUpload) uuid.UUID); ok {
-		r0 = returnFunc(ctx, mysteryID, userID, req, files)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest) uuid.UUID); ok {
+		r0 = returnFunc(ctx, mysteryID, userID, req)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest, []upload.FileUpload) error); ok {
-		r1 = returnFunc(ctx, mysteryID, userID, req, files)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest) error); ok {
+		r1 = returnFunc(ctx, mysteryID, userID, req)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -238,12 +396,11 @@ type MockService_CreateComment_Call struct {
 //   - mysteryID uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.CreateCommentRequest
-//   - files []upload.FileUpload
-func (_e *MockService_Expecter) CreateComment(ctx any, mysteryID any, userID any, req any, files any) *MockService_CreateComment_Call {
-	return &MockService_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, mysteryID, userID, req, files)}
+func (_e *MockService_Expecter) CreateComment(ctx any, mysteryID any, userID any, req any) *MockService_CreateComment_Call {
+	return &MockService_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, mysteryID, userID, req)}
 }
 
-func (_c *MockService_CreateComment_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload)) *MockService_CreateComment_Call {
+func (_c *MockService_CreateComment_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest)) *MockService_CreateComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -261,16 +418,11 @@ func (_c *MockService_CreateComment_Call) Run(run func(ctx context.Context, myst
 		if args[3] != nil {
 			arg3 = args[3].(dto.CreateCommentRequest)
 		}
-		var arg4 []upload.FileUpload
-		if args[4] != nil {
-			arg4 = args[4].([]upload.FileUpload)
-		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
 		)
 	})
 	return _c
@@ -281,14 +433,14 @@ func (_c *MockService_CreateComment_Call) Return(uUID uuid.UUID, err error) *Moc
 	return _c
 }
 
-func (_c *MockService_CreateComment_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error)) *MockService_CreateComment_Call {
+func (_c *MockService_CreateComment_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)) *MockService_CreateComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateMystery provides a mock function for the type MockService
-func (_mock *MockService) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.CreateMysteryRequest, files []upload.FileUpload, attachments []upload.FileUpload) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, userID, req, files, attachments)
+func (_mock *MockService) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.CreateMysteryRequest) (uuid.UUID, error) {
+	ret := _mock.Called(ctx, userID, req)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateMystery")
@@ -296,18 +448,18 @@ func (_mock *MockService) CreateMystery(ctx context.Context, userID uuid.UUID, r
 
 	var r0 uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreateMysteryRequest, []upload.FileUpload, []upload.FileUpload) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, userID, req, files, attachments)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreateMysteryRequest) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, userID, req)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreateMysteryRequest, []upload.FileUpload, []upload.FileUpload) uuid.UUID); ok {
-		r0 = returnFunc(ctx, userID, req, files, attachments)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreateMysteryRequest) uuid.UUID); ok {
+		r0 = returnFunc(ctx, userID, req)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.CreateMysteryRequest, []upload.FileUpload, []upload.FileUpload) error); ok {
-		r1 = returnFunc(ctx, userID, req, files, attachments)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.CreateMysteryRequest) error); ok {
+		r1 = returnFunc(ctx, userID, req)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -323,13 +475,11 @@ type MockService_CreateMystery_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - req dto.CreateMysteryRequest
-//   - files []upload.FileUpload
-//   - attachments []upload.FileUpload
-func (_e *MockService_Expecter) CreateMystery(ctx any, userID any, req any, files any, attachments any) *MockService_CreateMystery_Call {
-	return &MockService_CreateMystery_Call{Call: _e.mock.On("CreateMystery", ctx, userID, req, files, attachments)}
+func (_e *MockService_Expecter) CreateMystery(ctx any, userID any, req any) *MockService_CreateMystery_Call {
+	return &MockService_CreateMystery_Call{Call: _e.mock.On("CreateMystery", ctx, userID, req)}
 }
 
-func (_c *MockService_CreateMystery_Call) Run(run func(ctx context.Context, userID uuid.UUID, req dto.CreateMysteryRequest, files []upload.FileUpload, attachments []upload.FileUpload)) *MockService_CreateMystery_Call {
+func (_c *MockService_CreateMystery_Call) Run(run func(ctx context.Context, userID uuid.UUID, req dto.CreateMysteryRequest)) *MockService_CreateMystery_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -343,20 +493,10 @@ func (_c *MockService_CreateMystery_Call) Run(run func(ctx context.Context, user
 		if args[2] != nil {
 			arg2 = args[2].(dto.CreateMysteryRequest)
 		}
-		var arg3 []upload.FileUpload
-		if args[3] != nil {
-			arg3 = args[3].([]upload.FileUpload)
-		}
-		var arg4 []upload.FileUpload
-		if args[4] != nil {
-			arg4 = args[4].([]upload.FileUpload)
-		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
-			arg4,
 		)
 	})
 	return _c
@@ -367,7 +507,7 @@ func (_c *MockService_CreateMystery_Call) Return(uUID uuid.UUID, err error) *Moc
 	return _c
 }
 
-func (_c *MockService_CreateMystery_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, req dto.CreateMysteryRequest, files []upload.FileUpload, attachments []upload.FileUpload) (uuid.UUID, error)) *MockService_CreateMystery_Call {
+func (_c *MockService_CreateMystery_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, req dto.CreateMysteryRequest) (uuid.UUID, error)) *MockService_CreateMystery_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1609,202 +1749,6 @@ func (_c *MockService_UpdateMystery_Call) Return(err error) *MockService_UpdateM
 }
 
 func (_c *MockService_UpdateMystery_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateMysteryRequest) error) *MockService_UpdateMystery_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UploadAttachment provides a mock function for the type MockService
-func (_mock *MockService) UploadAttachment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, reader io.Reader) (*dto.MysteryAttachment, error) {
-	ret := _mock.Called(ctx, mysteryID, userID, fileName, fileSize, reader)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UploadAttachment")
-	}
-
-	var r0 *dto.MysteryAttachment
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int64, io.Reader) (*dto.MysteryAttachment, error)); ok {
-		return returnFunc(ctx, mysteryID, userID, fileName, fileSize, reader)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int64, io.Reader) *dto.MysteryAttachment); ok {
-		r0 = returnFunc(ctx, mysteryID, userID, fileName, fileSize, reader)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*dto.MysteryAttachment)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, int64, io.Reader) error); ok {
-		r1 = returnFunc(ctx, mysteryID, userID, fileName, fileSize, reader)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockService_UploadAttachment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UploadAttachment'
-type MockService_UploadAttachment_Call struct {
-	*mock.Call
-}
-
-// UploadAttachment is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-//   - userID uuid.UUID
-//   - fileName string
-//   - fileSize int64
-//   - reader io.Reader
-func (_e *MockService_Expecter) UploadAttachment(ctx any, mysteryID any, userID any, fileName any, fileSize any, reader any) *MockService_UploadAttachment_Call {
-	return &MockService_UploadAttachment_Call{Call: _e.mock.On("UploadAttachment", ctx, mysteryID, userID, fileName, fileSize, reader)}
-}
-
-func (_c *MockService_UploadAttachment_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, reader io.Reader)) *MockService_UploadAttachment_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 int64
-		if args[4] != nil {
-			arg4 = args[4].(int64)
-		}
-		var arg5 io.Reader
-		if args[5] != nil {
-			arg5 = args[5].(io.Reader)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-		)
-	})
-	return _c
-}
-
-func (_c *MockService_UploadAttachment_Call) Return(mysteryAttachment *dto.MysteryAttachment, err error) *MockService_UploadAttachment_Call {
-	_c.Call.Return(mysteryAttachment, err)
-	return _c
-}
-
-func (_c *MockService_UploadAttachment_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, reader io.Reader) (*dto.MysteryAttachment, error)) *MockService_UploadAttachment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UploadMedia provides a mock function for the type MockService
-func (_mock *MockService) UploadMedia(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
-	ret := _mock.Called(ctx, mysteryID, userID, contentType, filename, fileSize, reader, isSpoiler)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UploadMedia")
-	}
-
-	var r0 *dto.PostMediaResponse
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, int64, io.Reader, bool) (*dto.PostMediaResponse, error)); ok {
-		return returnFunc(ctx, mysteryID, userID, contentType, filename, fileSize, reader, isSpoiler)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, int64, io.Reader, bool) *dto.PostMediaResponse); ok {
-		r0 = returnFunc(ctx, mysteryID, userID, contentType, filename, fileSize, reader, isSpoiler)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*dto.PostMediaResponse)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, string, int64, io.Reader, bool) error); ok {
-		r1 = returnFunc(ctx, mysteryID, userID, contentType, filename, fileSize, reader, isSpoiler)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockService_UploadMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UploadMedia'
-type MockService_UploadMedia_Call struct {
-	*mock.Call
-}
-
-// UploadMedia is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-//   - userID uuid.UUID
-//   - contentType string
-//   - filename string
-//   - fileSize int64
-//   - reader io.Reader
-//   - isSpoiler bool
-func (_e *MockService_Expecter) UploadMedia(ctx any, mysteryID any, userID any, contentType any, filename any, fileSize any, reader any, isSpoiler any) *MockService_UploadMedia_Call {
-	return &MockService_UploadMedia_Call{Call: _e.mock.On("UploadMedia", ctx, mysteryID, userID, contentType, filename, fileSize, reader, isSpoiler)}
-}
-
-func (_c *MockService_UploadMedia_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool)) *MockService_UploadMedia_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 int64
-		if args[5] != nil {
-			arg5 = args[5].(int64)
-		}
-		var arg6 io.Reader
-		if args[6] != nil {
-			arg6 = args[6].(io.Reader)
-		}
-		var arg7 bool
-		if args[7] != nil {
-			arg7 = args[7].(bool)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6,
-			arg7,
-		)
-	})
-	return _c
-}
-
-func (_c *MockService_UploadMedia_Call) Return(postMediaResponse *dto.PostMediaResponse, err error) *MockService_UploadMedia_Call {
-	_c.Call.Return(postMediaResponse, err)
-	return _c
-}
-
-func (_c *MockService_UploadMedia_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)) *MockService_UploadMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }

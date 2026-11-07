@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"errors"
-	"mime/multipart"
 	"net/url"
 
 	"umineko_city_of_books/internal/cache"
@@ -14,7 +13,6 @@ import (
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 )
 
 const (
@@ -185,23 +183,12 @@ func (s *Service) sendFirstDM(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	form, err := ctx.MultipartForm()
-	if err != nil {
-		return utils.BadRequest(ctx, "invalid form data")
-	}
-
-	spoilers, ok := utils.SpoilerIndexes(form)
+	req, ok := utils.BindJSON[dto.SendDMRequest](ctx)
 	if !ok {
-		return utils.BadRequest(ctx, "invalid spoiler_indexes")
+		return nil
 	}
 
-	req := dto.SendDMRequest{
-		Body:        utils.FormValue(form, "body"),
-		ClientNonce: utils.FormValue(form, "client_nonce"),
-	}
-	files := utils.FormFiles(form, utils.MediaField, spoilers)
-
-	resp, err := s.ChatService.SendDMMessage(ctx.Context(), userID, recipientID, req, files)
+	resp, err := s.ChatService.SendDMMessage(ctx.Context(), userID, recipientID, req)
 	if errors.Is(err, chat.ErrDmsDisabled) || errors.Is(err, chat.ErrUserNotFound) || errors.Is(err, chat.ErrCannotDMSelf) {
 		return dmRouteError(ctx, err)
 	}
@@ -306,29 +293,12 @@ func (s *Service) sendMessage(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	form, err := ctx.MultipartForm()
-	if err != nil {
-		return utils.BadRequest(ctx, "invalid form data")
-	}
-
-	replyToID, ok := parseReplyToID(form)
+	req, ok := utils.BindJSON[dto.SendMessageRequest](ctx)
 	if !ok {
-		return utils.BadRequest(ctx, "invalid reply_to_id")
+		return nil
 	}
 
-	spoilers, ok := utils.SpoilerIndexes(form)
-	if !ok {
-		return utils.BadRequest(ctx, "invalid spoiler_indexes")
-	}
-
-	req := dto.SendMessageRequest{
-		Body:        utils.FormValue(form, "body"),
-		ReplyToID:   replyToID,
-		ClientNonce: utils.FormValue(form, "client_nonce"),
-	}
-	files := utils.FormFiles(form, utils.MediaField, spoilers)
-
-	resp, err := s.ChatService.SendMessage(ctx.Context(), userID, roomID, req, files)
+	resp, err := s.ChatService.SendMessage(ctx.Context(), userID, roomID, req)
 	if err != nil {
 		return messageSendError(ctx, err)
 	}
@@ -789,17 +759,13 @@ func (s *Service) setRoomAvatar(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	file, err := ctx.FormFile("avatar")
+	file, err := utils.ReceiveFile(ctx, s.UploadService, "avatar")
 	if err != nil {
-		return utils.BadRequest(ctx, "avatar file is required")
+		return utils.UploadFailed(ctx, err)
 	}
-	src, err := file.Open()
-	if err != nil {
-		return utils.BadRequest(ctx, "failed to read file")
-	}
-	defer src.Close()
+	defer file.Close()
 
-	member, err := s.ChatService.SetRoomAvatar(ctx.Context(), roomID, userID, file.Header.Get("Content-Type"), file.Size, src)
+	member, err := s.ChatService.SetRoomAvatar(ctx.Context(), roomID, userID, file.ContentType, file.Size, file)
 	if err != nil {
 		if errors.Is(err, chat.ErrNotMember) {
 			return utils.Forbidden(ctx, "not a member")
@@ -1142,18 +1108,4 @@ func (s *Service) removeReaction(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to remove reaction")
 	}
 	return utils.OK(ctx)
-}
-
-func parseReplyToID(form *multipart.Form) (*uuid.UUID, bool) {
-	raw := utils.FormValue(form, "reply_to_id")
-	if raw == "" {
-		return nil, true
-	}
-
-	id, err := uuid.Parse(raw)
-	if err != nil {
-		return nil, false
-	}
-
-	return &id, true
 }

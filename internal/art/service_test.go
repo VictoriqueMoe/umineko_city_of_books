@@ -17,7 +17,6 @@ import (
 	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -72,7 +71,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 
 	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifSvc)
 
-	svc := NewService(m.artRepo, repository.NewMockPostRepository(t), m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.commentSvc, m.uploadSvc, media.NewProcessor(1), m.settingsSvc, contentfilter.New(), nil, nil, m.activity).(*service)
+	svc := NewService(m.artRepo, repository.NewMockPostRepository(t), m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.commentSvc, m.uploadSvc, m.settingsSvc, contentfilter.New(), nil, nil, m.activity).(*service)
 
 	return svc, m
 }
@@ -472,7 +471,7 @@ func TestUpdateArt(t *testing.T) {
 			name: "owner update failure propagates",
 			req:  dto.UpdateArtRequest{Title: "t"},
 			given: func(m *testMocks) {
-				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
+				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyWork).Return(false)
 				m.artRepo.EXPECT().
 					UpdateWithTags(mock.Anything, spec.ArtUpdateWithTags{ID: id, UserID: userID, Title: "t"}).
 					Return(errDB)
@@ -483,7 +482,7 @@ func TestUpdateArt(t *testing.T) {
 			name: "owner update trims fields and caps tags at ten",
 			req:  dto.UpdateArtRequest{Title: "  t  ", Description: "  d  ", Tags: tags, IsSpoiler: true},
 			given: func(m *testMocks) {
-				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
+				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyWork).Return(false)
 				m.artRepo.EXPECT().
 					UpdateWithTags(mock.Anything, spec.ArtUpdateWithTags{
 						ID: id, UserID: userID, Title: "t", Description: "d", IsSpoiler: true,
@@ -496,7 +495,7 @@ func TestUpdateArt(t *testing.T) {
 			name: "admin update is flagged and spawns the edit notification",
 			req:  dto.UpdateArtRequest{Title: "t"},
 			given: func(m *testMocks) {
-				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(true)
+				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyWork).Return(true)
 				m.artRepo.EXPECT().
 					UpdateWithTags(mock.Anything, spec.ArtUpdateWithTags{ID: id, UserID: userID, Title: "t", AsAdmin: true}).
 					Return(nil)
@@ -545,7 +544,7 @@ func TestDeleteArt(t *testing.T) {
 			// given
 			svc, m := newTestService(t)
 			m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, id).Return(tc.authorID, nil)
-			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(tc.canDeleteAny)
+			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyWork).Return(tc.canDeleteAny)
 			m.artRepo.EXPECT().
 				DeleteWithImage(mock.Anything, spec.ArtDelete{
 					ID:      id,

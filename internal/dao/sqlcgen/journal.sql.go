@@ -1537,21 +1537,6 @@ func (q *Queries) UpdateJournal(ctx context.Context, arg UpdateJournalParams) (i
 	return result.RowsAffected()
 }
 
-const updateJournalAsAdmin = `-- name: UpdateJournalAsAdmin :exec
-UPDATE journals SET title = $1, work = $2, updated_at = NOW() WHERE id = $3
-`
-
-type UpdateJournalAsAdminParams struct {
-	Title string
-	Work  string
-	ID    uuid.UUID
-}
-
-func (q *Queries) UpdateJournalAsAdmin(ctx context.Context, arg UpdateJournalAsAdminParams) error {
-	_, err := q.db.ExecContext(ctx, updateJournalAsAdmin, arg.Title, arg.Work, arg.ID)
-	return err
-}
-
 const updateJournalEntry = `-- name: UpdateJournalEntry :execrows
 UPDATE journal_entries
 SET title = $1, body = $2, word_count = $3, is_draft = $4, updated_at = NOW()

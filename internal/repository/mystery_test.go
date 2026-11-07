@@ -36,7 +36,7 @@ func newCachedMysteryRepo(t *testing.T) (MysteryRepository, *dao.MockMysteryDAO,
 	mysteryDAO := dao.NewMockMysteryDAO(t)
 	comments := dao.NewMockCommentDAO(t)
 
-	return NewMysteryRepo(nil, mysteryDAO, comments, NewMockAuditLogRepository(t), cache.NewManager(engines.NewValkeyWithClient(client))), mysteryDAO, comments, client
+	return NewMysteryRepo(nil, mysteryDAO, comments, dao.NewMockPendingUploadDAO(t), NewMockAuditLogRepository(t), cache.NewManager(engines.NewValkeyWithClient(client))), mysteryDAO, comments, client
 }
 
 func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mysteryWriterCase {

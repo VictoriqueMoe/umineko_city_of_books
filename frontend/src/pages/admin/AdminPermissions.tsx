@@ -3,11 +3,9 @@ import { useAdminPermissions } from "../../hooks/queries/admin";
 import { useUpdateRolePermissions, useUpdateVanityRolePermissions } from "../../hooks/mutations/admin";
 import type { PermissionCatalogueItem } from "../../types/api";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useAuth } from "../../hooks/useAuth";
 import { Button } from "../../components/Button/Button";
 import { Select } from "../../components/Select/Select";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
-import { can } from "../../domain/permissions";
 import styles from "./AdminPermissions.module.css";
 
 function toggle(list: string[], value: string, on: boolean): string[] {
@@ -38,9 +36,7 @@ function sameSet(a: string[], b: string[]): boolean {
 
 export function AdminPermissions() {
     usePageTitle("Admin - Permissions");
-    const { user } = useAuth();
-    const allowed = can(user, "manage_roles");
-    const { catalogue, roles, vanityRoles, loading } = useAdminPermissions(allowed);
+    const { catalogue, roles, vanityRoles, loading } = useAdminPermissions();
     const roleMutation = useUpdateRolePermissions();
     const vanityMutation = useUpdateVanityRolePermissions();
     const baseID = useId();
@@ -105,10 +101,6 @@ export function AdminPermissions() {
                 onError: (e: Error) => setError(e.message),
             },
         );
-    }
-
-    if (!allowed) {
-        return <div className={styles.empty}>You do not have permission to manage permissions.</div>;
     }
 
     if (loading) {

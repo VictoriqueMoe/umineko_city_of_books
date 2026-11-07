@@ -31,7 +31,7 @@ function renderLayout(role: SiteRole | null, route = "/admin") {
 
 function tabNames(): string[] {
     const names: string[] = [];
-    for (const link of screen.getAllByRole("link")) {
+    for (const link of screen.queryAllByRole("link")) {
         names.push(link.textContent ?? "");
     }
 
@@ -94,7 +94,7 @@ describe("AdminLayout", () => {
         expect(tabNames()).toEqual(EVERY_TAB);
     });
 
-    it("leaves a signed out visitor with nothing but the dashboard tab", () => {
+    it("leaves a signed out visitor with no tabs at all", () => {
         // given
         const role = null;
 
@@ -102,7 +102,7 @@ describe("AdminLayout", () => {
         renderLayout(role);
 
         // then
-        expect(tabNames()).toEqual(["Dashboard"]);
+        expect(tabNames()).toEqual([]);
         expect(screen.getByRole("heading", { name: "Moderator Panel" })).toBeInTheDocument();
     });
 

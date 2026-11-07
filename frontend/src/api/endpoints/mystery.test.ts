@@ -91,31 +91,25 @@ describe("the mystery board API", () => {
 
     runRequestCases(cases);
 
-    it("createMystery sends the payload, its images and its attachments in one multipart request", async () => {
+    it("createMystery sends the payload with its finished image and attachment uploads in one JSON request", async () => {
         // given
-        const scene = new File(["x"], "scene.png", { type: "image/png" });
-        const notes = new File(["n"], "notes.txt", { type: "text/plain" });
+        const media = [{ upload_id: "upload-1", is_spoiler: true }];
+        const attachments = [{ upload_id: "upload-2" }];
 
         // when
-        await api.createMystery(mysteryPayload, { media: [{ file: scene, isSpoiler: true }], attachments: [notes] });
-
-        // then
-        expect(postMock).not.toHaveBeenCalled();
-        const [path, formData] = postFormDataMock.mock.calls[0];
-        expect(path).toBe("/mysteries");
-        expect(JSON.parse(formData.get("payload") as string)).toEqual(mysteryPayload);
-        expect(formData.getAll("media")).toEqual([scene]);
-        expect(formData.get("spoiler_indexes")).toBe("0");
-        expect(formData.getAll("attachments")).toEqual([notes]);
-    });
-
-    it("createMystery keeps the JSON body when nothing is attached", async () => {
-        // when
-        await api.createMystery(mysteryPayload, { media: [], attachments: [] });
+        await api.createMystery(mysteryPayload, { media, attachments });
 
         // then
         expect(postFormDataMock).not.toHaveBeenCalled();
-        expect(postMock).toHaveBeenCalledWith("/mysteries", mysteryPayload);
+        expect(postMock.mock.lastCall).toStrictEqual(["/mysteries", { ...mysteryPayload, media, attachments }]);
+    });
+
+    it("createMystery sends only the payload when nothing is attached", async () => {
+        // when
+        await api.createMystery(mysteryPayload);
+
+        // then
+        expect(postMock.mock.lastCall).toStrictEqual(["/mysteries", mysteryPayload]);
     });
 });
 
@@ -216,6 +210,18 @@ describe("mystery clues and game master controls", () => {
 describe("mystery attachments and media", () => {
     const cases: RequestCase[] = [
         {
+            name: "attachMysteryFile posts the finished document upload to the mystery",
+            call: () => api.attachMysteryFile("m-1", { upload_id: "upload-2" }),
+            transport: postMock,
+            request: ["/mysteries/m-1/attachments", { upload_id: "upload-2" }],
+        },
+        {
+            name: "attachMysteryMedia posts the finished image upload with its spoiler flag to the mystery",
+            call: () => api.attachMysteryMedia("m-1", { upload_id: "upload-1", is_spoiler: true }),
+            transport: postMock,
+            request: ["/mysteries/m-1/media", { upload_id: "upload-1", is_spoiler: true }],
+        },
+        {
             name: "deleteMysteryAttachment interpolates a numeric attachment id",
             call: () => api.deleteMysteryAttachment("m-1", 4),
             transport: deleteMock,
@@ -230,32 +236,6 @@ describe("mystery attachments and media", () => {
     ];
 
     runRequestCases(cases);
-
-    it("uploadMysteryAttachment posts the document under the file field of the mystery", async () => {
-        // given
-        const file = new File(["x"], "floor-plan.pdf", { type: "application/pdf" });
-
-        // when
-        await api.uploadMysteryAttachment("m-1", file);
-
-        // then
-        expect(postFormDataMock.mock.calls[0][0]).toBe("/mysteries/m-1/attachments");
-        expect(postFormDataMock.mock.calls[0][1].get("file")).toBe(file);
-        expect(postFormDataMock.mock.calls[0][1].has("media")).toBe(false);
-    });
-
-    it("uploadMysteryMedia posts the image under the media field of the mystery", async () => {
-        // given
-        const file = new File(["x"], "mystery.png", { type: "image/png" });
-
-        // when
-        await api.uploadMysteryMedia("m-1", file);
-
-        // then
-        expect(postFormDataMock.mock.calls[0][0]).toBe("/mysteries/m-1/media");
-        expect(postFormDataMock.mock.calls[0][1].get("media")).toBe(file);
-        expect(postFormDataMock.mock.calls[0][1].has("file")).toBe(false);
-    });
 });
 
 describe("mystery leaderboards", () => {

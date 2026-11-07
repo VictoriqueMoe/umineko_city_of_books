@@ -5,21 +5,15 @@ import (
 	"errors"
 	"strconv"
 
-	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	mysterysvc "umineko_city_of_books/internal/mystery"
-	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
-)
-
-const (
-	mysteryAttachmentsField = "attachments"
 )
 
 func (s *Service) getAllMysteryRoutes() []FSetupRoute {
@@ -142,12 +136,12 @@ func (s *Service) getMystery(ctx fiber.Ctx) error {
 func (s *Service) createMystery(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
-	req, ok := utils.BindWithMedia[dto.CreateMysteryRequest](ctx, mysteryAttachmentsField)
+	req, ok := utils.BindJSON[dto.CreateMysteryRequest](ctx)
 	if !ok {
 		return nil
 	}
 
-	id, err := s.MysteryService.CreateMystery(ctx.Context(), userID, req.Payload, req.Media, req.Files[mysteryAttachmentsField])
+	id, err := s.MysteryService.CreateMystery(ctx.Context(), userID, req)
 	if err != nil {
 		if utils.MapFilterError(ctx, err) {
 			return nil
@@ -418,8 +412,8 @@ func (s *Service) createMysteryComment(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
-		return s.MysteryService.CreateComment(c, mysteryID, userID, req, files)
+	return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest) (uuid.UUID, error) {
+		return s.MysteryService.CreateComment(c, mysteryID, userID, req)
 	}, []errorResponse{
 		{err: mysterysvc.ErrNotSolved, respond: utils.Forbidden},
 		{err: mysterysvc.ErrNotFound, respond: utils.NotFound, message: "mystery not found"},
@@ -427,7 +421,7 @@ func (s *Service) createMysteryComment(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupUploadMysteryAttachment(r fiber.Router) {
-	r.Post("/mysteries/:id/attachments", s.requireAuth(), s.uploadMysteryAttachment)
+	r.Post("/mysteries/:id/attachments", s.requireAuth(), s.requireEstablished(), s.uploadMysteryAttachment)
 }
 
 func (s *Service) setupDeleteMysteryAttachment(r fiber.Router) {
@@ -441,18 +435,12 @@ func (s *Service) uploadMysteryAttachment(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	file, err := ctx.FormFile("file")
-	if err != nil {
-		return utils.BadRequest(ctx, "no file provided")
+	attachment, ok := utils.BindJSON[dto.UploadRef](ctx)
+	if !ok {
+		return nil
 	}
 
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file", err)
-	}
-	defer reader.Close()
-
-	result, err := s.MysteryService.UploadAttachment(ctx.Context(), mysteryID, userID, file.Filename, file.Size, reader)
+	result, err := s.MysteryService.AttachFile(ctx.Context(), mysteryID, userID, attachment)
 	if err != nil {
 		if errors.Is(err, mysterysvc.ErrDuplicateAttachment) {
 			return utils.BadRequest(ctx, err.Error())
@@ -500,17 +488,12 @@ func (s *Service) uploadMysteryMedia(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	file, err := ctx.FormFile("media")
-	if err != nil {
-		return utils.BadRequest(ctx, "no media file provided")
+	media, ok := utils.BindJSON[dto.UploadRef](ctx)
+	if !ok {
+		return nil
 	}
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file", err)
-	}
-	defer reader.Close()
 
-	result, err := s.MysteryService.UploadMedia(ctx.Context(), mysteryID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader, isSpoilerUpload(ctx))
+	result, err := s.MysteryService.AttachMedia(ctx.Context(), mysteryID, userID, media)
 	if err != nil {
 		return mysteryUploadError(ctx, err)
 	}
@@ -615,7 +598,7 @@ func (s *Service) toggleMysteryGmAway(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupDeleteMysteryClue(r fiber.Router) {
-	r.Delete("/mysteries/:id/clues/:clueId", s.requirePerm(authz.PermEditAnyTheory), s.deleteMysteryClue)
+	r.Delete("/mysteries/:id/clues/:clueId", s.requireAuth(), s.deleteMysteryClue)
 }
 
 func (s *Service) deleteMysteryClue(ctx fiber.Ctx) error {
@@ -636,7 +619,7 @@ func (s *Service) deleteMysteryClue(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupUpdateMysteryClue(r fiber.Router) {
-	r.Put("/mysteries/:id/clues/:clueId", s.requirePerm(authz.PermEditAnyTheory), s.updateMysteryClue)
+	r.Put("/mysteries/:id/clues/:clueId", s.requireAuth(), s.updateMysteryClue)
 }
 
 func (s *Service) updateMysteryClue(ctx fiber.Ctx) error {

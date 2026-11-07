@@ -16,7 +16,6 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -74,7 +73,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	}
 
 	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifSvc)
-	svc := NewService(m.shipRepo, m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.commentSvc, m.uploadSvc, media.NewProcessor(1), m.settingsSvc, quotefinder.NewClient(nil), contentfilter.New(), nil, m.activity).(*service)
+	svc := NewService(m.shipRepo, m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.commentSvc, m.uploadSvc, m.settingsSvc, quotefinder.NewClient(nil), contentfilter.New(), nil, m.activity).(*service)
 
 	return svc, m
 }
@@ -384,7 +383,7 @@ func TestUpdateShip(t *testing.T) {
 			req := dto.UpdateShipRequest{Title: " T ", Description: " d ", Characters: validCharacters()}
 			m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(authorID, tc.lookupErr)
 			if tc.lookupErr == nil {
-				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(tc.canEditAny)
+				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyWork).Return(tc.canEditAny)
 				m.shipRepo.EXPECT().
 					UpdateWithCharacters(mock.Anything, spec.ShipUpdate{
 						ID:          shipID,
@@ -444,7 +443,7 @@ func TestDeleteShip_AuditsTheDeletionAndRemovesItsFiles(t *testing.T) {
 			m.shipRepo.EXPECT().
 				GetByID(mock.Anything, spec.ShipLookup{ID: shipID, ViewerID: userID}).
 				Return(&model.ShipRow{ID: shipID, UserID: authorID, Title: "Doomed", VoteScore: 7, CommentCount: 3}, nil)
-			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(tc.canDeleteAny)
+			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyWork).Return(tc.canDeleteAny)
 			m.shipRepo.EXPECT().
 				DeleteShip(mock.Anything, spec.ShipDeletion{ID: shipID, UserID: userID, AsAdmin: tc.canDeleteAny}).
 				Return(paths, nil)
@@ -486,7 +485,7 @@ func TestDeleteShip_RepoError(t *testing.T) {
 	shipID, userID := uuid.New(), uuid.New()
 	row := &model.ShipRow{ID: shipID, UserID: userID, Title: "Owned"}
 	m.shipRepo.EXPECT().GetByID(mock.Anything, spec.ShipLookup{ID: shipID, ViewerID: userID}).Return(row, nil)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyWork).Return(false)
 	m.shipRepo.EXPECT().
 		DeleteShip(mock.Anything, spec.ShipDeletion{ID: shipID, UserID: userID}).
 		Return(nil, errBoom)
@@ -599,7 +598,7 @@ func TestUploadShipImage_NotAuthorRejected(t *testing.T) {
 	svc, m := newTestService(t)
 	shipID, userID, authorID := uuid.New(), uuid.New(), uuid.New()
 	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(authorID, nil)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyWork).Return(false)
 
 	// when
 	_, err := svc.UploadShipImage(context.Background(), shipID, userID, "image/png", 100, bytes.NewReader(nil))

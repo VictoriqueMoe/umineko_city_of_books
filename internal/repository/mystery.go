@@ -8,7 +8,9 @@ import (
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/db"
+	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -22,6 +24,8 @@ type (
 
 		MarkSolved(ctx context.Context, s spec.MysterySolve, tx ...*sql.Tx) error
 		CreateWithClues(ctx context.Context, s spec.NewMysteryWithClues, tx ...*sql.Tx) (*model.MysteryRow, error)
+		AttachMedia(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx) (*model.PostMediaRow, error)
+		AttachFile(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx) (*dto.MysteryAttachment, error)
 		UpdateWithClues(ctx context.Context, s spec.MysteryUpdateWithClues, tx ...*sql.Tx) error
 		DeleteWithFiles(ctx context.Context, s spec.MysteryDelete, tx ...*sql.Tx) ([]string, error)
 		DeleteWithMedia(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error)
@@ -32,12 +36,13 @@ type mysteryRepository struct {
 	db *sql.DB
 	dao.MysteryDAO
 	comments dao.CommentDAO
+	pending  dao.PendingUploadDAO
 	audit    AuditLogRepository
 	cache    *cache.Manager
 }
 
-func NewMysteryRepo(database *sql.DB, mysteryDAO dao.MysteryDAO, comments dao.CommentDAO, auditRepo AuditLogRepository, c *cache.Manager) MysteryRepository {
-	return &mysteryRepository{db: database, MysteryDAO: mysteryDAO, comments: comments, audit: auditRepo, cache: c}
+func NewMysteryRepo(database *sql.DB, mysteryDAO dao.MysteryDAO, comments dao.CommentDAO, pending dao.PendingUploadDAO, auditRepo AuditLogRepository, c *cache.Manager) MysteryRepository {
+	return &mysteryRepository{db: database, MysteryDAO: mysteryDAO, comments: comments, pending: pending, audit: auditRepo, cache: c}
 }
 
 func (r *mysteryRepository) CreateWithClues(ctx context.Context, s spec.NewMysteryWithClues, tx ...*sql.Tx) (*model.MysteryRow, error) {
@@ -51,13 +56,100 @@ func (r *mysteryRepository) CreateWithClues(ctx context.Context, s spec.NewMyste
 			return err
 		}
 
-		return r.addClues(ctx, created.ID, s.Clues, tx)
+		if err := r.addClues(ctx, created.ID, s.Clues, tx); err != nil {
+			return err
+		}
+
+		rows, err := claimMediaRows(ctx, r.pending, s.Media, tx)
+		if err != nil {
+			return err
+		}
+
+		if _, err := addMediaRows(ctx, r.MysteryDAO.AddMedia, created.ID, rows, tx); err != nil {
+			return err
+		}
+
+		_, err = r.addAttachments(ctx, created.ID, s.Attachments, tx)
+
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	return created, nil
+}
+
+func (r *mysteryRepository) addAttachments(ctx context.Context, mysteryID uuid.UUID, uploads spec.ClaimedUploads, tx *sql.Tx) ([]int64, error) {
+	claimed, err := claimUploads(ctx, r.pending, uploads, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := make([]int64, 0, len(claimed))
+	for _, upload := range claimed {
+		id, err := r.MysteryDAO.AddAttachment(ctx, spec.NewMysteryAttachment{
+			MysteryID: mysteryID,
+			FileURL:   upload.MediaURL,
+			FileName:  upload.Filename,
+			FileSize:  int(upload.FileSize),
+		}, tx)
+		if err != nil {
+			return nil, err
+		}
+
+		ids = append(ids, id)
+	}
+
+	return ids, nil
+}
+
+func (r *mysteryRepository) AttachMedia(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx) (*model.PostMediaRow, error) {
+	var attached *model.PostMediaRow
+
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
+		var err error
+		attached, err = attachMedia(ctx, r.pending, r.MysteryDAO.AddMedia, s, tx)
+
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return attached, nil
+}
+
+func (r *mysteryRepository) AttachFile(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx) (*dto.MysteryAttachment, error) {
+	var attached *dto.MysteryAttachment
+
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
+		claimed, err := claimUploads(ctx, r.pending, s.Uploads, tx)
+		if err != nil {
+			return err
+		}
+
+		if len(claimed) != 1 {
+			return fmt.Errorf("%w: expected one upload, got %d", daoerr.ErrUploadUnavailable, len(claimed))
+		}
+
+		upload := claimed[0]
+		attachment := spec.NewMysteryAttachment{MysteryID: s.TargetID, FileURL: upload.MediaURL, FileName: upload.Filename, FileSize: int(upload.FileSize)}
+
+		id, err := r.MysteryDAO.AddAttachment(ctx, attachment, tx)
+		if err != nil {
+			return err
+		}
+
+		attached = &dto.MysteryAttachment{ID: int(id), FileURL: upload.MediaURL, FileName: upload.Filename, FileSize: int(upload.FileSize)}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return attached, nil
 }
 
 func (r *mysteryRepository) UpdateWithClues(ctx context.Context, s spec.MysteryUpdateWithClues, tx ...*sql.Tx) error {

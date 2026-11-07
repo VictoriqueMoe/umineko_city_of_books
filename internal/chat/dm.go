@@ -7,7 +7,6 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
-	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 )
@@ -81,8 +80,8 @@ func (d *dmService) ResolveDMRoom(ctx context.Context, senderID, recipientID uui
 	return resp, nil
 }
 
-func (d *dmService) SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, req dto.SendDMRequest, files []upload.FileUpload) (*dto.SendDMResponse, error) {
-	if req.Body == "" && len(files) == 0 {
+func (d *dmService) SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, req dto.SendDMRequest) (*dto.SendDMResponse, error) {
+	if req.Body == "" && len(req.Media) == 0 {
 		return nil, ErrMissingFields
 	}
 	if !validClientNonce(req.ClientNonce) {
@@ -109,7 +108,7 @@ func (d *dmService) SendDMMessage(ctx context.Context, senderID, recipientID uui
 	d.hub.JoinRoom(room.ID, senderID)
 	d.hub.JoinRoom(room.ID, recipientID)
 
-	msgResp, err := d.parent.SendMessage(ctx, senderID, room.ID, dto.SendMessageRequest{Body: req.Body, ClientNonce: req.ClientNonce}, files)
+	msgResp, err := d.parent.SendMessage(ctx, senderID, room.ID, dto.SendMessageRequest{Body: req.Body, ClientNonce: req.ClientNonce, Media: req.Media})
 	if err != nil {
 		return nil, err
 	}

@@ -11,7 +11,7 @@ import {
     unfollowJournal,
     updateJournal,
     updateJournalEntry,
-    uploadJournalEntryMedia,
+    attachJournalEntryMedia,
 } from "../../api/endpoints/journal";
 import {
     deleteJournalComment,
@@ -19,7 +19,7 @@ import {
     unlikeJournalComment,
     updateJournalComment,
 } from "../../api/endpoints/comments";
-import type { CreateJournalPayload, JournalDetail, JournalEntryPayload, MediaUpload } from "../../types/api";
+import type { CreateJournalPayload, JournalDetail, JournalEntryPayload, UploadRef } from "../../types/api";
 import { invalidateViews } from "../../api/cache/invalidate";
 import { queryKeys } from "../../api/queryKeys";
 import { commentMutations } from "./comments";
@@ -105,7 +105,7 @@ export function useUnfollowJournal() {
 export function useCreateJournalComment(journalId: string, entryId?: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly MediaUpload[] }) =>
+        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly UploadRef[] }) =>
             createJournalComment(journalId, body, parentId, entryId, media),
         onSuccess: () => invalidateViews(qc, "journal"),
     });
@@ -114,7 +114,7 @@ export function useCreateJournalComment(journalId: string, entryId?: string) {
 export function useCreateJournalEntry(journalId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ payload, media }: { payload: JournalEntryPayload; media?: readonly MediaUpload[] }) =>
+        mutationFn: ({ payload, media }: { payload: JournalEntryPayload; media?: readonly UploadRef[] }) =>
             createJournalEntry(journalId, payload, media),
         onSuccess: () => invalidateViews(qc, "journal"),
     });
@@ -148,11 +148,11 @@ export const useDeleteJournalComment = journalCommentMutations.useDelete;
 export const useLikeJournalComment = journalCommentMutations.useLike;
 export const useUnlikeJournalComment = journalCommentMutations.useUnlike;
 
-export function useUploadJournalEntryMedia(_journalId: string) {
+export function useAttachJournalEntryMedia(_journalId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ entryId, file, isSpoiler }: { entryId: string; file: File; isSpoiler?: boolean }) =>
-            uploadJournalEntryMedia(entryId, file, isSpoiler ?? false),
+        mutationFn: ({ entryId, media }: { entryId: string; media: UploadRef }) =>
+            attachJournalEntryMedia(entryId, media),
         onSuccess: () => invalidateViews(qc, "journal"),
     });
 }

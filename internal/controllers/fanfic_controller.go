@@ -9,7 +9,6 @@ import (
 	"umineko_city_of_books/internal/dto"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
-	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -60,7 +59,7 @@ func (s *Service) setupDeleteFanfic(r fiber.Router) {
 }
 
 func (s *Service) setupUploadFanficCover(r fiber.Router) {
-	r.Post("/fanfics/:id/cover", s.requireAuth(), s.uploadFanficCover)
+	r.Post("/fanfics/:id/cover", s.requireAuth(), s.requireEstablished(), s.uploadFanficCover)
 }
 
 func (s *Service) setupDeleteFanficCover(r fiber.Router) {
@@ -233,17 +232,13 @@ func (s *Service) uploadFanficCover(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	file, err := ctx.FormFile("image")
+	file, err := utils.ReceiveFile(ctx, s.UploadService, "image")
 	if err != nil {
-		return utils.BadRequest(ctx, "no image file provided")
+		return utils.UploadFailed(ctx, err)
 	}
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file", err)
-	}
-	defer reader.Close()
+	defer file.Close()
 
-	url, err := s.FanficService.UploadCoverImage(ctx.Context(), fanficID, userID, file.Header.Get("Content-Type"), file.Size, reader)
+	url, err := s.FanficService.UploadCoverImage(ctx.Context(), fanficID, userID, file.ContentType, file.Size, file)
 	if err != nil {
 		if errors.Is(err, fanficsvc.ErrNotAuthor) {
 			return utils.Forbidden(ctx, err.Error())
@@ -417,8 +412,8 @@ func (s *Service) createFanficComment(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
-		return s.FanficService.CreateComment(c, fanficID, userID, req, files)
+	return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest) (uuid.UUID, error) {
+		return s.FanficService.CreateComment(c, fanficID, userID, req)
 	}, []errorResponse{
 		{err: fanficsvc.ErrNotFound, respond: utils.NotFound, message: "fanfic not found"},
 	})

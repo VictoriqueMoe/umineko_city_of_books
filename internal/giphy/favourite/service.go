@@ -2,7 +2,6 @@ package favourite
 
 import (
 	"context"
-	"errors"
 
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
@@ -30,11 +29,6 @@ type (
 	service struct {
 		repo repository.GiphyFavouriteRepository
 	}
-)
-
-var (
-	ErrGiphyIDRequired = errors.New("giphy_id required")
-	ErrURLRequired     = errors.New("url required")
 )
 
 func NewService(repo repository.GiphyFavouriteRepository) Service {

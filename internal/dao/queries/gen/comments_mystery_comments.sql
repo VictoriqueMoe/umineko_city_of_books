@@ -83,12 +83,6 @@ FROM mystery_comment_media
 WHERE comment_id = ANY(string_to_array($1::text, ',')::uuid[])
 ORDER BY sort_order;
 
--- name: UpdateMysteryCommentMediaURL :execrows
-UPDATE mystery_comment_media SET media_url = $1 WHERE id = $2;
-
--- name: UpdateMysteryCommentMediaThumbnail :execrows
-UPDATE mystery_comment_media SET thumbnail_url = $1 WHERE id = $2;
-
 -- name: CollectMysteryCommentMediaPaths :many
 SELECT m.media_url, m.thumbnail_url
 FROM mystery_comment_media m

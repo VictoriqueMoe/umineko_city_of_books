@@ -417,7 +417,7 @@ func TestSendMessage_BannedWordKickFires(t *testing.T) {
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender}).Return(nil)
 	expectEvictionSideEffects(m, room)
 
-	_, err := svc.SendMessage(context.Background(), sender, room, dto.SendMessageRequest{Body: "I love dogs"}, nil)
+	_, err := svc.SendMessage(context.Background(), sender, room, dto.SendMessageRequest{Body: "I love dogs"})
 	require.Error(t, err)
 	var bw *ErrBannedWordMatch
 	assert.True(t, errors.As(err, &bw))
@@ -448,7 +448,7 @@ func TestSendMessage_BannedWordKickThatFailsToEvictAnnouncesNothing(t *testing.T
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender}).Return(boom)
 
 	// when the message is sent
-	_, err := svc.SendMessage(context.Background(), sender, room, dto.SendMessageRequest{Body: "I love dogs"}, nil)
+	_, err := svc.SendMessage(context.Background(), sender, room, dto.SendMessageRequest{Body: "I love dogs"})
 
 	// then the failure surfaces and the room is never told the sender was kicked
 	require.ErrorIs(t, err, boom)
@@ -500,7 +500,7 @@ func TestSendMessage_BannedWordKickIsDeleteOnlyInsideAPair(t *testing.T) {
 			}
 
 			// when the message is sent
-			_, err := svc.SendMessage(context.Background(), sender, room, dto.SendMessageRequest{Body: "I love dogs"}, nil)
+			_, err := svc.SendMessage(context.Background(), sender, room, dto.SendMessageRequest{Body: "I love dogs"})
 
 			// then the message is refused either way and only a room evicts
 			require.Error(t, err)

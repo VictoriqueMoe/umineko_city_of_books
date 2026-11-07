@@ -1,15 +1,10 @@
 package bounds
 
 import (
-	"errors"
 	"fmt"
 )
 
 const FallbackMaxImagePixels = 100000000
-
-var (
-	ErrImageBounds = errors.New("image outside allowed bounds")
-)
 
 func ImagePixels(width, height, maxPixels int) error {
 	if maxPixels <= 0 {

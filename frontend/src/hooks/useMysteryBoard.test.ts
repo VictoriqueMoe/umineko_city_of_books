@@ -5,7 +5,7 @@ import { queryKeys } from "../api/queryKeys";
 import { dispatch } from "../api/realtime/bus";
 import type { RealtimeEvent } from "../api/realtime/events";
 import type * as OutboundModule from "../api/realtime/outbound";
-import { makeUser } from "../test-utils/fixtures";
+import { makePendingUpload, makeUser } from "../test-utils/fixtures";
 import { expectInvalidated } from "../test-utils/query";
 import { createTestQueryClient, providerWrapper } from "../test-utils/render";
 import { makeWSHarness, type WSHarness } from "../test-utils/ws";
@@ -39,8 +39,11 @@ const mocked = vi.hoisted(() => ({
     setGmAway: vi.fn(),
     setPaused: vi.fn(),
     updateClue: vi.fn(),
-    uploadAttachment: vi.fn(),
-    uploadMedia: vi.fn(),
+    attachFile: vi.fn(),
+    attachMedia: vi.fn(),
+    beginUpload: vi.fn(),
+    removeUpload: vi.fn(),
+    uploadStatuses: vi.fn(),
     createComment: vi.fn(),
     deleteComment: vi.fn(),
     likeComment: vi.fn(),
@@ -61,13 +64,19 @@ vi.mock("./mutations/mystery", () => ({
     useSetMysteryGmAway: () => ({ mutateAsync: mocked.setGmAway }),
     useSetMysteryPaused: () => ({ mutateAsync: mocked.setPaused }),
     useUpdateMysteryClue: () => ({ mutateAsync: mocked.updateClue }),
-    useUploadMysteryAttachment: () => ({ mutateAsync: mocked.uploadAttachment }),
-    useUploadMysteryMedia: () => ({ mutateAsync: mocked.uploadMedia }),
+    useAttachMysteryFile: () => ({ mutateAsync: mocked.attachFile }),
+    useAttachMysteryMedia: () => ({ mutateAsync: mocked.attachMedia }),
     useCreateMysteryComment: () => ({ mutateAsync: mocked.createComment }),
     useDeleteMysteryComment: () => ({ mutateAsync: mocked.deleteComment }),
     useLikeMysteryComment: () => ({ mutateAsync: mocked.likeComment }),
     useUnlikeMysteryComment: () => ({ mutateAsync: mocked.unlikeComment }),
     useUpdateMysteryComment: () => ({ mutateAsync: mocked.updateComment }),
+}));
+
+vi.mock("./mutations/uploads", () => ({
+    useBeginUpload: () => ({ mutateAsync: mocked.beginUpload }),
+    useRemoveUpload: () => ({ mutateAsync: mocked.removeUpload }),
+    useUploadStatuses: () => ({ mutateAsync: mocked.uploadStatuses }),
 }));
 
 vi.mock("react-router", async importOriginal => {
@@ -93,8 +102,8 @@ const ALL_MUTATIONS = [
     mocked.setGmAway,
     mocked.setPaused,
     mocked.updateClue,
-    mocked.uploadAttachment,
-    mocked.uploadMedia,
+    mocked.attachFile,
+    mocked.attachMedia,
 ];
 
 function makeAttempt(overrides: Partial<MysteryAttempt> = {}): MysteryAttempt {
@@ -196,6 +205,11 @@ beforeEach(() => {
     for (const mutation of ALL_MUTATIONS) {
         mutation.mockResolvedValue({});
     }
+    mocked.removeUpload.mockResolvedValue(undefined);
+    mocked.uploadStatuses.mockResolvedValue([]);
+    mocked.beginUpload.mockImplementation(({ file }: { file: File }) =>
+        Promise.resolve(makePendingUpload({ id: `upload-${file.name}`, filename: file.name })),
+    );
 });
 
 afterEach(() => {
@@ -434,19 +448,72 @@ describe("useMysteryBoard", () => {
         expect(mocked.closeMystery).not.toHaveBeenCalled();
     });
 
-    it("reports why an attachment could not be uploaded", async () => {
+    it("attaches a document to the mystery as soon as its upload is ready", async () => {
         // given
-        mocked.uploadAttachment.mockRejectedValue(new Error("the file is cursed"));
         const { result } = renderBoard({ viewer: gameMasterUser });
 
         // when
-        await act(async () => {
-            await result.current.uploadAttachment(new File(["evidence"], "notes.pdf"));
+        act(() => {
+            result.current.uploadAttachment(new File(["evidence"], "notes.pdf"));
         });
 
         // then
-        expect(result.current.attachmentError).toBe("the file is cursed");
+        await waitFor(() =>
+            expect(mocked.attachFile).toHaveBeenCalledWith({ upload_id: "upload-notes.pdf", is_spoiler: false }),
+        );
+        await waitFor(() => expect(result.current.uploadingAttachment).toBe(false));
+        expect(result.current.attachmentError).toBe("");
+    });
+
+    it("reports why an attachment could not be uploaded", async () => {
+        // given
+        mocked.beginUpload.mockRejectedValue(new Error("the file is cursed"));
+        const { result } = renderBoard({ viewer: gameMasterUser });
+
+        // when
+        act(() => {
+            result.current.uploadAttachment(new File(["evidence"], "notes.pdf"));
+        });
+
+        // then
+        await waitFor(() => expect(result.current.attachmentError).toBe("the file is cursed"));
         expect(result.current.uploadingAttachment).toBe(false);
+        expect(mocked.attachFile).not.toHaveBeenCalled();
+    });
+
+    it("reports why a finished upload could not be attached", async () => {
+        // given
+        mocked.attachFile.mockRejectedValue(new Error("the mystery is sealed"));
+        const { result } = renderBoard({ viewer: gameMasterUser });
+
+        // when
+        act(() => {
+            result.current.uploadAttachment(new File(["evidence"], "notes.pdf"));
+        });
+
+        // then
+        await waitFor(() => expect(result.current.attachmentError).toBe("the mystery is sealed"));
+    });
+
+    it("clears a failed attachment when the next one is picked", async () => {
+        // given
+        mocked.beginUpload.mockRejectedValueOnce(new Error("the file is cursed"));
+        const { result } = renderBoard({ viewer: gameMasterUser });
+        act(() => {
+            result.current.uploadAttachment(new File(["evidence"], "notes.pdf"));
+        });
+        await waitFor(() => expect(result.current.attachmentError).toBe("the file is cursed"));
+
+        // when
+        act(() => {
+            result.current.uploadAttachment(new File(["evidence"], "letter.pdf"));
+        });
+
+        // then
+        expect(result.current.attachmentError).toBe("");
+        await waitFor(() =>
+            expect(mocked.attachFile).toHaveBeenCalledWith({ upload_id: "upload-letter.pdf", is_spoiler: false }),
+        );
     });
 
     it("reports why an attachment could not be deleted", async () => {
@@ -484,25 +551,26 @@ describe("useMysteryBoard", () => {
         expect(result.current.mediaError).toBe("the image is sealed");
     });
 
-    it("ignores an attachment change that carried no file", async () => {
+    it("ignores an attachment change that carried no file", () => {
         // given
         const { result } = renderBoard({ viewer: gameMasterUser });
 
         // when
-        await act(async () => {
-            await result.current.uploadAttachment(undefined);
+        act(() => {
+            result.current.uploadAttachment(undefined);
         });
 
         // then
-        expect(mocked.uploadAttachment).not.toHaveBeenCalled();
+        expect(mocked.beginUpload).not.toHaveBeenCalled();
     });
 
-    it("uploads every queued image and empties the queue", async () => {
+    it("attaches every finished image in order and empties the queue", async () => {
         // given
         const { result } = renderBoard({ viewer: gameMasterUser });
         act(() => {
-            result.current.addPendingMedia([new File(["a"], "a.png"), new File(["b"], "b.png")]);
+            result.current.pendingMedia.add([new File(["a"], "a.png"), new File(["b"], "b.png")]);
         });
+        await waitFor(() => expect(result.current.pendingMedia.refs).toHaveLength(2));
 
         // when
         await act(async () => {
@@ -510,17 +578,40 @@ describe("useMysteryBoard", () => {
         });
 
         // then
-        expect(mocked.uploadMedia).toHaveBeenCalledTimes(2);
-        expect(result.current.pendingMedia).toEqual([]);
+        expect(mocked.attachMedia.mock.calls).toEqual([
+            [{ upload_id: "upload-a.png", is_spoiler: false }],
+            [{ upload_id: "upload-b.png", is_spoiler: false }],
+        ]);
+        expect(result.current.pendingMedia.items).toEqual([]);
     });
 
-    it("keeps the queued images and reports why the upload failed", async () => {
+    it("does not attach anything while an image is still processing", async () => {
         // given
-        mocked.uploadMedia.mockRejectedValue(new Error("that picture is forbidden"));
+        mocked.beginUpload.mockResolvedValue(makePendingUpload({ status: "processing" }));
         const { result } = renderBoard({ viewer: gameMasterUser });
         act(() => {
-            result.current.addPendingMedia([new File(["a"], "a.png")]);
+            result.current.pendingMedia.add([new File(["a"], "a.png")]);
         });
+        await waitFor(() => expect(result.current.pendingMedia.refs).toHaveLength(1));
+
+        // when
+        await act(async () => {
+            await result.current.uploadMedia();
+        });
+
+        // then
+        expect(result.current.pendingMedia.ready).toBe(false);
+        expect(mocked.attachMedia).not.toHaveBeenCalled();
+    });
+
+    it("keeps the queued images and reports why attaching failed", async () => {
+        // given
+        mocked.attachMedia.mockRejectedValue(new Error("that picture is forbidden"));
+        const { result } = renderBoard({ viewer: gameMasterUser });
+        act(() => {
+            result.current.pendingMedia.add([new File(["a"], "a.png")]);
+        });
+        await waitFor(() => expect(result.current.pendingMedia.ready).toBe(true));
 
         // when
         await act(async () => {
@@ -529,23 +620,24 @@ describe("useMysteryBoard", () => {
 
         // then
         expect(result.current.mediaError).toBe("that picture is forbidden");
-        expect(result.current.pendingMedia).toHaveLength(1);
+        expect(result.current.pendingMedia.items).toHaveLength(1);
+        expect(result.current.attachingMedia).toBe(false);
     });
 
     it("drops one queued image without disturbing the rest", () => {
         // given
         const { result } = renderBoard({ viewer: gameMasterUser });
         act(() => {
-            result.current.addPendingMedia([new File(["a"], "a.png"), new File(["b"], "b.png")]);
+            result.current.pendingMedia.add([new File(["a"], "a.png"), new File(["b"], "b.png")]);
         });
 
         // when
         act(() => {
-            result.current.removePendingMedia(0);
+            result.current.pendingMedia.remove(0);
         });
 
         // then
-        expect(result.current.pendingMedia.map(file => file.name)).toEqual(["b.png"]);
+        expect(result.current.pendingMedia.files.map(file => file.name)).toEqual(["b.png"]);
     });
 
     it("folds a player's group away and opens it again", () => {
@@ -812,7 +904,7 @@ describe("useMysteryBoard", () => {
             await result.current.addPrivateClue("player-1", "Your key is a lie");
             await result.current.saveClue(5, "amended");
             await result.current.removeClue(5);
-            await result.current.uploadAttachment(new File(["a"], "a.pdf"));
+            result.current.uploadAttachment(new File(["a"], "a.pdf"));
             await result.current.removeAttachment({
                 id: 3,
                 file_url: "/files/notes.pdf",

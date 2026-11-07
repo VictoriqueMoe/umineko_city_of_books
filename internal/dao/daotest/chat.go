@@ -74,7 +74,7 @@ func CreateDMRoom(t *testing.T, repos *repository.Repositories, userA, userB uui
 
 func SendChatMessage(t *testing.T, repos *repository.Repositories, roomID, senderID uuid.UUID, body string) uuid.UUID {
 	t.Helper()
-	msg, err := repos.Chat.InsertMessageAndMarkRead(context.Background(), spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: body})
+	msg, _, err := repos.Chat.InsertMessageAndMarkRead(context.Background(), spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: body})
 	require.NoError(t, err)
 
 	return msg.ID

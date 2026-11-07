@@ -1,7 +1,6 @@
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import type { ShipCharacter } from "../types/api";
-import { contentPermissions } from "../domain/contentPermissions";
 import {
     clearDraft,
     draftFromFields,
@@ -25,7 +24,6 @@ import {
     type EditorFields,
 } from "../domain/fanfic/form";
 import { errorMessage } from "../utils/errorMessage";
-import { useAuth } from "./useAuth";
 import { useFanfic, useFanficChapter, useFanficLanguages, useFanficSeries } from "./queries/fanfic";
 import {
     useCreateFanfic,
@@ -99,7 +97,6 @@ export function useFanficEditor(): FanficEditor {
     const editId = id ?? "";
     const isEdit = !!id;
     const navigate = useNavigate();
-    const { user } = useAuth();
 
     const [draftPrompt, setDraftPrompt] = useState<DraftData | null>(() => (isEdit ? null : resumableDraft()));
     const [initialised, setInitialised] = useState(() => (isEdit ? false : !resumableDraft()));
@@ -134,14 +131,6 @@ export function useFanficEditor(): FanficEditor {
     const { chapter } = useFanficChapter(editId, isEdit && fields.isOneshot && hasFirstChapter ? 1 : 0);
     const body = bodyDraft ?? chapter?.body ?? "";
     const editChapterId = chapter?.id ?? "";
-
-    const canEdit = contentPermissions(user, { family: "fanfic", authorId: editData?.author.id }).canEdit;
-
-    useEffect(() => {
-        if (editData && !canEdit) {
-            navigate(`/fanfiction/${editId}`);
-        }
-    }, [editData, canEdit, navigate, editId]);
 
     useEffect(() => {
         if (!initialised || isEdit) {

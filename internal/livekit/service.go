@@ -60,10 +60,6 @@ const (
 	EventEgressEnded       = "egress_ended"
 )
 
-var (
-	ErrDisabled = errors.New("livekit is not configured")
-)
-
 func NewService(settingsSvc settings.Service) Service {
 	return &service{settingsSvc: settingsSvc}
 }

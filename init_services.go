@@ -93,7 +93,12 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 
 	mediaProc := media.NewProcessor(4)
 
-	uploadSvc := upload.NewService(settingsSvc, storageSvc, repos.StoredFile, mediaProc)
+	hub := ws.NewHub("main")
+
+	uploadSvc := upload.NewService(settingsSvc, storageSvc, repos.StoredFile, repos.PendingUpload, hub, mediaProc)
+	if err := uploadSvc.FailInterruptedUploads(context.Background()); err != nil {
+		logger.Log.Error().Err(err).Msg("fail uploads interrupted by the last shutdown")
+	}
 
 	authzSvc := authz.NewService(repos.Role, repos.User, repos.Permission, settingsSvc)
 
@@ -115,8 +120,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	)
 
 	userSvc := user.NewService(repos.User, repos.Role, repos.VanityRole, repos.AuditLog, authzSvc, settingsSvc)
-
-	hub := ws.NewHub("main")
 
 	sessionMgr.SetDisconnector(hub)
 
@@ -146,7 +149,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		notifSvc,
 		mentionSvc,
 		uploadSvc,
-		media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		settingsSvc,
 		contentFilter,
 	)
@@ -213,7 +215,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		blockSvc,
 		uploadSvc,
 		settingsSvc,
-		mediaProc,
 		hub,
 		hyperbeamSvc,
 		livekitSvc,
@@ -235,7 +236,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		mentionSvc,
 		commentSvc,
 		uploadSvc,
-		mediaProc,
 		settingsSvc,
 		hub,
 		contentFilter,
@@ -286,7 +286,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		mentionSvc,
 		commentSvc,
 		uploadSvc,
-		mediaProc,
 		settingsSvc,
 		contentFilter,
 		ogResolver,
@@ -304,7 +303,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		mentionSvc,
 		commentSvc,
 		uploadSvc,
-		mediaProc,
 		settingsSvc,
 		quoteClient,
 		contentFilter,
@@ -322,7 +320,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		mentionSvc,
 		commentSvc,
 		uploadSvc,
-		mediaProc,
 		settingsSvc,
 		hub,
 		contentFilter,
@@ -342,7 +339,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		commentSvc,
 		settingsSvc,
 		uploadSvc,
-		mediaProc,
 		hub,
 		contentFilter,
 		ogResolver,
@@ -360,7 +356,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		mentionSvc,
 		commentSvc,
 		uploadSvc,
-		mediaProc,
 		settingsSvc,
 		contentFilter,
 		ogResolver,
@@ -377,7 +372,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		mentionSvc,
 		commentSvc,
 		uploadSvc,
-		mediaProc,
 		settingsSvc,
 		contentFilter,
 		ogResolver,

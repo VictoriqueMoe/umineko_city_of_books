@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import type { ChangeEvent } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeUser } from "../test-utils/fixtures";
@@ -46,7 +46,6 @@ vi.mock("react-router", async importOriginal => {
 });
 
 const author = makeUser({ id: "author-1", username: "beatrice", display_name: "Beatrice" });
-const stranger = makeUser({ id: "stranger-1", username: "battler", display_name: "Battler" });
 
 function makeFanfic(overrides: Partial<FanficDetail> = {}): FanficDetail {
     return {
@@ -169,19 +168,6 @@ describe("useFanficEditor loading the fanfic", () => {
         // then
         expect(result.current.loading).toBe(false);
         expect(result.current.notFound).toBe(false);
-    });
-
-    it("sends a writer who may not edit back to the fanfic", async () => {
-        // given
-        stub({ fanfic: makeFanfic() });
-
-        // when
-        renderEdit(stranger);
-
-        // then
-        await waitFor(() => {
-            expect(mocks.navigate).toHaveBeenCalledWith("/fanfiction/fanfic-1");
-        });
     });
 });
 

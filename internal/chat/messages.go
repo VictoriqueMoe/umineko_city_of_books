@@ -170,8 +170,8 @@ func (m *messagesService) ListRoomAttachments(ctx context.Context, userID, roomI
 	}, nil
 }
 
-func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest, files []upload.FileUpload) (*dto.ChatMessageResponse, error) {
-	if req.Body == "" && len(files) == 0 {
+func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest) (*dto.ChatMessageResponse, error) {
+	if req.Body == "" && len(req.Media) == 0 {
 		return nil, ErrMissingFields
 	}
 	if !validClientNonce(req.ClientNonce) {
@@ -220,11 +220,6 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		return nil, err
 	}
 
-	validated, err := upload.ValidateMedia(ctx, m.settingsSvc, files)
-	if err != nil {
-		return nil, err
-	}
-
 	sender, err := m.userRepo.GetByID(ctx, senderID)
 	if err != nil {
 		return nil, fmt.Errorf("get sender: %w", err)
@@ -253,12 +248,13 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		}
 	}
 
-	created, err := m.chatRepo.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{
+	created, mediaResponses, err := m.chatRepo.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{
 		RoomID:      roomID,
 		SenderID:    senderID,
 		Body:        req.Body,
 		ReplyToID:   replyToID,
 		ClientNonce: req.ClientNonce,
+		Media:       upload.MediaClaim(senderID, req.Media),
 	})
 	if replay, ok := errors.AsType[*daoerr.ChatMessageReplayError](err); ok {
 		return m.replayedMessage(ctx, roomID, sender, replay.Existing)
@@ -268,35 +264,6 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 	}
 
 	msgID := created.ID
-
-	mediaResponses, err := validated.Save(ctx, m.uploader, m.uploadSvc, upload.MediaTarget{
-		SubDir: "chat",
-		Record: func(r upload.MediaRecord) (int64, error) {
-			return m.chatRepo.AddMessageMedia(ctx, spec.NewChatMessageMedia{
-				TargetID:     msgID,
-				MediaURL:     r.MediaURL,
-				MediaType:    r.MediaType,
-				ThumbnailURL: r.ThumbnailURL,
-				Filename:     r.Filename,
-				SortOrder:    r.SortOrder,
-				IsSpoiler:    r.File.IsSpoiler,
-				Width:        r.Width,
-				Height:       r.Height,
-			})
-		},
-		UpdateURL:   m.chatRepo.UpdateMessageMediaURL,
-		UpdateThumb: m.chatRepo.UpdateMessageMediaThumbnail,
-	})
-	if err != nil {
-		paths, delErr := m.chatRepo.DeleteMessageWithMedia(context.WithoutCancel(ctx), msgID)
-		if delErr != nil {
-			logger.Ctx(ctx).Error().Err(delErr).Str("message_id", msgID.String()).Msg("failed to roll back message after media save failure")
-		}
-
-		m.uploadSvc.Delete(paths...)
-
-		return nil, err
-	}
 
 	resp := m.sentMessageResponse(ctx, *created, sender, mediaResponses, replyToPreview)
 	displayName := resp.Sender.DisplayName

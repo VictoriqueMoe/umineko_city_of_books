@@ -85,12 +85,6 @@ FROM {{.MediaTable}}
 WHERE comment_id = ANY(string_to_array($1::text, ',')::uuid[])
 ORDER BY sort_order;
 
--- name: Update{{.Entity}}CommentMediaURL :execrows
-UPDATE {{.MediaTable}} SET media_url = $1 WHERE id = $2;
-
--- name: Update{{.Entity}}CommentMediaThumbnail :execrows
-UPDATE {{.MediaTable}} SET thumbnail_url = $1 WHERE id = $2;
-
 -- name: Collect{{.Entity}}CommentMediaPaths :many
 SELECT m.media_url, m.thumbnail_url
 FROM {{.MediaTable}} m

@@ -5,6 +5,12 @@ import { absolutizeMedia, apiUrl } from "./origin";
 
 const API_PREFIX = "/api/v1";
 
+export type UploadProgress = (sent: number, total: number) => void;
+
+const BODYLESS_STATUSES = new Set([204, 205, 304]);
+
+const ZERO_MEANS_UNSET_KEYS = new Set(["offset", "page"]);
+
 function endpoint(path: string): string {
     return apiUrl(`${API_PREFIX}${path}`);
 }
@@ -138,7 +144,67 @@ export async function apiDeleteWithBody<T, B = unknown>(path: string, body: B): 
     return handleResponse<T>(response);
 }
 
-export async function apiPostFormData<T>(path: string, formData: FormData): Promise<T> {
+function parseResponseHeaders(raw: string): Headers {
+    const headers = new Headers();
+    for (const line of raw.trim().split(/[\r\n]+/)) {
+        const separator = line.indexOf(":");
+        if (separator <= 0) {
+            continue;
+        }
+
+        headers.append(line.slice(0, separator).trim(), line.slice(separator + 1).trim());
+    }
+
+    return headers;
+}
+
+function sendWithProgress(
+    path: string,
+    formData: FormData,
+    onProgress: UploadProgress,
+    signal?: AbortSignal,
+): Promise<Response> {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        signal?.addEventListener("abort", () => xhr.abort(), { once: true });
+        xhr.open("POST", endpoint(path));
+        xhr.withCredentials = true;
+        for (const [name, value] of Object.entries(authHeaders())) {
+            xhr.setRequestHeader(name, value);
+        }
+
+        xhr.upload.onprogress = event => {
+            if (event.lengthComputable) {
+                onProgress(event.loaded, event.total);
+            }
+        };
+        xhr.onload = () => {
+            const body = BODYLESS_STATUSES.has(xhr.status) ? null : xhr.responseText;
+            resolve(
+                new Response(body, { status: xhr.status, headers: parseResponseHeaders(xhr.getAllResponseHeaders()) }),
+            );
+        };
+        xhr.onerror = () => {
+            reject(new TypeError("Network request failed"));
+        };
+        xhr.onabort = () => {
+            reject(new DOMException("The upload was cancelled", "AbortError"));
+        };
+
+        xhr.send(formData);
+    });
+}
+
+export async function apiPostFormData<T>(
+    path: string,
+    formData: FormData,
+    onProgress?: UploadProgress,
+    signal?: AbortSignal,
+): Promise<T> {
+    if (onProgress) {
+        return handleResponse<T>(await sendWithProgress(path, formData, onProgress, signal));
+    }
+
     const response = await fetch(endpoint(path), {
         method: "POST",
         body: formData,
@@ -154,8 +220,6 @@ export async function postFile<T>(path: string, field: string, file: File): Prom
 
     return apiPostFormData<T>(path, formData);
 }
-
-const ZERO_MEANS_UNSET_KEYS = new Set(["offset", "page"]);
 
 export function buildQueryString(params: Record<string, string | number | undefined>): string {
     const search = new URLSearchParams();

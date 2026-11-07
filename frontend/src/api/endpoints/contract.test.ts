@@ -414,6 +414,7 @@ describe("optional request body fields", () => {
                     poll: undefined,
                     shared_content_id: undefined,
                     shared_content_type: undefined,
+                    media: [],
                 },
             ],
         },
@@ -437,6 +438,7 @@ describe("optional request body fields", () => {
                     poll: { options: [{ label: "yes" }], duration_seconds: 3600 },
                     shared_content_id: "art-1",
                     shared_content_type: "art",
+                    media: [],
                 },
             ],
         },
@@ -459,7 +461,7 @@ describe("optional request body fields", () => {
             call: () => api.createJournalComment("j-1", "lovely", undefined, "e-1"),
             transport: postMock,
             strict: true,
-            request: ["/journals/j-1/comments", { body: "lovely", parent_id: undefined, entry_id: "e-1" }],
+            request: ["/journals/j-1/comments", { body: "lovely", parent_id: undefined, entry_id: "e-1", media: [] }],
         },
         {
             name: "addMysteryClue leaves the player unset for a public clue",
@@ -505,47 +507,6 @@ describe("multipart uploads", () => {
         // then
         expect(postFormDataMock.mock.calls[0][0]).toBe("/auth/avatar");
         expect(lastFormData().get("avatar")).toBe(file);
-    });
-
-    it("sendChatMessage attaches the reply target and every media file", async () => {
-        // given
-        const first = new File(["a"], "a.png", { type: "image/png" });
-        const second = new File(["b"], "b.png", { type: "image/png" });
-
-        // when
-        await api.sendChatMessage("r-1", { body: "hello", reply_to_id: "m-0", files: [first, second] });
-
-        // then
-        const formData = lastFormData();
-        expect(postFormDataMock.mock.calls[0][0]).toBe("/chat/rooms/r-1/messages");
-        expect(formData.get("body")).toBe("hello");
-        expect(formData.get("reply_to_id")).toBe("m-0");
-        expect(formData.getAll("media")).toEqual([first, second]);
-    });
-
-    it("sendChatMessage omits the reply target and media when there are none", async () => {
-        // given
-        const payload = { body: "hello" };
-
-        // when
-        await api.sendChatMessage("r-1", payload);
-
-        // then
-        const formData = lastFormData();
-        expect(formData.has("reply_to_id")).toBe(false);
-        expect(formData.has("client_nonce")).toBe(false);
-        expect(formData.getAll("media")).toEqual([]);
-    });
-
-    it("sendChatMessage carries the client nonce the server reconciles and deduplicates by", async () => {
-        // given
-        const payload = { body: "hello", client_nonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0" };
-
-        // when
-        await api.sendChatMessage("r-1", payload);
-
-        // then
-        expect(lastFormData().get("client_nonce")).toBe("0f1e2d3c4b5a69788796a5b4c3d2e1f0");
     });
 
     it("createArt serialises the metadata alongside the image", async () => {

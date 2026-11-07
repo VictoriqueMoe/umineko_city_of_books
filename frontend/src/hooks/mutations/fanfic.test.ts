@@ -360,7 +360,7 @@ describe("useCreateFanficComment", () => {
     it("sends the staged media with the comment in the same request", async () => {
         // given
         const { wrapper } = harness();
-        const media = [{ file: makeFile(), isSpoiler: true }];
+        const media = [{ upload_id: "upload-1", is_spoiler: true }];
         const { result } = renderHook(() => useCreateFanficComment(fanficId), { wrapper });
 
         // when

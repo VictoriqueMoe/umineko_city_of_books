@@ -99,10 +99,6 @@ func (mysteryCommentQuerier) AuthorID(ctx context.Context, q *sqlcgen.Queries, i
 	return q.GetMysteryCommentAuthorID(ctx, id)
 }
 
-func (mysteryCommentQuerier) MediaDir() string {
-	return "mysteries"
-}
-
 func (mysteryCommentQuerier) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
 	return q.GetMysteryCommentTargetOwner(ctx, target.ID)
 }
@@ -153,14 +149,6 @@ func (mysteryCommentQuerier) MediaBatch(ctx context.Context, q *sqlcgen.Queries,
 	}
 
 	return out, nil
-}
-
-func (mysteryCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.UpdateMysteryCommentMediaURL(ctx, sqlcgen.UpdateMysteryCommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
-}
-
-func (mysteryCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.UpdateMysteryCommentMediaThumbnail(ctx, sqlcgen.UpdateMysteryCommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
 func (mysteryCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {

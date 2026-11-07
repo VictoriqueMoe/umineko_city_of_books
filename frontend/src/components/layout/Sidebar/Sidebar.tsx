@@ -8,8 +8,7 @@ import { useSidebarBadges } from "../../../hooks/useSidebarBadges";
 import { useArtCornerCounts } from "../../../hooks/queries/art";
 import { useCornerCounts } from "../../../hooks/queries/post";
 import { useChatbotList } from "../../../hooks/queries/chatbot";
-import { canAccessAdmin } from "../../../domain/permissions";
-import { staffPanelLabel } from "../../../domain/adminTargets";
+import { adminTabsFor, staffPanelLabel } from "../../../domain/adminTargets";
 import { PieceTrigger } from "../../easterEgg";
 import { AppVersionInfo } from "../../AppVersionInfo/AppVersionInfo";
 import styles from "./Sidebar.module.css";
@@ -66,6 +65,7 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
     const { hasUnread, hasAnyUnread, markVisited, markAllVisited, anyUnread } = useSidebarBadges();
     const siteInfo = useSiteInfo();
     const staffPanel = staffPanelLabel(user);
+    const adminHome = adminTabsFor(user)[0];
     const hasRulesPage = (siteInfo.rules_page ?? "").trim().length > 0;
     const location = useLocation();
     const [newAnnouncement, setNewAnnouncement] = useState(false);
@@ -644,11 +644,11 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
                         </div>
                     )}
 
-                    {canAccessAdmin(user) && (
+                    {adminHome && (
                         <div className={styles.section}>
                             <span className={styles.sectionLabel}>{staffPanel.navSection}</span>
                             <NavLink
-                                to="/admin"
+                                to={adminHome.to}
                                 className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
                                 onClick={onClose}
                             >

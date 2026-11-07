@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/httpclient"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/utils"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -37,7 +38,7 @@ func RequireTurnstile(settingsSvc settings.Service) fiber.Handler {
 		var partial struct {
 			TurnstileToken string `json:"turnstile_token"`
 		}
-		if err := json.Unmarshal(ctx.Body(), &partial); err != nil || partial.TurnstileToken == "" {
+		if utils.IsMultipart(ctx) || json.Unmarshal(ctx.Body(), &partial) != nil || partial.TurnstileToken == "" {
 			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "verification required",
 			})

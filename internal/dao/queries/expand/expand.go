@@ -19,7 +19,6 @@ type (
 		KeyType     string
 		ParentTable string
 		OwnerColumn string
-		MediaDir    string
 	}
 
 	family struct {
@@ -43,15 +42,15 @@ var families = []family{
 		Template: "comments",
 		Suffix:   "Comment",
 		Entities: []entity{
-			{Entity: "Post", Table: "post_comments", FK: "post_id", LikesTable: "post_comment_likes", MediaTable: "post_comment_media", KeyType: "uuid.UUID", ParentTable: "posts", OwnerColumn: "user_id", MediaDir: "posts"},
-			{Entity: "Art", Table: "art_comments", FK: "art_id", LikesTable: "art_comment_likes", MediaTable: "art_comment_media", KeyType: "uuid.UUID", ParentTable: "art", OwnerColumn: "user_id", MediaDir: "art"},
-			{Entity: "Announcement", Table: "announcement_comments", FK: "announcement_id", LikesTable: "announcement_comment_likes", MediaTable: "announcement_comment_media", KeyType: "uuid.UUID", ParentTable: "announcements", OwnerColumn: "author_id", MediaDir: "announcements"},
-			{Entity: "Mystery", Table: "mystery_comments", FK: "mystery_id", LikesTable: "mystery_comment_likes", MediaTable: "mystery_comment_media", KeyType: "uuid.UUID", ParentTable: "mysteries", OwnerColumn: "user_id", MediaDir: "mysteries"},
-			{Entity: "Ship", Table: "ship_comments", FK: "ship_id", LikesTable: "ship_comment_likes", MediaTable: "ship_comment_media", KeyType: "uuid.UUID", ParentTable: "ships", OwnerColumn: "user_id", MediaDir: "ships"},
-			{Entity: "OC", Table: "oc_comments", FK: "oc_id", LikesTable: "oc_comment_likes", MediaTable: "oc_comment_media", KeyType: "uuid.UUID", ParentTable: "ocs", OwnerColumn: "user_id", MediaDir: "ocs"},
-			{Entity: "Fanfic", Table: "fanfic_comments", FK: "fanfic_id", LikesTable: "fanfic_comment_likes", MediaTable: "fanfic_comment_media", KeyType: "uuid.UUID", ParentTable: "fanfics", OwnerColumn: "user_id", MediaDir: "fanfics"},
-			{Entity: "Journal", Table: "journal_comments", FK: "journal_id", LikesTable: "journal_comment_likes", MediaTable: "journal_comment_media", KeyType: "uuid.UUID", ParentTable: "journals", OwnerColumn: "user_id", MediaDir: "journals"},
-			{Entity: "Secret", Table: "secret_comments", FK: "secret_id", LikesTable: "secret_comment_likes", MediaTable: "secret_comment_media", KeyType: "string", MediaDir: "secrets"},
+			{Entity: "Post", Table: "post_comments", FK: "post_id", LikesTable: "post_comment_likes", MediaTable: "post_comment_media", KeyType: "uuid.UUID", ParentTable: "posts", OwnerColumn: "user_id"},
+			{Entity: "Art", Table: "art_comments", FK: "art_id", LikesTable: "art_comment_likes", MediaTable: "art_comment_media", KeyType: "uuid.UUID", ParentTable: "art", OwnerColumn: "user_id"},
+			{Entity: "Announcement", Table: "announcement_comments", FK: "announcement_id", LikesTable: "announcement_comment_likes", MediaTable: "announcement_comment_media", KeyType: "uuid.UUID", ParentTable: "announcements", OwnerColumn: "author_id"},
+			{Entity: "Mystery", Table: "mystery_comments", FK: "mystery_id", LikesTable: "mystery_comment_likes", MediaTable: "mystery_comment_media", KeyType: "uuid.UUID", ParentTable: "mysteries", OwnerColumn: "user_id"},
+			{Entity: "Ship", Table: "ship_comments", FK: "ship_id", LikesTable: "ship_comment_likes", MediaTable: "ship_comment_media", KeyType: "uuid.UUID", ParentTable: "ships", OwnerColumn: "user_id"},
+			{Entity: "OC", Table: "oc_comments", FK: "oc_id", LikesTable: "oc_comment_likes", MediaTable: "oc_comment_media", KeyType: "uuid.UUID", ParentTable: "ocs", OwnerColumn: "user_id"},
+			{Entity: "Fanfic", Table: "fanfic_comments", FK: "fanfic_id", LikesTable: "fanfic_comment_likes", MediaTable: "fanfic_comment_media", KeyType: "uuid.UUID", ParentTable: "fanfics", OwnerColumn: "user_id"},
+			{Entity: "Journal", Table: "journal_comments", FK: "journal_id", LikesTable: "journal_comment_likes", MediaTable: "journal_comment_media", KeyType: "uuid.UUID", ParentTable: "journals", OwnerColumn: "user_id"},
+			{Entity: "Secret", Table: "secret_comments", FK: "secret_id", LikesTable: "secret_comment_likes", MediaTable: "secret_comment_media", KeyType: "string"},
 		},
 	},
 	{

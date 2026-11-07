@@ -24,6 +24,7 @@ import (
 func newOGImageHarness(t *testing.T) (*testutil.Harness, *upload.MockService, *settings.MockService) {
 	h := testutil.NewHarness(t)
 	us := upload.NewMockService(t)
+	testutil.ExpectStaging(t, us)
 	ss := settings.NewMockService(t)
 
 	s := &Service{

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
+import type { AttachmentProgress } from "../../hooks/useStagedMedia";
+import { UploadProgressBar } from "../UploadProgressBar/UploadProgressBar";
 import { validateFileSize } from "../../utils/fileValidation";
 import { AudioThumb } from "../AudioAttachment/AudioAttachment";
 import { Button } from "../Button/Button";
@@ -7,13 +9,34 @@ import styles from "./MediaPicker.module.css";
 
 type Size = "normal" | "small";
 
-interface MediaPreviewsProps {
+type MediaPreviewsProps = {
     files: File[];
     onRemove: (index: number) => void;
     onReorder?: (from: number, to: number) => void;
     spoilers?: boolean[];
     onToggleSpoiler?: (index: number) => void;
+    progress?: AttachmentProgress[];
     size?: Size;
+};
+
+function UploadOverlay({ progress }: { progress: AttachmentProgress | undefined }) {
+    if (!progress || progress.state === "ready") {
+        return null;
+    }
+
+    if (progress.state === "failed") {
+        return (
+            <div className={`${styles.previewProgress} ${styles.previewFailed}`} title={progress.error ?? undefined}>
+                <span role="alert">Failed</span>
+            </div>
+        );
+    }
+
+    return (
+        <div className={styles.previewProgress}>
+            <UploadProgressBar percent={progress.state === "processing" ? 100 : progress.percent} />
+        </div>
+    );
 }
 
 function EyeIcon() {
@@ -64,6 +87,7 @@ export function MediaPreviews({
     onReorder,
     spoilers,
     onToggleSpoiler,
+    progress,
     size = "normal",
 }: MediaPreviewsProps) {
     const dragIndex = useRef<number | null>(null);
@@ -141,6 +165,7 @@ export function MediaPreviews({
                         {url && !file.type.startsWith("video/") && !file.type.startsWith("audio/") && (
                             <img className={styles.previewMedia} src={url} alt="" />
                         )}
+                        <UploadOverlay progress={progress?.[i]} />
                         {onToggleSpoiler ? (
                             <div className={toolbarClass}>
                                 <button
@@ -202,12 +227,12 @@ export function MediaPreviews({
     );
 }
 
-interface MediaPickerButtonProps {
+type MediaPickerButtonProps = {
     onFiles: (files: File[]) => void;
     onError?: (message: string) => void;
     multiple?: boolean;
     label?: string;
-}
+};
 
 export function MediaPickerButton({ onFiles, onError, multiple = true, label = "+ Media" }: MediaPickerButtonProps) {
     const siteInfo = useSiteInfo();

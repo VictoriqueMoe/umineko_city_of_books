@@ -1,24 +1,20 @@
 package controllers
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/comment"
-	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	journalsvc "umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/journal/params"
-	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
@@ -48,6 +44,7 @@ func journalCtlHarness(t *testing.T) (*testutil.Harness, *journalsvc.MockService
 	js := journalsvc.NewMockService(t)
 
 	s := &Service{
+		UploadService:   testutil.NewStaging(t),
 		JournalService:  js,
 		SettingsService: h.SettingsService,
 		AuthSession:     h.SessionManager,
@@ -449,7 +446,7 @@ func TestCreateJournalComment(t *testing.T) {
 			// given
 			h, js, userID := journalCtlSignedIn(t)
 			journalID := uuid.New()
-			js.EXPECT().CreateComment(mock.Anything, journalID, userID, dto.CreateJournalCommentRequest{Body: "hello"}, []upload.FileUpload(nil)).
+			js.EXPECT().CreateComment(mock.Anything, journalID, userID, dto.CreateJournalCommentRequest{Body: "hello"}).
 				Return(tc.newID, tc.svcErr)
 
 			// when
@@ -465,31 +462,19 @@ func TestCreateJournalComment(t *testing.T) {
 	}
 }
 
-func TestCreateJournalComment_MultipartCarriesThePayloadAndFiles(t *testing.T) {
-	// given
+func TestCreateJournalComment_CarriesItsUploadRefsToTheService(t *testing.T) {
+	// given an entry comment carrying one finished upload marked as a spoiler
 	h, js, userID := journalCtlSignedIn(t)
 	journalID := uuid.New()
 	entryID := uuid.New()
 	newID := uuid.New()
-	want := dto.CreateJournalCommentRequest{Body: "see attached", EntryID: &entryID}
-
-	payload, err := json.Marshal(want)
-	require.NoError(t, err)
-	form, contentType := testutil.MediaForm(t, utils.MediaField, map[string]string{
-		utils.PayloadField:        string(payload),
-		utils.SpoilerIndexesField: "0",
-	})
-
-	js.EXPECT().
-		CreateComment(mock.Anything, journalID, userID, want, mock.MatchedBy(func(files []upload.FileUpload) bool {
-			return len(files) == 1 && files[0].Filename == "pic.png" && files[0].ContentType == "image/png" && files[0].IsSpoiler
-		})).
-		Return(newID, nil)
+	req := dto.CreateJournalCommentRequest{Body: "see attached", EntryID: &entryID, Media: []dto.UploadRef{{ID: uuid.New(), IsSpoiler: true}}}
+	js.EXPECT().CreateComment(mock.Anything, journalID, userID, req).Return(newID, nil)
 
 	// when
 	status, body := h.NewRequest("POST", "/journals/"+journalID.String()+"/comments").
 		WithCookie("valid-cookie").
-		WithRawBody(form, contentType).
+		WithJSONBody(req).
 		Do()
 
 	// then
@@ -514,7 +499,7 @@ func TestCreateJournalEntry(t *testing.T) {
 			h, js, userID := journalCtlSignedIn(t)
 			journalID := uuid.New()
 			req := dto.CreateJournalEntryRequest{Title: "Day 1", Body: "hello"}
-			js.EXPECT().CreateEntry(mock.Anything, journalID, userID, req, []upload.FileUpload(nil)).
+			js.EXPECT().CreateEntry(mock.Anything, journalID, userID, req).
 				Return(tc.newID, 4, tc.svcErr)
 
 			// when
@@ -530,27 +515,18 @@ func TestCreateJournalEntry(t *testing.T) {
 	}
 }
 
-func TestCreateJournalEntry_MultipartCarriesThePayloadAndFiles(t *testing.T) {
-	// given
+func TestCreateJournalEntry_CarriesItsUploadRefsToTheService(t *testing.T) {
+	// given a draft entry carrying one finished upload
 	h, js, userID := journalCtlSignedIn(t)
 	journalID := uuid.New()
 	newID := uuid.New()
-	want := dto.CreateJournalEntryRequest{Title: "Day 1", Body: "hello", IsDraft: true}
-
-	payload, err := json.Marshal(want)
-	require.NoError(t, err)
-	form, contentType := testutil.MediaForm(t, utils.MediaField, map[string]string{utils.PayloadField: string(payload)})
-
-	js.EXPECT().
-		CreateEntry(mock.Anything, journalID, userID, want, mock.MatchedBy(func(files []upload.FileUpload) bool {
-			return len(files) == 1 && files[0].Filename == "pic.png" && files[0].ContentType == "image/png" && !files[0].IsSpoiler
-		})).
-		Return(newID, 2, nil)
+	req := dto.CreateJournalEntryRequest{Title: "Day 1", Body: "hello", IsDraft: true, Media: []dto.UploadRef{{ID: uuid.New()}}}
+	js.EXPECT().CreateEntry(mock.Anything, journalID, userID, req).Return(newID, 2, nil)
 
 	// when
 	status, body := h.NewRequest("POST", "/journals/"+journalID.String()+"/entries").
 		WithCookie("valid-cookie").
-		WithRawBody(form, contentType).
+		WithJSONBody(req).
 		Do()
 
 	// then
@@ -558,40 +534,4 @@ func TestCreateJournalEntry_MultipartCarriesThePayloadAndFiles(t *testing.T) {
 	got := testutil.UnmarshalJSON[map[string]any](t, body)
 	assert.Equal(t, newID.String(), got["id"])
 	assert.EqualValues(t, 2, got["entry_number"])
-}
-
-func TestJournalCreateRoutes_NewAccountsCannotAttachFiles(t *testing.T) {
-	cases := []struct {
-		name string
-		path string
-	}{
-		{name: "a comment", path: "/journals/%s/comments"},
-		{name: "an entry", path: "/journals/%s/entries"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			h, _ := journalCtlHarness(t)
-			userID := uuid.New()
-			h.AuthService.EXPECT().
-				Authenticate(mock.Anything, "new-cookie").
-				Return(model.SessionAuthState{UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}, nil).
-				Maybe()
-			h.SessionRepo.EXPECT().GetUserID(mock.Anything, "new-cookie").Return(userID, time.Now().Add(time.Hour), nil).Maybe()
-			h.AuthzService.EXPECT().IsBanned(mock.Anything, userID).Return(false).Maybe()
-			h.AuthzService.EXPECT().IsRestrictedNewAccount(mock.Anything, userID).Return(true)
-			form, contentType := testutil.MediaForm(t, utils.MediaField, map[string]string{utils.PayloadField: `{"body":"hi"}`})
-
-			// when
-			status, body := h.NewRequest("POST", fmt.Sprintf(tc.path, uuid.NewString())).
-				WithCookie("new-cookie").
-				WithRawBody(form, contentType).
-				Do()
-
-			// then
-			require.Equal(t, http.StatusForbidden, status)
-			assert.Contains(t, string(body), "new accounts cannot post attachments")
-		})
-	}
 }

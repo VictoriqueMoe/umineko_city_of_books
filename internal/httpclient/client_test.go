@@ -97,23 +97,6 @@ func TestJSON_StatusErrorBodyIsCapped(t *testing.T) {
 	assert.Len(t, statusErr.Body, maxErrorBodyBytes)
 }
 
-func TestJSON_RefusesBodyOverTheLimit(t *testing.T) {
-	// given
-	client, target := serve(t, func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = io.WriteString(w, `{"name":"`+strings.Repeat("x", 64)+`"}`)
-	})
-
-	// when
-	var out struct {
-		Name string `json:"name"`
-	}
-	err := client.JSON(t.Context(), Request{Method: http.MethodGet, URL: target, MaxBodyBytes: 16}, &out)
-
-	// then
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "decode response")
-}
-
 func TestDo_BuildsTheRequest(t *testing.T) {
 	cases := []struct {
 		name            string

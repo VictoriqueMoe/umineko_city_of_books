@@ -12,7 +12,6 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/follow"
 	postsvc "umineko_city_of_books/internal/post"
-	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -142,12 +141,12 @@ func (s *Service) listPostFeed(ctx fiber.Ctx) error {
 
 func (s *Service) createPost(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
-	req, ok := utils.BindWithMedia[dto.CreatePostRequest](ctx)
+	req, ok := utils.BindJSON[dto.CreatePostRequest](ctx)
 	if !ok {
 		return nil
 	}
 
-	id, err := s.PostService.CreatePost(ctx.Context(), userID, req.Payload, req.Media)
+	id, err := s.PostService.CreatePost(ctx.Context(), userID, req)
 	if err != nil {
 		if utils.MapFilterError(ctx, err) {
 			return nil
@@ -233,18 +232,12 @@ func (s *Service) uploadPostMedia(ctx fiber.Ctx) error {
 	}
 
 	userID := utils.UserID(ctx)
-	file, err := ctx.FormFile("media")
-	if err != nil {
-		return utils.BadRequest(ctx, "no media file provided")
+	media, ok := utils.BindJSON[dto.UploadRef](ctx)
+	if !ok {
+		return nil
 	}
 
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file", err)
-	}
-	defer reader.Close()
-
-	result, err := s.PostService.UploadPostMedia(ctx.Context(), postID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader, isSpoilerUpload(ctx))
+	result, err := s.PostService.AttachPostMedia(ctx.Context(), postID, userID, media)
 	if err != nil {
 		if errors.Is(err, daoerr.ErrNotFound) {
 			return utils.NotFound(ctx, "not found")
@@ -325,8 +318,8 @@ func (s *Service) createPostComment(ctx fiber.Ctx) error {
 
 	userID := utils.UserID(ctx)
 
-	return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
-		return s.PostService.CreateComment(c, postID, userID, req, files)
+	return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest) (uuid.UUID, error) {
+		return s.PostService.CreateComment(c, postID, userID, req)
 	}, nil)
 }
 

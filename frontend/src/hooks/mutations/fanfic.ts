@@ -18,7 +18,7 @@ import {
     unlikeFanficComment,
     updateFanficComment,
 } from "../../api/endpoints/comments";
-import type { MediaUpload } from "../../types/api";
+import type { UploadRef } from "../../types/api";
 import { invalidateViews } from "../../api/cache/invalidate";
 import { commentMutations } from "./comments";
 
@@ -114,7 +114,7 @@ export function useUnfavouriteFanfic() {
 export function useCreateFanficComment(fanficId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly MediaUpload[] }) =>
+        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly UploadRef[] }) =>
             createFanficComment(fanficId, body, parentId, media),
         onSuccess: () => invalidateViews(qc, "fanfic"),
     });

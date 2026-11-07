@@ -283,7 +283,7 @@ func (s *service) UpdateTheory(ctx context.Context, id uuid.UUID, userID uuid.UU
 		return err
 	}
 
-	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermEditAnyTheory)
+	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermEditAnyWork)
 
 	if err := s.repo.Update(ctx, spec.TheoryUpdate{
 		ID:       id,
@@ -341,7 +341,7 @@ func (s *service) DeleteTheory(ctx context.Context, id uuid.UUID, userID uuid.UU
 		return err
 	}
 
-	if s.authz.Can(ctx, userID, authz.PermDeleteAnyTheory) {
+	if s.authz.Can(ctx, userID, authz.PermDeleteAnyWork) {
 		err = s.repo.DeleteAsAdmin(ctx, id)
 	} else {
 		err = s.repo.Delete(ctx, spec.OwnedDeletion{ID: id, UserID: userID})
@@ -523,7 +523,7 @@ func (s *service) DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.
 		return err
 	}
 
-	if s.authz.Can(ctx, userID, authz.PermDeleteAnyResponse) {
+	if s.authz.Can(ctx, userID, authz.PermDeleteAnyPost) {
 		err = s.repo.DeleteResponseAsAdmin(ctx, id)
 	} else {
 		err = s.repo.DeleteResponse(ctx, spec.OwnedDeletion{ID: id, UserID: userID})
@@ -564,7 +564,7 @@ func (s *service) RefuteTheory(ctx context.Context, theoryID uuid.UUID, userID u
 		return ErrTheoryNotFound
 	}
 
-	if theory.Author.ID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+	if theory.Author.ID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return ErrNotAuthor
 	}
 	if theory.Status == dto.TheoryStatusRefuted {

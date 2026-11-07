@@ -9,12 +9,6 @@ SELECT media_url FROM mystery_media WHERE id = $1 AND mystery_id = $2;
 -- name: DeleteMysteryMediaRow :exec
 DELETE FROM mystery_media WHERE id = $1 AND mystery_id = $2;
 
--- name: UpdateMysteryMediaURL :execrows
-UPDATE mystery_media SET media_url = $1 WHERE id = $2;
-
--- name: UpdateMysteryMediaThumbnail :execrows
-UPDATE mystery_media SET thumbnail_url = $1 WHERE id = $2;
-
 -- name: GetMysteryMedia :many
 SELECT id, mystery_id AS target_id, media_url, media_type, thumbnail_url, COALESCE(filename, '')::text AS filename, sort_order, is_spoiler
 FROM mystery_media

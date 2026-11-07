@@ -18,7 +18,6 @@ import (
 
 const (
 	fetchTimeout = 15 * time.Second
-	maxBytes     = 2 << 20
 )
 
 type (
@@ -121,9 +120,8 @@ func (f *Service) Refresh(ctx context.Context) (int, error) {
 func (f *Service) fetch(ctx context.Context, url string) ([]netip.Prefix, error) {
 	var doc document
 	err := f.client.JSON(ctx, httpclient.Request{
-		Method:       http.MethodGet,
-		URL:          url,
-		MaxBodyBytes: maxBytes,
+		Method: http.MethodGet,
+		URL:    url,
 	}, &doc)
 	if statusErr, ok := errors.AsType[*httpclient.StatusError](err); ok {
 		return nil, fmt.Errorf("fetch: unexpected status %d", statusErr.StatusCode)

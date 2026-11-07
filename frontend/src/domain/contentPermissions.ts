@@ -38,17 +38,17 @@ export interface ContentPermissions {
 
 export const CONTENT_RULES: Record<ContentFamily, ContentFamilyRules> = {
     post: { edit: "edit_any_post", delete: "delete_any_post" },
-    fanfic: { edit: "edit_any_post", delete: "delete_any_post" },
-    art: { edit: "edit_any_post", delete: "delete_any_post" },
-    ship: { edit: "edit_any_post", delete: "delete_any_post" },
-    theory: { edit: "edit_any_theory", delete: "delete_any_theory" },
-    mystery: { edit: "edit_any_theory", delete: "delete_any_theory" },
-    mystery_attempt: { edit: "no_surface", delete: "delete_any_comment" },
-    journal: { edit: "edit_any_journal", delete: "delete_any_journal" },
-    journal_entry: { edit: "edit_any_journal", delete: "delete_any_journal" },
-    comment: { edit: "edit_any_comment", delete: "delete_any_comment" },
-    response: { edit: "no_surface", delete: "delete_any_response" },
-    oc: { edit: "owner_only", delete: "no_surface" },
+    fanfic: { edit: "edit_any_work", delete: "delete_any_work" },
+    art: { edit: "edit_any_work", delete: "delete_any_work" },
+    ship: { edit: "edit_any_work", delete: "delete_any_work" },
+    theory: { edit: "edit_any_work", delete: "delete_any_work" },
+    mystery: { edit: "edit_any_work", delete: "delete_any_work" },
+    mystery_attempt: { edit: "no_surface", delete: "delete_any_post" },
+    journal: { edit: "owner_only", delete: "delete_any_journal" },
+    journal_entry: { edit: "owner_only", delete: "delete_any_journal" },
+    comment: { edit: "edit_any_post", delete: "delete_any_post" },
+    response: { edit: "no_surface", delete: "delete_any_post" },
+    oc: { edit: "edit_any_work", delete: "delete_any_work" },
     gallery: { edit: "owner_only", delete: "owner_only" },
 };
 

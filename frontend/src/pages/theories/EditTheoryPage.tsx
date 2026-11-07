@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { Series } from "../../types/api";
@@ -15,12 +14,6 @@ export function EditTheoryPage() {
     const theoryId = id ?? "";
     const { theory, loading: theoryLoading } = useTheory(theoryId);
     const updateMutation = useUpdateTheory(theoryId);
-
-    useEffect(() => {
-        if (!theoryLoading && !theory && theoryId) {
-            navigate("/");
-        }
-    }, [theoryLoading, theory, theoryId, navigate]);
 
     if (theoryLoading || !theory) {
         return <div className="loading">Loading theory...</div>;

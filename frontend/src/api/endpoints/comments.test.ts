@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "./comments";
-import type { MediaUpload } from "../../types/api";
-import { deleteMock, lastFormData, postFormDataMock, postMock, putMock, resetTransports } from "./testHarness";
+import type { UploadRef } from "../../types/api";
+import { deleteMock, postFormDataMock, postMock, putMock, resetTransports } from "./testHarness";
 
 type CommentCreate = (
     parentId: string,
     body: string,
     replyToId?: string,
-    media?: readonly MediaUpload[],
+    media?: readonly UploadRef[],
 ) => Promise<{ id: string }>;
 
 interface CommentFamily {
@@ -198,35 +198,32 @@ describe("the comment endpoint factory", () => {
         expect(postFormDataMock).not.toHaveBeenCalled();
     });
 
-    it.each(creatable)("$family comments send the text and every file in one multipart request", async family => {
+    it.each(creatable)("$family comments send the text and every finished upload in one JSON request", async family => {
         // given
-        const first = new File(["x"], "first.png", { type: "image/png" });
-        const second = new File(["y"], "second.png", { type: "image/png" });
+        const media = [
+            { upload_id: "upload-1", is_spoiler: false },
+            { upload_id: "upload-2", is_spoiler: true },
+        ];
 
         // when
-        await family.create("parent-1", "", "reply-to-1", [
-            { file: first, isSpoiler: false },
-            { file: second, isSpoiler: true },
-        ]);
-
-        // then
-        expect(postMock).not.toHaveBeenCalled();
-        expect(postFormDataMock).toHaveBeenCalledOnce();
-        expect(postFormDataMock.mock.calls[0][0]).toBe(`${family.parentPath}/parent-1/comments`);
-        expect(JSON.parse(lastFormData().get("payload") as string)).toEqual({ body: "", parent_id: "reply-to-1" });
-        expect(lastFormData().getAll("media")).toEqual([first, second]);
-        expect(lastFormData().get("spoiler_indexes")).toBe("1");
-    });
-
-    it.each(creatable)("$family comments keep the JSON body when no file is staged", async family => {
-        // when
-        await family.create("parent-1", "words only", undefined, []);
+        await family.create("parent-1", "", "reply-to-1", media);
 
         // then
         expect(postFormDataMock).not.toHaveBeenCalled();
         expect(postMock.mock.lastCall).toStrictEqual([
             `${family.parentPath}/parent-1/comments`,
-            { body: "words only", parent_id: undefined },
+            { body: "", parent_id: "reply-to-1", media },
+        ]);
+    });
+
+    it.each(creatable)("$family comments send an empty media list when nothing is attached", async family => {
+        // when
+        await family.create("parent-1", "words only");
+
+        // then
+        expect(postMock.mock.lastCall).toStrictEqual([
+            `${family.parentPath}/parent-1/comments`,
+            { body: "words only", parent_id: undefined, media: [] },
         ]);
     });
 
@@ -237,7 +234,7 @@ describe("the comment endpoint factory", () => {
         // then
         expect(postMock.mock.lastCall).toStrictEqual([
             `${family.parentPath}/parent-1/comments`,
-            { body: "quite so", parent_id: "reply-to-1" },
+            { body: "quite so", parent_id: "reply-to-1", media: [] },
         ]);
     });
 });

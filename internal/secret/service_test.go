@@ -187,7 +187,7 @@ func TestCreateComment_UnknownSecret(t *testing.T) {
 	svc, _ := newTestService(t)
 
 	// when
-	_, err := svc.CreateComment(context.Background(), "nonsense", uuid.New(), dto.CreateCommentRequest{Body: "hi"}, nil)
+	_, err := svc.CreateComment(context.Background(), "nonsense", uuid.New(), dto.CreateCommentRequest{Body: "hi"})
 
 	// then
 	require.ErrorIs(t, err, ErrNotFound)
@@ -198,10 +198,10 @@ func TestCreateComment_AFailedCreateBumpsNothingAndFansNothingOut(t *testing.T) 
 	svc, m := newTestService(t)
 	boom := errors.New("boom")
 	req := dto.CreateCommentRequest{Body: "hello"}
-	m.commentSvc.EXPECT().Create(mock.Anything, witchHunterTarget(), mock.Anything, req, mock.Anything).Return(uuid.Nil, boom).Once()
+	m.commentSvc.EXPECT().Create(mock.Anything, witchHunterTarget(), mock.Anything, req).Return(uuid.Nil, boom).Once()
 
 	// when
-	id, err := svc.CreateComment(context.Background(), "witchHunter", uuid.New(), req, nil)
+	id, err := svc.CreateComment(context.Background(), "witchHunter", uuid.New(), req)
 
 	// then
 	require.ErrorIs(t, err, boom)
@@ -215,7 +215,7 @@ func TestCreateComment_FansOutToOtherCommentersAndBumpsTheSecretsSection(t *test
 	parentID, commentID := uuid.New(), uuid.New()
 	req := dto.CreateCommentRequest{Body: "the epitaph points north", ParentID: &parentID}
 
-	m.commentSvc.EXPECT().Create(mock.Anything, witchHunterTarget(), actorID, req, mock.Anything).Return(commentID, nil).Once()
+	m.commentSvc.EXPECT().Create(mock.Anything, witchHunterTarget(), actorID, req).Return(commentID, nil).Once()
 	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeySecrets).Return().Once()
 	m.userRepo.EXPECT().GetByID(mock.Anything, actorID).Return(&model.User{ID: actorID, DisplayName: "Battler"}, nil)
 	m.commentRepo.EXPECT().GetCommentAuthorID(mock.Anything, spec.CommentRef{Kind: spec.CommentKindSecret, CommentID: parentID}).Return(parentAuthorID, nil)
@@ -229,7 +229,7 @@ func TestCreateComment_FansOutToOtherCommentersAndBumpsTheSecretsSection(t *test
 		})
 
 	// when
-	id, err := svc.CreateComment(context.Background(), "witchHunter", actorID, req, nil)
+	id, err := svc.CreateComment(context.Background(), "witchHunter", actorID, req)
 
 	// then only the other hunter hears about it, the actor and the parent's author do not
 	require.NoError(t, err)

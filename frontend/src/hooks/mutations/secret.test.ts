@@ -88,7 +88,7 @@ describe("useCreateSecretComment", () => {
     it("sends the staged media with the comment in the same request", async () => {
         // given
         const { result } = setup(() => useCreateSecretComment(secretId));
-        const media = [{ file: new File(["portrait"], "beatrice.png", { type: "image/png" }), isSpoiler: true }];
+        const media = [{ upload_id: "upload-1", is_spoiler: true }];
 
         // when
         act(() => {

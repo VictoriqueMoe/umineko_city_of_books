@@ -1,5 +1,37 @@
 import type { SiteRole } from "../types/api";
-import { can, type CanSubject } from "./permissions";
+import { can, type CanSubject, type Permission } from "./permissions";
+
+export type AdminTab = {
+    to: string;
+    label: string;
+    permission: Permission;
+    end?: boolean;
+};
+
+const ADMIN_TABS: AdminTab[] = [
+    { to: "/admin", label: "Dashboard", permission: "view_stats", end: true },
+    { to: "/admin/users", label: "Users", permission: "view_users" },
+    { to: "/admin/reports", label: "Reports", permission: "view_users" },
+    { to: "/admin/invites", label: "Invites", permission: "manage_roles" },
+    { to: "/admin/content-rules", label: "Content Rules", permission: "manage_settings" },
+    { to: "/admin/rules", label: "Rules Page", permission: "manage_settings" },
+    { to: "/admin/banned-gifs", label: "Banned GIFs", permission: "manage_settings" },
+    { to: "/admin/banned-words", label: "Banned Words", permission: "manage_banned_words" },
+    { to: "/admin/announcements", label: "Announcements", permission: "manage_settings" },
+    { to: "/admin/settings", label: "Settings", permission: "manage_settings" },
+    { to: "/admin/vanity-roles", label: "Vanity Roles", permission: "manage_vanity_roles" },
+    { to: "/admin/permissions", label: "Permissions", permission: "manage_roles" },
+    { to: "/admin/chatbots", label: "Chatbots", permission: "manage_settings" },
+    { to: "/admin/audit-log", label: "Audit Log", permission: "view_audit_log" },
+];
+
+export function adminTabsFor(user: CanSubject): AdminTab[] {
+    if (!can(user, "view_admin_panel")) {
+        return [];
+    }
+
+    return ADMIN_TABS.filter(tab => can(user, tab.permission));
+}
 
 export interface AdminTarget {
     role?: SiteRole | null;

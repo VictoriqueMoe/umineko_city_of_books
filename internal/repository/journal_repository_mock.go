@@ -216,6 +216,89 @@ func (_c *MockJournalRepository_ArchiveStale_Call) RunAndReturn(run func(ctx con
 	return _c
 }
 
+// AttachEntryMedia provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) AttachEntryMedia(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx) (*model.PostMediaRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for AttachEntryMedia")
+	}
+
+	var r0 *model.PostMediaRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaAttachment, ...*sql.Tx) (*model.PostMediaRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaAttachment, ...*sql.Tx) *model.PostMediaRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.PostMediaRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.MediaAttachment, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_AttachEntryMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AttachEntryMedia'
+type MockJournalRepository_AttachEntryMedia_Call struct {
+	*mock.Call
+}
+
+// AttachEntryMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.MediaAttachment
+//   - tx ...*sql.Tx
+func (_e *MockJournalRepository_Expecter) AttachEntryMedia(ctx any, s any, tx ...any) *MockJournalRepository_AttachEntryMedia_Call {
+	return &MockJournalRepository_AttachEntryMedia_Call{Call: _e.mock.On("AttachEntryMedia",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockJournalRepository_AttachEntryMedia_Call) Run(run func(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx)) *MockJournalRepository_AttachEntryMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.MediaAttachment
+		if args[1] != nil {
+			arg1 = args[1].(spec.MediaAttachment)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_AttachEntryMedia_Call) Return(postMediaRow *model.PostMediaRow, err error) *MockJournalRepository_AttachEntryMedia_Call {
+	_c.Call.Return(postMediaRow, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_AttachEntryMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx) (*model.PostMediaRow, error)) *MockJournalRepository_AttachEntryMedia_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CollectMediaPaths provides a mock function for the type MockJournalRepository
 func (_mock *MockJournalRepository) CollectMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
 	var tmpRet mock.Arguments
@@ -542,6 +625,89 @@ func (_c *MockJournalRepository_CreateEntry_Call) Return(journalEntryRow *model.
 }
 
 func (_c *MockJournalRepository_CreateEntry_Call) RunAndReturn(run func(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx) (*model.JournalEntryRow, error)) *MockJournalRepository_CreateEntry_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateEntryWithMedia provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) CreateEntryWithMedia(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx) (*model.JournalEntryRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateEntryWithMedia")
+	}
+
+	var r0 *model.JournalEntryRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewJournalEntry, ...*sql.Tx) (*model.JournalEntryRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewJournalEntry, ...*sql.Tx) *model.JournalEntryRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.JournalEntryRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewJournalEntry, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_CreateEntryWithMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateEntryWithMedia'
+type MockJournalRepository_CreateEntryWithMedia_Call struct {
+	*mock.Call
+}
+
+// CreateEntryWithMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.NewJournalEntry
+//   - tx ...*sql.Tx
+func (_e *MockJournalRepository_Expecter) CreateEntryWithMedia(ctx any, s any, tx ...any) *MockJournalRepository_CreateEntryWithMedia_Call {
+	return &MockJournalRepository_CreateEntryWithMedia_Call{Call: _e.mock.On("CreateEntryWithMedia",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockJournalRepository_CreateEntryWithMedia_Call) Run(run func(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx)) *MockJournalRepository_CreateEntryWithMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.NewJournalEntry
+		if args[1] != nil {
+			arg1 = args[1].(spec.NewJournalEntry)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_CreateEntryWithMedia_Call) Return(journalEntryRow *model.JournalEntryRow, err error) *MockJournalRepository_CreateEntryWithMedia_Call {
+	_c.Call.Return(journalEntryRow, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_CreateEntryWithMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx) (*model.JournalEntryRow, error)) *MockJournalRepository_CreateEntryWithMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2627,78 +2793,6 @@ func (_c *MockJournalRepository_Update_Call) RunAndReturn(run func(ctx context.C
 	return _c
 }
 
-// UpdateAsAdmin provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) UpdateAsAdmin(ctx context.Context, s spec.JournalUpdate, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, s, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, s)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateAsAdmin")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, s, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockJournalRepository_UpdateAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAsAdmin'
-type MockJournalRepository_UpdateAsAdmin_Call struct {
-	*mock.Call
-}
-
-// UpdateAsAdmin is a helper method to define mock.On call
-//   - ctx context.Context
-//   - s spec.JournalUpdate
-//   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) UpdateAsAdmin(ctx any, s any, tx ...any) *MockJournalRepository_UpdateAsAdmin_Call {
-	return &MockJournalRepository_UpdateAsAdmin_Call{Call: _e.mock.On("UpdateAsAdmin",
-		append([]any{ctx, s}, tx...)...)}
-}
-
-func (_c *MockJournalRepository_UpdateAsAdmin_Call) Run(run func(ctx context.Context, s spec.JournalUpdate, tx ...*sql.Tx)) *MockJournalRepository_UpdateAsAdmin_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.JournalUpdate
-		if args[1] != nil {
-			arg1 = args[1].(spec.JournalUpdate)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockJournalRepository_UpdateAsAdmin_Call) Return(err error) *MockJournalRepository_UpdateAsAdmin_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockJournalRepository_UpdateAsAdmin_Call) RunAndReturn(run func(ctx context.Context, s spec.JournalUpdate, tx ...*sql.Tx) error) *MockJournalRepository_UpdateAsAdmin_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // UpdateEntry provides a mock function for the type MockJournalRepository
 func (_mock *MockJournalRepository) UpdateEntry(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx) (bool, error) {
 	var tmpRet mock.Arguments
@@ -2848,150 +2942,6 @@ func (_c *MockJournalRepository_UpdateLastAuthorActivity_Call) Return(err error)
 }
 
 func (_c *MockJournalRepository_UpdateLastAuthorActivity_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockJournalRepository_UpdateLastAuthorActivity_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateMediaThumbnail provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) UpdateMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, s, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, s)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateMediaThumbnail")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, s, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockJournalRepository_UpdateMediaThumbnail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateMediaThumbnail'
-type MockJournalRepository_UpdateMediaThumbnail_Call struct {
-	*mock.Call
-}
-
-// UpdateMediaThumbnail is a helper method to define mock.On call
-//   - ctx context.Context
-//   - s spec.MediaURLUpdate
-//   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) UpdateMediaThumbnail(ctx any, s any, tx ...any) *MockJournalRepository_UpdateMediaThumbnail_Call {
-	return &MockJournalRepository_UpdateMediaThumbnail_Call{Call: _e.mock.On("UpdateMediaThumbnail",
-		append([]any{ctx, s}, tx...)...)}
-}
-
-func (_c *MockJournalRepository_UpdateMediaThumbnail_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockJournalRepository_UpdateMediaThumbnail_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.MediaURLUpdate
-		if args[1] != nil {
-			arg1 = args[1].(spec.MediaURLUpdate)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockJournalRepository_UpdateMediaThumbnail_Call) Return(err error) *MockJournalRepository_UpdateMediaThumbnail_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockJournalRepository_UpdateMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockJournalRepository_UpdateMediaThumbnail_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateMediaURL provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) UpdateMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, s, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, s)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateMediaURL")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, s, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockJournalRepository_UpdateMediaURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateMediaURL'
-type MockJournalRepository_UpdateMediaURL_Call struct {
-	*mock.Call
-}
-
-// UpdateMediaURL is a helper method to define mock.On call
-//   - ctx context.Context
-//   - s spec.MediaURLUpdate
-//   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) UpdateMediaURL(ctx any, s any, tx ...any) *MockJournalRepository_UpdateMediaURL_Call {
-	return &MockJournalRepository_UpdateMediaURL_Call{Call: _e.mock.On("UpdateMediaURL",
-		append([]any{ctx, s}, tx...)...)}
-}
-
-func (_c *MockJournalRepository_UpdateMediaURL_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockJournalRepository_UpdateMediaURL_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.MediaURLUpdate
-		if args[1] != nil {
-			arg1 = args[1].(spec.MediaURLUpdate)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockJournalRepository_UpdateMediaURL_Call) Return(err error) *MockJournalRepository_UpdateMediaURL_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockJournalRepository_UpdateMediaURL_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockJournalRepository_UpdateMediaURL_Call {
 	_c.Call.Return(run)
 	return _c
 }

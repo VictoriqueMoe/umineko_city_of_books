@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"testing"
 	"time"
 
@@ -18,7 +17,6 @@ import (
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/journal/params"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -27,7 +25,6 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
-	"umineko_city_of_books/internal/upload/uploadtest"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -79,7 +76,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	}
 
 	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifService)
-	svc := NewService(m.repo, m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifService, mentionSvc, m.commentSvc, m.uploadSvc, &media.Processor{}, m.settingsSvc, contentfilter.New(), nil, nil, m.activity).(*service)
+	svc := NewService(m.repo, m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifService, mentionSvc, m.commentSvc, m.uploadSvc, m.settingsSvc, contentfilter.New(), nil, nil, m.activity).(*service)
 
 	return svc, m
 }
@@ -140,54 +137,6 @@ func awaitNotifications(t *testing.T, sent <-chan dto.NotifyParams, count int) m
 	}
 
 	return got
-}
-
-func withMediaRecorder(t *testing.T, svc *service, m *testMocks) *upload.MockMediaRecorder {
-	t.Helper()
-
-	recorder := upload.NewMockMediaRecorder(t)
-	svc.uploader = recorder
-
-	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1024 * 1024).Maybe()
-	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImagePixels).Return(bounds.FallbackMaxImagePixels).Maybe()
-
-	return recorder
-}
-
-func storedURL(filename string) string {
-	return "/uploads/journals/" + filename
-}
-
-func storedMedia(targetID uuid.UUID, filename string, sortOrder int, isSpoiler bool) spec.NewMedia {
-	return spec.NewMedia{
-		TargetID:  targetID,
-		MediaURL:  storedURL(filename),
-		MediaType: media.MediaTypeImage,
-		Filename:  filename,
-		SortOrder: sortOrder,
-		IsSpoiler: isSpoiler,
-	}
-}
-
-func expectStored(recorder *upload.MockMediaRecorder, filename string, isSpoiler bool) {
-	recorder.EXPECT().
-		SaveAndRecord(mock.Anything, "journals", "image/png", filename, mock.Anything, mock.Anything, isSpoiler, mock.Anything, mock.Anything, mock.Anything).
-		RunAndReturn(func(_ context.Context, _ string, _ string, name string, _ int64, _ io.Reader, spoiler bool, addFn media.AddFn, _ media.UpdateURLFn, _ media.UpdateURLFn) (*dto.PostMediaResponse, error) {
-			id, err := addFn(storedURL(name), media.MediaTypeImage, "", name, 0)
-			if err != nil {
-				return nil, err
-			}
-
-			return &dto.PostMediaResponse{ID: int(id), MediaURL: storedURL(name), MediaType: media.MediaTypeImage, Filename: name, IsSpoiler: spoiler}, nil
-		}).
-		Once()
-}
-
-func expectStoreFailure(recorder *upload.MockMediaRecorder, filename string, isSpoiler bool) {
-	recorder.EXPECT().
-		SaveAndRecord(mock.Anything, "journals", "image/png", filename, mock.Anything, mock.Anything, isSpoiler, mock.Anything, mock.Anything, mock.Anything).
-		Return(nil, errBoom).
-		Once()
 }
 
 func TestCreateJournal(t *testing.T) {
@@ -494,7 +443,6 @@ func TestUpdateJournal(t *testing.T) {
 		title   string
 		given   func(m *testMocks, f fixture)
 		wantErr error
-		audited bool
 	}{
 		{
 			name:    "a blank title is rejected before any lookup",
@@ -519,14 +467,12 @@ func TestUpdateJournal(t *testing.T) {
 			wantErr: errBoom,
 		},
 		{
-			name:  "an admin edit is refused when the before-snapshot for the audit cannot be read",
+			name:  "somebody else's journal is refused, staff included",
 			title: "Title",
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyJournal).Return(true)
-				m.repo.EXPECT().GetByID(mock.Anything, spec.JournalLookup{ID: f.journalID, ViewerID: f.userID}).Return(nil, errBoom)
 			},
-			wantErr: errBoom,
+			wantErr: ErrNotAuthor,
 		},
 		{
 			name:  "the owner's edit is not audited",
@@ -545,25 +491,6 @@ func TestUpdateJournal(t *testing.T) {
 			},
 			wantErr: errBoom,
 		},
-		{
-			name:  "an admin edit is audited with the changed fields",
-			title: "Title",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyJournal).Return(true)
-				m.repo.EXPECT().GetByID(mock.Anything, spec.JournalLookup{ID: f.journalID, ViewerID: f.userID}).Return(&dto.JournalResponse{ID: f.journalID, Title: "Old", Work: "umineko"}, nil)
-				m.repo.EXPECT().Update(mock.Anything, spec.JournalUpdate{ID: f.journalID, UserID: f.userID, Title: "Title", Work: "umineko", AsAdmin: true}).Return(nil)
-				m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
-					ActorID:    f.userID,
-					Action:     audit.ActionJournalUpdateAdmin,
-					TargetType: audit.TargetJournal,
-					TargetID:   f.journalID.String(),
-					Details:    "changed=title",
-					SubjectID:  f.authorID,
-				}).Return(nil)
-			},
-			audited: true,
-		},
 	}
 
 	for _, tc := range tests {
@@ -578,10 +505,7 @@ func TestUpdateJournal(t *testing.T) {
 
 			// then
 			require.ErrorIs(t, err, tc.wantErr)
-
-			if !tc.audited {
-				m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
-			}
+			m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -726,7 +650,7 @@ func TestCreateComment_Rejections(t *testing.T) {
 			name: "a comment the comment service refuses bubbles up",
 			given: func(m *testMocks, f fixture) {
 				expectOpenJournal(m, f)
-				m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, f.userID, mock.Anything, mock.Anything).Return(uuid.Nil, errBoom)
+				m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, f.userID, mock.Anything).Return(uuid.Nil, errBoom)
 			},
 			wantErr: errBoom,
 		},
@@ -745,7 +669,7 @@ func TestCreateComment_Rejections(t *testing.T) {
 			}
 
 			// when
-			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "hi", EntryID: entryID}, nil)
+			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "hi", EntryID: entryID})
 
 			// then
 			require.ErrorIs(t, err, tc.wantErr)
@@ -791,10 +715,10 @@ func TestCreateComment_AReaderCommentReachesTheRightThreadWithoutRecordingActivi
 			}
 
 			want := dto.CreateCommentRequest{Body: "lovely", ParentID: &parentID}
-			m.commentSvc.EXPECT().Create(mock.Anything, tc.wantTarget(f), f.userID, want, []upload.FileUpload(nil)).Return(f.commentID, nil).Once()
+			m.commentSvc.EXPECT().Create(mock.Anything, tc.wantTarget(f), f.userID, want).Return(f.commentID, nil).Once()
 
 			// when
-			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "lovely", ParentID: &parentID, EntryID: entryID}, nil)
+			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "lovely", ParentID: &parentID, EntryID: entryID})
 
 			// then
 			require.NoError(t, err)
@@ -840,7 +764,7 @@ func TestCreateComment_TheAuthorsCommentRecordsActivityAndTellsEligibleFollowers
 				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, EntryNumber: 4}, nil)
 			}
 
-			m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, f.userID, mock.Anything, mock.Anything).Return(f.commentID, nil).Once()
+			m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, f.userID, mock.Anything).Return(f.commentID, nil).Once()
 			m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, f.journalID).Return(nil).Once()
 			m.repo.EXPECT().GetTitle(mock.Anything, f.journalID).Return("A Cat Box Diary", nil)
 			m.repo.EXPECT().GetFollowerIDs(mock.Anything, f.journalID).Return([]uuid.UUID{readerID, blockedID, f.userID}, nil)
@@ -854,7 +778,7 @@ func TestCreateComment_TheAuthorsCommentRecordsActivityAndTellsEligibleFollowers
 				Once()
 
 			// when
-			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "today's entry", EntryID: entryID}, nil)
+			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "today's entry", EntryID: entryID})
 
 			// then only the unblocked reader hears about the update
 			require.NoError(t, err)
@@ -893,12 +817,12 @@ func TestCreateComment_AFailedActivityRecordRollsTheAuthorsCommentBack(t *testin
 			f := newFixture()
 			f.authorID = f.userID
 			expectOpenJournal(m, f)
-			m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, f.userID, mock.Anything, mock.Anything).Return(f.commentID, nil).Once()
+			m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, f.userID, mock.Anything).Return(f.commentID, nil).Once()
 			m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, f.journalID).Return(errBoom).Once()
 			m.commentSvc.EXPECT().Delete(mock.Anything, spec.CommentRef{Kind: spec.CommentKindJournal, CommentID: f.commentID}, f.userID).Return(tc.deleteErr).Once()
 
 			// when
-			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "today's entry"}, nil)
+			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "today's entry"})
 
 			// then
 			for _, want := range tc.wantErrs {
@@ -1098,11 +1022,10 @@ func TestCreateEntry(t *testing.T) {
 			wantErr: ErrEmptyBody,
 		},
 		{
-			name: "someone else without the permission is refused",
+			name: "somebody else is refused, staff included",
 			req:  dto.CreateJournalEntryRequest{Body: "body"},
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyJournal).Return(false)
 			},
 			wantErr: ErrNotAuthor,
 		},
@@ -1112,12 +1035,12 @@ func TestCreateEntry(t *testing.T) {
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
 				m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(7, nil)
-				m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
-					JournalID:            f.journalID,
-					EntryNumber:          7,
-					Body:                 "an entry",
-					WordCount:            2,
-					RecordAuthorActivity: true,
+				m.repo.EXPECT().CreateEntryWithMedia(mock.Anything, spec.NewJournalEntry{
+					JournalID:   f.journalID,
+					EntryNumber: 7,
+					Body:        "an entry",
+					WordCount:   2,
+					Media:       upload.MediaClaim(f.userID, nil),
 				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
 				allowBackgroundFanOut(m, f.journalID, f.userID)
 				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
@@ -1130,13 +1053,13 @@ func TestCreateEntry(t *testing.T) {
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
 				m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(1, nil)
-				m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
-					JournalID:            f.journalID,
-					EntryNumber:          1,
-					Title:                new("Day 1"),
-					Body:                 "the body",
-					WordCount:            2,
-					RecordAuthorActivity: true,
+				m.repo.EXPECT().CreateEntryWithMedia(mock.Anything, spec.NewJournalEntry{
+					JournalID:   f.journalID,
+					EntryNumber: 1,
+					Title:       new("Day 1"),
+					Body:        "the body",
+					WordCount:   2,
+					Media:       upload.MediaClaim(f.userID, nil),
 				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
 				allowBackgroundFanOut(m, f.journalID, f.userID)
 				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
@@ -1149,43 +1072,16 @@ func TestCreateEntry(t *testing.T) {
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
 				m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(2, nil)
-				m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
-					JournalID:            f.journalID,
-					EntryNumber:          2,
-					Body:                 "a draft",
-					WordCount:            2,
-					IsDraft:              true,
-					RecordAuthorActivity: true,
+				m.repo.EXPECT().CreateEntryWithMedia(mock.Anything, spec.NewJournalEntry{
+					JournalID:   f.journalID,
+					EntryNumber: 2,
+					Body:        "a draft",
+					WordCount:   2,
+					IsDraft:     true,
+					Media:       upload.MediaClaim(f.userID, nil),
 				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
 			},
 			wantNumber: 2,
-		},
-		{
-			name: "an admin's entry is audited against the author",
-			req:  dto.CreateJournalEntryRequest{Body: "an entry"},
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyJournal).Return(true)
-				m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(4, nil)
-				m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
-					JournalID:            f.journalID,
-					EntryNumber:          4,
-					Body:                 "an entry",
-					WordCount:            2,
-					RecordAuthorActivity: true,
-				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
-				m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
-					ActorID:    f.userID,
-					Action:     audit.ActionJournalEntryCreateAdmin,
-					TargetType: audit.TargetJournalEntry,
-					TargetID:   f.entryID.String(),
-					Details:    "journal_id=" + f.journalID.String() + ",entry_number=4,is_draft=false",
-					SubjectID:  f.authorID,
-				}).Return(nil)
-				allowBackgroundFanOut(m, f.journalID, f.authorID)
-				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
-			},
-			wantNumber: 4,
 		},
 	}
 
@@ -1197,7 +1093,7 @@ func TestCreateEntry(t *testing.T) {
 			tc.given(m, f)
 
 			// when
-			id, number, err := svc.CreateEntry(context.Background(), f.journalID, f.userID, tc.req, nil)
+			id, number, err := svc.CreateEntry(context.Background(), f.journalID, f.userID, tc.req)
 
 			// then
 			require.ErrorIs(t, err, tc.wantErr)
@@ -1213,90 +1109,36 @@ func TestCreateEntry(t *testing.T) {
 }
 
 func TestCreateEntry_WithMedia(t *testing.T) {
-	picture := uploadtest.PNG(t)
-	expectEntryWritten := func(m *testMocks, f fixture) {
-		m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(3, nil).Once()
-		m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
+	refs := []dto.UploadRef{{ID: uuid.New()}, {ID: uuid.New(), IsSpoiler: true}}
+	entryWithMedia := func(f fixture) spec.NewJournalEntry {
+		return spec.NewJournalEntry{
 			JournalID:   f.journalID,
 			EntryNumber: 3,
 			Body:        "an entry",
 			WordCount:   2,
-		}).Return(&model.JournalEntryRow{ID: f.entryID}, nil).Once()
+			Media:       upload.MediaClaim(f.userID, refs),
+		}
 	}
 
 	tests := []struct {
-		name     string
-		files    func() []upload.FileUpload
-		given    func(m *testMocks, f fixture, recorder *upload.MockMediaRecorder)
-		wantErrs []error
+		name    string
+		given   func(m *testMocks, f fixture)
+		wantErr error
 	}{
 		{
-			name: "a file that is not what it claims is refused before the entry is written",
-			files: func() []upload.FileUpload {
-				return []upload.FileUpload{uploadtest.MemoryUpload("image/png", "fake.png", []byte("plainly not an image"), false)}
-			},
-			given:    func(*testMocks, fixture, *upload.MockMediaRecorder) {},
-			wantErrs: []error{upload.ErrInvalidFileType},
-		},
-		{
-			name: "every file is kept in display order with its spoiler flag before the activity is recorded and the entry announced",
-			files: func() []upload.FileUpload {
-				return []upload.FileUpload{uploadtest.MemoryUpload("image/png", "one.png", picture, false), uploadtest.MemoryUpload("image/png", "two.png", picture, true)}
-			},
-			given: func(m *testMocks, f fixture, recorder *upload.MockMediaRecorder) {
-				expectEntryWritten(m, f)
-				expectStored(recorder, "one.png", false)
-				expectStored(recorder, "two.png", true)
-				m.repo.EXPECT().AddMedia(mock.Anything, storedMedia(f.entryID, "one.png", 0, false)).Return(int64(1), nil).Once()
-				m.repo.EXPECT().AddMedia(mock.Anything, storedMedia(f.entryID, "two.png", 1, true)).Return(int64(2), nil).Once()
-				m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, f.journalID).Return(nil).Once()
+			name: "the entry and the claim on its uploads in display order are written together, then the entry is announced",
+			given: func(m *testMocks, f fixture) {
+				m.repo.EXPECT().CreateEntryWithMedia(mock.Anything, entryWithMedia(f)).Return(&model.JournalEntryRow{ID: f.entryID}, nil).Once()
 				allowBackgroundFanOut(m, f.journalID, f.userID)
 				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
 			},
 		},
 		{
-			name: "a store failure deletes the entry with the files already stored and announces nothing",
-			files: func() []upload.FileUpload {
-				return []upload.FileUpload{uploadtest.MemoryUpload("image/png", "one.png", picture, false), uploadtest.MemoryUpload("image/png", "two.png", picture, true)}
+			name: "an upload that cannot be claimed writes no entry and announces nothing",
+			given: func(m *testMocks, f fixture) {
+				m.repo.EXPECT().CreateEntryWithMedia(mock.Anything, entryWithMedia(f)).Return(nil, daoerr.ErrUploadUnavailable).Once()
 			},
-			given: func(m *testMocks, f fixture, recorder *upload.MockMediaRecorder) {
-				expectEntryWritten(m, f)
-				expectStored(recorder, "one.png", false)
-				expectStoreFailure(recorder, "two.png", true)
-				m.repo.EXPECT().AddMedia(mock.Anything, storedMedia(f.entryID, "one.png", 0, false)).Return(int64(1), nil).Once()
-				m.repo.EXPECT().DeleteEntryWithMedia(mock.Anything, f.entryID).Return([]string{storedURL("one.png")}, nil).Once()
-				m.uploadSvc.EXPECT().Delete([]string{storedURL("one.png")}).Return().Twice()
-			},
-			wantErrs: []error{errBoom},
-		},
-		{
-			name: "an activity failure after the files are stored deletes the entry and its files and announces nothing",
-			files: func() []upload.FileUpload {
-				return []upload.FileUpload{uploadtest.MemoryUpload("image/png", "one.png", picture, false), uploadtest.MemoryUpload("image/png", "two.png", picture, true)}
-			},
-			given: func(m *testMocks, f fixture, recorder *upload.MockMediaRecorder) {
-				expectEntryWritten(m, f)
-				expectStored(recorder, "one.png", false)
-				expectStored(recorder, "two.png", true)
-				m.repo.EXPECT().AddMedia(mock.Anything, storedMedia(f.entryID, "one.png", 0, false)).Return(int64(1), nil).Once()
-				m.repo.EXPECT().AddMedia(mock.Anything, storedMedia(f.entryID, "two.png", 1, true)).Return(int64(2), nil).Once()
-				m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, f.journalID).Return(errBoom).Once()
-				m.repo.EXPECT().DeleteEntryWithMedia(mock.Anything, f.entryID).Return([]string{storedURL("one.png"), storedURL("two.png")}, nil).Once()
-				m.uploadSvc.EXPECT().Delete([]string{storedURL("one.png"), storedURL("two.png")}).Return().Once()
-			},
-			wantErrs: []error{errBoom},
-		},
-		{
-			name: "a rollback that fails is reported alongside the store failure",
-			files: func() []upload.FileUpload {
-				return []upload.FileUpload{uploadtest.MemoryUpload("image/png", "one.png", picture, false)}
-			},
-			given: func(m *testMocks, f fixture, recorder *upload.MockMediaRecorder) {
-				expectEntryWritten(m, f)
-				expectStoreFailure(recorder, "one.png", false)
-				m.repo.EXPECT().DeleteEntryWithMedia(mock.Anything, f.entryID).Return(nil, errRollback).Once()
-			},
-			wantErrs: []error{errBoom, errRollback},
+			wantErr: daoerr.ErrUploadUnavailable,
 		},
 	}
 
@@ -1304,19 +1146,17 @@ func TestCreateEntry_WithMedia(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			svc, m := newTestService(t)
-			recorder := withMediaRecorder(t, svc, m)
 			f := newFixture()
 			m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
-			tc.given(m, f, recorder)
+			m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(3, nil).Once()
+			tc.given(m, f)
 
 			// when
-			id, number, err := svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: "an entry"}, tc.files())
+			id, number, err := svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: "an entry", Media: refs})
 
 			// then
-			if len(tc.wantErrs) > 0 {
-				for _, wantErr := range tc.wantErrs {
-					require.ErrorIs(t, err, wantErr)
-				}
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
 				assert.Equal(t, uuid.Nil, id)
 				assert.Zero(t, number)
 				m.activity.AssertNotCalled(t, "BumpSidebarActivity", sidebar.KeyJournals)
@@ -1331,25 +1171,23 @@ func TestCreateEntry_WithMedia(t *testing.T) {
 	}
 }
 
-func TestCreateEntry_FilesWithoutText(t *testing.T) {
+func TestCreateEntry_UploadsWithoutText(t *testing.T) {
 	// given an entry with no words but one picture
 	svc, m := newTestService(t)
-	recorder := withMediaRecorder(t, svc, m)
 	f := newFixture()
+	refs := []dto.UploadRef{{ID: uuid.New()}}
 	m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
 	m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(5, nil).Once()
-	m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
+	m.repo.EXPECT().CreateEntryWithMedia(mock.Anything, spec.NewJournalEntry{
 		JournalID:   f.journalID,
 		EntryNumber: 5,
+		Media:       upload.MediaClaim(f.userID, refs),
 	}).Return(&model.JournalEntryRow{ID: f.entryID}, nil).Once()
-	expectStored(recorder, "one.png", false)
-	m.repo.EXPECT().AddMedia(mock.Anything, storedMedia(f.entryID, "one.png", 0, false)).Return(int64(1), nil).Once()
-	m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, f.journalID).Return(nil).Once()
 	allowBackgroundFanOut(m, f.journalID, f.userID)
 	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
 
 	// when
-	id, number, err := svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: "  "}, []upload.FileUpload{uploadtest.MemoryUpload("image/png", "one.png", uploadtest.PNG(t), false)})
+	id, number, err := svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: "  ", Media: refs})
 
 	// then
 	require.NoError(t, err)
@@ -1362,7 +1200,6 @@ func TestJournalEntryPublish_NotifiesMentionsAndFollowersOnlyOnTheFirstPublish(t
 		name           string
 		create         bool
 		draft          bool
-		asAdmin        bool
 		firstPublished bool
 		wantNotified   bool
 	}{
@@ -1377,24 +1214,12 @@ func TestJournalEntryPublish_NotifiesMentionsAndFollowersOnlyOnTheFirstPublish(t
 			draft:  true,
 		},
 		{
-			name:         "an admin creating a published entry notifies in the author's name",
-			create:       true,
-			asAdmin:      true,
-			wantNotified: true,
-		},
-		{
 			name:           "publishing a draft for the first time notifies the named user and the followers",
 			firstPublished: true,
 			wantNotified:   true,
 		},
 		{
 			name: "republishing an entry that was unpublished notifies nobody again",
-		},
-		{
-			name:           "an admin publishing a draft for the first time notifies in the author's name",
-			asAdmin:        true,
-			firstPublished: true,
-			wantNotified:   true,
 		},
 	}
 
@@ -1408,17 +1233,11 @@ func TestJournalEntryPublish_NotifiesMentionsAndFollowersOnlyOnTheFirstPublish(t
 			body := "thoughts for @alice"
 
 			authorID := f.userID
-			if tc.asAdmin {
-				authorID = f.authorID
-				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyJournal).Return(true)
-				m.auditRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-			}
-
 			m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(authorID, nil)
 
 			if tc.create {
 				m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(3, nil)
-				m.repo.EXPECT().CreateEntry(mock.Anything, mock.Anything).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
+				m.repo.EXPECT().CreateEntryWithMedia(mock.Anything, mock.Anything).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
 			} else {
 				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).
 					Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, EntryNumber: 3, IsDraft: true}, nil)
@@ -1445,7 +1264,7 @@ func TestJournalEntryPublish_NotifiesMentionsAndFollowersOnlyOnTheFirstPublish(t
 			// when
 			var err error
 			if tc.create {
-				_, _, err = svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: body, IsDraft: tc.draft}, nil)
+				_, _, err = svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: body, IsDraft: tc.draft})
 			} else {
 				err = svc.UpdateEntry(context.Background(), f.entryID, f.userID, dto.UpdateJournalEntryRequest{Body: body})
 			}
@@ -1524,12 +1343,11 @@ func TestUpdateEntry(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "someone else without the permission is refused",
+			name: "somebody else is refused, staff included",
 			req:  dto.UpdateJournalEntryRequest{Body: "x"},
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID}, nil)
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyJournal).Return(false)
 			},
 			wantErr: ErrNotAuthor,
 		},
@@ -1610,32 +1428,6 @@ func TestUpdateEntry(t *testing.T) {
 				}).Return(false, errBoom)
 			},
 			wantErr: errBoom,
-		},
-		{
-			name: "an admin edit is audited with the changed fields",
-			req:  dto.UpdateJournalEntryRequest{Body: "new body"},
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, EntryNumber: 2, Body: "old body", IsDraft: true}, nil)
-				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyJournal).Return(true)
-				m.repo.EXPECT().UpdateEntry(mock.Anything, spec.JournalEntryUpdate{
-					ID:                   f.entryID,
-					JournalID:            f.journalID,
-					Body:                 "new body",
-					WordCount:            2,
-					RecordAuthorActivity: true,
-				}).Return(true, nil)
-				m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
-					ActorID:    f.userID,
-					Action:     audit.ActionJournalEntryUpdateAdmin,
-					TargetType: audit.TargetJournalEntry,
-					TargetID:   f.entryID.String(),
-					Details:    "changed=body,is_draft",
-					SubjectID:  f.authorID,
-				}).Return(nil)
-				allowBackgroundFanOut(m, f.journalID, f.authorID)
-				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
-			},
 		},
 	}
 

@@ -15,7 +15,6 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -57,12 +56,11 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	notifSvc := notification.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
-	mediaProc := media.NewProcessor(1)
 	commentSvc := comment.NewMockService(t)
 	activity := sidebar.NewMockActivityBumper(t)
 	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc)
 
-	svc := NewService(ocRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc, uploadSvc, mediaProc, settingsSvc, nil, contentfilter.New(), nil, activity).(*service)
+	svc := NewService(ocRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc, uploadSvc, settingsSvc, nil, contentfilter.New(), nil, activity).(*service)
 	return svc, &testMocks{
 		ocRepo:      ocRepo,
 		commentSvc:  commentSvc,
@@ -291,7 +289,7 @@ func TestUpdateOC_AsOwner(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	req := dto.UpdateOCRequest{Name: "Linda", Description: "bio", Series: "umineko"}
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyWork).Return(false)
 	m.ocRepo.EXPECT().Update(mock.Anything, spec.OCUpdate{ID: id, UserID: userID, Name: "Linda", Description: "bio", Series: "umineko"}).Return(nil)
 	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
 	m.ocRepo.EXPECT().GetByID(mock.Anything, spec.OCByID{ID: id, ViewerID: userID}).Return(nil, nil).Maybe()
@@ -309,7 +307,7 @@ func TestUpdateOC_AsAdmin(t *testing.T) {
 	id := uuid.New()
 	adminID := uuid.New()
 	req := dto.UpdateOCRequest{Name: "Linda", Series: "umineko"}
-	m.authz.EXPECT().Can(mock.Anything, adminID, authz.PermEditAnyPost).Return(true)
+	m.authz.EXPECT().Can(mock.Anything, adminID, authz.PermEditAnyWork).Return(true)
 	ownerID := uuid.New()
 	m.ocRepo.EXPECT().Update(mock.Anything, spec.OCUpdate{ID: id, UserID: adminID, Name: "Linda", Series: "umineko", AsAdmin: true}).Return(nil)
 	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(ownerID, nil)
@@ -328,7 +326,7 @@ func TestDeleteOC_AsOwner(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyWork).Return(false)
 	m.ocRepo.EXPECT().
 		DeleteOC(mock.Anything, spec.OCDeletion{ID: id, UserID: userID}).
 		Return([]string{"/uploads/ocs/portrait.png", "/uploads/ocs/portrait_thumb.png"}, nil)
@@ -355,7 +353,7 @@ func TestDeleteOC_AsAdmin(t *testing.T) {
 	adminID := uuid.New()
 	ownerID := uuid.New()
 	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(ownerID, nil)
-	m.authz.EXPECT().Can(mock.Anything, adminID, authz.PermDeleteAnyPost).Return(true)
+	m.authz.EXPECT().Can(mock.Anything, adminID, authz.PermDeleteAnyWork).Return(true)
 	m.ocRepo.EXPECT().
 		DeleteOC(mock.Anything, spec.OCDeletion{ID: id, UserID: adminID, AsAdmin: true}).
 		Return([]string{"/uploads/ocs/gallery.png"}, nil)
@@ -381,7 +379,7 @@ func TestDeleteOC_ModeratorDeletingOwnOCRecordsOwnerAction(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(true)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyWork).Return(true)
 	m.ocRepo.EXPECT().
 		DeleteOC(mock.Anything, spec.OCDeletion{ID: id, UserID: userID, AsAdmin: true}).
 		Return([]string{"/uploads/ocs/mine.png"}, nil)
@@ -407,7 +405,7 @@ func TestDeleteOC_RepoErrorSkipsUnlink(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyWork).Return(false)
 	m.ocRepo.EXPECT().
 		DeleteOC(mock.Anything, spec.OCDeletion{ID: id, UserID: userID}).
 		Return(nil, errors.New("boom"))
@@ -572,7 +570,7 @@ func TestOCImageWrites_ANonOwnerIsRefusedWithTheSentinel(t *testing.T) {
 			id := uuid.New()
 			userID := uuid.New()
 			m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(uuid.New(), nil)
-			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
+			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyWork).Return(false)
 
 			// when
 			err := tc.call(svc, id, userID)

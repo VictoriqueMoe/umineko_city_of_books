@@ -386,13 +386,21 @@ func (q *Queries) DeleteMysteryAttemptAsAdmin(ctx context.Context, id uuid.UUID)
 	return err
 }
 
-const deleteMysteryClue = `-- name: DeleteMysteryClue :exec
-DELETE FROM mystery_clues WHERE id = $1
+const deleteMysteryClue = `-- name: DeleteMysteryClue :execrows
+DELETE FROM mystery_clues WHERE id = $1 AND mystery_id = $2
 `
 
-func (q *Queries) DeleteMysteryClue(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, deleteMysteryClue, id)
-	return err
+type DeleteMysteryClueParams struct {
+	ID        int64
+	MysteryID uuid.UUID
+}
+
+func (q *Queries) DeleteMysteryClue(ctx context.Context, arg DeleteMysteryClueParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteMysteryClue, arg.ID, arg.MysteryID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deleteMysteryClues = `-- name: DeleteMysteryClues :exec
@@ -1630,18 +1638,22 @@ func (q *Queries) UpdateMysteryAsAdmin(ctx context.Context, arg UpdateMysteryAsA
 	return err
 }
 
-const updateMysteryClue = `-- name: UpdateMysteryClue :exec
-UPDATE mystery_clues SET body = $1 WHERE id = $2
+const updateMysteryClue = `-- name: UpdateMysteryClue :execrows
+UPDATE mystery_clues SET body = $1 WHERE id = $2 AND mystery_id = $3
 `
 
 type UpdateMysteryClueParams struct {
-	Body string
-	ID   int64
+	Body      string
+	ID        int64
+	MysteryID uuid.UUID
 }
 
-func (q *Queries) UpdateMysteryClue(ctx context.Context, arg UpdateMysteryClueParams) error {
-	_, err := q.db.ExecContext(ctx, updateMysteryClue, arg.Body, arg.ID)
-	return err
+func (q *Queries) UpdateMysteryClue(ctx context.Context, arg UpdateMysteryClueParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateMysteryClue, arg.Body, arg.ID, arg.MysteryID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const userHasWinningMysteryAttempt = `-- name: UserHasWinningMysteryAttempt :one

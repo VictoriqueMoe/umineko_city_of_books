@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -66,6 +67,9 @@ func messagesExpectRoom(m *testMocks, ref spec.ChatMemberRef, members []uuid.UUI
 
 func messagesExpectInsert(m *testMocks, message spec.NewChatMessage, detailed []model.ChatRoomMemberRow) uuid.UUID {
 	msgID := uuid.New()
+	if message.Media.UserID == uuid.Nil {
+		message.Media = upload.MediaClaim(message.SenderID, nil)
+	}
 	m.userRepo.EXPECT().GetByID(mock.Anything, message.SenderID).Return(sampleUser(message.SenderID), nil)
 	m.chatRepo.EXPECT().InsertMessageAndMarkRead(mock.Anything, message).Return(&model.ChatMessageRow{
 		ID:          msgID,
@@ -74,7 +78,7 @@ func messagesExpectInsert(m *testMocks, message spec.NewChatMessage, detailed []
 		Body:        message.Body,
 		ReplyToID:   message.ReplyToID,
 		ClientNonce: message.ClientNonce,
-	}, nil)
+	}, nil, nil)
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, message.RoomID).Return(detailed, nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, message.SenderID).Return(nil, nil)
 
@@ -287,7 +291,7 @@ func TestSendMessage_Errors(t *testing.T) {
 			setup: func(m *testMocks, ref spec.ChatMemberRef) {
 				messagesExpectRoom(m, ref, []uuid.UUID{ref.UserID}, &model.ChatRoomSendContext{Type: dto.RoomTypeGroup, CreatedBy: ref.UserID})
 				m.userRepo.EXPECT().GetByID(mock.Anything, ref.UserID).Return(sampleUser(ref.UserID), nil)
-				m.chatRepo.EXPECT().InsertMessageAndMarkRead(mock.Anything, spec.NewChatMessage{RoomID: ref.RoomID, SenderID: ref.UserID, Body: "hi"}).Return(nil, boom)
+				m.chatRepo.EXPECT().InsertMessageAndMarkRead(mock.Anything, spec.NewChatMessage{RoomID: ref.RoomID, SenderID: ref.UserID, Body: "hi", Media: upload.MediaClaim(ref.UserID, nil)}).Return(nil, nil, boom)
 			},
 			wantErr: boom,
 		},
@@ -308,7 +312,7 @@ func TestSendMessage_Errors(t *testing.T) {
 			}
 
 			// when
-			_, err := svc.SendMessage(context.Background(), ref.UserID, ref.RoomID, req, nil)
+			_, err := svc.SendMessage(context.Background(), ref.UserID, ref.RoomID, req)
 
 			// then
 			require.ErrorIs(t, err, tc.wantErr)
@@ -395,7 +399,7 @@ func TestSendMessage_NotificationLadder(t *testing.T) {
 			}
 
 			// when
-			got, err := svc.SendMessage(context.Background(), senderID, roomID, req, nil)
+			got, err := svc.SendMessage(context.Background(), senderID, roomID, req)
 			svc.sideEffectsWG.Wait()
 
 			// then
@@ -451,7 +455,7 @@ func TestSendMessage_FansOutEveryRecipientInOneBatch(t *testing.T) {
 	msgRef := "chat_message:" + msgID.String()
 
 	// when
-	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: body}, nil)
+	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: body})
 	svc.sideEffectsWG.Wait()
 
 	// then
@@ -476,7 +480,7 @@ func TestSendMessage_AFailedReplyLookupIsReturnedBeforeTheMessageIsSaved(t *test
 	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, replyMsgID).Return(nil, boom)
 
 	// when
-	_, err := svc.SendMessage(context.Background(), ref.UserID, ref.RoomID, dto.SendMessageRequest{Body: "hi", ReplyToID: &replyMsgID}, nil)
+	_, err := svc.SendMessage(context.Background(), ref.UserID, ref.RoomID, dto.SendMessageRequest{Body: "hi", ReplyToID: &replyMsgID})
 
 	// then the message is refused instead of silently losing its reply
 	require.ErrorIs(t, err, boom)
@@ -518,7 +522,7 @@ func TestSendMessage_AFailedLookupNeverPingsAnyone(t *testing.T) {
 			m.hub.JoinRoom(roomID, recipientID)
 
 			// when
-			_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: tc.body}, nil)
+			_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: tc.body})
 			svc.sideEffectsWG.Wait()
 
 			// then
@@ -559,7 +563,7 @@ func TestSendMessage_LiveStreamRoomSkipsNotifications(t *testing.T) {
 	messagesExpectInsert(m, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: "hi"}, nil)
 
 	// when
-	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
+	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"})
 	svc.sideEffectsWG.Wait()
 
 	// then
@@ -589,7 +593,7 @@ func TestSendMessage_GroupWithMentionAndReply(t *testing.T) {
 	m.chatRepo.EXPECT().ListMutedMemberIDs(mock.Anything, spec.ChatRoomMemberSet{RoomID: roomID, UserIDs: []uuid.UUID{mentionedID, replyAuthorID}}).Return([]uuid.UUID{}, nil).Once()
 
 	// when
-	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: body, ReplyToID: &replyMsgID}, nil)
+	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: body, ReplyToID: &replyMsgID})
 	svc.sideEffectsWG.Wait()
 
 	// then
@@ -629,7 +633,7 @@ func TestSendMessage_BotTriggerCarriesTheRoomAlias(t *testing.T) {
 				[]model.ChatRoomMemberRow{{UserID: senderID, Nickname: tc.nickname}})
 
 			// when
-			_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "who am i?"}, nil)
+			_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "who am i?"})
 			svc.sideEffectsWG.Wait()
 
 			// then
@@ -659,7 +663,7 @@ func TestSendMessage_DMMentionStillCarriesTheBotAudience(t *testing.T) {
 	m.chatRepo.EXPECT().CountUnreadRoomsForUser(mock.Anything, botID).Return(1, nil)
 
 	// when
-	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: body}, nil)
+	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: body})
 	svc.sideEffectsWG.Wait()
 
 	// then
@@ -710,7 +714,7 @@ func TestSendMessage_RecipientOptInGatesNewThreadsOnTheRoomRoute(t *testing.T) {
 			}
 
 			// when the message is sent
-			_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
+			_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"})
 			svc.sideEffectsWG.Wait()
 
 			// then the opt-in gates new threads only, and the room-id route no longer bypasses it
@@ -736,7 +740,7 @@ func TestSendMessage_RefusesAMalformedClientNonce(t *testing.T) {
 			svc, _ := newTestService(t)
 
 			// when
-			_, err := svc.SendMessage(context.Background(), uuid.New(), uuid.New(), dto.SendMessageRequest{Body: "hi", ClientNonce: tc.nonce}, nil)
+			_, err := svc.SendMessage(context.Background(), uuid.New(), uuid.New(), dto.SendMessageRequest{Body: "hi", ClientNonce: tc.nonce})
 
 			// then
 			require.ErrorIs(t, err, ErrInvalidClientNonce)
@@ -755,7 +759,7 @@ func TestSendMessage_CarriesTheClientNonceIntoTheStoredMessage(t *testing.T) {
 	msgID := messagesExpectInsert(m, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: "hi", ClientNonce: nonce}, nil)
 
 	// when
-	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi", ClientNonce: nonce}, nil)
+	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi", ClientNonce: nonce})
 	svc.sideEffectsWG.Wait()
 
 	// then
@@ -804,8 +808,8 @@ func TestSendMessage_ResendWithTheSameClientNonce(t *testing.T) {
 				&model.ChatRoomSendContext{Type: dto.RoomTypeGroup, Name: "G", CreatedBy: senderID})
 			m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(sampleUser(senderID), nil)
 			m.chatRepo.EXPECT().
-				InsertMessageAndMarkRead(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: "hi", ClientNonce: nonce}).
-				Return(nil, fmt.Errorf("insert message: %w", &daoerr.ChatMessageReplayError{Existing: stored}))
+				InsertMessageAndMarkRead(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: "hi", ClientNonce: nonce, Media: upload.MediaClaim(senderID, nil)}).
+				Return(nil, nil, fmt.Errorf("insert message: %w", &daoerr.ChatMessageReplayError{Existing: stored}))
 			if tc.wantErr == nil {
 				m.chatRepo.EXPECT().GetMessageMediaBatch(mock.Anything, []uuid.UUID{storedID}).Return(map[uuid.UUID][]dto.PostMediaResponse{storedID: storedMedia}, nil)
 				m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return(nil, nil)
@@ -814,7 +818,7 @@ func TestSendMessage_ResendWithTheSameClientNonce(t *testing.T) {
 			m.hub.JoinRoom(roomID, recipientID)
 
 			// when the client sends it again
-			got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi", ClientNonce: nonce}, nil)
+			got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi", ClientNonce: nonce})
 			svc.sideEffectsWG.Wait()
 
 			// then
@@ -836,6 +840,39 @@ func TestSendMessage_ResendWithTheSameClientNonce(t *testing.T) {
 			assert.Equal(t, storedMedia, got.Media)
 		})
 	}
+}
+
+func TestSendMessage_ClaimsTheAttachedUploadsAndReturnsTheirMedia(t *testing.T) {
+	// given a message carrying two finished uploads, the second marked as a spoiler
+	svc, m := newTestService(t)
+	senderID := uuid.New()
+	recipientID := uuid.New()
+	roomID := uuid.New()
+	first, second := uuid.New(), uuid.New()
+	refs := []dto.UploadRef{{ID: first}, {ID: second, IsSpoiler: true}}
+	media := []dto.PostMediaResponse{
+		{ID: 1, MediaURL: "/uploads/media/a.webp", MediaType: "image"},
+		{ID: 2, MediaURL: "/uploads/media/b.mp4", MediaType: "video", ThumbnailURL: "/uploads/media/thumb_b.webp", SortOrder: 1, IsSpoiler: true},
+	}
+
+	messagesExpectRoom(m, spec.ChatMemberRef{RoomID: roomID, UserID: senderID}, []uuid.UUID{senderID, recipientID},
+		&model.ChatRoomSendContext{Type: dto.RoomTypeGroup, Name: "G", CreatedBy: senderID})
+	m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(sampleUser(senderID), nil)
+	m.chatRepo.EXPECT().
+		InsertMessageAndMarkRead(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: "hi", Media: upload.MediaClaim(senderID, refs)}).
+		Return(&model.ChatMessageRow{ID: uuid.New(), RoomID: roomID, SenderID: senderID, Body: "hi"}, media, nil).Once()
+	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return(nil, nil).Maybe()
+	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, senderID).Return(nil, nil).Maybe()
+	m.chatRepo.EXPECT().ListMutedMemberIDs(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	m.notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
+
+	// when
+	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi", Media: refs})
+	svc.sideEffectsWG.Wait()
+
+	// then the message carries the claimed media in the order it was attached
+	require.NoError(t, err)
+	assert.Equal(t, media, got.Media)
 }
 
 func TestGetRoomsByUser(t *testing.T) {

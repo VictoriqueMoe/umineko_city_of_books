@@ -16,7 +16,7 @@ import {
     unlikeOCComment,
     updateOCComment,
 } from "../../api/endpoints/comments";
-import type { MediaUpload } from "../../types/api";
+import type { UploadRef } from "../../types/api";
 import { invalidateViews } from "../../api/cache/invalidate";
 import { commentMutations } from "./comments";
 
@@ -90,7 +90,7 @@ export function useFavouriteOC() {
 export function useCreateOCComment(ocId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly MediaUpload[] }) =>
+        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly UploadRef[] }) =>
             createOCComment(ocId, body, parentId, media),
         onSuccess: () => invalidateViews(qc, "oc"),
     });

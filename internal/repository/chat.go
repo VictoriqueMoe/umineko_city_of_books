@@ -27,19 +27,20 @@ type (
 		AddMemberWithSystemMessage(ctx context.Context, s spec.ChatMemberJoinAnnouncement, tx ...*sql.Tx) (*model.ChatMessageRow, error)
 		DeleteRoomWithMessages(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]string, error)
 		DeleteMessageWithMedia(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) ([]string, error)
-		InsertMessageAndMarkRead(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, error)
+		InsertMessageAndMarkRead(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, []dto.PostMediaResponse, error)
 		InsertSystemMessage(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, error)
 	}
 
 	chatRepository struct {
 		db *sql.DB
 		dao.ChatDAO
-		audit AuditLogRepository
+		pending dao.PendingUploadDAO
+		audit   AuditLogRepository
 	}
 )
 
-func NewChatRepo(database *sql.DB, chatDAO dao.ChatDAO, auditLog AuditLogRepository) ChatRepository {
-	return &chatRepository{db: database, ChatDAO: chatDAO, audit: auditLog}
+func NewChatRepo(database *sql.DB, chatDAO dao.ChatDAO, pending dao.PendingUploadDAO, auditLog AuditLogRepository) ChatRepository {
+	return &chatRepository{db: database, ChatDAO: chatDAO, pending: pending, audit: auditLog}
 }
 
 func (r *chatRepository) CreateGroupRoom(ctx context.Context, s spec.NewChatGroupRoom, tx ...*sql.Tx) (*model.ChatRoomRow, error) {
@@ -330,13 +331,54 @@ func (r *chatRepository) CreateDMRoomAtomic(ctx context.Context, s spec.ChatDMPa
 	return result, nil
 }
 
-func (r *chatRepository) InsertMessageAndMarkRead(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, error) {
-	var result *model.ChatMessageRow
+func (r *chatRepository) InsertMessageAndMarkRead(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, []dto.PostMediaResponse, error) {
+	var (
+		result *model.ChatMessageRow
+		media  []dto.PostMediaResponse
+	)
 
 	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		msg, err := r.insertMessage(ctx, s, tx)
 		if err != nil {
 			return fmt.Errorf("insert message: %w", err)
+		}
+
+		claimed, err := claimUploads(ctx, r.pending, s.Media, tx)
+		if err != nil {
+			return err
+		}
+
+		for i, upload := range claimed {
+			row := spec.NewChatMessageMedia{
+				NewMedia: spec.NewMedia{
+					TargetID:     msg.ID,
+					MediaURL:     upload.MediaURL,
+					MediaType:    upload.MediaType,
+					ThumbnailURL: upload.ThumbnailURL,
+					Filename:     upload.Filename,
+					SortOrder:    i,
+					IsSpoiler:    s.Media.Uploads[i].IsSpoiler,
+				},
+				Width:  upload.Width,
+				Height: upload.Height,
+			}
+
+			id, err := r.ChatDAO.AddMessageMedia(ctx, row, tx)
+			if err != nil {
+				return err
+			}
+
+			media = append(media, dto.PostMediaResponse{
+				ID:           int(id),
+				MediaURL:     row.MediaURL,
+				MediaType:    row.MediaType,
+				ThumbnailURL: row.ThumbnailURL,
+				Filename:     row.Filename,
+				SortOrder:    row.SortOrder,
+				Width:        row.Width,
+				Height:       row.Height,
+				IsSpoiler:    row.IsSpoiler,
+			})
 		}
 
 		if err := r.ChatDAO.MarkRoomRead(ctx, spec.ChatMemberRef{RoomID: s.RoomID, UserID: s.SenderID}, tx); err != nil {
@@ -348,10 +390,10 @@ func (r *chatRepository) InsertMessageAndMarkRead(ctx context.Context, s spec.Ne
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return result, nil
+	return result, media, nil
 }
 
 func (r *chatRepository) InsertSystemMessage(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, error) {

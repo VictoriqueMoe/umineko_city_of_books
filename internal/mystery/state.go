@@ -2,10 +2,12 @@ package mystery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model/spec"
@@ -19,7 +21,7 @@ func (s *service) SetPaused(ctx context.Context, mysteryID uuid.UUID, userID uui
 	if err != nil {
 		return err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return ErrNotAuthor
 	}
 	if err := s.mysteryRepo.SetPaused(ctx, spec.MysteryPauseUpdate{MysteryID: mysteryID, Paused: paused}); err != nil {
@@ -75,7 +77,7 @@ func (s *service) SetGmAway(ctx context.Context, mysteryID uuid.UUID, userID uui
 	if err != nil {
 		return err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return ErrNotAuthor
 	}
 	if err := s.mysteryRepo.SetGmAway(ctx, spec.MysteryGmAwayUpdate{MysteryID: mysteryID, Away: away}); err != nil {
@@ -127,17 +129,32 @@ func (s *service) SetGmAway(ctx context.Context, mysteryID uuid.UUID, userID uui
 }
 
 func (s *service) DeleteClue(ctx context.Context, mysteryID uuid.UUID, clueID int, userID uuid.UUID) error {
-	if err := s.mysteryRepo.DeleteClue(ctx, clueID); err != nil {
+	authorID, err := s.mysteryAuthor(ctx, mysteryID)
+	if err != nil {
+		return err
+	}
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
+		return ErrNotAuthor
+	}
+
+	err = s.mysteryRepo.DeleteClue(ctx, spec.MysteryClueDeletion{MysteryID: mysteryID, ClueID: clueID})
+	if errors.Is(err, daoerr.ErrNotFound) {
+		return ErrNotFound
+	}
+	if err != nil {
 		return err
 	}
 
-	s.audit(ctx, audit.NewEntry{
-		ActorID:    userID,
-		Action:     audit.ActionMysteryClueDelete,
-		TargetType: audit.TargetMystery,
-		TargetID:   mysteryID.String(),
-		Details:    fmt.Sprintf("clue=%d", clueID),
-	})
+	if authorID != userID {
+		s.audit(ctx, audit.NewEntry{
+			ActorID:    userID,
+			Action:     audit.ActionMysteryClueDelete,
+			TargetType: audit.TargetMystery,
+			TargetID:   mysteryID.String(),
+			Details:    fmt.Sprintf("clue=%d", clueID),
+			SubjectID:  authorID,
+		})
+	}
 
 	s.hub.BroadcastToTopic(mysteryTopic(mysteryID), ws.Message{
 		Type: "mystery_clue_updated",
@@ -150,20 +167,35 @@ func (s *service) UpdateClue(ctx context.Context, mysteryID uuid.UUID, clueID in
 	if strings.TrimSpace(body) == "" {
 		return ErrEmptyBody
 	}
+	authorID, err := s.mysteryAuthor(ctx, mysteryID)
+	if err != nil {
+		return err
+	}
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
+		return ErrNotAuthor
+	}
 	if err := s.contentFilter.Check(ctx, body); err != nil {
 		return err
 	}
-	if err := s.mysteryRepo.UpdateClue(ctx, spec.MysteryClueUpdate{ClueID: clueID, Body: strings.TrimSpace(body)}); err != nil {
+
+	err = s.mysteryRepo.UpdateClue(ctx, spec.MysteryClueUpdate{MysteryID: mysteryID, ClueID: clueID, Body: strings.TrimSpace(body)})
+	if errors.Is(err, daoerr.ErrNotFound) {
+		return ErrNotFound
+	}
+	if err != nil {
 		return err
 	}
 
-	s.audit(ctx, audit.NewEntry{
-		ActorID:    userID,
-		Action:     audit.ActionMysteryClueUpdate,
-		TargetType: audit.TargetMystery,
-		TargetID:   mysteryID.String(),
-		Details:    fmt.Sprintf("clue=%d", clueID),
-	})
+	if authorID != userID {
+		s.audit(ctx, audit.NewEntry{
+			ActorID:    userID,
+			Action:     audit.ActionMysteryClueUpdate,
+			TargetType: audit.TargetMystery,
+			TargetID:   mysteryID.String(),
+			Details:    fmt.Sprintf("clue=%d", clueID),
+			SubjectID:  authorID,
+		})
+	}
 
 	s.hub.BroadcastToTopic(mysteryTopic(mysteryID), ws.Message{
 		Type: "mystery_clue_updated",

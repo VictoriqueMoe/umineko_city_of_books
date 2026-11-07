@@ -29,11 +29,10 @@ type (
 	}
 
 	JournalUpdate struct {
-		ID      uuid.UUID
-		UserID  uuid.UUID
-		Title   string
-		Work    string
-		AsAdmin bool
+		ID     uuid.UUID
+		UserID uuid.UUID
+		Title  string
+		Work   string
 	}
 
 	JournalDeletion struct {
@@ -61,13 +60,13 @@ type (
 	}
 
 	NewJournalEntry struct {
-		JournalID            uuid.UUID
-		EntryNumber          int
-		Title                *string
-		Body                 string
-		WordCount            int
-		IsDraft              bool
-		RecordAuthorActivity bool
+		JournalID   uuid.UUID
+		EntryNumber int
+		Title       *string
+		Body        string
+		WordCount   int
+		IsDraft     bool
+		Media       ClaimedUploads
 	}
 
 	JournalEntryUpdate struct {

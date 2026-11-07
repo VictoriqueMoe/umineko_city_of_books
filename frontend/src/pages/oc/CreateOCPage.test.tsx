@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { OCDetail, OCImage } from "../../types/api";
 import { CreateOCPage } from "./CreateOCPage";
@@ -83,7 +84,11 @@ function renderCreate() {
 }
 
 function renderEdit(route = "/oc/oc-1/edit") {
-    return renderWithProviders(<CreateOCPage mode="edit" />, { route, path: "/oc/:id/edit" });
+    return renderWithProviders(<CreateOCPage mode="edit" />, {
+        route,
+        path: "/oc/:id/edit",
+        user: makeUser({ id: "author-1" }),
+    });
 }
 
 function nameBox(): HTMLElement {
@@ -612,6 +617,21 @@ describe("CreateOCPage in edit mode", () => {
         await waitFor(() => {
             expect(mocks.deleteGalleryImage).toHaveBeenCalledWith({ ocId: "oc-1", imageId: 11 });
         });
+    });
+
+    it("hides the delete button from staff who may edit but not delete someone else's character", () => {
+        // given
+        const editor = makeUser({ id: "staff-1", permissions: ["edit_any_work"] });
+
+        // when
+        renderWithProviders(<CreateOCPage mode="edit" />, {
+            route: "/oc/oc-1/edit",
+            path: "/oc/:id/edit",
+            user: editor,
+        });
+
+        // then
+        expect(screen.queryByRole("button", { name: "Delete OC" })).not.toBeInTheDocument();
     });
 
     it("asks before deleting the character", async () => {

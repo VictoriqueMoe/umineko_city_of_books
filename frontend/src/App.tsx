@@ -14,6 +14,8 @@ import { Sidebar } from "./components/layout/Sidebar/Sidebar";
 import { Butterflies } from "./components/layout/Butterflies/Butterflies";
 import { CanonicalTag } from "./components/CanonicalTag/CanonicalTag";
 import { ProtectedRoute } from "./components/ProtectedRoute/ProtectedRoute";
+import { EditableRoute } from "./components/EditableRoute/EditableRoute";
+import { MissingEmailRoute } from "./components/MissingEmailRoute/MissingEmailRoute";
 import { Banner } from "./components/Banner/Banner";
 import { SessionExpiredBanner } from "./components/SessionExpiredBanner/SessionExpiredBanner";
 import { StaleVersionBanner } from "./components/StaleVersionBanner/StaleVersionBanner";
@@ -152,7 +154,6 @@ const PUBLIC_AUTH_ROUTES: { path: string; element: ReactElement }[] = [
     { path: "/login", element: <LoginPage /> },
     { path: "/forgot-password", element: <ForgotPasswordPage /> },
     { path: "/reset-password", element: <ResetPasswordPage /> },
-    { path: "/set-email", element: <SetEmailPage /> },
     { path: "/verify-email", element: <VerifyEmailPage /> },
 ];
 
@@ -342,10 +343,12 @@ function AppLayout() {
                                 <Route path="/login" element={<LoginPage />} />
                                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                                 <Route path="/reset-password" element={<ResetPasswordPage />} />
-                                <Route path="/set-email" element={<SetEmailPage />} />
                                 <Route path="/verify-email" element={<VerifyEmailPage />} />
 
                                 <Route element={<ProtectedRoute />}>
+                                    <Route element={<MissingEmailRoute />}>
+                                        <Route path="/set-email" element={<SetEmailPage />} />
+                                    </Route>
                                     <Route path="/notifications" element={<NotificationsPage />} />
                                     <Route path="/theory/new" element={<CreateTheoryPage />} />
                                     <Route
@@ -354,26 +357,35 @@ function AppLayout() {
                                     />
                                     <Route path="/theory/ciconia/new" element={<CreateTheoryPage series="ciconia" />} />
                                     <Route path="/mystery/new" element={<CreateMysteryPage />} />
-                                    <Route element={<ProtectedRoute permission="edit_any_theory" />}>
-                                        <Route path="/mystery/:id/edit" element={<CreateMysteryPage />} />
-                                    </Route>
                                     <Route path="/ships/new" element={<CreateShipPage />} />
                                     <Route path="/oc/new" element={<CreateOCPage mode="create" />} />
-                                    <Route path="/oc/:id/edit" element={<CreateOCPage mode="edit" />} />
                                     <Route path="/fanfiction/new" element={<FanficEditorPage />} />
-                                    <Route path="/fanfiction/:id/edit" element={<FanficEditorPage />} />
-                                    <Route path="/fanfiction/:id/chapter/new" element={<ChapterEditorPage />} />
-                                    <Route
-                                        path="/fanfiction/:id/chapter/:number/edit"
-                                        element={<ChapterEditorPage />}
-                                    />
                                     <Route path="/journals/new" element={<CreateJournalPage />} />
-                                    <Route path="/journals/:id/edit" element={<EditJournalPage />} />
-                                    <Route path="/journals/:id/entry/new" element={<JournalEntryEditorPage />} />
-                                    <Route
-                                        path="/journals/:id/entry/:number/edit"
-                                        element={<JournalEntryEditorPage />}
-                                    />
+                                    <Route element={<EditableRoute resource="mystery" />}>
+                                        <Route path="/mystery/:id/edit" element={<CreateMysteryPage />} />
+                                    </Route>
+                                    <Route element={<EditableRoute resource="theory" />}>
+                                        <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
+                                    </Route>
+                                    <Route element={<EditableRoute resource="oc" />}>
+                                        <Route path="/oc/:id/edit" element={<CreateOCPage mode="edit" />} />
+                                    </Route>
+                                    <Route element={<EditableRoute resource="fanfic" />}>
+                                        <Route path="/fanfiction/:id/edit" element={<FanficEditorPage />} />
+                                        <Route path="/fanfiction/:id/chapter/new" element={<ChapterEditorPage />} />
+                                        <Route
+                                            path="/fanfiction/:id/chapter/:number/edit"
+                                            element={<ChapterEditorPage />}
+                                        />
+                                    </Route>
+                                    <Route element={<EditableRoute resource="journal" />}>
+                                        <Route path="/journals/:id/edit" element={<EditJournalPage />} />
+                                        <Route path="/journals/:id/entry/new" element={<JournalEntryEditorPage />} />
+                                        <Route
+                                            path="/journals/:id/entry/:number/edit"
+                                            element={<JournalEntryEditorPage />}
+                                        />
+                                    </Route>
                                     <Route path="/games" element={<GamesListPage />} />
                                     <Route path="/games/chess/new" element={<NewChessGamePage />} />
                                     <Route path="/games/checkers/new" element={<NewCheckersGamePage />} />
@@ -385,7 +397,6 @@ function AppLayout() {
                                     />
                                     <Route path="/games/pong/new" element={<NewPongGamePage />} />
                                     <Route path="/rooms/:roomId" element={<RoomPage />} />
-                                    <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
                                     <Route path="/settings" element={<SettingsPage />} />
                                     <Route path="/chat" element={<ChatPage />} />
                                     <Route path="/chat/:roomId" element={<ChatPage />} />
@@ -393,21 +404,35 @@ function AppLayout() {
 
                                 <Route element={<ProtectedRoute permission="view_admin_panel" />}>
                                     <Route path="/admin" element={<AdminLayout />}>
-                                        <Route index element={<AdminDashboard />} />
-                                        <Route path="users" element={<AdminUsers />} />
-                                        <Route path="users/:id" element={<AdminUserDetail />} />
-                                        <Route path="invites" element={<AdminInvites />} />
-                                        <Route path="settings" element={<AdminSettings />} />
-                                        <Route path="reports" element={<AdminReports />} />
-                                        <Route path="content-rules" element={<AdminContentRules />} />
-                                        <Route path="rules" element={<AdminRulesPage />} />
-                                        <Route path="banned-gifs" element={<AdminBannedGifs />} />
-                                        <Route path="banned-words" element={<AdminBannedWords />} />
-                                        <Route path="announcements" element={<AdminAnnouncementsPage />} />
-                                        <Route path="audit-log" element={<AdminAuditLog />} />
-                                        <Route path="vanity-roles" element={<AdminVanityRoles />} />
-                                        <Route path="permissions" element={<AdminPermissions />} />
-                                        <Route path="chatbots" element={<AdminChatbots />} />
+                                        <Route element={<ProtectedRoute permission="view_stats" />}>
+                                            <Route index element={<AdminDashboard />} />
+                                        </Route>
+                                        <Route element={<ProtectedRoute permission="view_users" />}>
+                                            <Route path="users" element={<AdminUsers />} />
+                                            <Route path="users/:id" element={<AdminUserDetail />} />
+                                            <Route path="reports" element={<AdminReports />} />
+                                        </Route>
+                                        <Route element={<ProtectedRoute permission="manage_roles" />}>
+                                            <Route path="invites" element={<AdminInvites />} />
+                                            <Route path="permissions" element={<AdminPermissions />} />
+                                        </Route>
+                                        <Route element={<ProtectedRoute permission="manage_settings" />}>
+                                            <Route path="settings" element={<AdminSettings />} />
+                                            <Route path="content-rules" element={<AdminContentRules />} />
+                                            <Route path="rules" element={<AdminRulesPage />} />
+                                            <Route path="banned-gifs" element={<AdminBannedGifs />} />
+                                            <Route path="announcements" element={<AdminAnnouncementsPage />} />
+                                            <Route path="chatbots" element={<AdminChatbots />} />
+                                        </Route>
+                                        <Route element={<ProtectedRoute permission="manage_banned_words" />}>
+                                            <Route path="banned-words" element={<AdminBannedWords />} />
+                                        </Route>
+                                        <Route element={<ProtectedRoute permission="manage_vanity_roles" />}>
+                                            <Route path="vanity-roles" element={<AdminVanityRoles />} />
+                                        </Route>
+                                        <Route element={<ProtectedRoute permission="view_audit_log" />}>
+                                            <Route path="audit-log" element={<AdminAuditLog />} />
+                                        </Route>
                                     </Route>
                                 </Route>
 

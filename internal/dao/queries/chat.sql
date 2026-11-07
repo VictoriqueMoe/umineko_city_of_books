@@ -523,12 +523,6 @@ INSERT INTO chat_message_media (message_id, media_url, media_type, thumbnail_url
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING id;
 
--- name: UpdateChatMessageMediaURL :exec
-UPDATE chat_message_media SET media_url = $1 WHERE id = $2;
-
--- name: UpdateChatMessageMediaThumbnail :exec
-UPDATE chat_message_media SET thumbnail_url = $1 WHERE id = $2;
-
 -- name: GetChatMessageMediaBatch :many
 SELECT id, message_id, media_url, media_type, thumbnail_url, COALESCE(filename, '')::text AS filename,
        sort_order, width, height, is_spoiler

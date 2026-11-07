@@ -3,16 +3,22 @@ package upload
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"io"
+	"strings"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/storage"
+	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -22,280 +28,344 @@ import (
 
 const (
 	testMediaLimit = 1024 * 1024
+	finishTimeout  = 5 * time.Second
 )
 
 var (
 	errStoreFailed = errors.New("store failed")
 )
 
-func memoryUpload(contentType string, filename string, data []byte, isSpoiler bool) FileUpload {
+func memoryUpload(contentType string, filename string, data []byte) FileUpload {
 	return FileUpload{
 		ContentType: contentType,
 		Filename:    filename,
 		Size:        int64(len(data)),
-		IsSpoiler:   isSpoiler,
 		Open: func() (io.ReadCloser, error) {
 			return io.NopCloser(bytes.NewReader(data)), nil
 		},
 	}
 }
 
-func mediaSettings(t *testing.T, maxImageSize int, maxPixels int) settings.Service {
+func newPendingService(t *testing.T, maxImageSize int, maxPixels int) (*service, *storage.MockService, *repository.MockPendingUploadRepository, string) {
 	t.Helper()
 
+	dir := t.TempDir()
 	settingsSvc := settings.NewMockService(t)
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingUploadDir).Return(dir).Maybe()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(maxImageSize).Maybe()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxVideoSize).Return(testMediaLimit).Maybe()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxAudioSize).Return(testMediaLimit).Maybe()
+	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxGeneralSize).Return(testMediaLimit).Maybe()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImagePixels).Return(maxPixels).Maybe()
 
-	return settingsSvc
+	storageSvc := storage.NewMockService(t)
+	storedFiles := repository.NewMockStoredFileRepository(t)
+	storedFiles.EXPECT().ListByPrefix(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	pending := repository.NewMockPendingUploadRepository(t)
+
+	return NewService(settingsSvc, storageSvc, storedFiles, pending, ws.NewHub()).(*service), storageSvc, pending, dir
 }
 
-func recordingTarget(records *[]MediaRecord) MediaTarget {
-	return MediaTarget{
-		SubDir: "posts",
-		Record: func(r MediaRecord) (int64, error) {
-			*records = append(*records, r)
-
-			return int64(len(*records)), nil
-		},
-	}
-}
-
-func recordAndReturn(urlPath string) func(context.Context, string, string, string, int64, io.Reader, bool, media.AddFn, media.UpdateURLFn, media.UpdateURLFn) (*dto.PostMediaResponse, error) {
-	return func(_ context.Context, _ string, _ string, filename string, _ int64, _ io.Reader, isSpoiler bool, addFn media.AddFn, _ media.UpdateURLFn, _ media.UpdateURLFn) (*dto.PostMediaResponse, error) {
-		id, err := addFn(urlPath, media.MediaTypeImage, "", filename, 0)
-		if err != nil {
-			return nil, err
-		}
-
-		return &dto.PostMediaResponse{ID: int(id), MediaURL: urlPath, MediaType: media.MediaTypeImage, Filename: filename, IsSpoiler: isSpoiler}, nil
-	}
-}
-
-func TestValidateMedia(t *testing.T) {
+func TestBeginMediaUpload_RefusesBeforeAnythingIsRecorded(t *testing.T) {
 	png := mustPNGBytes()
 	notAnImage := []byte("this is plainly not an image at all")
 
 	tests := []struct {
 		name         string
-		files        []FileUpload
+		file         FileUpload
 		maxImageSize int
 		maxPixels    int
 		wantErr      error
 	}{
-		{
-			name:         "a well-formed png passes",
-			files:        []FileUpload{memoryUpload("image/png", "one.png", png, false)},
-			maxImageSize: testMediaLimit,
-			maxPixels:    bounds.FallbackMaxImagePixels,
-		},
-		{
-			name:         "an image over the size limit is refused",
-			files:        []FileUpload{memoryUpload("image/png", "one.png", png, false)},
-			maxImageSize: 1,
-			maxPixels:    bounds.FallbackMaxImagePixels,
-			wantErr:      ErrFileTooLarge,
-		},
-		{
-			name:         "bytes that are not an image are refused",
-			files:        []FileUpload{memoryUpload("image/png", "one.png", notAnImage, false)},
-			maxImageSize: testMediaLimit,
-			maxPixels:    bounds.FallbackMaxImagePixels,
-			wantErr:      ErrInvalidFileType,
-		},
-		{
-			name:         "an image declared as audio is refused",
-			files:        []FileUpload{memoryUpload("audio/mpeg", "one.mp3", png, false)},
-			maxImageSize: testMediaLimit,
-			maxPixels:    bounds.FallbackMaxImagePixels,
-			wantErr:      ErrInvalidAudioType,
-		},
-		{
-			name:         "an image declared as video is refused",
-			files:        []FileUpload{memoryUpload("video/mp4", "one.mp4", png, false)},
-			maxImageSize: testMediaLimit,
-			maxPixels:    bounds.FallbackMaxImagePixels,
-			wantErr:      ErrInvalidVideoType,
-		},
-		{
-			name:         "an image past the pixel budget is refused",
-			files:        []FileUpload{memoryUpload("image/png", "one.png", png, false)},
-			maxImageSize: testMediaLimit,
-			maxPixels:    3,
-			wantErr:      bounds.ErrImageBounds,
-		},
-		{
-			name: "one bad file rejects the whole batch",
-			files: []FileUpload{
-				memoryUpload("image/png", "one.png", png, false),
-				memoryUpload("image/png", "two.png", notAnImage, false),
-			},
-			maxImageSize: testMediaLimit,
-			maxPixels:    bounds.FallbackMaxImagePixels,
-			wantErr:      ErrInvalidFileType,
-		},
+		{name: "an image over the size limit is refused", file: memoryUpload("image/png", "one.png", png), maxImageSize: 1, maxPixels: bounds.FallbackMaxImagePixels, wantErr: ErrFileTooLarge},
+		{name: "bytes that are not an image are refused", file: memoryUpload("image/png", "one.png", notAnImage), maxImageSize: testMediaLimit, maxPixels: bounds.FallbackMaxImagePixels, wantErr: ErrInvalidFileType},
+		{name: "an image declared as audio is refused", file: memoryUpload("audio/mpeg", "one.mp3", png), maxImageSize: testMediaLimit, maxPixels: bounds.FallbackMaxImagePixels, wantErr: ErrInvalidAudioType},
+		{name: "an image declared as video is refused", file: memoryUpload("video/mp4", "one.mp4", png), maxImageSize: testMediaLimit, maxPixels: bounds.FallbackMaxImagePixels, wantErr: ErrInvalidVideoType},
+		{name: "an image past the pixel budget is refused", file: memoryUpload("image/png", "one.png", png), maxImageSize: testMediaLimit, maxPixels: 3, wantErr: bounds.ErrImageBounds},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// given
-			settingsSvc := mediaSettings(t, tt.maxImageSize, tt.maxPixels)
+			// given strict storage and pending mocks that fail the test on any write
+			svc, _, _, dir := newPendingService(t, tt.maxImageSize, tt.maxPixels)
 
 			// when
-			_, err := ValidateMedia(t.Context(), settingsSvc, tt.files)
+			got, err := svc.BeginMediaUpload(t.Context(), uuid.New(), tt.file)
 
 			// then
-			if tt.wantErr != nil {
-				require.ErrorIs(t, err, tt.wantErr)
-				return
-			}
-
-			require.NoError(t, err)
+			require.ErrorIs(t, err, tt.wantErr)
+			assert.Nil(t, got)
+			assertStagingEmpty(t, dir)
 		})
 	}
 }
 
-func TestValidatedMediaSave_RefusedBatchWritesNothing(t *testing.T) {
-	// given a batch whose second file is over the limit, and stores that fail on any call
-	png := mustPNGBytes()
-	settingsSvc := mediaSettings(t, len(png), bounds.FallbackMaxImagePixels)
-	recorder := NewMockMediaRecorder(t)
-	deleter := NewMockService(t)
+func TestBeginMediaUpload_RecordsTheUploadAndFinishesItInTheBackground(t *testing.T) {
+	// given a valid picture
+	svc, storageSvc, pending, _ := newPendingService(t, testMediaLimit, bounds.FallbackMaxImagePixels)
+	objects := captureStore(t, storageSvc)
+	userID := uuid.New()
 
-	files := []FileUpload{
-		memoryUpload("image/png", "one.png", png, false),
-		memoryUpload("image/png", "two.png", append(bytes.Clone(png), 0), false),
+	var recorded spec.NewPendingUpload
+	pending.EXPECT().Insert(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, s spec.NewPendingUpload, _ ...*sql.Tx) error {
+		recorded = s
+		return nil
+	}).Once()
+
+	ready := make(chan spec.ProcessedUpload, 1)
+	pending.EXPECT().MarkReady(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, s spec.ProcessedUpload, _ ...*sql.Tx) (bool, error) {
+		ready <- s
+		return true, nil
+	}).Once()
+
+	// when
+	got, err := svc.BeginMediaUpload(t.Context(), userID, memoryUpload("image/png", "one.png", mustPNGBytes()))
+
+	// then the upload is recorded as processing before the request returns
+	require.NoError(t, err)
+	assert.Equal(t, dto.PendingUploadResponse{ID: recorded.ID, MediaType: MediaTypeImage, Filename: "one.png", Status: string(model.PendingUploadProcessing)}, *got)
+	assert.Equal(t, spec.NewPendingUpload{ID: recorded.ID, UserID: userID, MediaType: MediaTypeImage, Filename: "one.png", FileSize: int64(len(mustPNGBytes()))}, recorded)
+
+	// and the stored file is recorded once the background work is done
+	select {
+	case processed := <-ready:
+		require.Len(t, *objects, 1)
+		assert.Equal(t, spec.ProcessedUpload{ID: recorded.ID, MediaURL: "/uploads/" + (*objects)[0].key, Width: 2, Height: 2}, processed)
+		assert.True(t, strings.HasPrefix((*objects)[0].key, mediaSubDir+"/"))
+	case <-time.After(finishTimeout):
+		t.Fatal("the upload was never marked ready")
+	}
+}
+
+func TestBeginMediaUpload_AFailedRecordReleasesTheStagedCopy(t *testing.T) {
+	// given a database that refuses the record
+	svc, _, pending, dir := newPendingService(t, testMediaLimit, bounds.FallbackMaxImagePixels)
+	pending.EXPECT().Insert(mock.Anything, mock.Anything).Return(errStoreFailed).Once()
+
+	// when
+	got, err := svc.BeginMediaUpload(t.Context(), uuid.New(), memoryUpload("image/png", "one.png", mustPNGBytes()))
+
+	// then
+	require.ErrorIs(t, err, errStoreFailed)
+	assert.Nil(t, got)
+	assertStagingEmpty(t, dir)
+}
+
+func TestBeginFileUpload_Refusals(t *testing.T) {
+	tests := []struct {
+		name    string
+		file    FileUpload
+		wantErr error
+	}{
+		{name: "a file over the limit is refused before it is read", file: memoryUpload("application/pdf", "notes.pdf", bytes.Repeat([]byte("x"), testMediaLimit+1)), wantErr: ErrFileTooLarge},
+		{name: "html is refused whatever it claims to be", file: memoryUpload("application/pdf", "page.pdf", []byte("<!DOCTYPE html><html><body>hi</body></html>")), wantErr: ErrInvalidAttachmentType},
 	}
 
-	var records []MediaRecord
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given strict storage and pending mocks
+			svc, _, _, dir := newPendingService(t, testMediaLimit, bounds.FallbackMaxImagePixels)
 
-	// when the batch is validated and whatever came back is saved
-	validated, err := ValidateMedia(t.Context(), settingsSvc, files)
-	saved, saveErr := validated.Save(t.Context(), recorder, deleter, recordingTarget(&records))
+			// when
+			got, err := svc.BeginFileUpload(t.Context(), uuid.New(), tc.file)
 
-	// then the refusal is reported and nothing was stored or recorded
-	require.ErrorIs(t, err, ErrFileTooLarge)
-	require.NoError(t, saveErr)
-	assert.Nil(t, saved)
-	assert.Empty(t, records)
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+			assert.Nil(t, got)
+			assertStagingEmpty(t, dir)
+		})
+	}
 }
 
-func TestValidatedMediaSave_RecordsEachFileInDisplayOrder(t *testing.T) {
-	// given two valid images, the second marked as a spoiler
-	png := mustPNGBytes()
-	settingsSvc := mediaSettings(t, testMediaLimit, bounds.FallbackMaxImagePixels)
-	recorder := NewMockMediaRecorder(t)
-	deleter := NewMockService(t)
-	targetID := uuid.New()
+func TestBeginFileUpload_StoresTheDocumentUnderItsSniffedExtension(t *testing.T) {
+	// given a pdf
+	svc, storageSvc, pending, _ := newPendingService(t, testMediaLimit, bounds.FallbackMaxImagePixels)
+	objects := captureStore(t, storageSvc)
+	userID := uuid.New()
+	pending.EXPECT().Insert(mock.Anything, mock.MatchedBy(func(s spec.NewPendingUpload) bool {
+		return s.UserID == userID && s.MediaType == MediaTypeFile && s.Filename == "notes.pdf"
+	})).Return(nil).Once()
 
-	recorder.EXPECT().
-		SaveAndRecord(mock.Anything, "posts", "image/png", "one.png", int64(len(png)), mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
-		RunAndReturn(recordAndReturn("/uploads/posts/one.png")).
-		Once()
-	recorder.EXPECT().
-		SaveAndRecord(mock.Anything, "posts", "image/png", "two.png", int64(len(png)), mock.Anything, true, mock.Anything, mock.Anything, mock.Anything).
-		RunAndReturn(recordAndReturn("/uploads/posts/two.png")).
-		Once()
+	ready := make(chan spec.ProcessedUpload, 1)
+	pending.EXPECT().MarkReady(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, s spec.ProcessedUpload, _ ...*sql.Tx) (bool, error) {
+		ready <- s
+		return true, nil
+	}).Once()
 
-	validated, err := ValidateMedia(t.Context(), settingsSvc, []FileUpload{
-		memoryUpload("image/png", "one.png", png, false),
-		memoryUpload("image/png", "two.png", png, true),
-	})
+	// when
+	got, err := svc.BeginFileUpload(t.Context(), userID, memoryUpload("application/pdf", "notes.pdf", pdfMagic))
+
+	// then
 	require.NoError(t, err)
-
-	var records []MediaRecord
-
-	// when the batch is saved
-	saved, err := validated.Save(t.Context(), recorder, deleter, recordingTarget(&records))
-
-	// then each file is recorded at its position with its own spoiler flag and dimensions
-	require.NoError(t, err)
-	require.Len(t, records, 2)
-	assert.Equal(t, spec.NewMedia{
-		TargetID:  targetID,
-		MediaURL:  "/uploads/posts/one.png",
-		MediaType: media.MediaTypeImage,
-		Filename:  "one.png",
-		SortOrder: 0,
-	}, records[0].NewMedia(targetID))
-	assert.Equal(t, spec.NewMedia{
-		TargetID:  targetID,
-		MediaURL:  "/uploads/posts/two.png",
-		MediaType: media.MediaTypeImage,
-		Filename:  "two.png",
-		SortOrder: 1,
-		IsSpoiler: true,
-	}, records[1].NewMedia(targetID))
-	assert.Equal(t, 2, records[1].Width)
-	assert.Equal(t, 2, records[1].Height)
-
-	require.Len(t, saved, 2)
-	assert.Equal(t, "/uploads/posts/one.png", saved[0].MediaURL)
-	assert.Equal(t, 0, saved[0].SortOrder)
-	assert.False(t, saved[0].IsSpoiler)
-	assert.Equal(t, "/uploads/posts/two.png", saved[1].MediaURL)
-	assert.Equal(t, 1, saved[1].SortOrder)
-	assert.True(t, saved[1].IsSpoiler)
-	assert.Equal(t, 2, saved[1].Width)
-	assert.Equal(t, 2, saved[1].Height)
+	assert.Equal(t, MediaTypeFile, got.MediaType)
+	select {
+	case processed := <-ready:
+		require.Len(t, *objects, 1)
+		assert.True(t, strings.HasPrefix((*objects)[0].key, filesSubDir+"/"))
+		assert.True(t, strings.HasSuffix((*objects)[0].key, ".pdf"))
+		assert.Equal(t, pdfMagic, (*objects)[0].data)
+		assert.Equal(t, "/uploads/"+(*objects)[0].key, processed.MediaURL)
+	case <-time.After(finishTimeout):
+		t.Fatal("the upload was never marked ready")
+	}
 }
 
-func TestValidatedMediaSave_FailureDiscardsWhatWasStored(t *testing.T) {
+func TestFinish(t *testing.T) {
+	processed := spec.ProcessedUpload{MediaURL: "/uploads/media/a.webp", ThumbnailURL: "/uploads/media/thumb_a.webp"}
+
 	tests := []struct {
-		name        string
-		failOn      string
-		wantDeleted []string
+		name       string
+		processErr error
+		markErr    error
+		marked     bool
+		expect     func(storageSvc *storage.MockService, pending *repository.MockPendingUploadRepository, pendingUpload spec.NewPendingUpload)
 	}{
 		{
-			name:   "a first-file failure has nothing to discard",
-			failOn: "one.png",
+			name:   "a processed upload is marked ready and keeps its files",
+			marked: true,
 		},
 		{
-			name:        "a second-file failure discards the first stored object",
-			failOn:      "two.png",
-			wantDeleted: []string{"/uploads/posts/one.png"},
+			name:       "a failed process marks the upload failed",
+			processErr: errStoreFailed,
+			expect: func(_ *storage.MockService, pending *repository.MockPendingUploadRepository, p spec.NewPendingUpload) {
+				pending.EXPECT().MarkFailed(mock.Anything, spec.UserUpload{ID: p.ID, UserID: p.UserID}).Return(true, nil).Once()
+			},
+		},
+		{
+			name: "an upload removed while it was processing has its files deleted",
+			expect: func(storageSvc *storage.MockService, _ *repository.MockPendingUploadRepository, _ spec.NewPendingUpload) {
+				storageSvc.EXPECT().Delete(mock.Anything, []string{"media/a.webp"}).Return(nil).Once()
+				storageSvc.EXPECT().Delete(mock.Anything, []string{"media/thumb_a.webp"}).Return(nil).Once()
+			},
+		},
+		{
+			name:    "a failed ready record deletes the files and marks the upload failed",
+			markErr: errStoreFailed,
+			expect: func(storageSvc *storage.MockService, pending *repository.MockPendingUploadRepository, p spec.NewPendingUpload) {
+				storageSvc.EXPECT().Delete(mock.Anything, []string{"media/a.webp"}).Return(nil).Once()
+				storageSvc.EXPECT().Delete(mock.Anything, []string{"media/thumb_a.webp"}).Return(nil).Once()
+				pending.EXPECT().MarkFailed(mock.Anything, spec.UserUpload{ID: p.ID, UserID: p.UserID}).Return(true, nil).Once()
+			},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// given two valid images where the store fails on one of them
-			png := mustPNGBytes()
-			settingsSvc := mediaSettings(t, testMediaLimit, bounds.FallbackMaxImagePixels)
-			recorder := NewMockMediaRecorder(t)
-			deleter := NewMockService(t)
-
-			for _, name := range []string{"one.png", "two.png"} {
-				call := recorder.EXPECT().
-					SaveAndRecord(mock.Anything, "posts", "image/png", name, mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything)
-				if name == tt.failOn {
-					call.Return(nil, errStoreFailed).Once()
-					break
-				}
-
-				call.RunAndReturn(recordAndReturn("/uploads/posts/" + name)).Once()
-			}
-
-			if tt.wantDeleted != nil {
-				deleter.EXPECT().Delete(tt.wantDeleted).Return().Once()
-			}
-
-			validated, err := ValidateMedia(t.Context(), settingsSvc, []FileUpload{
-				memoryUpload("image/png", "one.png", png, false),
-				memoryUpload("image/png", "two.png", png, false),
-			})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a staged upload
+			svc, storageSvc, pending, dir := newPendingService(t, testMediaLimit, bounds.FallbackMaxImagePixels)
+			staged, err := svc.Stage("a.png", strings.NewReader("x"))
 			require.NoError(t, err)
+			pendingUpload := spec.NewPendingUpload{ID: uuid.New(), UserID: uuid.New(), MediaType: MediaTypeImage, Filename: "a.png"}
 
-			var records []MediaRecord
+			if tc.processErr == nil {
+				ready := processed
+				ready.ID = pendingUpload.ID
+				pending.EXPECT().MarkReady(mock.Anything, ready).Return(tc.marked, tc.markErr).Once()
+			}
+			if tc.expect != nil {
+				tc.expect(storageSvc, pending, pendingUpload)
+			}
 
-			// when the batch is saved
-			saved, err := validated.Save(t.Context(), recorder, deleter, recordingTarget(&records))
+			// when
+			svc.finish(context.Background(), pendingUpload, staged, func(context.Context) (spec.ProcessedUpload, error) {
+				return processed, tc.processErr
+			})
 
-			// then the store failure is returned and only the objects already written are discarded
-			require.ErrorIs(t, err, errStoreFailed)
-			assert.Nil(t, saved)
+			// then the staged copy is always released, and the strict mocks prove which files were kept
+			assertStagingEmpty(t, dir)
+		})
+	}
+}
+
+func TestStoreVideo_WithoutAProcessorStoresTheRawFileOnce(t *testing.T) {
+	// given a staged video on a service that has no media processor
+	svc, storageSvc, _, _ := newPendingService(t, testMediaLimit, bounds.FallbackMaxImagePixels)
+	objects := captureStore(t, storageSvc)
+	staged, err := svc.Stage("clip.mp4", bytes.NewReader(mp4Magic))
+	require.NoError(t, err)
+
+	// when
+	got, err := svc.processMedia(t.Context(), MediaTypeVideo, staged)
+
+	// then the raw file goes to storage once, with no thumbnail
+	require.NoError(t, err)
+	require.Len(t, *objects, 1)
+	assert.Equal(t, mp4Magic, (*objects)[0].data)
+	assert.Equal(t, spec.ProcessedUpload{MediaURL: "/uploads/" + (*objects)[0].key}, got)
+}
+
+func TestRemoveUpload_DeletesTheRowAndItsFiles(t *testing.T) {
+	// given an upload that finished with a thumbnail
+	svc, storageSvc, pending, _ := newPendingService(t, testMediaLimit, bounds.FallbackMaxImagePixels)
+	userID, id := uuid.New(), uuid.New()
+	pending.EXPECT().Delete(mock.Anything, spec.UserUpload{ID: id, UserID: userID}).
+		Return([]model.PendingUploadRow{{ID: id, MediaURL: "/uploads/media/a.mp4", ThumbnailURL: "/uploads/media/thumb_a.webp"}}, nil).Once()
+	storageSvc.EXPECT().Delete(mock.Anything, []string{"media/a.mp4"}).Return(nil).Once()
+	storageSvc.EXPECT().Delete(mock.Anything, []string{"media/thumb_a.webp"}).Return(nil).Once()
+
+	// when
+	err := svc.RemoveUpload(t.Context(), userID, id)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestExpireUploads_DeletesEveryUploadOlderThanItsLifetime(t *testing.T) {
+	// given two expired uploads, one still processing
+	svc, storageSvc, pending, _ := newPendingService(t, testMediaLimit, bounds.FallbackMaxImagePixels)
+	before := time.Now()
+	pending.EXPECT().DeleteExpired(mock.Anything, mock.MatchedBy(func(cutoff time.Time) bool {
+		return !cutoff.After(time.Now().Add(-PendingUploadLifetime)) && !cutoff.Before(before.Add(-PendingUploadLifetime))
+	})).Return([]model.PendingUploadRow{{MediaURL: "/uploads/media/a.webp"}, {}}, nil).Once()
+	storageSvc.EXPECT().Delete(mock.Anything, []string{"media/a.webp"}).Return(nil).Once()
+
+	// when
+	n, err := svc.ExpireUploads(t.Context())
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 2, n)
+}
+
+func TestClaims(t *testing.T) {
+	userID := uuid.New()
+	refs := []dto.UploadRef{{ID: uuid.New()}, {ID: uuid.New(), IsSpoiler: true}}
+
+	tests := []struct {
+		name string
+		got  spec.ClaimedUploads
+		want spec.ClaimedUploads
+	}{
+		{
+			name: "a media claim accepts only pictures, videos and audio, in the order they were attached",
+			got:  MediaClaim(userID, refs),
+			want: spec.ClaimedUploads{
+				UserID:     userID,
+				Uploads:    []spec.UploadRef{{ID: refs[0].ID}, {ID: refs[1].ID, IsSpoiler: true}},
+				MediaTypes: []string{MediaTypeImage, MediaTypeVideo, MediaTypeAudio},
+				MaxAge:     PendingUploadLifetime,
+			},
+		},
+		{
+			name: "a file claim accepts only documents",
+			got:  FileClaim(userID, refs[:1]),
+			want: spec.ClaimedUploads{UserID: userID, Uploads: []spec.UploadRef{{ID: refs[0].ID}}, MediaTypes: []string{MediaTypeFile}, MaxAge: PendingUploadLifetime},
+		},
+		{
+			name: "a claim with nothing attached claims nothing",
+			got:  MediaClaim(userID, nil),
+			want: spec.ClaimedUploads{UserID: userID, MediaTypes: []string{MediaTypeImage, MediaTypeVideo, MediaTypeAudio}, MaxAge: PendingUploadLifetime},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given the refs a client sent
+
+			// when the service builds its claim
+
+			// then
+			assert.Equal(t, tc.want, tc.got)
 		})
 	}
 }

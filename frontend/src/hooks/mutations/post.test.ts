@@ -19,7 +19,7 @@ import {
     useUnresolveSuggestion,
     useUpdateComment,
     useUpdatePost,
-    useUploadPostMedia,
+    useAttachPostMedia,
     useVotePoll,
 } from "./post";
 
@@ -32,7 +32,7 @@ vi.mock("../../api/endpoints/post", () => ({
     unlikePost: vi.fn(),
     unresolveSuggestion: vi.fn(),
     updatePost: vi.fn(),
-    uploadPostMedia: vi.fn(),
+    attachPostMedia: vi.fn(),
     votePoll: vi.fn(),
 }));
 
@@ -54,7 +54,7 @@ interface MutationCase {
 }
 
 const postId = "p-1";
-const file = new File(["gold"], "letter.png", { type: "image/png" });
+const upload = { upload_id: "upload-1", is_spoiler: false };
 const postViews = [{ queryKey: queryKeys.post.all }, { predicate: expect.any(Function) }];
 const detailOnly = [{ queryKey: queryKeys.post.detail(postId) }];
 
@@ -100,11 +100,11 @@ describe("post mutations", () => {
             invalidations: postViews,
         },
         {
-            name: "useUploadPostMedia attaches the file to the post it was built with",
-            useHook: () => useUploadPostMedia(postId),
-            variables: { file },
-            endpoint: vi.mocked(endpoints.uploadPostMedia),
-            args: [postId, file, false],
+            name: "useAttachPostMedia attaches the upload to the post it was built with",
+            useHook: () => useAttachPostMedia(postId),
+            variables: upload,
+            endpoint: vi.mocked(endpoints.attachPostMedia),
+            args: [postId, upload],
             invalidations: postViews,
         },
         {
@@ -166,9 +166,9 @@ describe("post mutations", () => {
         {
             name: "useCreateComment sends the staged media in the same request",
             useHook: () => useCreateComment(postId),
-            variables: { body: "", media: [{ file, isSpoiler: true }] },
+            variables: { body: "", media: [{ ...upload, is_spoiler: true }] },
             endpoint: vi.mocked(comments.createComment),
-            args: [postId, "", undefined, [{ file, isSpoiler: true }]],
+            args: [postId, "", undefined, [{ ...upload, is_spoiler: true }]],
             invalidations: postViews,
         },
         {
@@ -277,12 +277,11 @@ describe("useCreatePost", () => {
         expect(created).toEqual({ id: "p-new" });
     });
 
-    it("sends every attachment in display order with its spoiler flag in the create request itself", async () => {
+    it("sends every finished upload in display order with its spoiler flag in the create request itself", async () => {
         // given
-        const second = new File(["silver"], "epitaph.png", { type: "image/png" });
         const media = [
-            { file, isSpoiler: true },
-            { file: second, isSpoiler: false },
+            { ...upload, is_spoiler: true },
+            { upload_id: "upload-2", is_spoiler: false },
         ];
         const { result } = setup(() => useCreatePost());
 
@@ -300,7 +299,7 @@ describe("useCreatePost", () => {
             undefined,
             media,
         );
-        expect(endpoints.uploadPostMedia).not.toHaveBeenCalled();
+        expect(endpoints.attachPostMedia).not.toHaveBeenCalled();
     });
 
     it("refreshes the post lists once, only after the post and its media are saved", async () => {
@@ -317,7 +316,7 @@ describe("useCreatePost", () => {
         // when the request carrying the image is still in flight
         let pending: Promise<{ id: string }> = Promise.resolve({ id: "" });
         act(() => {
-            pending = result.current.mutateAsync({ body: "With an image", media: [{ file, isSpoiler: false }] });
+            pending = result.current.mutateAsync({ body: "With an image", media: [upload] });
         });
         await waitFor(() => expect(endpoints.createPost).toHaveBeenCalled());
 
@@ -341,7 +340,7 @@ describe("useCreatePost", () => {
 
         // when
         const attempt = act(async () => {
-            await result.current.mutateAsync({ body: "Two images", media: [{ file, isSpoiler: false }] });
+            await result.current.mutateAsync({ body: "Two images", media: [upload] });
         });
 
         // then

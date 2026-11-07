@@ -11,7 +11,6 @@ import (
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model/spec"
-	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -59,7 +58,7 @@ func (s *Service) setupCommentRoutes(r fiber.Router) {
 		r.Delete(route.path+"/:id", s.requireAuth(), s.deleteComment(route.kind))
 		r.Post(route.path+"/:id/like", s.requireAuth(), s.likeComment(route.kind))
 		r.Delete(route.path+"/:id/like", s.requireAuth(), s.unlikeComment(route.kind))
-		r.Post(route.path+"/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadCommentMedia(route.kind))
+		r.Post(route.path+"/:id/media", s.requireAuth(), s.requireEstablished(), s.attachCommentMedia(route.kind))
 	}
 }
 
@@ -73,8 +72,8 @@ func (s *Service) createComment(kind spec.CommentKind) fiber.Handler {
 		userID := utils.UserID(ctx)
 		target := spec.CommentTarget{Kind: kind, ID: entityID}
 
-		return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
-			return s.CommentService.Create(c, target, userID, req, files)
+		return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest) (uuid.UUID, error) {
+			return s.CommentService.Create(c, target, userID, req)
 		}, nil)
 	}
 }
@@ -148,28 +147,22 @@ func (s *Service) unlikeComment(kind spec.CommentKind) fiber.Handler {
 	}
 }
 
-func (s *Service) uploadCommentMedia(kind spec.CommentKind) fiber.Handler {
+func (s *Service) attachCommentMedia(kind spec.CommentKind) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		commentID, ok := utils.ParseID(ctx)
 		if !ok {
 			return nil
 		}
 
-		file, err := ctx.FormFile("media")
-		if err != nil {
-			return utils.BadRequest(ctx, "no media file provided")
+		media, ok := utils.BindJSON[dto.UploadRef](ctx)
+		if !ok {
+			return nil
 		}
-
-		reader, err := file.Open()
-		if err != nil {
-			return utils.InternalError(ctx, "failed to read file", err)
-		}
-		defer reader.Close()
 
 		ref := spec.CommentRef{Kind: kind, CommentID: commentID}
-		result, err := s.CommentService.UploadMedia(ctx.Context(), ref, utils.UserID(ctx), file.Header.Get("Content-Type"), file.Filename, file.Size, reader, isSpoilerUpload(ctx))
+		result, err := s.CommentService.AttachMedia(ctx.Context(), ref, utils.UserID(ctx), media)
 		if err != nil {
-			return commentError(ctx, err, "failed to upload media")
+			return commentError(ctx, err, "failed to attach media")
 		}
 
 		return ctx.Status(fiber.StatusCreated).JSON(result)
@@ -178,15 +171,15 @@ func (s *Service) uploadCommentMedia(kind spec.CommentKind) fiber.Handler {
 
 func handleCreateComment[T any](
 	ctx fiber.Ctx,
-	create func(context.Context, T, []upload.FileUpload) (uuid.UUID, error),
+	create func(context.Context, T) (uuid.UUID, error),
 	familyErrors []errorResponse,
 ) error {
-	req, ok := utils.BindWithMedia[T](ctx)
+	req, ok := utils.BindJSON[T](ctx)
 	if !ok {
 		return nil
 	}
 
-	id, err := create(ctx.Context(), req.Payload, req.Media)
+	id, err := create(ctx.Context(), req)
 	if err != nil {
 		for _, fe := range familyErrors {
 			if !errors.Is(err, fe.err) {
@@ -230,8 +223,4 @@ func commentError(ctx fiber.Ctx, err error, failure string) error {
 	}
 
 	return utils.InternalError(ctx, failure, err)
-}
-
-func isSpoilerUpload(ctx fiber.Ctx) bool {
-	return ctx.FormValue("is_spoiler") == "true"
 }

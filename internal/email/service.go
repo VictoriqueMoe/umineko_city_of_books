@@ -55,8 +55,6 @@ type (
 
 var (
 	htmlTagRe = regexp.MustCompile(`<[^>]*>`)
-
-	ErrNotConfigured = errors.New("email provider is not configured")
 )
 
 func NewService(settingsSvc settings.Service) Service {

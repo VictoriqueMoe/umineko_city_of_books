@@ -1,5 +1,4 @@
-import { apiDelete, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "../client";
-import { mediaFormData, postCreate } from "./mediaFormData";
+import { apiDelete, apiFetch, apiPost, apiPut, buildQueryString } from "../client";
 import type {
     CreateJournalPayload,
     JournalComment,
@@ -8,8 +7,8 @@ import type {
     JournalEntryPayload,
     JournalListResponse,
     JournalWork,
-    MediaUpload,
     PostMedia,
+    UploadRef,
 } from "../../types/api";
 
 export async function listJournals(params: {
@@ -66,13 +65,12 @@ export async function createJournalComment(
     body: string,
     parentId?: string,
     entryId?: string,
-    media: readonly MediaUpload[] = [],
+    media: readonly UploadRef[] = [],
 ): Promise<{ id: string }> {
-    return postCreate<{ id: string }, { body: string; parent_id?: string; entry_id?: string }>(
-        `/journals/${journalId}/comments`,
-        { body, parent_id: parentId, entry_id: entryId },
-        { media },
-    );
+    return apiPost<
+        { id: string },
+        { body: string; parent_id?: string; entry_id?: string; media: readonly UploadRef[] }
+    >(`/journals/${journalId}/comments`, { body, parent_id: parentId, entry_id: entryId, media });
 }
 
 export async function getJournalEntry(
@@ -87,12 +85,11 @@ export async function getJournalEntry(
 export async function createJournalEntry(
     journalId: string,
     payload: JournalEntryPayload,
-    media: readonly MediaUpload[] = [],
+    media: readonly UploadRef[] = [],
 ): Promise<{ id: string; entry_number: number }> {
-    return postCreate<{ id: string; entry_number: number }, JournalEntryPayload>(
+    return apiPost<{ id: string; entry_number: number }, JournalEntryPayload & { media: readonly UploadRef[] }>(
         `/journals/${journalId}/entries`,
-        payload,
-        { media },
+        { ...payload, media },
     );
 }
 
@@ -104,8 +101,8 @@ export async function deleteJournalEntry(entryId: string): Promise<void> {
     await apiDelete(`/journal-entries/${entryId}`);
 }
 
-export async function uploadJournalEntryMedia(entryId: string, file: File, isSpoiler = false): Promise<PostMedia> {
-    return apiPostFormData<PostMedia>(`/journal-entries/${entryId}/media`, mediaFormData(file, isSpoiler));
+export async function attachJournalEntryMedia(entryId: string, media: UploadRef): Promise<PostMedia> {
+    return apiPost<PostMedia, UploadRef>(`/journal-entries/${entryId}/media`, media);
 }
 
 export async function deleteJournalEntryMedia(entryId: string, mediaId: number): Promise<void> {

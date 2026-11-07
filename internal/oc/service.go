@@ -17,7 +17,6 @@ import (
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -97,7 +96,6 @@ type (
 		commentSvc    comment.Service
 		uploadSvc     upload.Service
 		hub           *ws.Hub
-		uploader      *media.Uploader
 		settingsSvc   settings.Service
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
@@ -115,7 +113,6 @@ func NewService(
 	mentionSvc mention.Service,
 	commentSvc comment.Service,
 	uploadSvc upload.Service,
-	mediaProc *media.Processor,
 	settingsSvc settings.Service,
 	hub *ws.Hub,
 	contentFilter *contentfilter.Manager,
@@ -133,7 +130,6 @@ func NewService(
 		commentSvc:    commentSvc,
 		uploadSvc:     uploadSvc,
 		hub:           hub,
-		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		settingsSvc:   settingsSvc,
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
@@ -328,7 +324,7 @@ func (s *service) UpdateOC(ctx context.Context, id uuid.UUID, userID uuid.UUID, 
 	}
 
 	description := strings.TrimSpace(req.Description)
-	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
+	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyWork)
 	if err := s.ocRepo.Update(ctx, spec.OCUpdate{
 		ID:               id,
 		UserID:           userID,
@@ -359,7 +355,7 @@ func (s *service) DeleteOC(ctx context.Context, id uuid.UUID, userID uuid.UUID) 
 		return err
 	}
 
-	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
+	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyWork)
 
 	paths, err := s.ocRepo.DeleteOC(ctx, spec.OCDeletion{
 		ID:      id,
@@ -486,7 +482,7 @@ func (s *service) UploadOCImage(ctx context.Context, ocID uuid.UUID, userID uuid
 	if err != nil {
 		return "", err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return "", ErrNotOwner
 	}
 
@@ -519,7 +515,7 @@ func (s *service) AddGalleryImage(
 	if err != nil {
 		return nil, err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return nil, ErrNotOwner
 	}
 
@@ -564,7 +560,7 @@ func (s *service) UpdateGalleryImage(ctx context.Context, ocID uuid.UUID, imageI
 	if err != nil {
 		return err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return ErrNotOwner
 	}
 	if req.Caption != nil {
@@ -592,7 +588,7 @@ func (s *service) DeleteGalleryImage(ctx context.Context, ocID uuid.UUID, imageI
 	if err != nil {
 		return err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return ErrNotOwner
 	}
 	return s.ocRepo.DeleteGalleryImage(ctx, spec.MediaDeletion{ID: imageID, TargetID: ocID})

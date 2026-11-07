@@ -78,7 +78,7 @@ describe("useCreateAnnouncementComment", () => {
     it("sends the staged media with the comment in the same request", async () => {
         // given
         const { qc } = client();
-        const media = [{ file: new File(["gif"], "beato.gif", { type: "image/gif" }), isSpoiler: true }];
+        const media = [{ upload_id: "upload-1", is_spoiler: true }];
 
         // when
         await runMutation(() => useCreateAnnouncementComment(announcementId), { body: "", media }, qc);

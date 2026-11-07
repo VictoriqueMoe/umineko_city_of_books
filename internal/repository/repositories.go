@@ -36,6 +36,7 @@ type (
 		GiphyFavourite    GiphyFavouriteRepository
 		BannedGiphy       BannedGiphyRepository
 		StoredFile        StoredFileRepository
+		PendingUpload     PendingUploadRepository
 		UserSecret        UserSecretRepository
 		Secret            SecretRepository
 		ChatRoomBan       ChatRoomBanRepository

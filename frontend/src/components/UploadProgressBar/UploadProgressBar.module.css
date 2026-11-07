@@ -1,0 +1,56 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    width: 100%;
+}
+
+.track {
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.25);
+    overflow: hidden;
+}
+
+.fill {
+    width: var(--percent, 0%);
+    height: 100%;
+    border-radius: 2px;
+    background: var(--gold);
+    transition: width 0.2s ease-out;
+}
+
+.processing {
+    width: 100%;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, var(--gold) 50%, rgba(255, 255, 255, 0.2) 100%);
+    background-size: 200% 100%;
+    animation: processing 1.2s linear infinite;
+}
+
+.status {
+    font-size: 0.65rem;
+    line-height: 1;
+    color: #fff;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+@keyframes processing {
+    from {
+        background-position: 100% 0;
+    }
+
+    to {
+        background-position: -100% 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fill {
+        transition: none;
+    }
+
+    .processing {
+        animation: none;
+    }
+}

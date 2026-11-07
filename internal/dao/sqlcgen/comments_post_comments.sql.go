@@ -534,37 +534,3 @@ func (q *Queries) UpdatePostComment(ctx context.Context, arg UpdatePostCommentPa
 	}
 	return result.RowsAffected()
 }
-
-const updatePostCommentMediaThumbnail = `-- name: UpdatePostCommentMediaThumbnail :execrows
-UPDATE post_comment_media SET thumbnail_url = $1 WHERE id = $2
-`
-
-type UpdatePostCommentMediaThumbnailParams struct {
-	ThumbnailUrl string
-	ID           int64
-}
-
-func (q *Queries) UpdatePostCommentMediaThumbnail(ctx context.Context, arg UpdatePostCommentMediaThumbnailParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updatePostCommentMediaThumbnail, arg.ThumbnailUrl, arg.ID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
-
-const updatePostCommentMediaURL = `-- name: UpdatePostCommentMediaURL :execrows
-UPDATE post_comment_media SET media_url = $1 WHERE id = $2
-`
-
-type UpdatePostCommentMediaURLParams struct {
-	MediaUrl string
-	ID       int64
-}
-
-func (q *Queries) UpdatePostCommentMediaURL(ctx context.Context, arg UpdatePostCommentMediaURLParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updatePostCommentMediaURL, arg.MediaUrl, arg.ID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}

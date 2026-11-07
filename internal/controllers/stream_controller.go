@@ -64,7 +64,7 @@ func (s *Service) setupJoinStreamChatRoute(r fiber.Router) {
 }
 
 func (s *Service) setupUploadStreamThumbnailRoute(r fiber.Router) {
-	r.Post("/streams/:id/thumbnail", s.requireAuth(), s.RateLimiter.Limit(cache.RateLimitStreamThumbnail, streamThumbnailLimit, middleware.ByClientIP), s.uploadStreamThumbnail)
+	r.Post("/streams/:id/thumbnail", s.requireAuth(), s.requireEstablished(), s.RateLimiter.Limit(cache.RateLimitStreamThumbnail, streamThumbnailLimit, middleware.ByClientIP), s.uploadStreamThumbnail)
 }
 
 func (s *Service) setupStreamCredentialsRoute(r fiber.Router) {
@@ -195,18 +195,13 @@ func (s *Service) uploadStreamThumbnail(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	file, err := ctx.FormFile("thumbnail")
+	file, err := utils.ReceiveFile(ctx, s.UploadService, "thumbnail")
 	if err != nil {
-		return utils.BadRequest(ctx, "thumbnail file is required")
+		return utils.UploadFailed(ctx, err)
 	}
+	defer file.Close()
 
-	src, err := file.Open()
-	if err != nil {
-		return utils.BadRequest(ctx, "failed to read file")
-	}
-	defer src.Close()
-
-	if err := s.StreamService.SaveThumbnail(ctx.Context(), utils.UserID(ctx), streamID, file.Size, src); err != nil {
+	if err := s.StreamService.SaveThumbnail(ctx.Context(), utils.UserID(ctx), streamID, file.Size, file); err != nil {
 		return mapStreamError(ctx, err)
 	}
 

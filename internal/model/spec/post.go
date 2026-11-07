@@ -14,6 +14,7 @@ type (
 		Body          string
 		SharedContent *model.SharedContentRef
 		Poll          *NewPoll
+		Media         ClaimedUploads
 	}
 
 	NewPoll struct {

@@ -19,7 +19,6 @@ import (
 	"umineko_city_of_books/internal/hyperbeam"
 	"umineko_city_of_books/internal/livekit"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
@@ -74,7 +73,6 @@ type (
 		blockSvc        block.Service
 		settingsSvc     settings.Service
 		uploadSvc       upload.Service
-		uploader        *media.Uploader
 		hub             *ws.Hub
 		hyperbeamSvc    hyperbeam.Service
 		livekitSvc      livekit.Service

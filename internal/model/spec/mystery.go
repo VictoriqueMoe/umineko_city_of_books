@@ -19,7 +19,9 @@ type (
 
 	NewMysteryWithClues struct {
 		NewMystery
-		Clues []NewClue
+		Clues       []NewClue
+		Media       ClaimedUploads
+		Attachments ClaimedUploads
 	}
 
 	MysteryUpdate struct {
@@ -71,9 +73,15 @@ type (
 		NewClue
 	}
 
+	MysteryClueDeletion struct {
+		MysteryID uuid.UUID
+		ClueID    int
+	}
+
 	MysteryClueUpdate struct {
-		ClueID int
-		Body   string
+		MysteryID uuid.UUID
+		ClueID    int
+		Body      string
 	}
 
 	NewMysteryAttempt struct {

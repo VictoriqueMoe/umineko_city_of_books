@@ -41,7 +41,7 @@ const roleCases: RoleCase[] = [
     { role: "moderator", permission: "view_admin_panel", allowed: true },
     { role: "moderator", permission: "manage_roles", allowed: false },
     { role: "moderator", permission: "view_audit_log", allowed: false },
-    { role: "moderator", permission: "delete_any_theory", allowed: true },
+    { role: "moderator", permission: "delete_any_work", allowed: true },
 ];
 
 describe("ProtectedRoute while the session is still unknown", () => {

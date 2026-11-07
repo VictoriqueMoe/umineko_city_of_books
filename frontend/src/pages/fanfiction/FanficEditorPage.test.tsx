@@ -34,8 +34,6 @@ const {
     navigate: vi.fn(),
 }));
 
-const { can } = vi.hoisted(() => ({ can: vi.fn() }));
-
 vi.mock("../../hooks/queries/fanfic", () => ({
     useFanfic,
     useFanficChapter,
@@ -54,11 +52,6 @@ vi.mock("../../hooks/mutations/fanfic", () => ({
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => navigate };
-});
-vi.mock("../../domain/permissions", async importOriginal => {
-    const actual = await importOriginal<typeof import("../../domain/permissions")>();
-    can.mockImplementation(actual.can);
-    return { ...actual, can };
 });
 
 interface EditorStubProps {
@@ -100,8 +93,6 @@ vi.mock("../../components/CharacterPicker/CharacterPicker", () => ({
 }));
 
 const author = makeUser({ id: "author-1", username: "beatrice", display_name: "Beatrice" });
-const stranger = makeUser({ id: "stranger-1", username: "battler", display_name: "Battler" });
-const moderator = makeUser({ id: "mod-1", username: "ronove", display_name: "Ronove", role: "moderator" });
 
 const DRAFT_KEY = "fanfic-draft";
 const TITLE = "Your fanfic title...";
@@ -544,33 +535,6 @@ describe("FanficEditorPage", () => {
 
         // then
         expect(screen.getByText(shown)).toBeInTheDocument();
-    });
-
-    it("sends an unrelated reader back to the fanfic instead of the editor", async () => {
-        // given
-        const fanfic = makeFanfic();
-
-        // when
-        openEditor("edit", { fanfic }, stranger);
-
-        // then
-        await waitFor(() => {
-            expect(navigate).toHaveBeenCalledWith("/fanfiction/fanfic-1");
-        });
-    });
-
-    it("lets a moderator edit somebody else's fanfic on the post editing permission", () => {
-        // given
-        const fanfic = makeFanfic();
-
-        // when
-        openEditor("edit", { fanfic }, moderator);
-
-        // then
-        expect(navigate).not.toHaveBeenCalled();
-        expect(screen.getByRole("heading", { name: "Edit Fanfic" })).toBeInTheDocument();
-        expect(can).toHaveBeenCalledWith(moderator, "edit_any_post");
-        expect(can).not.toHaveBeenCalledWith(moderator, "edit_any_theory");
     });
 
     it("keeps the editor open when the author empties the title", async () => {

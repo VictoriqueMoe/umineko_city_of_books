@@ -1,4 +1,4 @@
-import type { Announcement, Art, Gallery, Post, SiteInfoSecret } from "../../types/api";
+import type { Announcement, Art, Gallery, PendingUpload, Post, SiteInfoSecret } from "../../types/api";
 import { makePublicUser } from "./user";
 
 export function makePost(overrides: Partial<Post> = {}): Post {
@@ -72,6 +72,16 @@ export function makeSiteSecret(overrides: Partial<SiteInfoSecret> = {}): SiteInf
         description: "Seek the key that opens the golden land.",
         solved: false,
         pieces: [],
+        ...overrides,
+    };
+}
+
+export function makePendingUpload(overrides: Partial<PendingUpload> = {}): PendingUpload {
+    return {
+        id: "upload-1",
+        media_type: "image",
+        filename: "butterfly.png",
+        status: "ready",
         ...overrides,
     };
 }

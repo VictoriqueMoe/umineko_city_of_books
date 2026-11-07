@@ -99,10 +99,6 @@ func (shipCommentQuerier) AuthorID(ctx context.Context, q *sqlcgen.Queries, id u
 	return q.GetShipCommentAuthorID(ctx, id)
 }
 
-func (shipCommentQuerier) MediaDir() string {
-	return "ships"
-}
-
 func (shipCommentQuerier) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
 	return q.GetShipCommentTargetOwner(ctx, target.ID)
 }
@@ -153,14 +149,6 @@ func (shipCommentQuerier) MediaBatch(ctx context.Context, q *sqlcgen.Queries, id
 	}
 
 	return out, nil
-}
-
-func (shipCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.UpdateShipCommentMediaURL(ctx, sqlcgen.UpdateShipCommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
-}
-
-func (shipCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.UpdateShipCommentMediaThumbnail(ctx, sqlcgen.UpdateShipCommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
 func (shipCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {

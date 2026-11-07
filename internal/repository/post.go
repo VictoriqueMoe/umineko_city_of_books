@@ -19,6 +19,7 @@ type (
 
 		RecordView(ctx context.Context, s spec.ViewRecord, tx ...*sql.Tx) (bool, error)
 		CreateWithDetails(ctx context.Context, post spec.NewPost, tx ...*sql.Tx) (*model.PostRow, error)
+		AttachMedia(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx) (*model.PostMediaRow, error)
 		UpdateWithDetails(ctx context.Context, update spec.PostUpdate, tx ...*sql.Tx) error
 		DeleteWithSharedContent(ctx context.Context, deletion spec.PostDelete, tx ...*sql.Tx) (*model.SharedContentRef, []string, error)
 		DeleteWithMedia(ctx context.Context, deletion spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error)
@@ -29,13 +30,30 @@ type (
 		db *sql.DB
 		dao.PostDAO
 		comments dao.CommentDAO
+		pending  dao.PendingUploadDAO
 		audit    AuditLogRepository
 		cache    *cache.Manager
 	}
 )
 
-func NewPostRepo(database *sql.DB, postDAO dao.PostDAO, comments dao.CommentDAO, auditLog AuditLogRepository, c *cache.Manager) PostRepository {
-	return &postRepository{db: database, PostDAO: postDAO, comments: comments, audit: auditLog, cache: c}
+func NewPostRepo(database *sql.DB, postDAO dao.PostDAO, comments dao.CommentDAO, pending dao.PendingUploadDAO, auditLog AuditLogRepository, c *cache.Manager) PostRepository {
+	return &postRepository{db: database, PostDAO: postDAO, comments: comments, pending: pending, audit: auditLog, cache: c}
+}
+
+func (r *postRepository) AttachMedia(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx) (*model.PostMediaRow, error) {
+	var attached *model.PostMediaRow
+
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
+		var err error
+		attached, err = attachMedia(ctx, r.pending, r.PostDAO.AddMedia, s, tx)
+
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return attached, nil
 }
 
 func (r *postRepository) GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (map[string]int, error) {
@@ -88,6 +106,15 @@ func (r *postRepository) CreateWithDetails(ctx context.Context, post spec.NewPos
 
 		created, err = r.PostDAO.Create(ctx, post, tx)
 		if err != nil {
+			return err
+		}
+
+		rows, err := claimMediaRows(ctx, r.pending, post.Media, tx)
+		if err != nil {
+			return err
+		}
+
+		if _, err := addMediaRows(ctx, r.PostDAO.AddMedia, created.ID, rows, tx); err != nil {
 			return err
 		}
 

@@ -99,10 +99,6 @@ func ({{.Recv}}) AuthorID(ctx context.Context, q *sqlcgen.Queries, id uuid.UUID)
 	return q.Get{{.Entity}}CommentAuthorID(ctx, id)
 }
 
-func ({{.Recv}}) MediaDir() string {
-	return "{{.MediaDir}}"
-}
-
 func ({{.Recv}}) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
 {{- if .ParentTable}}
 	return q.Get{{.Entity}}CommentTargetOwner(ctx, target.{{.TargetField}})
@@ -157,14 +153,6 @@ func ({{.Recv}}) MediaBatch(ctx context.Context, q *sqlcgen.Queries, ids []uuid.
 	}
 
 	return out, nil
-}
-
-func ({{.Recv}}) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.Update{{.Entity}}CommentMediaURL(ctx, sqlcgen.Update{{.Entity}}CommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
-}
-
-func ({{.Recv}}) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.Update{{.Entity}}CommentMediaThumbnail(ctx, sqlcgen.Update{{.Entity}}CommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
 func ({{.Recv}}) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {

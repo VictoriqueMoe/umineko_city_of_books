@@ -5,6 +5,7 @@ import { useScrollToHash } from "../../hooks/useScrollToHash";
 import { useOC } from "../../hooks/queries/oc";
 import { useFavouriteOC, useVoteOC } from "../../hooks/mutations/oc";
 import { useAuth } from "../../hooks/useAuth";
+import { contentPermissions } from "../../domain/contentPermissions";
 import { useCommentHandlers } from "../../hooks/useCommentHandlers";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -49,7 +50,7 @@ export function OCDetailPage() {
     }
 
     const seriesLabel = oc.series === "custom" ? (oc.custom_series_name ?? "Custom") : oc.series;
-    const isOwner = currentUser?.id === oc.author.id;
+    const { canEdit } = contentPermissions(currentUser, { family: "oc", authorId: oc.author.id });
 
     async function handleVote(value: number) {
         try {
@@ -117,7 +118,7 @@ export function OCDetailPage() {
                         >
                             {oc.user_favourited ? "♥" : "♡"} {oc.favourite_count}
                         </Button>
-                        {isOwner && (
+                        {canEdit && (
                             <Button variant="secondary" size="small" onClick={() => navigate(`/oc/${oc.id}/edit`)}>
                                 Edit
                             </Button>

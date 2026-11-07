@@ -4169,7 +4169,7 @@ func (_c *MockChatRepository_HasGhostMembers_Call) RunAndReturn(run func(ctx con
 }
 
 // InsertMessageAndMarkRead provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) InsertMessageAndMarkRead(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, error) {
+func (_mock *MockChatRepository) InsertMessageAndMarkRead(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, []dto.PostMediaResponse, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, s, tx)
@@ -4183,8 +4183,9 @@ func (_mock *MockChatRepository) InsertMessageAndMarkRead(ctx context.Context, s
 	}
 
 	var r0 *model.ChatMessageRow
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewChatMessage, ...*sql.Tx) (*model.ChatMessageRow, error)); ok {
+	var r1 []dto.PostMediaResponse
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewChatMessage, ...*sql.Tx) (*model.ChatMessageRow, []dto.PostMediaResponse, error)); ok {
 		return returnFunc(ctx, s, tx...)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewChatMessage, ...*sql.Tx) *model.ChatMessageRow); ok {
@@ -4194,12 +4195,19 @@ func (_mock *MockChatRepository) InsertMessageAndMarkRead(ctx context.Context, s
 			r0 = ret.Get(0).(*model.ChatMessageRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewChatMessage, ...*sql.Tx) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewChatMessage, ...*sql.Tx) []dto.PostMediaResponse); ok {
 		r1 = returnFunc(ctx, s, tx...)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]dto.PostMediaResponse)
+		}
 	}
-	return r0, r1
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.NewChatMessage, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, s, tx...)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
 }
 
 // MockChatRepository_InsertMessageAndMarkRead_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertMessageAndMarkRead'
@@ -4241,12 +4249,12 @@ func (_c *MockChatRepository_InsertMessageAndMarkRead_Call) Run(run func(ctx con
 	return _c
 }
 
-func (_c *MockChatRepository_InsertMessageAndMarkRead_Call) Return(chatMessageRow *model.ChatMessageRow, err error) *MockChatRepository_InsertMessageAndMarkRead_Call {
-	_c.Call.Return(chatMessageRow, err)
+func (_c *MockChatRepository_InsertMessageAndMarkRead_Call) Return(chatMessageRow *model.ChatMessageRow, postMediaResponses []dto.PostMediaResponse, err error) *MockChatRepository_InsertMessageAndMarkRead_Call {
+	_c.Call.Return(chatMessageRow, postMediaResponses, err)
 	return _c
 }
 
-func (_c *MockChatRepository_InsertMessageAndMarkRead_Call) RunAndReturn(run func(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, error)) *MockChatRepository_InsertMessageAndMarkRead_Call {
+func (_c *MockChatRepository_InsertMessageAndMarkRead_Call) RunAndReturn(run func(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, []dto.PostMediaResponse, error)) *MockChatRepository_InsertMessageAndMarkRead_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -6899,150 +6907,6 @@ func (_c *MockChatRepository_UpdateGroupRoom_Call) Return(err error) *MockChatRe
 }
 
 func (_c *MockChatRepository_UpdateGroupRoom_Call) RunAndReturn(run func(ctx context.Context, s spec.UpdateChatRoom, tx ...*sql.Tx) error) *MockChatRepository_UpdateGroupRoom_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateMessageMediaThumbnail provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) UpdateMessageMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, s, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, s)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateMessageMediaThumbnail")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, s, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockChatRepository_UpdateMessageMediaThumbnail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateMessageMediaThumbnail'
-type MockChatRepository_UpdateMessageMediaThumbnail_Call struct {
-	*mock.Call
-}
-
-// UpdateMessageMediaThumbnail is a helper method to define mock.On call
-//   - ctx context.Context
-//   - s spec.MediaURLUpdate
-//   - tx ...*sql.Tx
-func (_e *MockChatRepository_Expecter) UpdateMessageMediaThumbnail(ctx any, s any, tx ...any) *MockChatRepository_UpdateMessageMediaThumbnail_Call {
-	return &MockChatRepository_UpdateMessageMediaThumbnail_Call{Call: _e.mock.On("UpdateMessageMediaThumbnail",
-		append([]any{ctx, s}, tx...)...)}
-}
-
-func (_c *MockChatRepository_UpdateMessageMediaThumbnail_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockChatRepository_UpdateMessageMediaThumbnail_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.MediaURLUpdate
-		if args[1] != nil {
-			arg1 = args[1].(spec.MediaURLUpdate)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockChatRepository_UpdateMessageMediaThumbnail_Call) Return(err error) *MockChatRepository_UpdateMessageMediaThumbnail_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockChatRepository_UpdateMessageMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockChatRepository_UpdateMessageMediaThumbnail_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateMessageMediaURL provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) UpdateMessageMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, s, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, s)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateMessageMediaURL")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, s, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockChatRepository_UpdateMessageMediaURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateMessageMediaURL'
-type MockChatRepository_UpdateMessageMediaURL_Call struct {
-	*mock.Call
-}
-
-// UpdateMessageMediaURL is a helper method to define mock.On call
-//   - ctx context.Context
-//   - s spec.MediaURLUpdate
-//   - tx ...*sql.Tx
-func (_e *MockChatRepository_Expecter) UpdateMessageMediaURL(ctx any, s any, tx ...any) *MockChatRepository_UpdateMessageMediaURL_Call {
-	return &MockChatRepository_UpdateMessageMediaURL_Call{Call: _e.mock.On("UpdateMessageMediaURL",
-		append([]any{ctx, s}, tx...)...)}
-}
-
-func (_c *MockChatRepository_UpdateMessageMediaURL_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockChatRepository_UpdateMessageMediaURL_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.MediaURLUpdate
-		if args[1] != nil {
-			arg1 = args[1].(spec.MediaURLUpdate)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockChatRepository_UpdateMessageMediaURL_Call) Return(err error) *MockChatRepository_UpdateMessageMediaURL_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockChatRepository_UpdateMessageMediaURL_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockChatRepository_UpdateMessageMediaURL_Call {
 	_c.Call.Return(run)
 	return _c
 }

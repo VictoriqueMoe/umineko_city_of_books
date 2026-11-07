@@ -173,3 +173,17 @@ func CreateSession(t *testing.T, repos *repository.Repositories, userID uuid.UUI
 	require.NoError(t, repos.Session.Create(context.Background(), spec.NewSession{Token: token, UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}))
 	return token
 }
+
+func ReadyUpload(t *testing.T, repos *repository.Repositories, userID uuid.UUID, mediaType string, url string) uuid.UUID {
+	t.Helper()
+
+	id := uuid.New()
+	ctx := context.Background()
+	require.NoError(t, repos.PendingUpload.Insert(ctx, spec.NewPendingUpload{ID: id, UserID: userID, MediaType: mediaType, Filename: "file-" + id.String()[:8], FileSize: 10}))
+
+	marked, err := repos.PendingUpload.MarkReady(ctx, spec.ProcessedUpload{ID: id, MediaURL: url, Width: 4, Height: 3})
+	require.NoError(t, err)
+	require.True(t, marked)
+
+	return id
+}

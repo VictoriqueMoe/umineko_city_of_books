@@ -21,7 +21,7 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 	if err != nil {
 		return err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return ErrNotAuthor
 	}
 
@@ -182,7 +182,7 @@ func (s *service) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID
 	if err != nil {
 		return err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return ErrNotAuthor
 	}
 

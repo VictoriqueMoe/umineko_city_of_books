@@ -2,7 +2,6 @@ package media
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -22,10 +21,6 @@ const (
 	ffmpegCRF       = "28"
 	imageJobTimeout = 2 * time.Minute
 	videoJobTimeout = 10 * time.Minute
-)
-
-var (
-	ErrShuttingDown = errors.New("media processor shutting down")
 )
 
 type (

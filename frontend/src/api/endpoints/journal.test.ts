@@ -1,9 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, vi } from "vitest";
 import * as api from "./journal";
 import {
     deleteMock,
     fetchMock,
-    postFormDataMock,
     postMock,
     putMock,
     resetTransports,
@@ -79,7 +78,7 @@ describe("the journal API", () => {
             name: "createJournalEntry posts the entry to the journal's entry collection",
             call: () => api.createJournalEntry("j-1", entryPayload),
             transport: postMock,
-            request: ["/journals/j-1/entries", entryPayload],
+            request: ["/journals/j-1/entries", { ...entryPayload, media: [] }],
         },
         {
             name: "updateJournalEntry puts the entry back on the flat entry path",
@@ -98,62 +97,36 @@ describe("the journal API", () => {
     runRequestCases(cases);
 });
 
-describe("journal entry media uploads", () => {
-    it("uploadJournalEntryMedia posts the file under the media field", async () => {
-        // given
-        const file = new File(["x"], "entry.png", { type: "image/png" });
-
-        // when
-        await api.uploadJournalEntryMedia("e-1", file);
-
-        // then
-        const formData = postFormDataMock.mock.calls[0][1];
-        expect(postFormDataMock.mock.calls[0][0]).toBe("/journal-entries/e-1/media");
-        expect(formData.get("media")).toBe(file);
-    });
-});
-
-describe("creating journal content with media", () => {
+describe("journal media", () => {
     const entryPayload = { title: "first twilight", body: "six chosen by the key", is_draft: false };
+    const media = [{ upload_id: "upload-1", is_spoiler: true }];
 
-    it("createJournalEntry sends the entry and every file in one multipart request", async () => {
-        // given
-        const file = new File(["x"], "entry.png", { type: "image/png" });
+    const cases: RequestCase[] = [
+        {
+            name: "attachJournalEntryMedia posts the finished upload to the entry",
+            call: () => api.attachJournalEntryMedia("e-1", media[0]),
+            transport: postMock,
+            request: ["/journal-entries/e-1/media", media[0]],
+        },
+        {
+            name: "createJournalEntry sends the entry and its finished uploads in one JSON request",
+            call: () => api.createJournalEntry("j-1", entryPayload, media),
+            transport: postMock,
+            request: ["/journals/j-1/entries", { ...entryPayload, media }],
+        },
+        {
+            name: "createJournalEntry sends an empty media list when nothing is attached",
+            call: () => api.createJournalEntry("j-1", entryPayload),
+            transport: postMock,
+            request: ["/journals/j-1/entries", { ...entryPayload, media: [] }],
+        },
+        {
+            name: "createJournalComment sends an entry comment and its finished uploads in one JSON request",
+            call: () => api.createJournalComment("j-1", "", undefined, "e-1", media),
+            transport: postMock,
+            request: ["/journals/j-1/comments", { body: "", parent_id: undefined, entry_id: "e-1", media }],
+        },
+    ];
 
-        // when
-        await api.createJournalEntry("j-1", entryPayload, [{ file, isSpoiler: true }]);
-
-        // then
-        expect(postMock).not.toHaveBeenCalled();
-        const [path, formData] = postFormDataMock.mock.calls[0];
-        expect(path).toBe("/journals/j-1/entries");
-        expect(JSON.parse(formData.get("payload") as string)).toEqual(entryPayload);
-        expect(formData.getAll("media")).toEqual([file]);
-        expect(formData.get("spoiler_indexes")).toBe("0");
-    });
-
-    it("createJournalEntry keeps the JSON body when no file is staged", async () => {
-        // when
-        await api.createJournalEntry("j-1", entryPayload, []);
-
-        // then
-        expect(postFormDataMock).not.toHaveBeenCalled();
-        expect(postMock).toHaveBeenCalledWith("/journals/j-1/entries", entryPayload);
-    });
-
-    it("createJournalComment sends an entry comment and its files in one multipart request", async () => {
-        // given
-        const file = new File(["x"], "comment.png", { type: "image/png" });
-
-        // when
-        await api.createJournalComment("j-1", "", undefined, "e-1", [{ file, isSpoiler: false }]);
-
-        // then
-        expect(postMock).not.toHaveBeenCalled();
-        const [path, formData] = postFormDataMock.mock.calls[0];
-        expect(path).toBe("/journals/j-1/comments");
-        expect(JSON.parse(formData.get("payload") as string)).toEqual({ body: "", entry_id: "e-1" });
-        expect(formData.getAll("media")).toEqual([file]);
-        expect(formData.has("spoiler_indexes")).toBe(false);
-    });
+    runRequestCases(cases);
 });

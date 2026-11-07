@@ -1,7 +1,7 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makePost as makeContentPost, makeUser } from "../../../test-utils/fixtures";
+import { makePost as makeContentPost, makePendingUpload, makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import { emitRealtimeEvent } from "../../../test-utils/ws";
 import type { LinkPreview, Poll, Post, PostMedia, SharedContentPreview, User, UserProfile } from "../../../types/api";
@@ -12,7 +12,10 @@ const mocks = vi.hoisted(() => ({
     unlike: vi.fn(),
     deletePost: vi.fn(),
     updatePost: vi.fn(),
-    uploadPostMedia: vi.fn(),
+    attachPostMedia: vi.fn(),
+    beginUpload: vi.fn(),
+    removeUpload: vi.fn(),
+    uploadStatuses: vi.fn(),
     deletePostMedia: vi.fn(),
     createPost: vi.fn(),
     createComment: vi.fn(),
@@ -28,11 +31,17 @@ vi.mock("../../../hooks/mutations/post", () => ({
     useUnlikePost: () => ({ mutateAsync: mocks.unlike }),
     useDeletePost: () => ({ mutateAsync: mocks.deletePost, isPending: false }),
     useUpdatePost: () => ({ mutateAsync: mocks.updatePost }),
-    useUploadPostMedia: () => ({ mutateAsync: mocks.uploadPostMedia }),
+    useAttachPostMedia: () => ({ mutateAsync: mocks.attachPostMedia }),
     useDeletePostMedia: () => ({ mutateAsync: mocks.deletePostMedia }),
     useCreatePost: () => ({ mutateAsync: mocks.createPost }),
     useCreateComment: () => ({ mutateAsync: mocks.createComment }),
     useVotePoll: () => ({ mutateAsync: mocks.votePoll }),
+}));
+
+vi.mock("../../../hooks/mutations/uploads", () => ({
+    useBeginUpload: () => ({ mutateAsync: mocks.beginUpload }),
+    useRemoveUpload: () => ({ mutateAsync: mocks.removeUpload }),
+    useUploadStatuses: () => ({ mutateAsync: mocks.uploadStatuses }),
 }));
 
 vi.mock("../../../hooks/mutations/report", () => ({
@@ -100,7 +109,10 @@ beforeEach(() => {
     mocks.deletePost.mockResolvedValue(undefined);
     mocks.updatePost.mockResolvedValue(undefined);
     mocks.deletePostMedia.mockResolvedValue(undefined);
-    mocks.uploadPostMedia.mockResolvedValue(makeMedia(9));
+    mocks.attachPostMedia.mockResolvedValue(makeMedia(9));
+    mocks.beginUpload.mockResolvedValue(makePendingUpload());
+    mocks.removeUpload.mockResolvedValue(undefined);
+    mocks.uploadStatuses.mockResolvedValue([]);
     mocks.createComment.mockResolvedValue({ id: "comment-1" });
     previews.byURL.clear();
 });
@@ -442,7 +454,7 @@ describe("PostCard", () => {
         expect(container.querySelectorAll("img")).toHaveLength(0);
     });
 
-    it("adds freshly uploaded media to the editor", async () => {
+    it("attaches a picked file to the post once its upload is ready and shows it in the editor", async () => {
         // given
         const testUser = userEvent.setup();
         const { container } = renderCard(makePost(), { user: ownerProfile });
@@ -453,8 +465,10 @@ describe("PostCard", () => {
         fireEvent.change(input, { target: { files: [new File(["x"], "beato.png", { type: "image/png" })] } });
 
         // then
+        await waitFor(() =>
+            expect(mocks.attachPostMedia).toHaveBeenCalledExactlyOnceWith({ upload_id: "upload-1", is_spoiler: false }),
+        );
         expect(await screen.findByRole("button", { name: "×" })).toBeInTheDocument();
-        expect(mocks.uploadPostMedia).toHaveBeenCalledOnce();
     });
 
     it("shows the view count only once somebody has read the post", () => {

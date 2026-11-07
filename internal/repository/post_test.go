@@ -37,7 +37,7 @@ func newCachedPostRepo(t *testing.T) (PostRepository, *dao.MockPostDAO, *dao.Moc
 	comments := dao.NewMockCommentDAO(t)
 	audit := NewMockAuditLogRepository(t)
 
-	return NewPostRepo(nil, postDAO, comments, audit, cache.NewManager(engines.NewValkeyWithClient(client))), postDAO, comments, audit, client
+	return NewPostRepo(nil, postDAO, comments, dao.NewMockPendingUploadDAO(t), audit, cache.NewManager(engines.NewValkeyWithClient(client))), postDAO, comments, audit, client
 }
 
 func cachedCornerCounts(payload string) func(cmd valkey.Completed) valkey.ValkeyResult {

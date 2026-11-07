@@ -190,13 +190,13 @@ func (s *service) deliver(ctx context.Context, j job, body string) error {
 			parentID = new(j.ev.ItemID)
 		}
 
-		_, err := s.postSvc.CreateComment(ctx, j.ev.ScopeID, j.bot.UserID, dto.CreateCommentRequest{Body: body, ParentID: parentID}, nil)
+		_, err := s.postSvc.CreateComment(ctx, j.ev.ScopeID, j.bot.UserID, dto.CreateCommentRequest{Body: body, ParentID: parentID})
 
 		return err
 	}
 
 	replyTo := new(j.ev.ItemID)
-	_, err := s.chatSvc.SendMessage(ctx, j.bot.UserID, j.ev.ScopeID, dto.SendMessageRequest{Body: body, ReplyToID: replyTo}, nil)
+	_, err := s.chatSvc.SendMessage(ctx, j.bot.UserID, j.ev.ScopeID, dto.SendMessageRequest{Body: body, ReplyToID: replyTo})
 
 	return err
 }

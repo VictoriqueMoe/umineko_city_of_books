@@ -86,7 +86,6 @@ const (
 	requestTimeout       = 60 * time.Second
 	settingsTimeout      = 10 * time.Second
 	defaultRateLimitHold = time.Minute
-	maxErrorBodyBytes    = 512
 	costsBucketLimit     = 180
 	chatbotKeyPrefix     = "chatbot_"
 
@@ -372,19 +371,14 @@ func errorHeader(apiErr *sdk.Error) http.Header {
 
 func errorBody(apiErr *sdk.Error) string {
 	if apiErr.Response != nil && apiErr.Response.Body != nil {
-		raw, err := io.ReadAll(io.LimitReader(apiErr.Response.Body, maxErrorBodyBytes))
+		raw, err := io.ReadAll(apiErr.Response.Body)
 
 		if err == nil && len(raw) > 0 {
 			return string(raw)
 		}
 	}
 
-	body := apiErr.RawJSON()
-	if len(body) > maxErrorBodyBytes {
-		return body[:maxErrorBodyBytes]
-	}
-
-	return body
+	return apiErr.RawJSON()
 }
 
 func (s *service) tripRateLimit(ctx context.Context, resetAt time.Time) time.Time {

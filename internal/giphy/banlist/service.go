@@ -2,7 +2,6 @@ package banlist
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -41,11 +40,6 @@ type (
 		gifs  map[string]struct{}
 		users map[string]struct{}
 	}
-)
-
-var (
-	ErrInvalidKind   = errors.New("invalid kind")
-	ErrValueRequired = errors.New("value required")
 )
 
 func NewService(ctx context.Context, repo repository.BannedGiphyRepository) (Service, error) {

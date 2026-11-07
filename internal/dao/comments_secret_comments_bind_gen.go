@@ -99,10 +99,6 @@ func (secretCommentQuerier) AuthorID(ctx context.Context, q *sqlcgen.Queries, id
 	return q.GetSecretCommentAuthorID(ctx, id)
 }
 
-func (secretCommentQuerier) MediaDir() string {
-	return "secrets"
-}
-
 func (secretCommentQuerier) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
 	return uuid.Nil, nil
 }
@@ -153,14 +149,6 @@ func (secretCommentQuerier) MediaBatch(ctx context.Context, q *sqlcgen.Queries, 
 	}
 
 	return out, nil
-}
-
-func (secretCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.UpdateSecretCommentMediaURL(ctx, sqlcgen.UpdateSecretCommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
-}
-
-func (secretCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.UpdateSecretCommentMediaThumbnail(ctx, sqlcgen.UpdateSecretCommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
 func (secretCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {

@@ -1,6 +1,8 @@
 import React, { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useAuth } from "../../hooks/useAuth";
+import { contentPermissions } from "../../domain/contentPermissions";
 import { useOC } from "../../hooks/queries/oc";
 import {
     useAddOCGalleryImage,
@@ -37,6 +39,8 @@ interface PendingGalleryImage {
 
 function OCForm({ editing, initial, id }: FormProps) {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const { canDelete } = contentPermissions(user, { family: "oc", authorId: initial?.author.id ?? "" });
     const [name, setName] = useState(initial?.name ?? "");
     const [description, setDescription] = useState(initial?.description ?? "");
     const [series, setSeries] = useState(initial?.series ?? "umineko");
@@ -366,7 +370,7 @@ function OCForm({ editing, initial, id }: FormProps) {
                     <Button variant="primary" onClick={handleSubmit} disabled={submitting}>
                         {submitting ? "Saving..." : editing ? "Save changes" : "Create OC"}
                     </Button>
-                    {editing && (
+                    {editing && canDelete && (
                         <Button variant="danger" onClick={handleDelete}>
                             Delete OC
                         </Button>

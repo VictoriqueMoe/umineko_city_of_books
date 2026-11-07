@@ -20,6 +20,7 @@ import {
     removeChatMessageReaction,
     sendChatMessage,
     sendFirstDMMessage,
+    type SendMessagePayload,
     setChatRoomMemberNickname,
     setChatRoomMemberTimeout,
     setChatRoomMuted,
@@ -258,14 +259,9 @@ export function useInviteChatRoomMembers(roomId: string) {
     });
 }
 
-export interface SendChatMessageInput {
+export type SendChatMessageInput = SendMessagePayload & {
     roomId: string;
-    body: string;
-    reply_to_id?: string;
-    files?: File[];
-    spoilers?: boolean[];
-    client_nonce?: string;
-}
+};
 
 export function useSendChatMessage() {
     return useMutation({
@@ -273,13 +269,9 @@ export function useSendChatMessage() {
     });
 }
 
-export interface SendFirstDMMessageInput {
+export type SendFirstDMMessageInput = Omit<SendMessagePayload, "reply_to_id"> & {
     recipientId: string;
-    body: string;
-    files?: File[];
-    spoilers?: boolean[];
-    client_nonce?: string;
-}
+};
 
 export function useSendFirstDMMessage() {
     return useMutation({

@@ -7,7 +7,7 @@ import {
     unlikeShipComment,
     updateShipComment,
 } from "../../api/endpoints/comments";
-import type { MediaUpload, ShipCharacter } from "../../types/api";
+import type { UploadRef, ShipCharacter } from "../../types/api";
 import { invalidateViews } from "../../api/cache/invalidate";
 import { commentMutations } from "./comments";
 
@@ -54,7 +54,7 @@ export function useVoteShip(id: string) {
 export function useCreateShipComment(shipId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly MediaUpload[] }) =>
+        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly UploadRef[] }) =>
             createShipComment(shipId, body, parentId, media),
         onSuccess: () => invalidateViews(qc, "ship"),
     });

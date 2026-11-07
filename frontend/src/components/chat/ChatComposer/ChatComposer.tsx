@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Button } from "../../Button/Button";
 import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
 import { MentionTextArea, type MentionTextAreaHandle } from "../../MentionTextArea/MentionTextArea";
@@ -6,6 +6,8 @@ import type { ChatSender, DraftSender } from "../../../hooks/chat/useOptimisticS
 import { useIsMobile } from "../../../hooks/useIsMobile";
 import { useResetOnChange } from "../../../hooks/useResetOnChange";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
+import { type StagedAttachment, useStagedMedia } from "../../../hooks/useStagedMedia";
+import { useWarnBeforeLeaving } from "../../../hooks/useWarnBeforeLeaving";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { formatFullDateTime, parseServerDate } from "../../../utils/time";
 import type { OutgoingAttachment } from "../../../domain/chat/optimisticSend";
@@ -53,8 +55,8 @@ interface ChatComposerProps {
 
 const TYPING_THROTTLE_MS = 2500;
 
-function toOutgoingAttachments(files: File[]): OutgoingAttachment[] {
-    return files.map(file => ({ file, spoiler: false }));
+function toOutgoingAttachments(items: StagedAttachment[]): OutgoingAttachment[] {
+    return items.map(item => ({ file: item.file, spoiler: item.isSpoiler, uploadId: item.uploadId as string }));
 }
 
 function targetKey(target: ComposerTarget | null): string | null {
@@ -102,8 +104,10 @@ export function ChatComposer({
     const isMobile = useIsMobile();
     const siteInfo = useSiteInfo();
     const [body, setBody] = useState("");
-    const [attachments, setAttachments] = useState<OutgoingAttachment[]>([]);
+    const media = useStagedMedia();
+    const { add: addMedia, reset: resetMedia, files } = media;
     const [error, setError] = useState("");
+    useWarnBeforeLeaving(media.busy);
 
     useEffect(() => {
         const reseed = setTimeout(() => setNowTick(Date.now()), 0);
@@ -124,7 +128,7 @@ export function ChatComposer({
 
     useResetOnChange(targetKey(target), () => {
         setBody("");
-        setAttachments([]);
+        resetMedia();
         setError("");
         setGifPickerOpen(false);
     });
@@ -151,17 +155,6 @@ export function ChatComposer({
         [onTyping],
     );
 
-    const files = useMemo(() => attachments.map(a => a.file), [attachments]);
-    const spoilers = useMemo(() => attachments.map(a => a.spoiler), [attachments]);
-
-    function removeFile(index: number) {
-        setAttachments(prev => prev.filter((_, i) => i !== index));
-    }
-
-    function toggleSpoiler(index: number) {
-        setAttachments(prev => prev.map((a, i) => (i === index ? { ...a, spoiler: !a.spoiler } : a)));
-    }
-
     const handlePasteFiles = useCallback(
         (pasted: File[]) => {
             const errors: string[] = [];
@@ -183,15 +176,15 @@ export function ChatComposer({
                 setError(errors.join(" "));
             }
             if (valid.length > 0) {
-                setAttachments(prev => [...prev, ...toOutgoingAttachments(valid)]);
+                addMedia(valid);
             }
         },
-        [siteInfo.max_image_size, siteInfo.max_video_size, siteInfo.max_audio_size],
+        [addMedia, siteInfo.max_image_size, siteInfo.max_video_size, siteInfo.max_audio_size],
     );
 
     function clearDraft() {
         setBody("");
-        setAttachments([]);
+        resetMedia();
         if (onCancelReply) {
             onCancelReply();
         }
@@ -210,12 +203,15 @@ export function ChatComposer({
     }
 
     function handleSubmit() {
-        const trimmed = body.trim();
-        if (!target || (!trimmed && attachments.length === 0)) {
+        if (!target || !canSend) {
             return;
         }
 
-        target.sender.send({ body: trimmed, replyTo: replyingTo ?? null, attachments });
+        target.sender.send({
+            body: body.trim(),
+            replyTo: replyingTo ?? null,
+            attachments: toOutgoingAttachments(media.items),
+        });
         clearDraft();
     }
 
@@ -246,7 +242,7 @@ export function ChatComposer({
         handleSubmit();
     }
 
-    const canSend = body.trim().length > 0 || files.length > 0;
+    const canSend = media.ready && (body.trim().length > 0 || files.length > 0);
     const showToolbarItems = !compact || toolbarOpen;
     const placeholder =
         sendOnEnter && !isMobile ? "Type a message... (Enter to send, Shift+Enter for newline)" : "Type a message...";
@@ -284,9 +280,10 @@ export function ChatComposer({
                 <div className={styles.previews}>
                     <MediaPreviews
                         files={files}
-                        onRemove={removeFile}
-                        spoilers={spoilers}
-                        onToggleSpoiler={toggleSpoiler}
+                        onRemove={media.remove}
+                        spoilers={media.spoilers}
+                        onToggleSpoiler={media.toggleSpoiler}
+                        progress={media.progress}
                         size="small"
                     />
                 </div>
@@ -319,10 +316,7 @@ export function ChatComposer({
                 )}
                 {showToolbarItems && (
                     <>
-                        <MediaPickerButton
-                            onFiles={valid => setAttachments(prev => [...prev, ...toOutgoingAttachments(valid)])}
-                            onError={setError}
-                        />
+                        <MediaPickerButton onFiles={addMedia} onError={setError} />
                         <div className={styles.gifAnchor}>
                             <Button variant="ghost" size="small" onClick={() => setGifPickerOpen(prev => !prev)}>
                                 + GIF

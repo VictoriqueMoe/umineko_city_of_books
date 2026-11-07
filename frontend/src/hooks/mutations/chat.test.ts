@@ -458,7 +458,7 @@ describe("useSendChatMessage", () => {
     it("carries the reply target, the attachments and the client nonce through untouched", async () => {
         // given
         const { wrapper } = harness();
-        const file = makeFile("catbox.png");
+        const media = [{ upload_id: "upload-1", is_spoiler: false }];
         const { result } = renderHook(() => useSendChatMessage(), { wrapper });
 
         // when
@@ -467,7 +467,7 @@ describe("useSendChatMessage", () => {
                 roomId,
                 body: "a reply",
                 reply_to_id: messageId,
-                files: [file],
+                media,
                 client_nonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0",
             });
         });
@@ -476,7 +476,7 @@ describe("useSendChatMessage", () => {
         expect(mocks.sendChatMessage).toHaveBeenCalledWith(roomId, {
             body: "a reply",
             reply_to_id: messageId,
-            files: [file],
+            media,
             client_nonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0",
         });
     });
@@ -497,7 +497,7 @@ describe("useSendChatMessage", () => {
 });
 
 describe("useSendFirstDMMessage", () => {
-    it("sends the recipient, the body and no files when none were picked", async () => {
+    it("sends the recipient, the body and no media when none were picked", async () => {
         // given
         const { wrapper } = harness();
         mocks.sendFirstDMMessage.mockResolvedValue({ room: { id: roomId }, message: { id: messageId } });
@@ -531,18 +531,18 @@ describe("useSendFirstDMMessage", () => {
     it("returns the freshly created room together with the message", async () => {
         // given
         const { wrapper } = harness();
-        const file = makeFile("gift.png");
+        const media = [{ upload_id: "upload-1", is_spoiler: false }];
         mocks.sendFirstDMMessage.mockResolvedValue({ room: { id: roomId }, message: { id: messageId } });
         const { result } = renderHook(() => useSendFirstDMMessage(), { wrapper });
 
         // when
         let sent: { room: { id: string }; message: { id: string } } | undefined;
         await act(async () => {
-            sent = await result.current.mutateAsync({ recipientId: userId, body: "a gift", files: [file] });
+            sent = await result.current.mutateAsync({ recipientId: userId, body: "a gift", media });
         });
 
         // then
-        expect(mocks.sendFirstDMMessage).toHaveBeenCalledWith(userId, { body: "a gift", files: [file] });
+        expect(mocks.sendFirstDMMessage).toHaveBeenCalledWith(userId, { body: "a gift", media });
         expect(sent).toEqual({ room: { id: roomId }, message: { id: messageId } });
     });
 });

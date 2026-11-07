@@ -27,13 +27,19 @@ func messageRowIDs(rows []model.ChatMessageRow) []uuid.UUID {
 	return ids
 }
 
+func insertMessageDroppingMedia(repo repository.ChatRepository, ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, error) {
+	msg, _, err := repo.InsertMessageAndMarkRead(ctx, s, tx...)
+
+	return msg, err
+}
+
 func TestChatDAO_InsertMessage(t *testing.T) {
 	tests := []struct {
 		name       string
 		insert     func(repository.ChatRepository, context.Context, spec.NewChatMessage, ...*sql.Tx) (*model.ChatMessageRow, error)
 		wantSystem bool
 	}{
-		{name: "a plain message is stored unflagged, readable through every lookup, and stamps room activity", insert: repository.ChatRepository.InsertMessageAndMarkRead, wantSystem: false},
+		{name: "a plain message is stored unflagged, readable through every lookup, and stamps room activity", insert: insertMessageDroppingMedia, wantSystem: false},
 		{name: "a system message is stored flagged, readable through every lookup, and stamps room activity", insert: repository.ChatRepository.InsertSystemMessage, wantSystem: true},
 	}
 
@@ -103,7 +109,7 @@ func TestChatDAO_InsertMessage_ClientNonce(t *testing.T) {
 			sender := daotest.CreateUser(t, repos)
 			other := daotest.CreateUser(t, repos)
 			roomID := daotest.CreateChatRoom(t, repos, sender.ID, daotest.WithRoomMembers(sender.ID, other.ID))
-			first, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: sender.ID, Body: "hello", ClientNonce: tc.firstNonce})
+			first, _, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: sender.ID, Body: "hello", ClientNonce: tc.firstNonce})
 			require.NoError(t, err)
 
 			secondSender := sender.ID
@@ -112,7 +118,7 @@ func TestChatDAO_InsertMessage_ClientNonce(t *testing.T) {
 			}
 
 			// when
-			second, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: secondSender, Body: "hello", ClientNonce: tc.secondNonce})
+			second, _, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: secondSender, Body: "hello", ClientNonce: tc.secondNonce})
 
 			// then
 			replay, isReplay := errors.AsType[*daoerr.ChatMessageReplayError](err)
@@ -163,7 +169,7 @@ func TestChatDAO_InsertMessage_ReplyPreview(t *testing.T) {
 			parentID := daotest.SendChatMessage(t, repos, roomID, parentAuthor.ID, "parent")
 
 			// when
-			reply, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: replier.ID, Body: "reply", ReplyToID: &parentID})
+			reply, _, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: replier.ID, Body: "reply", ReplyToID: &parentID})
 
 			// then
 			require.NoError(t, err)

@@ -4,7 +4,7 @@ import { useDeleteComment, useLikeComment, useUnlikeComment, useUpdateComment } 
 import { useAuth } from "../../../hooks/useAuth";
 import type { CreateCommentHandler } from "../../../hooks/useCommentHandlers";
 import { useSyncedState } from "../../../hooks/useResetOnChange";
-import { can } from "../../../domain/permissions";
+import { contentPermissions } from "../../../domain/contentPermissions";
 import { extractGif } from "../../../utils/gif";
 import { isSubmitShortcut } from "../../../utils/submitShortcut";
 import { renderRich } from "../../richText/richText";
@@ -69,8 +69,10 @@ function SingleComment({
     const highlighted = highlightedId === comment.id;
     const { user } = useAuth();
     const isOwner = user?.id === comment.author.id;
-    const canEditComment = isOwner || can(user, "edit_any_comment");
-    const canDeleteComment = isOwner || can(user, "delete_any_comment");
+    const { canEdit: canEditComment, canDelete: canDeleteComment } = contentPermissions(user, {
+        family: "comment",
+        authorId: comment.author.id,
+    });
 
     const likeMutation = useLikeComment(postId);
     const unlikeMutation = useUnlikeComment(postId);

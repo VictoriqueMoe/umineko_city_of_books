@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { makeChatMessage, makePendingSend, makePublicUser } from "../../test-utils/fixtures";
 import {
     addPendingSend,
+    attachmentRefs,
     createClientNonce,
     createPendingSend,
     deliveredNonce,
@@ -57,7 +58,7 @@ describe("createPendingSend", () => {
         const pending = createPendingSend({
             nonce: NONCE_A,
             thread: ROOM_ONE,
-            outgoing: { body: "I deny it", replyTo, attachments: [{ file, spoiler: true }] },
+            outgoing: { body: "I deny it", replyTo, attachments: [{ file, spoiler: true, uploadId: "upload-1" }] },
             previewUrls: ["blob:preview-1"],
             createdAt: "2026-10-16T10:00:00.000Z",
         });
@@ -68,11 +69,33 @@ describe("createPendingSend", () => {
             thread: ROOM_ONE,
             body: "I deny it",
             replyTo,
-            attachments: [{ file, spoiler: true, previewUrl: "blob:preview-1" }],
+            attachments: [{ file, spoiler: true, uploadId: "upload-1", previewUrl: "blob:preview-1" }],
             createdAt: "2026-10-16T10:00:00.000Z",
             delivery: "sending",
             error: null,
         });
+    });
+});
+
+describe("attachmentRefs", () => {
+    it("turns each attachment into its finished upload reference, keeping order and spoiler flags", () => {
+        // given
+        const pending = makePendingSend({
+            nonce: NONCE_A,
+            attachments: [
+                { file: new File(["a"], "a.png"), spoiler: false, uploadId: "upload-1", previewUrl: "blob:a" },
+                { file: new File(["b"], "b.png"), spoiler: true, uploadId: "upload-2", previewUrl: "blob:b" },
+            ],
+        });
+
+        // when
+        const refs = attachmentRefs(pending);
+
+        // then
+        expect(refs).toEqual([
+            { upload_id: "upload-1", is_spoiler: false },
+            { upload_id: "upload-2", is_spoiler: true },
+        ]);
     });
 });
 
@@ -466,8 +489,8 @@ describe("pendingPreview", () => {
             body: "look",
             replyTo: { id: "m-earlier", senderName: "Battler", body: "an earlier claim" },
             attachments: [
-                { file: image, spoiler: false, previewUrl: "blob:image" },
-                { file: clip, spoiler: true, previewUrl: "blob:clip" },
+                { file: image, spoiler: false, uploadId: "upload-1", previewUrl: "blob:image" },
+                { file: clip, spoiler: true, uploadId: "upload-2", previewUrl: "blob:clip" },
             ],
         });
 

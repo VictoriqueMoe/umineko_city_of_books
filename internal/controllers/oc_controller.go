@@ -57,7 +57,7 @@ func (s *Service) setupUploadOCImage(r fiber.Router) {
 }
 
 func (s *Service) setupAddOCGalleryImage(r fiber.Router) {
-	r.Post("/ocs/:id/gallery", s.requireAuth(), s.addOCGalleryImage)
+	r.Post("/ocs/:id/gallery", s.requireAuth(), s.requireEstablished(), s.addOCGalleryImage)
 }
 
 func (s *Service) setupUpdateOCGalleryImage(r fiber.Router) {
@@ -217,17 +217,13 @@ func (s *Service) uploadOCImage(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	file, err := ctx.FormFile("image")
+	file, err := utils.ReceiveFile(ctx, s.UploadService, "image")
 	if err != nil {
-		return utils.BadRequest(ctx, "no image file provided")
+		return utils.UploadFailed(ctx, err)
 	}
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file", err)
-	}
-	defer reader.Close()
+	defer file.Close()
 
-	url, err := s.OCService.UploadOCImage(ctx.Context(), ocID, userID, file.Header.Get("Content-Type"), file.Size, reader)
+	url, err := s.OCService.UploadOCImage(ctx.Context(), ocID, userID, file.ContentType, file.Size, file)
 	if err != nil {
 		return ocImageError(ctx, err, "failed to upload image")
 	}
@@ -241,18 +237,13 @@ func (s *Service) addOCGalleryImage(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	file, err := ctx.FormFile("image")
+	file, err := utils.ReceiveFile(ctx, s.UploadService, "image")
 	if err != nil {
-		return utils.BadRequest(ctx, "no image file provided")
+		return utils.UploadFailed(ctx, err)
 	}
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file", err)
-	}
-	defer reader.Close()
+	defer file.Close()
 
-	caption := ctx.FormValue("caption")
-	result, err := s.OCService.AddGalleryImage(ctx.Context(), ocID, userID, caption, file.Header.Get("Content-Type"), file.Size, reader)
+	result, err := s.OCService.AddGalleryImage(ctx.Context(), ocID, userID, file.Form.Value("caption"), file.ContentType, file.Size, file)
 	if err != nil {
 		return ocImageError(ctx, err, "failed to add gallery image")
 	}

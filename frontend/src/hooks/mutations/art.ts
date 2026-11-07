@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import type { ArtDetail, MediaUpload } from "../../types/api";
+import type { ArtDetail, UploadRef } from "../../types/api";
 import {
     createArt,
     createGallery,
@@ -108,7 +108,7 @@ export function useUnlikeArt() {
 export function useCreateArtComment(artId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly MediaUpload[] }) =>
+        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly UploadRef[] }) =>
             createArtComment(artId, body, parentId, media),
         onSuccess: () => {
             invalidateViews(qc, "art");

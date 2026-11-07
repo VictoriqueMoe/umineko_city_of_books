@@ -4,6 +4,7 @@ import type { CreatePollPayload } from "../../../types/api";
 import { useCreatePost } from "../../../hooks/mutations/post";
 import { useStagedMedia } from "../../../hooks/useStagedMedia";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
+import { useWarnBeforeLeaving } from "../../../hooks/useWarnBeforeLeaving";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { Button } from "../../Button/Button";
 import { GifPicker } from "../../chat/GifPicker/GifPicker";
@@ -12,9 +13,9 @@ import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import { PollCreator } from "../PollCreator/PollCreator";
 import styles from "./PostComposer.module.css";
 
-interface PostComposerProps {
+type PostComposerProps = {
     corner?: string;
-}
+};
 
 export function PostComposer({ corner = "general" }: PostComposerProps) {
     const navigate = useNavigate();
@@ -29,6 +30,8 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
     const [pollDuration, setPollDuration] = useState(86400);
     const [gifPickerOpen, setGifPickerOpen] = useState(false);
     const createPostMutation = useCreatePost();
+    useWarnBeforeLeaving(media.busy);
+    const canPost = !submitting && media.ready && (body.trim() !== "" || media.files.length > 0);
 
     async function handleGifPick(gif: { url: string }) {
         setGifPickerOpen(false);
@@ -48,7 +51,7 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
     }
 
     async function handleSubmit() {
-        if (submitting || (!body.trim() && media.files.length === 0)) {
+        if (!canPost) {
             return;
         }
         if (showPoll) {
@@ -73,7 +76,7 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
                 body: body.trim(),
                 corner,
                 poll: pollPayload,
-                media: media.staged,
+                media: media.refs,
             });
 
             setBody("");
@@ -135,6 +138,7 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
                 onReorder={media.reorder}
                 spoilers={media.spoilers}
                 onToggleSpoiler={media.toggleSpoiler}
+                progress={media.progress}
             />
 
             {showPoll && (
@@ -171,12 +175,7 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
                         </Button>
                     )}
                 </div>
-                <Button
-                    variant="primary"
-                    size="small"
-                    onClick={handleSubmit}
-                    disabled={submitting || (!body.trim() && media.files.length === 0)}
-                >
+                <Button variant="primary" size="small" onClick={handleSubmit} disabled={!canPost}>
                     {submitting ? "Posting..." : "Post"}
                 </Button>
             </div>

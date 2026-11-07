@@ -1,6 +1,5 @@
 import { apiDelete, apiPost, apiPut } from "../client";
-import type { MediaUpload } from "../../types/api";
-import { postCreate } from "./mediaFormData";
+import type { UploadRef } from "../../types/api";
 
 type CommentLikeBody = undefined | Record<string, never>;
 
@@ -10,12 +9,11 @@ function commentEndpoints(parentPath: string, commentPath: string, likeBody: Com
             parentId: string,
             body: string,
             replyToId?: string,
-            media: readonly MediaUpload[] = [],
+            media: readonly UploadRef[] = [],
         ): Promise<{ id: string }> => {
-            return postCreate<{ id: string }, { body: string; parent_id?: string }>(
+            return apiPost<{ id: string }, { body: string; parent_id?: string; media: readonly UploadRef[] }>(
                 `${parentPath}/${parentId}/comments`,
-                { body, parent_id: replyToId },
-                { media },
+                { body, parent_id: replyToId, media },
             );
         },
         update: async (id: string, body: string): Promise<void> => {

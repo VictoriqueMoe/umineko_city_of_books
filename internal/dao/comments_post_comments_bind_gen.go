@@ -99,10 +99,6 @@ func (postCommentQuerier) AuthorID(ctx context.Context, q *sqlcgen.Queries, id u
 	return q.GetPostCommentAuthorID(ctx, id)
 }
 
-func (postCommentQuerier) MediaDir() string {
-	return "posts"
-}
-
 func (postCommentQuerier) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
 	return q.GetPostCommentTargetOwner(ctx, target.ID)
 }
@@ -153,14 +149,6 @@ func (postCommentQuerier) MediaBatch(ctx context.Context, q *sqlcgen.Queries, id
 	}
 
 	return out, nil
-}
-
-func (postCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.UpdatePostCommentMediaURL(ctx, sqlcgen.UpdatePostCommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
-}
-
-func (postCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.UpdatePostCommentMediaThumbnail(ctx, sqlcgen.UpdatePostCommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
 func (postCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {

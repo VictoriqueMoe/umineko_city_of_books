@@ -1,11 +1,18 @@
 package utils
 
-import "github.com/gofiber/fiber/v3"
+import (
+	kernel "umineko_city_of_books/internal/utils"
 
-// BindJSON decodes the request body into T. On failure it writes a 400
-// response and returns the zero value + false; callers should then `return nil`.
+	"github.com/gofiber/fiber/v3"
+)
+
 func BindJSON[T any](ctx fiber.Ctx) (T, bool) {
 	var req T
+	if kernel.IsMultipart(ctx) {
+		_ = BadRequest(ctx, "invalid request body")
+		return req, false
+	}
+
 	if err := ctx.Bind().JSON(&req); err != nil {
 		_ = BadRequest(ctx, "invalid request body")
 		return req, false

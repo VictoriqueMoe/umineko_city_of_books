@@ -3,6 +3,7 @@ package media
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/httpclient"
+	"umineko_city_of_books/internal/logger"
 
 	"golang.org/x/net/html"
 )
@@ -43,8 +45,6 @@ type (
 var (
 	urlRegex = regexp.MustCompile(`https?://[^\s<>"]+`)
 	ytRegex  = regexp.MustCompile(`^https?://(?:[a-z0-9-]+\.)*(?:youtube\.com/(?:watch\?v=|embed/|shorts/)|youtu\.be/)([a-zA-Z0-9_-]{11})`)
-
-	errBlockedAddress = errors.New("media: refusing to dial non-public address")
 
 	previewTransport = &http.Transport{
 		DialContext: (&net.Dialer{
@@ -139,7 +139,14 @@ func fetchPreview(ctx context.Context, rawURL string) *Embed {
 
 	switch {
 	case strings.Contains(ct, "text/html"):
-		return linkEmbed(rawURL, parseOGFromHTML(io.LimitReader(resp.Body, previewBodyLimit)))
+		og, err := parseOGFromHTML(io.LimitReader(resp.Body, previewBodyLimit))
+		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("url", rawURL).Msg("link preview page could not be read in full, showing no card")
+
+			return nil
+		}
+
+		return linkEmbed(rawURL, og)
 	case strings.HasPrefix(ct, "image/"):
 		return &Embed{URL: rawURL, Type: EmbedTypeImage, Image: rawURL}
 	case strings.HasPrefix(ct, "video/"):
@@ -165,14 +172,18 @@ func linkEmbed(rawURL string, og map[string]string) *Embed {
 	}
 }
 
-func parseOGFromHTML(r io.Reader) map[string]string {
+func parseOGFromHTML(r io.Reader) (map[string]string, error) {
 	tokenizer := html.NewTokenizer(r)
 	tags := make(map[string]string)
 
 	for {
 		tt := tokenizer.Next()
 		if tt == html.ErrorToken {
-			break
+			if err := tokenizer.Err(); !errors.Is(err, io.EOF) {
+				return nil, fmt.Errorf("read preview page: %w", err)
+			}
+
+			return tags, nil
 		}
 		if tt != html.StartTagToken && tt != html.SelfClosingTagToken {
 			continue
@@ -199,6 +210,4 @@ func parseOGFromHTML(r io.Reader) map[string]string {
 			}
 		}
 	}
-
-	return tags
 }

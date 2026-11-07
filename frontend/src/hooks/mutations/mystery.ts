@@ -14,8 +14,8 @@ import {
     setMysteryPaused,
     updateMystery,
     updateMysteryClue,
-    uploadMysteryAttachment,
-    uploadMysteryMedia,
+    attachMysteryFile,
+    attachMysteryMedia,
     voteMysteryAttempt,
 } from "../../api/endpoints/mystery";
 import {
@@ -25,14 +25,14 @@ import {
     unlikeMysteryComment,
     updateMysteryComment,
 } from "../../api/endpoints/comments";
-import type { MediaUpload } from "../../types/api";
+import type { UploadRef } from "../../types/api";
 import { invalidateViews } from "../../api/cache/invalidate";
 import { commentMutations } from "./comments";
 
 type CreateMysteryInput = {
     data: Parameters<typeof createMystery>[0];
-    media?: readonly MediaUpload[];
-    attachments?: readonly File[];
+    media?: readonly UploadRef[];
+    attachments?: readonly UploadRef[];
 };
 
 export function useCreateMystery() {
@@ -144,7 +144,7 @@ export function useAddMysteryClue(mysteryId: string) {
 export function useCreateMysteryComment(mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly MediaUpload[] }) =>
+        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly UploadRef[] }) =>
             createMysteryComment(mysteryId, body, parentId, media),
         onSuccess: () => invalidateViews(qc, "mystery"),
     });
@@ -162,19 +162,19 @@ export const useDeleteMysteryComment = mysteryCommentMutations.useDelete;
 export const useLikeMysteryComment = mysteryCommentMutations.useLike;
 export const useUnlikeMysteryComment = mysteryCommentMutations.useUnlike;
 
-export function useUploadMysteryAttachment(mysteryId: string) {
+export function useAttachMysteryFile(mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (file: File) => uploadMysteryAttachment(mysteryId, file),
+        mutationFn: (attachment: UploadRef) => attachMysteryFile(mysteryId, attachment),
         onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
-export function useUploadMysteryAttachmentToAny() {
+export function useAttachMysteryFileToAny() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ mysteryId, file }: { mysteryId: string; file: File }) =>
-            uploadMysteryAttachment(mysteryId, file),
+        mutationFn: ({ mysteryId, attachment }: { mysteryId: string; attachment: UploadRef }) =>
+            attachMysteryFile(mysteryId, attachment),
         onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
@@ -187,20 +187,19 @@ export function useDeleteMysteryAttachment(mysteryId: string) {
     });
 }
 
-export function useUploadMysteryMedia(mysteryId: string) {
+export function useAttachMysteryMedia(mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ file, isSpoiler }: { file: File; isSpoiler?: boolean }) =>
-            uploadMysteryMedia(mysteryId, file, isSpoiler ?? false),
+        mutationFn: (media: UploadRef) => attachMysteryMedia(mysteryId, media),
         onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }
 
-export function useUploadMysteryMediaToAny() {
+export function useAttachMysteryMediaToAny() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ mysteryId, file, isSpoiler }: { mysteryId: string; file: File; isSpoiler?: boolean }) =>
-            uploadMysteryMedia(mysteryId, file, isSpoiler ?? false),
+        mutationFn: ({ mysteryId, media }: { mysteryId: string; media: UploadRef }) =>
+            attachMysteryMedia(mysteryId, media),
         onSuccess: () => invalidateViews(qc, "mystery"),
     });
 }

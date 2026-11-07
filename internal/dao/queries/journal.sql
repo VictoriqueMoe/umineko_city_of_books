@@ -169,9 +169,6 @@ UPDATE journals
 SET title = $1, work = $2, updated_at = NOW(), last_author_activity_at = NOW(), archived_at = NULL
 WHERE id = $3 AND user_id = $4;
 
--- name: UpdateJournalAsAdmin :exec
-UPDATE journals SET title = $1, work = $2, updated_at = NOW() WHERE id = $3;
-
 -- name: GetJournalTitle :one
 SELECT title FROM journals WHERE id = $1;
 

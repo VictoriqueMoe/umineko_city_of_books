@@ -21,7 +21,6 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -70,7 +69,6 @@ type (
 		mentionSvc    mention.Service
 		commentSvc    comment.Service
 		uploadSvc     upload.Service
-		mediaProc     *media.Processor
 		settingsSvc   settings.Service
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
@@ -90,7 +88,6 @@ func NewService(
 	mentionSvc mention.Service,
 	commentSvc comment.Service,
 	uploadSvc upload.Service,
-	mediaProc *media.Processor,
 	settingsSvc settings.Service,
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
@@ -108,7 +105,6 @@ func NewService(
 		mentionSvc:    mentionSvc,
 		commentSvc:    commentSvc,
 		uploadSvc:     uploadSvc,
-		mediaProc:     mediaProc,
 		settingsSvc:   settingsSvc,
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
@@ -296,7 +292,7 @@ func (s *service) UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 		tags = tags[:10]
 	}
 
-	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
+	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyWork)
 
 	update := spec.ArtUpdateWithTags{
 		ID:          id,
@@ -342,7 +338,7 @@ func (s *service) DeleteArt(ctx context.Context, id uuid.UUID, userID uuid.UUID)
 		action = audit.ActionArtDeleteAdmin
 	}
 
-	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
+	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyWork)
 
 	paths, err := s.artRepo.DeleteWithImage(ctx, spec.ArtDelete{
 		ID:      id,

@@ -1,4 +1,4 @@
-import type { ChatMessage, ChatRoomMember, PostMedia, User } from "../../types/api";
+import type { ChatMessage, ChatRoomMember, PostMedia, UploadRef, User } from "../../types/api";
 
 const NONCE_BYTES = 16;
 
@@ -10,10 +10,11 @@ export interface PendingReply {
     body: string;
 }
 
-export interface OutgoingAttachment {
+export type OutgoingAttachment = {
     file: File;
     spoiler: boolean;
-}
+    uploadId: string;
+};
 
 export interface OutgoingChatMessage {
     body: string;
@@ -83,12 +84,17 @@ export function createPendingSend(input: NewPendingSend): PendingSend {
         attachments: outgoing.attachments.map((attachment, index) => ({
             file: attachment.file,
             spoiler: attachment.spoiler,
+            uploadId: attachment.uploadId,
             previewUrl: previewUrls[index] ?? "",
         })),
         createdAt,
         delivery: "sending",
         error: null,
     };
+}
+
+export function attachmentRefs(entry: PendingSend): UploadRef[] {
+    return entry.attachments.map(attachment => ({ upload_id: attachment.uploadId, is_spoiler: attachment.spoiler }));
 }
 
 export function addPendingSend(pending: PendingSend[], entry: PendingSend): PendingSend[] {

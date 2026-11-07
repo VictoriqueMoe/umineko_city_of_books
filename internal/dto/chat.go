@@ -35,14 +35,16 @@ type (
 	}
 
 	SendMessageRequest struct {
-		Body        string     `json:"body"`
-		ReplyToID   *uuid.UUID `json:"reply_to_id,omitempty"`
-		ClientNonce string     `json:"client_nonce,omitempty"`
+		Body        string      `json:"body"`
+		ReplyToID   *uuid.UUID  `json:"reply_to_id,omitempty"`
+		ClientNonce string      `json:"client_nonce,omitempty"`
+		Media       []UploadRef `json:"media,omitempty"`
 	}
 
 	SendDMRequest struct {
-		Body        string `json:"body"`
-		ClientNonce string `json:"client_nonce,omitempty"`
+		Body        string      `json:"body"`
+		ClientNonce string      `json:"client_nonce,omitempty"`
+		Media       []UploadRef `json:"media,omitempty"`
 	}
 
 	ChatMessageReplyPreview struct {

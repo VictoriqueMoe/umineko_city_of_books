@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"regexp"
 	"strings"
 	"time"
@@ -21,7 +20,6 @@ import (
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/journal/params"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -50,13 +48,13 @@ type (
 		DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		SetJournalPaused(ctx context.Context, id uuid.UUID, userID uuid.UUID, paused bool) error
 
-		CreateEntry(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalEntryRequest, files []upload.FileUpload) (uuid.UUID, int, error)
+		CreateEntry(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalEntryRequest) (uuid.UUID, int, error)
 		GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber int, viewerID uuid.UUID) (*dto.JournalEntryResponse, []dto.CommentResponse, error)
 		UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, req dto.UpdateJournalEntryRequest) error
 		DeleteEntry(ctx context.Context, entryID uuid.UUID, userID uuid.UUID) error
 
-		CreateComment(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalCommentRequest, files []upload.FileUpload) (uuid.UUID, error)
-		UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
+		CreateComment(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalCommentRequest) (uuid.UUID, error)
+		AttachEntryMedia(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, ref dto.UploadRef) (*dto.PostMediaResponse, error)
 		DeleteEntryMedia(ctx context.Context, entryID uuid.UUID, mediaID int64, userID uuid.UUID) error
 
 		FollowJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
@@ -76,7 +74,6 @@ type (
 		commentSvc    comment.Service
 		settingsSvc   settings.Service
 		uploadSvc     upload.Service
-		uploader      upload.MediaRecorder
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
 		echoCache     homefeed.Service
@@ -94,7 +91,6 @@ func NewService(
 	mentionSvc mention.Service,
 	commentSvc comment.Service,
 	uploadSvc upload.Service,
-	mediaProc *media.Processor,
 	settingsSvc settings.Service,
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
@@ -112,7 +108,6 @@ func NewService(
 		commentSvc:    commentSvc,
 		settingsSvc:   settingsSvc,
 		uploadSvc:     uploadSvc,
-		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
 		echoCache:     echoCache,
@@ -143,58 +138,6 @@ func (s *service) actorName(ctx context.Context, userID uuid.UUID) string {
 func countWords(html string) int {
 	text := htmlTagRe.ReplaceAllString(html, " ")
 	return len(strings.Fields(text))
-}
-
-func sameOptional(a, b *string) bool {
-	if a == nil || b == nil {
-		return a == b
-	}
-
-	return *a == *b
-}
-
-func changedDetails(changed []string) string {
-	if len(changed) == 0 {
-		return "changed=none"
-	}
-
-	return "changed=" + strings.Join(changed, ",")
-}
-
-func journalUpdateDetails(before *dto.JournalResponse, req dto.CreateJournalRequest) string {
-	if before == nil {
-		return ""
-	}
-
-	var changed []string
-
-	if before.Title != req.Title {
-		changed = append(changed, "title")
-	}
-
-	if before.Work != req.Work {
-		changed = append(changed, "work")
-	}
-
-	return changedDetails(changed)
-}
-
-func journalEntryUpdateDetails(before *model.JournalEntryRow, title *string, body string, isDraft bool) string {
-	var changed []string
-
-	if !sameOptional(before.Title, title) {
-		changed = append(changed, "title")
-	}
-
-	if before.Body != body {
-		changed = append(changed, "body")
-	}
-
-	if before.IsDraft != isDraft {
-		changed = append(changed, "is_draft")
-	}
-
-	return changedDetails(changed)
 }
 
 func (s *service) CreateJournal(ctx context.Context, userID uuid.UUID, req dto.CreateJournalRequest) (uuid.UUID, error) {
@@ -353,38 +296,16 @@ func (s *service) UpdateJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 		return err
 	}
 
-	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermEditAnyJournal)
-
-	var before *dto.JournalResponse
-	if asAdmin {
-		before, err = s.repo.GetByID(ctx, spec.JournalLookup{ID: id, ViewerID: userID})
-		if err != nil {
-			return fmt.Errorf("journal before admin edit: %w", err)
-		}
+	if authorID != userID {
+		return ErrNotAuthor
 	}
 
-	if err := s.repo.Update(ctx, spec.JournalUpdate{
-		ID:      id,
-		UserID:  userID,
-		Title:   req.Title,
-		Work:    req.Work,
-		AsAdmin: asAdmin,
-	}); err != nil {
-		return err
-	}
-
-	if asAdmin {
-		s.writeAudit(ctx, audit.NewEntry{
-			ActorID:    userID,
-			Action:     audit.ActionJournalUpdateAdmin,
-			TargetType: audit.TargetJournal,
-			TargetID:   id.String(),
-			Details:    journalUpdateDetails(before, req),
-			SubjectID:  authorID,
-		})
-	}
-
-	return nil
+	return s.repo.Update(ctx, spec.JournalUpdate{
+		ID:     id,
+		UserID: userID,
+		Title:  req.Title,
+		Work:   req.Work,
+	})
 }
 
 func (s *service) DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
@@ -469,9 +390,9 @@ func (s *service) SetJournalPaused(ctx context.Context, id uuid.UUID, userID uui
 	return s.repo.SetPaused(ctx, spec.JournalPause{ID: id, UserID: userID, Paused: paused})
 }
 
-func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalEntryRequest, files []upload.FileUpload) (uuid.UUID, int, error) {
+func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalEntryRequest) (uuid.UUID, int, error) {
 	body := strings.TrimSpace(req.Body)
-	if body == "" && len(files) == 0 {
+	if body == "" && len(req.Media) == 0 {
 		return uuid.Nil, 0, ErrEmptyBody
 	}
 	titleTrim := strings.TrimSpace(req.Title)
@@ -487,14 +408,8 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 		return uuid.Nil, 0, err
 	}
 
-	asAdmin := authorID != userID
-	if asAdmin && !s.authz.Can(ctx, userID, authz.PermEditAnyJournal) {
+	if authorID != userID {
 		return uuid.Nil, 0, ErrNotAuthor
-	}
-
-	validated, err := upload.ValidateMedia(ctx, s.settingsSvc, files)
-	if err != nil {
-		return uuid.Nil, 0, err
 	}
 
 	nextNumber, err := s.repo.GetNextEntryNumber(ctx, journalID)
@@ -507,36 +422,17 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 		titlePtr = &titleTrim
 	}
 
-	hasMedia := len(files) > 0
-
-	created, err := s.repo.CreateEntry(ctx, spec.NewJournalEntry{
-		JournalID:            journalID,
-		EntryNumber:          nextNumber,
-		Title:                titlePtr,
-		Body:                 body,
-		WordCount:            countWords(body),
-		IsDraft:              req.IsDraft,
-		RecordAuthorActivity: !hasMedia,
+	created, err := s.repo.CreateEntryWithMedia(ctx, spec.NewJournalEntry{
+		JournalID:   journalID,
+		EntryNumber: nextNumber,
+		Title:       titlePtr,
+		Body:        body,
+		WordCount:   countWords(body),
+		IsDraft:     req.IsDraft,
+		Media:       upload.MediaClaim(userID, req.Media),
 	})
 	if err != nil {
 		return uuid.Nil, 0, err
-	}
-
-	if hasMedia {
-		if err := s.attachEntryMedia(ctx, validated, journalID, created.ID); err != nil {
-			return uuid.Nil, 0, err
-		}
-	}
-
-	if asAdmin {
-		s.writeAudit(ctx, audit.NewEntry{
-			ActorID:    userID,
-			Action:     audit.ActionJournalEntryCreateAdmin,
-			TargetType: audit.TargetJournalEntry,
-			TargetID:   created.ID.String(),
-			Details:    fmt.Sprintf("journal_id=%s,entry_number=%d,is_draft=%t", journalID, nextNumber, req.IsDraft),
-			SubjectID:  authorID,
-		})
 	}
 
 	if !req.IsDraft {
@@ -548,29 +444,6 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 	}
 
 	return created.ID, nextNumber, nil
-}
-
-func (s *service) attachEntryMedia(ctx context.Context, validated upload.ValidatedMedia, journalID uuid.UUID, entryID uuid.UUID) error {
-	if err := validated.SaveToEntity(ctx, s.uploader, s.uploadSvc, "journals", s.repo, entryID); err != nil {
-		return errors.Join(err, s.rollbackEntry(ctx, entryID))
-	}
-
-	if err := s.repo.UpdateLastAuthorActivity(ctx, journalID); err != nil {
-		return errors.Join(fmt.Errorf("record journal author activity: %w", err), s.rollbackEntry(ctx, entryID))
-	}
-
-	return nil
-}
-
-func (s *service) rollbackEntry(ctx context.Context, entryID uuid.UUID) error {
-	paths, err := s.repo.DeleteEntryWithMedia(context.WithoutCancel(ctx), entryID)
-	if err != nil {
-		return fmt.Errorf("roll back journal entry %s: %w", entryID, err)
-	}
-
-	s.uploadSvc.Delete(paths...)
-
-	return nil
 }
 
 func (s *service) notifyEntryMentions(ctx context.Context, journalID uuid.UUID, entryNumber int, authorID uuid.UUID, body string) {
@@ -707,8 +580,7 @@ func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uui
 		return err
 	}
 
-	asAdmin := authorID != userID
-	if asAdmin && !s.authz.Can(ctx, userID, authz.PermEditAnyJournal) {
+	if authorID != userID {
 		return ErrNotAuthor
 	}
 
@@ -730,17 +602,6 @@ func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uui
 	})
 	if err != nil {
 		return err
-	}
-
-	if asAdmin {
-		s.writeAudit(ctx, audit.NewEntry{
-			ActorID:    userID,
-			Action:     audit.ActionJournalEntryUpdateAdmin,
-			TargetType: audit.TargetJournalEntry,
-			TargetID:   entryID.String(),
-			Details:    journalEntryUpdateDetails(existing, titlePtr, body, req.IsDraft),
-			SubjectID:  authorID,
-		})
 	}
 
 	if firstPublished {
@@ -788,7 +649,7 @@ func (s *service) DeleteEntry(ctx context.Context, entryID uuid.UUID, userID uui
 	return nil
 }
 
-func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
+func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalCommentRequest) (uuid.UUID, error) {
 	authorID, err := s.repo.GetAuthorID(ctx, journalID)
 	if errors.Is(err, daoerr.ErrNotFound) {
 		return uuid.Nil, ErrNotFound
@@ -822,7 +683,7 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 		target.EntryNumber = entry.EntryNumber
 	}
 
-	commentID, err := s.commentSvc.Create(ctx, target, userID, dto.CreateCommentRequest{ParentID: req.ParentID, Body: req.Body}, files)
+	commentID, err := s.commentSvc.Create(ctx, target, userID, dto.CreateCommentRequest{ParentID: req.ParentID, Body: req.Body, Media: req.Media})
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -884,7 +745,7 @@ func (s *service) notifyAuthorComment(ctx context.Context, target spec.CommentTa
 	s.notifService.NotifyMany(ctx, notifyParams)
 }
 
-func (s *service) UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
+func (s *service) AttachEntryMedia(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, ref dto.UploadRef) (*dto.PostMediaResponse, error) {
 	authorID, err := s.repo.GetEntryAuthorID(ctx, entryID)
 	if errors.Is(err, daoerr.ErrNotFound) {
 		return nil, ErrNotFound
@@ -896,28 +757,12 @@ func (s *service) UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userI
 		return nil, ErrNotAuthor
 	}
 
-	return s.uploader.SaveAndRecord(
-		ctx,
-		"journals",
-		contentType,
-		filename,
-		fileSize,
-		reader,
-		isSpoiler,
-		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-			return s.repo.AddMedia(ctx, spec.NewMedia{
-				TargetID:     entryID,
-				MediaURL:     mediaURL,
-				MediaType:    mediaType,
-				ThumbnailURL: thumbURL,
-				Filename:     filename,
-				SortOrder:    sortOrder,
-				IsSpoiler:    isSpoiler,
-			})
-		},
-		s.repo.UpdateMediaURL,
-		s.repo.UpdateMediaThumbnail,
-	)
+	attached, err := s.repo.AttachEntryMedia(ctx, spec.MediaAttachment{TargetID: entryID, Uploads: upload.MediaClaim(userID, []dto.UploadRef{ref})})
+	if err != nil {
+		return nil, err
+	}
+
+	return new(attached.ToResponse()), nil
 }
 
 func (s *service) DeleteEntryMedia(ctx context.Context, entryID uuid.UUID, mediaID int64, userID uuid.UUID) error {

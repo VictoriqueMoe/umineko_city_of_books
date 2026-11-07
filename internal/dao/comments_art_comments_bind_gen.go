@@ -99,10 +99,6 @@ func (artCommentQuerier) AuthorID(ctx context.Context, q *sqlcgen.Queries, id uu
 	return q.GetArtCommentAuthorID(ctx, id)
 }
 
-func (artCommentQuerier) MediaDir() string {
-	return "art"
-}
-
 func (artCommentQuerier) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
 	return q.GetArtCommentTargetOwner(ctx, target.ID)
 }
@@ -153,14 +149,6 @@ func (artCommentQuerier) MediaBatch(ctx context.Context, q *sqlcgen.Queries, ids
 	}
 
 	return out, nil
-}
-
-func (artCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.UpdateArtCommentMediaURL(ctx, sqlcgen.UpdateArtCommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
-}
-
-func (artCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.UpdateArtCommentMediaThumbnail(ctx, sqlcgen.UpdateArtCommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
 func (artCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 
@@ -45,32 +44,6 @@ func (m *mediaDAO) DeleteMedia(ctx context.Context, s spec.MediaDeletion, tx ...
 	}
 
 	return mediaURL, nil
-}
-
-func (m *mediaDAO) UpdateMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	n, err := m.q.SetURL(ctx, m.queries(tx), s)
-	if err != nil {
-		return fmt.Errorf("update media url: %w", err)
-	}
-
-	if n == 0 {
-		return fmt.Errorf("update media url %d: %w", s.ID, daoerr.ErrNotFound)
-	}
-
-	return nil
-}
-
-func (m *mediaDAO) UpdateMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	n, err := m.q.SetThumbnail(ctx, m.queries(tx), s)
-	if err != nil {
-		return fmt.Errorf("update media thumbnail: %w", err)
-	}
-
-	if n == 0 {
-		return fmt.Errorf("update media thumbnail %d: %w", s.ID, daoerr.ErrNotFound)
-	}
-
-	return nil
 }
 
 func (m *mediaDAO) GetMedia(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error) {

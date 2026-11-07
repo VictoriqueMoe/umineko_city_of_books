@@ -24,10 +24,10 @@ import {
     useUpdateMystery,
     useUpdateMysteryClue,
     useUpdateMysteryComment,
-    useUploadMysteryAttachment,
-    useUploadMysteryAttachmentToAny,
-    useUploadMysteryMedia,
-    useUploadMysteryMediaToAny,
+    useAttachMysteryFile,
+    useAttachMysteryFileToAny,
+    useAttachMysteryMedia,
+    useAttachMysteryMediaToAny,
     useVoteMysteryAttempt,
 } from "./mystery";
 
@@ -46,8 +46,8 @@ vi.mock("../../api/endpoints/mystery", () => ({
     setMysteryPaused: vi.fn(),
     updateMystery: vi.fn(),
     updateMysteryClue: vi.fn(),
-    uploadMysteryAttachment: vi.fn(),
-    uploadMysteryMedia: vi.fn(),
+    attachMysteryFile: vi.fn(),
+    attachMysteryMedia: vi.fn(),
     voteMysteryAttempt: vi.fn(),
 }));
 
@@ -68,7 +68,8 @@ interface MutationCase {
 }
 
 const mysteryId = "m-1";
-const file = new File(["gold"], "clue.png", { type: "image/png" });
+const upload = { upload_id: "upload-1", is_spoiler: false };
+const document = { upload_id: "upload-2" };
 
 const draft = {
     title: "The first twilight",
@@ -117,11 +118,11 @@ describe("mystery mutations", () => {
             args: [draft, { media: undefined, attachments: undefined }],
         },
         {
-            name: "useCreateMystery sends the staged media and attachments with the draft",
+            name: "useCreateMystery sends the finished media and attachment uploads with the draft",
             useHook: () => useCreateMystery(),
-            variables: { data: draft, media: [{ file, isSpoiler: true }], attachments: [file] },
+            variables: { data: draft, media: [{ ...upload, is_spoiler: true }], attachments: [document] },
             endpoint: vi.mocked(endpoints.createMystery),
-            args: [draft, { media: [{ file, isSpoiler: true }], attachments: [file] }],
+            args: [draft, { media: [{ ...upload, is_spoiler: true }], attachments: [document] }],
         },
         {
             name: "useUpdateMystery puts the draft against the id it was built with",
@@ -217,9 +218,9 @@ describe("mystery mutations", () => {
         {
             name: "useCreateMysteryComment sends the staged media in the same request",
             useHook: () => useCreateMysteryComment(mysteryId),
-            variables: { body: "", media: [{ file, isSpoiler: false }] },
+            variables: { body: "", media: [upload] },
             endpoint: vi.mocked(comments.createMysteryComment),
-            args: [mysteryId, "", undefined, [{ file, isSpoiler: false }]],
+            args: [mysteryId, "", undefined, [upload]],
         },
         {
             name: "useUpdateMysteryComment addresses the comment directly",
@@ -250,18 +251,18 @@ describe("mystery mutations", () => {
             args: ["c-1"],
         },
         {
-            name: "useUploadMysteryAttachment attaches the file to its own mystery",
-            useHook: () => useUploadMysteryAttachment(mysteryId),
-            variables: file,
-            endpoint: vi.mocked(endpoints.uploadMysteryAttachment),
-            args: [mysteryId, file],
+            name: "useAttachMysteryFile attaches the upload to its own mystery",
+            useHook: () => useAttachMysteryFile(mysteryId),
+            variables: upload,
+            endpoint: vi.mocked(endpoints.attachMysteryFile),
+            args: [mysteryId, upload],
         },
         {
-            name: "useUploadMysteryAttachmentToAny takes the mystery id from the variables instead",
-            useHook: () => useUploadMysteryAttachmentToAny(),
-            variables: { mysteryId: "m-other", file },
-            endpoint: vi.mocked(endpoints.uploadMysteryAttachment),
-            args: ["m-other", file],
+            name: "useAttachMysteryFileToAny takes the mystery id from the variables instead",
+            useHook: () => useAttachMysteryFileToAny(),
+            variables: { mysteryId: "m-other", attachment: upload },
+            endpoint: vi.mocked(endpoints.attachMysteryFile),
+            args: ["m-other", upload],
         },
         {
             name: "useDeleteMysteryAttachment deletes a numbered attachment from its own mystery",
@@ -271,18 +272,18 @@ describe("mystery mutations", () => {
             args: [mysteryId, 12],
         },
         {
-            name: "useUploadMysteryMedia uploads the file to its own mystery",
-            useHook: () => useUploadMysteryMedia(mysteryId),
-            variables: { file },
-            endpoint: vi.mocked(endpoints.uploadMysteryMedia),
-            args: [mysteryId, file, false],
+            name: "useAttachMysteryMedia attaches the upload to its own mystery",
+            useHook: () => useAttachMysteryMedia(mysteryId),
+            variables: upload,
+            endpoint: vi.mocked(endpoints.attachMysteryMedia),
+            args: [mysteryId, upload],
         },
         {
-            name: "useUploadMysteryMediaToAny takes the mystery id from the variables instead",
-            useHook: () => useUploadMysteryMediaToAny(),
-            variables: { mysteryId: "m-other", file },
-            endpoint: vi.mocked(endpoints.uploadMysteryMedia),
-            args: ["m-other", file, false],
+            name: "useAttachMysteryMediaToAny takes the mystery id from the variables instead",
+            useHook: () => useAttachMysteryMediaToAny(),
+            variables: { mysteryId: "m-other", media: upload },
+            endpoint: vi.mocked(endpoints.attachMysteryMedia),
+            args: ["m-other", upload],
         },
         {
             name: "useDeleteMysteryMedia deletes a numbered media item from its own mystery",

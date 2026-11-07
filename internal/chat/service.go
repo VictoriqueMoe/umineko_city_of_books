@@ -9,7 +9,6 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/hyperbeam"
 	"umineko_city_of_books/internal/livekit"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
@@ -33,7 +32,7 @@ type (
 		DeleteStreamRoom(ctx context.Context, streamID uuid.UUID) error
 
 		ResolveDMRoom(ctx context.Context, senderID, recipientID uuid.UUID) (*dto.ResolveDMResponse, error)
-		SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, req dto.SendDMRequest, files []upload.FileUpload) (*dto.SendDMResponse, error)
+		SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, req dto.SendDMRequest) (*dto.SendDMResponse, error)
 		CreateGroupRoom(ctx context.Context, creatorID uuid.UUID, req dto.CreateGroupRoomRequest) (*dto.ChatRoomResponse, error)
 		UpdateGroupRoom(ctx context.Context, roomID, actorID uuid.UUID, req dto.UpdateGroupRoomRequest) (*dto.ChatRoomResponse, error)
 		ListRooms(ctx context.Context, userID uuid.UUID) (*dto.ChatRoomListResponse, error)
@@ -44,7 +43,7 @@ type (
 		GetMessagesBefore(ctx context.Context, userID, roomID uuid.UUID, before string, limit int) (*dto.ChatMessageListResponse, error)
 		ListRoomAttachments(ctx context.Context, userID, roomID uuid.UUID, kind model.AttachmentKind, before string, limit int) (*dto.ChatMessageListResponse, error)
 
-		SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest, files []upload.FileUpload) (*dto.ChatMessageResponse, error)
+		SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest) (*dto.ChatMessageResponse, error)
 		GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 		IsRoomMember(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
 		DeleteChat(ctx context.Context, roomID, userID uuid.UUID) error
@@ -139,7 +138,6 @@ func NewService(
 	blockSvc block.Service,
 	uploadSvc upload.Service,
 	settingsSvc settings.Service,
-	mediaProc *media.Processor,
 	hub *ws.Hub,
 	hyperbeamSvc hyperbeam.Service,
 	livekitSvc livekit.Service,
@@ -161,7 +159,6 @@ func NewService(
 		blockSvc:        blockSvc,
 		settingsSvc:     settingsSvc,
 		uploadSvc:       uploadSvc,
-		uploader:        media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		hub:             hub,
 		hyperbeamSvc:    hyperbeamSvc,
 		livekitSvc:      livekitSvc,

@@ -154,17 +154,13 @@ func (s *Service) uploadShipImage(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	file, err := ctx.FormFile("image")
+	file, err := utils.ReceiveFile(ctx, s.UploadService, "image")
 	if err != nil {
-		return utils.BadRequest(ctx, "no image file provided")
+		return utils.UploadFailed(ctx, err)
 	}
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
-	}
-	defer reader.Close()
+	defer file.Close()
 
-	url, err := s.ShipService.UploadShipImage(ctx.Context(), shipID, userID, file.Header.Get("Content-Type"), file.Size, reader)
+	url, err := s.ShipService.UploadShipImage(ctx.Context(), shipID, userID, file.ContentType, file.Size, file)
 	if err != nil {
 		return utils.BadRequest(ctx, err.Error())
 	}

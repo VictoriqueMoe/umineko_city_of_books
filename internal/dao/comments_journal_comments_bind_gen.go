@@ -99,10 +99,6 @@ func (journalCommentQuerier) AuthorID(ctx context.Context, q *sqlcgen.Queries, i
 	return q.GetJournalCommentAuthorID(ctx, id)
 }
 
-func (journalCommentQuerier) MediaDir() string {
-	return "journals"
-}
-
 func (journalCommentQuerier) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
 	return q.GetJournalCommentTargetOwner(ctx, target.ID)
 }
@@ -153,14 +149,6 @@ func (journalCommentQuerier) MediaBatch(ctx context.Context, q *sqlcgen.Queries,
 	}
 
 	return out, nil
-}
-
-func (journalCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.UpdateJournalCommentMediaURL(ctx, sqlcgen.UpdateJournalCommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
-}
-
-func (journalCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.UpdateJournalCommentMediaThumbnail(ctx, sqlcgen.UpdateJournalCommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
 func (journalCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {
