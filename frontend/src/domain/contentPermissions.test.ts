@@ -90,7 +90,7 @@ describe("contentPermissions", () => {
         { family: "journal_entry", canEdit: false, canDelete: true },
         { family: "comment", canEdit: true, canDelete: true },
         { family: "response", canEdit: false, canDelete: true },
-        { family: "oc", canEdit: true, canDelete: false },
+        { family: "oc", canEdit: true, canDelete: true },
         { family: "gallery", canEdit: false, canDelete: false },
     ];
 
@@ -107,15 +107,17 @@ describe("contentPermissions", () => {
         });
     }
 
-    it("lets an admin edit someone else's original character as a work, with no delete button", () => {
+    it("offers deleting someone else's original character only to a holder of the work delete permission", () => {
         // given
-        const item = subject("oc");
+        const editOnly: ContentViewer = { id: "staff", permissions: ["edit_any_work"] };
 
         // when
-        const permissions = contentPermissions(admin, item);
+        const withDelete = contentPermissions(admin, subject("oc"));
+        const withoutDelete = contentPermissions(editOnly, subject("oc"));
 
         // then
-        expect(permissions).toEqual({ canEdit: true, canDelete: false });
+        expect(withDelete).toEqual({ canEdit: true, canDelete: true });
+        expect(withoutDelete).toEqual({ canEdit: true, canDelete: false });
     });
 
     it("never lets an admin edit someone else's journal", () => {

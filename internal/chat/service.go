@@ -9,7 +9,6 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/hyperbeam"
 	"umineko_city_of_books/internal/livekit"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
@@ -139,7 +138,6 @@ func NewService(
 	blockSvc block.Service,
 	uploadSvc upload.Service,
 	settingsSvc settings.Service,
-	mediaProc *media.Processor,
 	hub *ws.Hub,
 	hyperbeamSvc hyperbeam.Service,
 	livekitSvc livekit.Service,
@@ -161,7 +159,6 @@ func NewService(
 		blockSvc:        blockSvc,
 		settingsSvc:     settingsSvc,
 		uploadSvc:       uploadSvc,
-		uploader:        media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		hub:             hub,
 		hyperbeamSvc:    hyperbeamSvc,
 		livekitSvc:      livekitSvc,

@@ -16,6 +16,8 @@ import (
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/upload"
+	"umineko_city_of_books/internal/upload/uploadtest"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -74,7 +76,7 @@ func messagesExpectInsert(m *testMocks, message spec.NewChatMessage, detailed []
 		Body:        message.Body,
 		ReplyToID:   message.ReplyToID,
 		ClientNonce: message.ClientNonce,
-	}, nil)
+	}, nil, nil)
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, message.RoomID).Return(detailed, nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, message.SenderID).Return(nil, nil)
 
@@ -287,7 +289,7 @@ func TestSendMessage_Errors(t *testing.T) {
 			setup: func(m *testMocks, ref spec.ChatMemberRef) {
 				messagesExpectRoom(m, ref, []uuid.UUID{ref.UserID}, &model.ChatRoomSendContext{Type: dto.RoomTypeGroup, CreatedBy: ref.UserID})
 				m.userRepo.EXPECT().GetByID(mock.Anything, ref.UserID).Return(sampleUser(ref.UserID), nil)
-				m.chatRepo.EXPECT().InsertMessageAndMarkRead(mock.Anything, spec.NewChatMessage{RoomID: ref.RoomID, SenderID: ref.UserID, Body: "hi"}).Return(nil, boom)
+				m.chatRepo.EXPECT().InsertMessageAndMarkRead(mock.Anything, spec.NewChatMessage{RoomID: ref.RoomID, SenderID: ref.UserID, Body: "hi"}).Return(nil, nil, boom)
 			},
 			wantErr: boom,
 		},
@@ -805,7 +807,7 @@ func TestSendMessage_ResendWithTheSameClientNonce(t *testing.T) {
 			m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(sampleUser(senderID), nil)
 			m.chatRepo.EXPECT().
 				InsertMessageAndMarkRead(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: "hi", ClientNonce: nonce}).
-				Return(nil, fmt.Errorf("insert message: %w", &daoerr.ChatMessageReplayError{Existing: stored}))
+				Return(nil, nil, fmt.Errorf("insert message: %w", &daoerr.ChatMessageReplayError{Existing: stored}))
 			if tc.wantErr == nil {
 				m.chatRepo.EXPECT().GetMessageMediaBatch(mock.Anything, []uuid.UUID{storedID}).Return(map[uuid.UUID][]dto.PostMediaResponse{storedID: storedMedia}, nil)
 				m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return(nil, nil)
@@ -836,6 +838,36 @@ func TestSendMessage_ResendWithTheSameClientNonce(t *testing.T) {
 			assert.Equal(t, storedMedia, got.Media)
 		})
 	}
+}
+
+func TestSendMessage_AResendWithFilesIsAnsweredBeforeAnythingIsUploaded(t *testing.T) {
+	// given a message with a picture that already landed under this nonce, and a strict upload mock
+	svc, m := newTestService(t)
+	senderID := uuid.New()
+	recipientID := uuid.New()
+	roomID := uuid.New()
+	storedID := uuid.New()
+	nonce := "0f1e2d3c4b5a69788796a5b4c3d2e1f0"
+	stored := model.ChatMessageRow{ID: storedID, RoomID: roomID, SenderID: senderID, Body: "hi", ClientNonce: nonce}
+	storedMedia := []dto.PostMediaResponse{{ID: 7, MediaURL: "/uploads/chat/a.png", MediaType: "image"}}
+
+	messagesExpectRoom(m, spec.ChatMemberRef{RoomID: roomID, UserID: senderID}, []uuid.UUID{senderID, recipientID},
+		&model.ChatRoomSendContext{Type: dto.RoomTypeGroup, Name: "G", CreatedBy: senderID})
+	m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(sampleUser(senderID), nil)
+	m.chatRepo.EXPECT().GetMessageBySenderNonce(mock.Anything, spec.ChatSenderNonce{SenderID: senderID, ClientNonce: nonce}).Return(&stored, nil).Once()
+	m.chatRepo.EXPECT().GetMessageMediaBatch(mock.Anything, []uuid.UUID{storedID}).Return(map[uuid.UUID][]dto.PostMediaResponse{storedID: storedMedia}, nil)
+	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return(nil, nil)
+	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, senderID).Return(nil, nil)
+
+	// when the client sends it again with its picture
+	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi", ClientNonce: nonce}, []upload.FileUpload{uploadtest.PNGUpload(t, "a.png", false)})
+	svc.sideEffectsWG.Wait()
+
+	// then the stored message comes back and the strict mocks prove nothing was uploaded or inserted
+	require.NoError(t, err)
+	assert.Equal(t, storedID, got.ID)
+	assert.Equal(t, storedMedia, got.Media)
+	m.chatRepo.AssertNotCalled(t, "InsertMessageAndMarkRead", mock.Anything, mock.Anything)
 }
 
 func TestGetRoomsByUser(t *testing.T) {

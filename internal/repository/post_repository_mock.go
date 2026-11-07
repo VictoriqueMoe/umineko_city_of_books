@@ -618,7 +618,7 @@ func (_c *MockPostRepository_CreatePollWithOptions_Call) RunAndReturn(run func(c
 }
 
 // CreateWithDetails provides a mock function for the type MockPostRepository
-func (_mock *MockPostRepository) CreateWithDetails(ctx context.Context, post spec.NewPost, tx ...*sql.Tx) (*model.PostRow, error) {
+func (_mock *MockPostRepository) CreateWithDetails(ctx context.Context, post spec.NewPost, tx ...*sql.Tx) (*model.PostRow, []int64, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, post, tx)
@@ -632,8 +632,9 @@ func (_mock *MockPostRepository) CreateWithDetails(ctx context.Context, post spe
 	}
 
 	var r0 *model.PostRow
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewPost, ...*sql.Tx) (*model.PostRow, error)); ok {
+	var r1 []int64
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewPost, ...*sql.Tx) (*model.PostRow, []int64, error)); ok {
 		return returnFunc(ctx, post, tx...)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewPost, ...*sql.Tx) *model.PostRow); ok {
@@ -643,12 +644,19 @@ func (_mock *MockPostRepository) CreateWithDetails(ctx context.Context, post spe
 			r0 = ret.Get(0).(*model.PostRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewPost, ...*sql.Tx) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewPost, ...*sql.Tx) []int64); ok {
 		r1 = returnFunc(ctx, post, tx...)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]int64)
+		}
 	}
-	return r0, r1
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.NewPost, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, post, tx...)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
 }
 
 // MockPostRepository_CreateWithDetails_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateWithDetails'
@@ -690,12 +698,12 @@ func (_c *MockPostRepository_CreateWithDetails_Call) Run(run func(ctx context.Co
 	return _c
 }
 
-func (_c *MockPostRepository_CreateWithDetails_Call) Return(postRow *model.PostRow, err error) *MockPostRepository_CreateWithDetails_Call {
-	_c.Call.Return(postRow, err)
+func (_c *MockPostRepository_CreateWithDetails_Call) Return(postRow *model.PostRow, int64s []int64, err error) *MockPostRepository_CreateWithDetails_Call {
+	_c.Call.Return(postRow, int64s, err)
 	return _c
 }
 
-func (_c *MockPostRepository_CreateWithDetails_Call) RunAndReturn(run func(ctx context.Context, post spec.NewPost, tx ...*sql.Tx) (*model.PostRow, error)) *MockPostRepository_CreateWithDetails_Call {
+func (_c *MockPostRepository_CreateWithDetails_Call) RunAndReturn(run func(ctx context.Context, post spec.NewPost, tx ...*sql.Tx) (*model.PostRow, []int64, error)) *MockPostRepository_CreateWithDetails_Call {
 	_c.Call.Return(run)
 	return _c
 }

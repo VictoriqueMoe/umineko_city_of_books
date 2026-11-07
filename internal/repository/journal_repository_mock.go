@@ -546,6 +546,97 @@ func (_c *MockJournalRepository_CreateEntry_Call) RunAndReturn(run func(ctx cont
 	return _c
 }
 
+// CreateEntryWithMedia provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) CreateEntryWithMedia(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx) (*model.JournalEntryRow, []int64, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateEntryWithMedia")
+	}
+
+	var r0 *model.JournalEntryRow
+	var r1 []int64
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewJournalEntry, ...*sql.Tx) (*model.JournalEntryRow, []int64, error)); ok {
+		return returnFunc(ctx, s, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewJournalEntry, ...*sql.Tx) *model.JournalEntryRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.JournalEntryRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewJournalEntry, ...*sql.Tx) []int64); ok {
+		r1 = returnFunc(ctx, s, tx...)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]int64)
+		}
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.NewJournalEntry, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, s, tx...)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// MockJournalRepository_CreateEntryWithMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateEntryWithMedia'
+type MockJournalRepository_CreateEntryWithMedia_Call struct {
+	*mock.Call
+}
+
+// CreateEntryWithMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.NewJournalEntry
+//   - tx ...*sql.Tx
+func (_e *MockJournalRepository_Expecter) CreateEntryWithMedia(ctx any, s any, tx ...any) *MockJournalRepository_CreateEntryWithMedia_Call {
+	return &MockJournalRepository_CreateEntryWithMedia_Call{Call: _e.mock.On("CreateEntryWithMedia",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockJournalRepository_CreateEntryWithMedia_Call) Run(run func(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx)) *MockJournalRepository_CreateEntryWithMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.NewJournalEntry
+		if args[1] != nil {
+			arg1 = args[1].(spec.NewJournalEntry)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_CreateEntryWithMedia_Call) Return(journalEntryRow *model.JournalEntryRow, int64s []int64, err error) *MockJournalRepository_CreateEntryWithMedia_Call {
+	_c.Call.Return(journalEntryRow, int64s, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_CreateEntryWithMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx) (*model.JournalEntryRow, []int64, error)) *MockJournalRepository_CreateEntryWithMedia_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Delete provides a mock function for the type MockJournalRepository
 func (_mock *MockJournalRepository) Delete(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments

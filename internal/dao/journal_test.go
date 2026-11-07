@@ -44,7 +44,7 @@ func createJournal(t *testing.T, repos *repository.Repositories, userID uuid.UUI
 
 func journalCreateEntry(t *testing.T, repos *repository.Repositories, s spec.NewJournalEntry) uuid.UUID {
 	t.Helper()
-	created, err := repos.Journal.CreateEntry(context.Background(), s)
+	created, _, err := repos.Journal.CreateEntryWithMedia(context.Background(), s)
 	require.NoError(t, err)
 
 	return created.ID
@@ -446,42 +446,42 @@ func TestJournalDAO_UpdateLastAuthorActivity_Unarchives(t *testing.T) {
 	assert.False(t, archived)
 }
 
-func TestJournalRepository_CreateEntry_RecordsAuthorActivityOnlyWhenAsked(t *testing.T) {
-	cases := []struct {
-		name                 string
-		recordAuthorActivity bool
-		wantArchived         bool
-	}{
-		{name: "an entry that records author activity revives an archived journal in the same write", recordAuthorActivity: true, wantArchived: false},
-		{name: "an entry whose caller defers the activity leaves an archived journal archived", recordAuthorActivity: false, wantArchived: true},
-	}
+func TestJournalRepository_CreateEntryWithMedia_WritesTheEntryItsMediaAndTheAuthorActivityTogether(t *testing.T) {
+	// given an archived journal
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	user := daotest.CreateUser(t, repos)
+	id := createJournal(t, repos, user.ID, "T", "", "general")
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			repos := daotest.NewRepos(t)
-			ctx := context.Background()
-			user := daotest.CreateUser(t, repos)
-			id := createJournal(t, repos, user.ID, "T", "", "general")
+	_, err := repos.Journal.ArchiveStale(ctx, time.Now().Add(time.Hour))
+	require.NoError(t, err)
 
-			_, err := repos.Journal.ArchiveStale(ctx, time.Now().Add(time.Hour))
-			require.NoError(t, err)
+	// when an entry with two attachments is created
+	created, mediaIDs, err := repos.Journal.CreateEntryWithMedia(ctx, spec.NewJournalEntry{
+		JournalID:   id,
+		EntryNumber: 1,
+		Body:        "b",
+		WordCount:   1,
+		Media: []spec.NewMedia{
+			{MediaURL: "/uploads/journals/a.webp", MediaType: "image", Filename: "a.png", SortOrder: 0},
+			{MediaURL: "/uploads/journals/b.webp", MediaType: "image", Filename: "b.png", SortOrder: 1},
+		},
+	})
 
-			// when
-			journalCreateEntry(t, repos, spec.NewJournalEntry{
-				JournalID:            id,
-				EntryNumber:          1,
-				Body:                 "b",
-				WordCount:            1,
-				RecordAuthorActivity: tc.recordAuthorActivity,
-			})
+	// then the journal is revived and both media rows belong to the new entry, in order
+	require.NoError(t, err)
+	require.Len(t, mediaIDs, 2)
 
-			// then
-			archived, err := repos.Journal.IsArchived(ctx, id)
-			require.NoError(t, err)
-			assert.Equal(t, tc.wantArchived, archived)
-		})
-	}
+	archived, err := repos.Journal.IsArchived(ctx, id)
+	require.NoError(t, err)
+	assert.False(t, archived)
+
+	batch, err := repos.Journal.GetMediaBatch(ctx, []uuid.UUID{created.ID})
+	require.NoError(t, err)
+	media := batch[created.ID]
+	require.Len(t, media, 2)
+	assert.Equal(t, "/uploads/journals/a.webp", media[0].MediaURL)
+	assert.Equal(t, "/uploads/journals/b.webp", media[1].MediaURL)
 }
 
 func TestJournalDAO_ArchiveStale(t *testing.T) {

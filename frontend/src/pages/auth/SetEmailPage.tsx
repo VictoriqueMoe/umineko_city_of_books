@@ -1,7 +1,6 @@
 import React, { useState } from "react";
-import { Navigate, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { useSetEmail } from "../../hooks/mutations/auth";
-import { useAuthedUser } from "../../hooks/useAuthedUser";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -10,16 +9,11 @@ import styles from "./LoginPage.module.css";
 export function SetEmailPage() {
     usePageTitle("Add your email");
     const navigate = useNavigate();
-    const user = useAuthedUser();
     const setEmailMutation = useSetEmail();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
-
-    if (user.email) {
-        return <Navigate to="/" replace />;
-    }
 
     async function handleSubmit(e: React.SubmitEvent) {
         e.preventDefault();

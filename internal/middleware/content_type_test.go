@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/valyala/fasthttp"
 )
 
 func TestRejectPlainTextBodies(t *testing.T) {
@@ -46,6 +47,45 @@ func TestRejectPlainTextBodies(t *testing.T) {
 
 			// then
 			assert.Equal(t, tc.wantStatus, resp.StatusCode)
+		})
+	}
+}
+
+func TestLimitRequestBodies(t *testing.T) {
+	cases := []struct {
+		name          string
+		contentType   string
+		contentLength int
+		wantStatus    int
+	}{
+		{name: "a body within the limit passes", contentType: "application/json", contentLength: 32, wantStatus: http.StatusOK},
+		{name: "a body over the limit is refused", contentType: "application/json", contentLength: 33, wantStatus: http.StatusRequestEntityTooLarge},
+		{name: "an upload over the limit is refused", contentType: "multipart/form-data; boundary=x", contentLength: 33, wantStatus: http.StatusRequestEntityTooLarge},
+		{name: "a chunked json body of unknown size is refused", contentType: "application/json", contentLength: contentLengthChunked, wantStatus: http.StatusLengthRequired},
+		{name: "a chunked upload of unknown size is refused too, so no handler can buffer an endless body", contentType: "multipart/form-data; boundary=x", contentLength: contentLengthChunked, wantStatus: http.StatusLengthRequired},
+		{name: "a request without a body passes", contentType: "", contentLength: contentLengthNone, wantStatus: http.StatusOK},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			app := fiber.New()
+			app.Server().MaxRequestBodySize = 32
+			app.Use(LimitRequestBodies())
+			app.All("/target", func(ctx fiber.Ctx) error {
+				return ctx.SendStatus(http.StatusOK)
+			})
+			var reqCtx fasthttp.RequestCtx
+			reqCtx.Request.Header.SetMethod(http.MethodPost)
+			reqCtx.Request.SetRequestURI("/target")
+			reqCtx.Request.Header.SetContentType(tc.contentType)
+			reqCtx.Request.Header.SetContentLength(tc.contentLength)
+
+			// when
+			app.Handler()(&reqCtx)
+
+			// then
+			assert.Equal(t, tc.wantStatus, reqCtx.Response.StatusCode())
 		})
 	}
 }

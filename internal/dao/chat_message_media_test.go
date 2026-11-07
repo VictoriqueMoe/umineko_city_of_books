@@ -117,7 +117,7 @@ func TestChatDAO_ListRoomAttachments(t *testing.T) {
 	withLinkID := daotest.SendChatMessage(t, repos, roomID, user.ID, "see https://example.com/page")
 	daotest.SendChatMessage(t, repos, roomID, user.ID, "just talking")
 
-	system, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "system https://example.com/sys", IsSystem: true})
+	system, _, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "system https://example.com/sys", IsSystem: true})
 	require.NoError(t, err)
 
 	mediaAttach(t, repos, spec.NewMedia{TargetID: system.ID, MediaURL: "/uploads/sys.png", MediaType: "image"})

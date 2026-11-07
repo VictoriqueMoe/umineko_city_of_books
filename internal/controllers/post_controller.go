@@ -142,10 +142,11 @@ func (s *Service) listPostFeed(ctx fiber.Ctx) error {
 
 func (s *Service) createPost(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
-	req, ok := utils.BindWithMedia[dto.CreatePostRequest](ctx)
+	req, ok := utils.BindWithMedia[dto.CreatePostRequest](ctx, s.UploadService)
 	if !ok {
 		return nil
 	}
+	defer req.Close()
 
 	id, err := s.PostService.CreatePost(ctx.Context(), userID, req.Payload, req.Media)
 	if err != nil {
@@ -233,18 +234,13 @@ func (s *Service) uploadPostMedia(ctx fiber.Ctx) error {
 	}
 
 	userID := utils.UserID(ctx)
-	file, err := ctx.FormFile("media")
+	file, err := utils.ReceiveFile(ctx, s.UploadService, "media")
 	if err != nil {
-		return utils.BadRequest(ctx, "no media file provided")
+		return utils.UploadFailed(ctx, err)
 	}
+	defer file.Close()
 
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file", err)
-	}
-	defer reader.Close()
-
-	result, err := s.PostService.UploadPostMedia(ctx.Context(), postID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader, isSpoilerUpload(ctx))
+	result, err := s.PostService.UploadPostMedia(ctx.Context(), postID, userID, file.FileUpload(isSpoilerUpload(file)))
 	if err != nil {
 		if errors.Is(err, daoerr.ErrNotFound) {
 			return utils.NotFound(ctx, "not found")
@@ -325,7 +321,7 @@ func (s *Service) createPostComment(ctx fiber.Ctx) error {
 
 	userID := utils.UserID(ctx)
 
-	return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
+	return handleCreateComment(ctx, s.UploadService, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
 		return s.PostService.CreateComment(c, postID, userID, req, files)
 	}, nil)
 }

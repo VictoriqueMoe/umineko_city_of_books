@@ -47,6 +47,7 @@ func newFanficHarness(t *testing.T) (*testutil.Harness, *fanficsvc.MockService) 
 	fs := fanficsvc.NewMockService(t)
 
 	s := &Service{
+		UploadService:   testutil.NewStaging(t),
 		FanficService:   fs,
 		SettingsService: h.SettingsService,
 		AuthSession:     h.SessionManager,
@@ -434,7 +435,7 @@ func TestFanficUploads_NoFile_BadRequest(t *testing.T) {
 		path     string
 		wantBody string
 	}{
-		{"cover", "/fanfics/" + uuid.NewString() + "/cover", "no image file provided"},
+		{"cover", "/fanfics/" + uuid.NewString() + "/cover", "invalid form data"},
 	}
 
 	for _, tc := range cases {

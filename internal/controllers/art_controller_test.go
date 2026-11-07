@@ -1,8 +1,10 @@
 package controllers
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"strings"
 	"testing"
@@ -45,6 +47,7 @@ func newArtHarness(t *testing.T) (*testutil.Harness, *artsvc.MockService) {
 	as := artsvc.NewMockService(t)
 
 	s := &Service{
+		UploadService:   testutil.NewStaging(t),
 		ArtService:      as,
 		SettingsService: h.SettingsService,
 		AuthSession:     h.SessionManager,
@@ -522,10 +525,18 @@ func TestCreateArt_MissingMetadata_BadRequest(t *testing.T) {
 	h, _ := newArtHarness(t)
 	_, cookie := artCtlSession(h, true)
 
+	var form bytes.Buffer
+	writer := multipart.NewWriter(&form)
+	part, err := writer.CreateFormFile("image", "art.png")
+	require.NoError(t, err)
+	_, err = part.Write([]byte("not really an image"))
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+
 	// when
 	status, body := h.NewRequest("POST", "/art").
 		WithCookie(cookie).
-		WithRawBody("", "multipart/form-data; boundary=xxx").
+		WithRawBody(form.String(), writer.FormDataContentType()).
 		Do()
 
 	// then

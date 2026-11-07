@@ -2,7 +2,6 @@ package contentfilter
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"sync"
@@ -21,8 +20,6 @@ const (
 	BannedWordActionDelete = "delete"
 	BannedWordActionKick   = "kick"
 )
-
-var ErrInvalidRegex = errors.New("invalid regex pattern")
 
 type (
 	ChatBannedWordsRule struct {

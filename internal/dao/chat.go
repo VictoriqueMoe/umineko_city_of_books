@@ -72,6 +72,7 @@ type (
 		SearchMessagesForViewer(ctx context.Context, s spec.ChatMessageSearch, tx ...*sql.Tx) ([]model.SearchResult, int, error)
 		GetMessagesBefore(ctx context.Context, q spec.ChatMessageCursorPage, tx ...*sql.Tx) ([]model.ChatMessageRow, error)
 		GetMessageByID(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (*model.ChatMessageRow, error)
+		GetMessageBySenderNonce(ctx context.Context, s spec.ChatSenderNonce, tx ...*sql.Tx) (*model.ChatMessageRow, error)
 		DeleteMessages(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) error
 		DeleteMessage(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) error
 		GetMessageSenderID(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
@@ -1021,6 +1022,21 @@ func (r *chatDAO) GetMessageByID(ctx context.Context, messageID uuid.UUID, tx ..
 	}
 
 	return new(toChatMessageRow(row)), nil
+}
+
+func (r *chatDAO) GetMessageBySenderNonce(ctx context.Context, s spec.ChatSenderNonce, tx ...*sql.Tx) (*model.ChatMessageRow, error) {
+	row, err := genQueries(r.db, tx).GetChatMessageBySenderNonce(ctx, sqlcgen.GetChatMessageBySenderNonceParams{
+		SenderID:    s.SenderID,
+		ClientNonce: s.ClientNonce,
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get message by sender nonce: %w", err)
+	}
+
+	return new(toChatMessageRow(chatMessageJoinRow(row))), nil
 }
 
 func (r *chatDAO) GetMessageRoomID(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {

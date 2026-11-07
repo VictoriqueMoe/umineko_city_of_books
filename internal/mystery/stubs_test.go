@@ -1,15 +1,11 @@
 package mystery
 
 import (
-	"context"
 	"errors"
-	"io"
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/daoerr"
-	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/upload/uploadtest"
@@ -53,30 +49,6 @@ func expectAttachmentLimit(m *testMocks, maxSize int) {
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxGeneralSize).Return(maxSize).Maybe()
 }
 
-func expectUnlinked(m *testMocks, paths []string) {
-	if len(paths) == 0 {
-		m.uploadSvc.EXPECT().Delete().Return()
-
-		return
-	}
-
-	m.uploadSvc.EXPECT().Delete(paths).Return()
-}
-
-func storeAs(urlPath string) func(context.Context, string, string, string, int64, io.Reader, bool, media.AddFn, media.UpdateURLFn, media.UpdateURLFn) (*dto.PostMediaResponse, error) {
-	return func(_ context.Context, _ string, _ string, filename string, _ int64, _ io.Reader, isSpoiler bool, addFn media.AddFn, _ media.UpdateURLFn, _ media.UpdateURLFn) (*dto.PostMediaResponse, error) {
-		id, err := addFn(urlPath, media.MediaTypeImage, "", filename, 0)
-		if err != nil {
-			return nil, err
-		}
-
-		return &dto.PostMediaResponse{ID: int(id), MediaURL: urlPath, MediaType: media.MediaTypeImage, Filename: filename, IsSpoiler: isSpoiler}, nil
-	}
-}
-
-func expectStored(recorder *upload.MockMediaRecorder, f upload.FileUpload, urlPath string) {
-	recorder.EXPECT().
-		SaveAndRecord(mock.Anything, "mysteries", f.ContentType, f.Filename, f.Size, mock.Anything, f.IsSpoiler, mock.Anything, mock.Anything, mock.Anything).
-		RunAndReturn(storeAs(urlPath)).
-		Once()
+func storedMysteryFile(filename string, sortOrder int, isSpoiler bool) upload.StoredMedia {
+	return upload.StoredMedia{URL: "/uploads/mysteries/" + filename, MediaType: upload.MediaTypeImage, Filename: filename, SortOrder: sortOrder, IsSpoiler: isSpoiler}
 }

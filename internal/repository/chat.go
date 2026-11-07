@@ -27,7 +27,7 @@ type (
 		AddMemberWithSystemMessage(ctx context.Context, s spec.ChatMemberJoinAnnouncement, tx ...*sql.Tx) (*model.ChatMessageRow, error)
 		DeleteRoomWithMessages(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]string, error)
 		DeleteMessageWithMedia(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) ([]string, error)
-		InsertMessageAndMarkRead(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, error)
+		InsertMessageAndMarkRead(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, []int64, error)
 		InsertSystemMessage(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, error)
 	}
 
@@ -330,13 +330,28 @@ func (r *chatRepository) CreateDMRoomAtomic(ctx context.Context, s spec.ChatDMPa
 	return result, nil
 }
 
-func (r *chatRepository) InsertMessageAndMarkRead(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, error) {
-	var result *model.ChatMessageRow
+func (r *chatRepository) InsertMessageAndMarkRead(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, []int64, error) {
+	var (
+		result   *model.ChatMessageRow
+		mediaIDs []int64
+	)
 
 	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		msg, err := r.insertMessage(ctx, s, tx)
 		if err != nil {
 			return fmt.Errorf("insert message: %w", err)
+		}
+
+		mediaIDs = make([]int64, 0, len(s.Media))
+		for _, m := range s.Media {
+			m.TargetID = msg.ID
+
+			id, err := r.ChatDAO.AddMessageMedia(ctx, m, tx)
+			if err != nil {
+				return err
+			}
+
+			mediaIDs = append(mediaIDs, id)
 		}
 
 		if err := r.ChatDAO.MarkRoomRead(ctx, spec.ChatMemberRef{RoomID: s.RoomID, UserID: s.SenderID}, tx); err != nil {
@@ -348,10 +363,10 @@ func (r *chatRepository) InsertMessageAndMarkRead(ctx context.Context, s spec.Ne
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return result, nil
+	return result, mediaIDs, nil
 }
 
 func (r *chatRepository) InsertSystemMessage(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, error) {

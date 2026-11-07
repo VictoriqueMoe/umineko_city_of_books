@@ -31,10 +31,11 @@ func newOCHarness(t *testing.T) (*testutil.Harness, *ocsvc.MockService) {
 	os := ocsvc.NewMockService(t)
 
 	s := &Service{
-		OCService:    os,
-		AuthSession:  h.SessionManager,
-		AuthService:  h.AuthService,
-		AuthzService: h.AuthzService,
+		UploadService: testutil.NewStaging(t),
+		OCService:     os,
+		AuthSession:   h.SessionManager,
+		AuthService:   h.AuthService,
+		AuthzService:  h.AuthzService,
 	}
 	for _, setup := range s.getAllOCRoutes() {
 		setup(h.App)

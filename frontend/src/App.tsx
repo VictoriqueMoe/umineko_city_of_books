@@ -15,6 +15,7 @@ import { Butterflies } from "./components/layout/Butterflies/Butterflies";
 import { CanonicalTag } from "./components/CanonicalTag/CanonicalTag";
 import { ProtectedRoute } from "./components/ProtectedRoute/ProtectedRoute";
 import { EditableRoute } from "./components/EditableRoute/EditableRoute";
+import { MissingEmailRoute } from "./components/MissingEmailRoute/MissingEmailRoute";
 import { Banner } from "./components/Banner/Banner";
 import { SessionExpiredBanner } from "./components/SessionExpiredBanner/SessionExpiredBanner";
 import { StaleVersionBanner } from "./components/StaleVersionBanner/StaleVersionBanner";
@@ -345,7 +346,9 @@ function AppLayout() {
                                 <Route path="/verify-email" element={<VerifyEmailPage />} />
 
                                 <Route element={<ProtectedRoute />}>
-                                    <Route path="/set-email" element={<SetEmailPage />} />
+                                    <Route element={<MissingEmailRoute />}>
+                                        <Route path="/set-email" element={<SetEmailPage />} />
+                                    </Route>
                                     <Route path="/notifications" element={<NotificationsPage />} />
                                     <Route path="/theory/new" element={<CreateTheoryPage />} />
                                     <Route
@@ -401,7 +404,9 @@ function AppLayout() {
 
                                 <Route element={<ProtectedRoute permission="view_admin_panel" />}>
                                     <Route path="/admin" element={<AdminLayout />}>
-                                        <Route index element={<AdminDashboard />} />
+                                        <Route element={<ProtectedRoute permission="view_stats" />}>
+                                            <Route index element={<AdminDashboard />} />
+                                        </Route>
                                         <Route element={<ProtectedRoute permission="view_users" />}>
                                             <Route path="users" element={<AdminUsers />} />
                                             <Route path="users/:id" element={<AdminUserDetail />} />

@@ -10,6 +10,7 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/utils"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -104,6 +105,10 @@ func retryAfterSeconds(remaining time.Duration) int64 {
 }
 
 func normalisedBodyField(ctx fiber.Ctx, field string) (string, bool) {
+	if utils.IsMultipart(ctx) {
+		return "", false
+	}
+
 	var body map[string]json.RawMessage
 	if err := json.Unmarshal(ctx.Body(), &body); err != nil {
 		return "", false

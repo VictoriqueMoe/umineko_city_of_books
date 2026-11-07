@@ -315,7 +315,7 @@ func TestCreatePost_EmitsBotTriggerOutsideSuggestions(t *testing.T) {
 			botID := uuid.New()
 
 			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-			m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: string(tc.corner), Body: "@beatrice hello"}).Return(&model.PostRow{ID: uuid.New()}, nil)
+			m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: string(tc.corner), Body: "@beatrice hello"}).Return(&model.PostRow{ID: uuid.New()}, nil, nil)
 			m.activity.EXPECT().BumpSidebarActivity(sidebar.GameBoardKey(tc.corner)).Return().Once()
 			m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil).Maybe()
 			m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"beatrice"}).Return([]model.User{{ID: botID}}, nil).Maybe()

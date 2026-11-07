@@ -94,6 +94,7 @@ func newCommentHarness(t *testing.T) (*testutil.Harness, commentDeps) {
 		svc: comment.NewMockService(t),
 	}
 	s := &Service{
+		UploadService:   testutil.NewStaging(t),
 		CommentService:  deps.svc,
 		SettingsService: h.SettingsService,
 		AuthSession:     h.SessionManager,
@@ -490,7 +491,7 @@ func TestUploadCommentMedia_EveryKindReachesTheServiceWithItsOwnKind(t *testing.
 			h.ExpectValidSession("valid-cookie", userID)
 			form, contentType := testutil.MediaForm(t, "media", nil)
 			deps.svc.EXPECT().
-				UploadMedia(mock.Anything, spec.CommentRef{Kind: route.kind, CommentID: commentID}, userID, "image/png", "pic.png", mock.AnythingOfType("int64"), mock.Anything, false).
+				UploadMedia(mock.Anything, spec.CommentRef{Kind: route.kind, CommentID: commentID}, userID, testutil.FileUploadOf("image/png", "pic.png", false)).
 				Return(&dto.PostMediaResponse{ID: 7, MediaURL: "/uploads/pic.webp", MediaType: "image", SortOrder: 2}, nil).
 				Once()
 
@@ -516,7 +517,7 @@ func TestUploadCommentMedia_TheSpoilerFlagReachesTheService(t *testing.T) {
 	h.ExpectValidSession("valid-cookie", userID)
 	form, contentType := testutil.MediaForm(t, "media", map[string]string{"is_spoiler": "true"})
 	deps.svc.EXPECT().
-		UploadMedia(mock.Anything, spec.CommentRef{Kind: spec.CommentKindMystery, CommentID: commentID}, userID, "image/png", "pic.png", mock.AnythingOfType("int64"), mock.Anything, true).
+		UploadMedia(mock.Anything, spec.CommentRef{Kind: spec.CommentKindMystery, CommentID: commentID}, userID, testutil.FileUploadOf("image/png", "pic.png", true)).
 		Return(&dto.PostMediaResponse{ID: 1, IsSpoiler: true}, nil).
 		Once()
 
@@ -543,7 +544,7 @@ func TestUploadCommentMedia_AMissingFileIsABadRequest(t *testing.T) {
 
 	// then
 	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "no media file provided")
+	assert.Contains(t, string(body), "no file provided")
 }
 
 func TestUploadCommentMedia_NewAccountsCannotUpload(t *testing.T) {
@@ -580,7 +581,7 @@ func TestUploadCommentMedia_ServiceErrorsMapToResponses(t *testing.T) {
 			h.ExpectValidSession("valid-cookie", userID)
 			form, contentType := testutil.MediaForm(t, "media", nil)
 			deps.svc.EXPECT().
-				UploadMedia(mock.Anything, spec.CommentRef{Kind: spec.CommentKindSecret, CommentID: commentID}, userID, "image/png", "pic.png", mock.AnythingOfType("int64"), mock.Anything, false).
+				UploadMedia(mock.Anything, spec.CommentRef{Kind: spec.CommentKindSecret, CommentID: commentID}, userID, testutil.FileUploadOf("image/png", "pic.png", false)).
 				Return(nil, tc.err).
 				Once()
 

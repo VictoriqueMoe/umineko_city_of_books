@@ -24,6 +24,7 @@ func newSecretHarness(t *testing.T) (*testutil.Harness, *secretsvc.MockService) 
 	ms := secretsvc.NewMockService(t)
 
 	s := &Service{
+		UploadService: testutil.NewStaging(t),
 		SecretService: ms,
 		AuthSession:   h.SessionManager,
 		AuthService:   h.AuthService,

@@ -16,7 +16,6 @@ import (
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -55,7 +54,7 @@ type (
 		CreateComment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error)
 		UploadAttachment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, reader io.Reader) (*dto.MysteryAttachment, error)
 		DeleteAttachment(ctx context.Context, attachmentID int64, mysteryID uuid.UUID, userID uuid.UUID) error
-		UploadMedia(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
+		UploadMedia(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, file upload.FileUpload) (*dto.PostMediaResponse, error)
 		DeleteMedia(ctx context.Context, mediaID int64, mysteryID uuid.UUID, userID uuid.UUID) error
 		SetPaused(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, paused bool) error
 		SetGmAway(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, away bool) error
@@ -75,7 +74,6 @@ type (
 		commentSvc    comment.Service
 		settingsSvc   settings.Service
 		uploadSvc     upload.Service
-		uploader      upload.MediaRecorder
 		hub           *ws.Hub
 		contentFilter *contentfilter.Manager
 		ogCache       *og.Resolver
@@ -95,7 +93,6 @@ func NewService(
 	commentSvc comment.Service,
 	settingsSvc settings.Service,
 	uploadSvc upload.Service,
-	mediaProc *media.Processor,
 	hub *ws.Hub,
 	contentFilter *contentfilter.Manager,
 	ogCache *og.Resolver,
@@ -113,7 +110,6 @@ func NewService(
 		commentSvc:    commentSvc,
 		settingsSvc:   settingsSvc,
 		uploadSvc:     uploadSvc,
-		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		hub:           hub,
 		contentFilter: contentFilter,
 		ogCache:       ogCache,
@@ -392,11 +388,6 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 		req.Difficulty = "medium"
 	}
 
-	validated, err := upload.ValidateMedia(ctx, s.settingsSvc, files)
-	if err != nil {
-		return uuid.Nil, err
-	}
-
 	if err := s.validateAttachments(ctx, attachments); err != nil {
 		return uuid.Nil, err
 	}
@@ -406,7 +397,19 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 		contract = *req.KnoxContract
 	}
 
-	created, err := s.mysteryRepo.CreateWithClues(ctx, spec.NewMysteryWithClues{
+	stored, err := s.uploadSvc.StoreMedia(ctx, "mysteries", files)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	storedAttachments, err := s.storeAttachments(ctx, attachments)
+	if err != nil {
+		s.uploadSvc.DiscardMedia(stored...)
+
+		return uuid.Nil, err
+	}
+
+	created, mediaIDs, err := s.mysteryRepo.CreateWithClues(ctx, spec.NewMysteryWithClues{
 		UserID:             userID,
 		Title:              req.Title,
 		Body:               req.Body,
@@ -415,14 +418,17 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 		KeepOpenAfterSolve: req.KeepOpenAfterSolve,
 		Knox:               contract,
 		Clues:              newClues(req.Clues),
+		Media:              upload.MediaRows(stored),
+		Attachments:        storedAttachments,
 	})
 	if err != nil {
+		s.uploadSvc.DiscardMedia(stored...)
+		s.discardAttachments(storedAttachments)
+
 		return uuid.Nil, err
 	}
 
-	if err := s.attachCreatedFiles(ctx, created.ID, validated, attachments); err != nil {
-		return uuid.Nil, upload.DiscardOwned(ctx, s.mysteryRepo, s.uploadSvc, "mystery", spec.OwnedDeletion{ID: created.ID, UserID: userID}, err)
-	}
+	s.uploadSvc.TranscodeMedia(ctx, "mysteries", stored, mediaIDs, s.mysteryRepo.UpdateMediaURL, s.mysteryRepo.UpdateMediaThumbnail)
 
 	s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindMystery, EntityID: created.ID}, userID, req.Body)
 

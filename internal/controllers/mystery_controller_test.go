@@ -56,6 +56,7 @@ func newMysteryHarness(t *testing.T) (*testutil.Harness, *mysterysvc.MockService
 	ms := mysterysvc.NewMockService(t)
 
 	s := &Service{
+		UploadService:   testutil.NewStaging(t),
 		MysteryService:  ms,
 		SettingsService: h.SettingsService,
 		AuthSession:     h.SessionManager,
@@ -207,8 +208,8 @@ func TestMysteryRoutes_RejectedBeforeService(t *testing.T) {
 		{name: "toggle gm away with malformed json", method: "POST", path: "/mysteries/" + id + "/away", body: "not json", wantCode: http.StatusBadRequest, wantBody: "invalid request body"},
 		{name: "create comment with malformed json", method: "POST", path: "/mysteries/" + id + "/comments", body: "not json", wantCode: http.StatusBadRequest, wantBody: "invalid request body"},
 		{name: "mark solved without an attempt id", method: "POST", path: "/mysteries/" + id + "/solve", body: map[string]string{}, wantCode: http.StatusBadRequest, wantBody: "attempt_id is required"},
-		{name: "upload attachment without a file (multipart happy path deliberately not covered)", method: "POST", path: "/mysteries/" + id + "/attachments", wantCode: http.StatusBadRequest, wantBody: "no file provided"},
-		{name: "upload media without a file (multipart happy path deliberately not covered)", method: "POST", path: "/mysteries/" + id + "/media", wantCode: http.StatusBadRequest, wantBody: "no media file provided"},
+		{name: "upload attachment without a file (multipart happy path deliberately not covered)", method: "POST", path: "/mysteries/" + id + "/attachments", wantCode: http.StatusBadRequest, wantBody: "invalid form data"},
+		{name: "upload media without a file (multipart happy path deliberately not covered)", method: "POST", path: "/mysteries/" + id + "/media", wantCode: http.StatusBadRequest, wantBody: "invalid form data"},
 	}
 
 	for _, tc := range cases {
@@ -765,7 +766,7 @@ func TestUploadMysteryFiles(t *testing.T) {
 			path:  "/mysteries/" + mysteryID.String() + "/media",
 			field: "media",
 			expect: func(ms *mysterysvc.MockService, userID uuid.UUID, err error) {
-				ms.EXPECT().UploadMedia(mock.Anything, mysteryID, userID, "image/png", "pic.png", mock.AnythingOfType("int64"), mock.Anything, false).Return(nil, err)
+				ms.EXPECT().UploadMedia(mock.Anything, mysteryID, userID, testutil.FileUploadOf("image/png", "pic.png", false)).Return(nil, err)
 			},
 			outcomes: shared,
 		},

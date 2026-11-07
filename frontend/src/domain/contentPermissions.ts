@@ -48,7 +48,7 @@ export const CONTENT_RULES: Record<ContentFamily, ContentFamilyRules> = {
     journal_entry: { edit: "owner_only", delete: "delete_any_journal" },
     comment: { edit: "edit_any_post", delete: "delete_any_post" },
     response: { edit: "no_surface", delete: "delete_any_post" },
-    oc: { edit: "edit_any_work", delete: "no_surface" },
+    oc: { edit: "edit_any_work", delete: "delete_any_work" },
     gallery: { edit: "owner_only", delete: "owner_only" },
 };
 

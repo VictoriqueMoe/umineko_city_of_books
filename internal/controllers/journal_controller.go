@@ -324,7 +324,7 @@ func (s *Service) createJournalComment(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	return handleCreateComment(ctx, func(c context.Context, req dto.CreateJournalCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
+	return handleCreateComment(ctx, s.UploadService, func(c context.Context, req dto.CreateJournalCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
 		return s.JournalService.CreateComment(c, journalID, userID, req, files)
 	}, []errorResponse{
 		{err: journal.ErrArchived, respond: utils.Forbidden, message: "journal is archived"},
@@ -364,18 +364,13 @@ func (s *Service) uploadJournalEntryMedia(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	file, err := ctx.FormFile("media")
+	file, err := utils.ReceiveFile(ctx, s.UploadService, "media")
 	if err != nil {
-		return utils.BadRequest(ctx, "no media file provided")
+		return utils.UploadFailed(ctx, err)
 	}
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file", err)
-	}
-	defer reader.Close()
+	defer file.Close()
 
-	contentType := file.Header.Get("Content-Type")
-	result, err := s.JournalService.UploadEntryMedia(ctx.Context(), entryID, userID, contentType, file.Filename, file.Size, reader, isSpoilerUpload(ctx))
+	result, err := s.JournalService.UploadEntryMedia(ctx.Context(), entryID, userID, file.FileUpload(isSpoilerUpload(file)))
 	if err != nil {
 		if errors.Is(err, journal.ErrNotAuthor) {
 			return utils.Forbidden(ctx, "not the entry author")
@@ -420,10 +415,11 @@ func (s *Service) createJournalEntry(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	req, ok := utils.BindWithMedia[dto.CreateJournalEntryRequest](ctx)
+	req, ok := utils.BindWithMedia[dto.CreateJournalEntryRequest](ctx, s.UploadService)
 	if !ok {
 		return nil
 	}
+	defer req.Close()
 
 	id, entryNumber, err := s.JournalService.CreateEntry(ctx.Context(), journalID, userID, req.Payload, req.Media)
 	if err != nil {

@@ -48,6 +48,7 @@ func journalCtlHarness(t *testing.T) (*testutil.Harness, *journalsvc.MockService
 	js := journalsvc.NewMockService(t)
 
 	s := &Service{
+		UploadService:   testutil.NewStaging(t),
 		JournalService:  js,
 		SettingsService: h.SettingsService,
 		AuthSession:     h.SessionManager,

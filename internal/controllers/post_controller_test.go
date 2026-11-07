@@ -79,6 +79,7 @@ func newPostHarness(t *testing.T) (*testutil.Harness, postDeps) {
 	}
 
 	s := &Service{
+		UploadService:   testutil.NewStaging(t),
 		PostService:     deps.post,
 		FollowService:   deps.follow,
 		SettingsService: h.SettingsService,
@@ -157,7 +158,7 @@ func TestPostController_RejectsMalformedRequests(t *testing.T) {
 		{name: "update post bad json", method: "PUT", path: "/posts/" + id, rawBody: "not json", contentType: postCtlJSON, wantBody: "invalid request body"},
 		{name: "delete post invalid id", method: "DELETE", path: "/posts/not-a-uuid", wantBody: "invalid id"},
 		{name: "upload post media invalid id", method: "POST", path: "/posts/not-a-uuid/media", wantBody: "invalid id"},
-		{name: "upload post media no file", method: "POST", path: "/posts/" + id + "/media", contentType: postCtlMultipart, wantBody: "no media file provided"},
+		{name: "upload post media no file", method: "POST", path: "/posts/" + id + "/media", contentType: postCtlMultipart, wantBody: "no file provided"},
 		{name: "delete post media invalid post id", method: "DELETE", path: "/posts/not-a-uuid/media/42", wantBody: "invalid id"},
 		{name: "delete post media invalid media id", method: "DELETE", path: "/posts/" + id + "/media/0", wantBody: "invalid media id"},
 		{name: "like post invalid id", method: "POST", path: "/posts/not-a-uuid/like", wantBody: "invalid id"},
@@ -430,7 +431,7 @@ func TestUploadPostMedia(t *testing.T) {
 			h, deps, userID := postCtlSignedIn(t)
 			id := uuid.New()
 			form, contentType := testutil.MediaForm(t, "media", nil)
-			deps.post.EXPECT().UploadPostMedia(mock.Anything, id, userID, "image/png", "pic.png", mock.AnythingOfType("int64"), mock.Anything, false).Return(nil, tc.err)
+			deps.post.EXPECT().UploadPostMedia(mock.Anything, id, userID, testutil.FileUploadOf("image/png", "pic.png", false)).Return(nil, tc.err)
 
 			// when
 			status, body := h.NewRequest("POST", "/posts/"+id.String()+"/media").WithCookie(postCtlCookie).WithRawBody(form, contentType).Do()

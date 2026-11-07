@@ -53,18 +53,7 @@ beforeEach(() => {
     mocks.setEmail.mockResolvedValue(undefined);
 });
 
-describe("SetEmailPage gating", () => {
-    it("sends a member who already has an email back to the city", () => {
-        // given
-        const user = makeUser({ email: "beato@example.com" });
-
-        // when
-        setup({ user });
-
-        // then
-        expect(screen.getByText("city of books")).toBeInTheDocument();
-    });
-
+describe("SetEmailPage", () => {
     it("asks a member without an email to add one", () => {
         // given
         const user = makeUser({ email: undefined });

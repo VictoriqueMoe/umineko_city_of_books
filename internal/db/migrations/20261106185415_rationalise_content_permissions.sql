@@ -31,6 +31,10 @@ JOIN (VALUES
 ) AS mapped(current_permission, permission) ON mapped.current_permission = role_permissions.permission
 ON CONFLICT DO NOTHING;
 
+INSERT INTO role_permissions (role, permission)
+VALUES ('moderator', 'edit_any_journal')
+ON CONFLICT DO NOTHING;
+
 DELETE FROM role_permissions
 WHERE permission IN ('edit_any_work', 'delete_any_work');
 -- +goose StatementEnd

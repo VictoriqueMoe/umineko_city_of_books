@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"errors"
 	"net/url"
 	"strings"
 	"time"
@@ -20,8 +19,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
-
-var ErrNotConnected = errors.New("no overlay connection")
 
 type (
 	Service interface {

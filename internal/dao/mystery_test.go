@@ -330,7 +330,7 @@ func TestMysteryRepo_CreateWithClues(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	created, err := repos.Mystery.CreateWithClues(context.Background(), spec.NewMysteryWithClues{
+	created, mediaIDs, err := repos.Mystery.CreateWithClues(context.Background(), spec.NewMysteryWithClues{
 		UserID:     user.ID,
 		Title:      "Locked Room",
 		Body:       "How?",
@@ -340,15 +340,51 @@ func TestMysteryRepo_CreateWithClues(t *testing.T) {
 			{Body: "first", TruthType: "red", SortOrder: 0},
 			{Body: "second", TruthType: "blue", SortOrder: 1},
 		},
+		Media:       []spec.NewMedia{{MediaURL: "/uploads/mysteries/board.webp", MediaType: "image", Filename: "board.png"}},
+		Attachments: []spec.NewMysteryAttachment{{FileURL: "/uploads/mystery-attachments/notes.pdf", FileName: "notes.pdf", FileSize: 12}},
 	})
 
-	// then
+	// then the mystery, its clues, its media and its attachments were all written
 	require.NoError(t, err)
+	require.Len(t, mediaIDs, 1)
 
 	row := mysteryGet(t, repos, created.ID)
 	require.NotNil(t, row)
 	assert.Equal(t, "Locked Room", row.Title)
 	assert.Equal(t, []string{"first", "second"}, mysteryClueBodies(t, repos, created.ID))
+
+	media, err := repos.Mystery.GetMedia(context.Background(), created.ID)
+	require.NoError(t, err)
+	require.Len(t, media, 1)
+	assert.Equal(t, "/uploads/mysteries/board.webp", media[0].MediaURL)
+
+	attachments, err := repos.Mystery.GetAttachments(context.Background(), created.ID)
+	require.NoError(t, err)
+	require.Len(t, attachments, 1)
+	assert.Equal(t, "notes.pdf", attachments[0].FileName)
+}
+
+func TestMysteryRepo_CreateWithClues_AFailedMediaRowLeavesNoMystery(t *testing.T) {
+	// given a media row the database refuses, because a negative sort order breaks mystery_media_sort_order_check
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+
+	// when
+	_, _, err := repos.Mystery.CreateWithClues(context.Background(), spec.NewMysteryWithClues{
+		UserID:     user.ID,
+		Title:      "Half Built",
+		Body:       "Never",
+		Difficulty: "hard",
+		Knox:       dto.DefaultKnoxContract(),
+		Media:      []spec.NewMedia{{MediaURL: "/uploads/mysteries/a.webp", MediaType: "image", SortOrder: -1}},
+	})
+
+	// then the whole create rolled back
+	require.Error(t, err)
+
+	var count int
+	require.NoError(t, repos.DB().QueryRowContext(context.Background(), `SELECT COUNT(*) FROM mysteries WHERE title = 'Half Built'`).Scan(&count))
+	assert.Zero(t, count)
 }
 
 func TestMysteryRepo_UpdateWithClues_ReplacesPublicCluesOnly(t *testing.T) {

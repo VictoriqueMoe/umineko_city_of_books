@@ -380,6 +380,97 @@ func (_c *MockCommentRepository_CreateComment_Call) RunAndReturn(run func(ctx co
 	return _c
 }
 
+// CreateCommentWithMedia provides a mock function for the type MockCommentRepository
+func (_mock *MockCommentRepository) CreateCommentWithMedia(ctx context.Context, s spec.NewComment, tx ...*sql.Tx) (*model.CommentRow, []int64, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateCommentWithMedia")
+	}
+
+	var r0 *model.CommentRow
+	var r1 []int64
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewComment, ...*sql.Tx) (*model.CommentRow, []int64, error)); ok {
+		return returnFunc(ctx, s, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewComment, ...*sql.Tx) *model.CommentRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.CommentRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewComment, ...*sql.Tx) []int64); ok {
+		r1 = returnFunc(ctx, s, tx...)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]int64)
+		}
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.NewComment, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, s, tx...)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// MockCommentRepository_CreateCommentWithMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateCommentWithMedia'
+type MockCommentRepository_CreateCommentWithMedia_Call struct {
+	*mock.Call
+}
+
+// CreateCommentWithMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.NewComment
+//   - tx ...*sql.Tx
+func (_e *MockCommentRepository_Expecter) CreateCommentWithMedia(ctx any, s any, tx ...any) *MockCommentRepository_CreateCommentWithMedia_Call {
+	return &MockCommentRepository_CreateCommentWithMedia_Call{Call: _e.mock.On("CreateCommentWithMedia",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockCommentRepository_CreateCommentWithMedia_Call) Run(run func(ctx context.Context, s spec.NewComment, tx ...*sql.Tx)) *MockCommentRepository_CreateCommentWithMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.NewComment
+		if args[1] != nil {
+			arg1 = args[1].(spec.NewComment)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockCommentRepository_CreateCommentWithMedia_Call) Return(commentRow *model.CommentRow, int64s []int64, err error) *MockCommentRepository_CreateCommentWithMedia_Call {
+	_c.Call.Return(commentRow, int64s, err)
+	return _c
+}
+
+func (_c *MockCommentRepository_CreateCommentWithMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.NewComment, tx ...*sql.Tx) (*model.CommentRow, []int64, error)) *MockCommentRepository_CreateCommentWithMedia_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteComment provides a mock function for the type MockCommentRepository
 func (_mock *MockCommentRepository) DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments

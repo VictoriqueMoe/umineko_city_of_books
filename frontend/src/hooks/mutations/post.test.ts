@@ -88,7 +88,7 @@ describe("post mutations", () => {
                 sharedContentType: "art",
             },
             endpoint: vi.mocked(endpoints.createPost),
-            args: ["Without love it cannot be seen", "theories", undefined, "art-3", "art", undefined],
+            args: ["Without love it cannot be seen", "theories", undefined, "art-3", "art", undefined, undefined],
             invalidations: postViews,
         },
         {
@@ -238,6 +238,7 @@ describe("useCreatePost", () => {
             undefined,
             undefined,
             undefined,
+            undefined,
         );
     });
 
@@ -256,6 +257,7 @@ describe("useCreatePost", () => {
             "Who is the culprit",
             "general",
             poll,
+            undefined,
             undefined,
             undefined,
             undefined,
@@ -299,8 +301,27 @@ describe("useCreatePost", () => {
             undefined,
             undefined,
             media,
+            undefined,
         );
         expect(endpoints.uploadPostMedia).not.toHaveBeenCalled();
+    });
+
+    it("hands the upload progress callback through to the request", async () => {
+        // given
+        const onProgress = vi.fn();
+        const { result } = setup(() => useCreatePost());
+
+        // when
+        await act(async () => {
+            await result.current.mutateAsync({
+                body: "Look at these",
+                media: [{ file, isSpoiler: false }],
+                onProgress,
+            });
+        });
+
+        // then
+        expect(vi.mocked(endpoints.createPost).mock.calls[0][6]).toBe(onProgress);
     });
 
     it("refreshes the post lists once, only after the post and its media are saved", async () => {

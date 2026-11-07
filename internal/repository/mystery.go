@@ -21,7 +21,7 @@ type (
 		dao.MysteryDAO
 
 		MarkSolved(ctx context.Context, s spec.MysterySolve, tx ...*sql.Tx) error
-		CreateWithClues(ctx context.Context, s spec.NewMysteryWithClues, tx ...*sql.Tx) (*model.MysteryRow, error)
+		CreateWithClues(ctx context.Context, s spec.NewMysteryWithClues, tx ...*sql.Tx) (*model.MysteryRow, []int64, error)
 		UpdateWithClues(ctx context.Context, s spec.MysteryUpdateWithClues, tx ...*sql.Tx) error
 		DeleteWithFiles(ctx context.Context, s spec.MysteryDelete, tx ...*sql.Tx) ([]string, error)
 		DeleteWithMedia(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error)
@@ -40,8 +40,11 @@ func NewMysteryRepo(database *sql.DB, mysteryDAO dao.MysteryDAO, comments dao.Co
 	return &mysteryRepository{db: database, MysteryDAO: mysteryDAO, comments: comments, audit: auditRepo, cache: c}
 }
 
-func (r *mysteryRepository) CreateWithClues(ctx context.Context, s spec.NewMysteryWithClues, tx ...*sql.Tx) (*model.MysteryRow, error) {
-	var created *model.MysteryRow
+func (r *mysteryRepository) CreateWithClues(ctx context.Context, s spec.NewMysteryWithClues, tx ...*sql.Tx) (*model.MysteryRow, []int64, error) {
+	var (
+		created  *model.MysteryRow
+		mediaIDs []int64
+	)
 
 	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
@@ -51,13 +54,29 @@ func (r *mysteryRepository) CreateWithClues(ctx context.Context, s spec.NewMyste
 			return err
 		}
 
-		return r.addClues(ctx, created.ID, s.Clues, tx)
+		if err := r.addClues(ctx, created.ID, s.Clues, tx); err != nil {
+			return err
+		}
+
+		mediaIDs, err = addMediaRows(ctx, r.MysteryDAO.AddMedia, created.ID, s.Media, tx)
+		if err != nil {
+			return err
+		}
+
+		for _, attachment := range s.Attachments {
+			attachment.MysteryID = created.ID
+			if _, err := r.MysteryDAO.AddAttachment(ctx, attachment, tx); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return created, nil
+	return created, mediaIDs, nil
 }
 
 func (r *mysteryRepository) UpdateWithClues(ctx context.Context, s spec.MysteryUpdateWithClues, tx ...*sql.Tx) error {

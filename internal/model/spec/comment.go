@@ -39,6 +39,7 @@ type (
 		ParentID *uuid.UUID
 		UserID   uuid.UUID
 		Body     string
+		Media    []NewMedia
 	}
 
 	CommentQuery struct {

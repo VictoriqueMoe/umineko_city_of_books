@@ -8,6 +8,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/upload/uploadtest"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -224,7 +225,7 @@ func TestMysteryFiles_AFailedExistingFilesLookupIsSurfaced(t *testing.T) {
 				m.repo.EXPECT().GetMedia(mock.Anything, mid).Return(nil, boom)
 			},
 			call: func(s *service, mid, userID uuid.UUID) error {
-				_, err := s.UploadMedia(context.Background(), mid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil), false)
+				_, err := s.UploadMedia(context.Background(), mid, userID, uploadtest.PNGUpload(t, "photo.png", false))
 				return err
 			},
 		},
@@ -257,7 +258,7 @@ func TestUploadMedia_MysteryNotFound(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errMissingRow)
 
 	// when
-	_, err := svc.UploadMedia(context.Background(), mid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil), false)
+	_, err := svc.UploadMedia(context.Background(), mid, userID, uploadtest.PNGUpload(t, "photo.png", false))
 
 	// then
 	require.ErrorIs(t, err, ErrNotFound)
@@ -271,7 +272,7 @@ func TestUploadMedia_NotAuthor(t *testing.T) {
 	stubNotAuthor(m, mid, userID)
 
 	// when
-	_, err := svc.UploadMedia(context.Background(), mid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil), false)
+	_, err := svc.UploadMedia(context.Background(), mid, userID, uploadtest.PNGUpload(t, "photo.png", false))
 
 	// then
 	require.ErrorIs(t, err, ErrNotAuthor)

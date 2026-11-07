@@ -17,7 +17,6 @@ import (
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -77,7 +76,6 @@ type (
 		mentionSvc    mention.Service
 		commentSvc    comment.Service
 		uploadSvc     upload.Service
-		mediaProc     *media.Processor
 		settingsSvc   settings.Service
 		quoteClient   *quotefinder.Client
 		contentFilter *contentfilter.Manager
@@ -96,7 +94,6 @@ func NewService(
 	mentionSvc mention.Service,
 	commentSvc comment.Service,
 	uploadSvc upload.Service,
-	mediaProc *media.Processor,
 	settingsSvc settings.Service,
 	quoteClient *quotefinder.Client,
 	contentFilter *contentfilter.Manager,
@@ -113,7 +110,6 @@ func NewService(
 		mentionSvc:    mentionSvc,
 		commentSvc:    commentSvc,
 		uploadSvc:     uploadSvc,
-		mediaProc:     mediaProc,
 		settingsSvc:   settingsSvc,
 		quoteClient:   quoteClient,
 		contentFilter: contentFilter,

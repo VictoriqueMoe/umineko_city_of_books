@@ -36,6 +36,7 @@ func newStreamHarness(t *testing.T) (*testutil.Harness, streamDeps) {
 	}
 
 	s := &Service{
+		UploadService: testutil.NewStaging(t),
 		StreamService: deps.stream,
 		UserService:   deps.users,
 		AuthSession:   h.SessionManager,

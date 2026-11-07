@@ -55,7 +55,7 @@ func (s *Service) setupGetArt(r fiber.Router) {
 }
 
 func (s *Service) setupCreateArt(r fiber.Router) {
-	r.Post("/art", s.requireAuth(), s.createArt)
+	r.Post("/art", s.requireAuth(), s.requireEstablished(), s.createArt)
 }
 
 func (s *Service) setupUpdateArt(r fiber.Router) {
@@ -136,7 +136,13 @@ func (s *Service) getArt(ctx fiber.Ctx) error {
 func (s *Service) createArt(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
-	metadataStr := ctx.FormValue("metadata")
+	file, err := utils.ReceiveFile(ctx, s.UploadService, "image")
+	if err != nil {
+		return utils.UploadFailed(ctx, err)
+	}
+	defer file.Close()
+
+	metadataStr := file.Form.Value("metadata")
 	if metadataStr == "" {
 		return utils.BadRequest(ctx, "metadata is required")
 	}
@@ -146,18 +152,7 @@ func (s *Service) createArt(ctx fiber.Ctx) error {
 		return utils.BadRequest(ctx, "invalid metadata")
 	}
 
-	file, err := ctx.FormFile("image")
-	if err != nil {
-		return utils.BadRequest(ctx, "image file is required")
-	}
-
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file", err)
-	}
-	defer reader.Close()
-
-	id, err := s.ArtService.CreateArt(ctx.Context(), userID, req, file.Header.Get("Content-Type"), file.Size, reader)
+	id, err := s.ArtService.CreateArt(ctx.Context(), userID, req, file.ContentType, file.Size, file)
 	if err != nil {
 		if utils.MapFilterError(ctx, err) {
 			return nil

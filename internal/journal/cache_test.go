@@ -10,7 +10,6 @@ import (
 	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/homefeed"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
@@ -49,7 +48,7 @@ func newCacheTestService(t *testing.T, mgr *cache.Manager, echoes homefeed.Servi
 
 	svc := NewService(
 		repo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc,
-		uploadSvc, &media.Processor{}, settingsSvc, contentfilter.New(), resolver, echoes, activity,
+		uploadSvc, settingsSvc, contentfilter.New(), resolver, echoes, activity,
 	).(*service)
 
 	return svc, &testMocks{

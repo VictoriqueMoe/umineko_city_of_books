@@ -1706,8 +1706,8 @@ func (_c *MockService_UploadAttachment_Call) RunAndReturn(run func(ctx context.C
 }
 
 // UploadMedia provides a mock function for the type MockService
-func (_mock *MockService) UploadMedia(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
-	ret := _mock.Called(ctx, mysteryID, userID, contentType, filename, fileSize, reader, isSpoiler)
+func (_mock *MockService) UploadMedia(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, file upload.FileUpload) (*dto.PostMediaResponse, error) {
+	ret := _mock.Called(ctx, mysteryID, userID, file)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UploadMedia")
@@ -1715,18 +1715,18 @@ func (_mock *MockService) UploadMedia(ctx context.Context, mysteryID uuid.UUID, 
 
 	var r0 *dto.PostMediaResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, int64, io.Reader, bool) (*dto.PostMediaResponse, error)); ok {
-		return returnFunc(ctx, mysteryID, userID, contentType, filename, fileSize, reader, isSpoiler)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, upload.FileUpload) (*dto.PostMediaResponse, error)); ok {
+		return returnFunc(ctx, mysteryID, userID, file)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, int64, io.Reader, bool) *dto.PostMediaResponse); ok {
-		r0 = returnFunc(ctx, mysteryID, userID, contentType, filename, fileSize, reader, isSpoiler)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, upload.FileUpload) *dto.PostMediaResponse); ok {
+		r0 = returnFunc(ctx, mysteryID, userID, file)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.PostMediaResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, string, int64, io.Reader, bool) error); ok {
-		r1 = returnFunc(ctx, mysteryID, userID, contentType, filename, fileSize, reader, isSpoiler)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, upload.FileUpload) error); ok {
+		r1 = returnFunc(ctx, mysteryID, userID, file)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1742,16 +1742,12 @@ type MockService_UploadMedia_Call struct {
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
 //   - userID uuid.UUID
-//   - contentType string
-//   - filename string
-//   - fileSize int64
-//   - reader io.Reader
-//   - isSpoiler bool
-func (_e *MockService_Expecter) UploadMedia(ctx any, mysteryID any, userID any, contentType any, filename any, fileSize any, reader any, isSpoiler any) *MockService_UploadMedia_Call {
-	return &MockService_UploadMedia_Call{Call: _e.mock.On("UploadMedia", ctx, mysteryID, userID, contentType, filename, fileSize, reader, isSpoiler)}
+//   - file upload.FileUpload
+func (_e *MockService_Expecter) UploadMedia(ctx any, mysteryID any, userID any, file any) *MockService_UploadMedia_Call {
+	return &MockService_UploadMedia_Call{Call: _e.mock.On("UploadMedia", ctx, mysteryID, userID, file)}
 }
 
-func (_c *MockService_UploadMedia_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool)) *MockService_UploadMedia_Call {
+func (_c *MockService_UploadMedia_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, file upload.FileUpload)) *MockService_UploadMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1765,35 +1761,15 @@ func (_c *MockService_UploadMedia_Call) Run(run func(ctx context.Context, myster
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
-		var arg3 string
+		var arg3 upload.FileUpload
 		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 int64
-		if args[5] != nil {
-			arg5 = args[5].(int64)
-		}
-		var arg6 io.Reader
-		if args[6] != nil {
-			arg6 = args[6].(io.Reader)
-		}
-		var arg7 bool
-		if args[7] != nil {
-			arg7 = args[7].(bool)
+			arg3 = args[3].(upload.FileUpload)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
-			arg5,
-			arg6,
-			arg7,
 		)
 	})
 	return _c
@@ -1804,7 +1780,7 @@ func (_c *MockService_UploadMedia_Call) Return(postMediaResponse *dto.PostMediaR
 	return _c
 }
 
-func (_c *MockService_UploadMedia_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)) *MockService_UploadMedia_Call {
+func (_c *MockService_UploadMedia_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, file upload.FileUpload) (*dto.PostMediaResponse, error)) *MockService_UploadMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }

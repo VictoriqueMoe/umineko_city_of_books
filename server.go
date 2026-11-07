@@ -184,11 +184,13 @@ func initApp(svc *services, settingsSvc settings.Service) *fiber.App {
 			Loopback: true,
 			Private:  true,
 		},
-		EnableIPValidation:   true,
-		CaseSensitive:        true,
-		DisableFlashMessages: true,
-		AppName:              siteName,
-		ErrorHandler:         middleware.ErrorHandler,
+		EnableIPValidation:           true,
+		CaseSensitive:                true,
+		DisableFlashMessages:         true,
+		AppName:                      siteName,
+		ErrorHandler:                 middleware.ErrorHandler,
+		StreamRequestBody:            true,
+		DisablePreParseMultipartForm: true,
 	})
 
 	middleware.Setup(app, settingsSvc, svc.auth, svc.authz, svc.dronebl)

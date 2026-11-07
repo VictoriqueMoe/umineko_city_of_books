@@ -35,33 +35,35 @@ func (s *service) UploadAttachment(ctx context.Context, mysteryID uuid.UUID, use
 
 	maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxGeneralSize))
 
-	return s.storeAttachment(ctx, mysteryID, maxSize, fileName, fileSize, reader)
-}
-
-func (s *service) storeAttachment(ctx context.Context, mysteryID uuid.UUID, maxSize int64, fileName string, fileSize int64, reader io.Reader) (*dto.MysteryAttachment, error) {
-	urlPath, err := s.uploadSvc.SaveAttachment(ctx, "mystery-attachments/"+mysteryID.String(), fileSize, maxSize, reader)
+	attachment, err := s.storeAttachment(ctx, maxSize, fileName, fileSize, reader)
 	if err != nil {
 		return nil, err
 	}
 
-	dbID, err := s.mysteryRepo.AddAttachment(ctx, spec.NewMysteryAttachment{
-		MysteryID: mysteryID,
-		FileURL:   urlPath,
-		FileName:  fileName,
-		FileSize:  int(fileSize),
-	})
+	attachment.MysteryID = mysteryID
+
+	dbID, err := s.mysteryRepo.AddAttachment(ctx, attachment)
 	if err != nil {
-		s.uploadSvc.Delete(urlPath)
+		s.uploadSvc.Delete(attachment.FileURL)
 
 		return nil, err
 	}
 
 	return &dto.MysteryAttachment{
 		ID:       int(dbID),
-		FileURL:  urlPath,
-		FileName: fileName,
-		FileSize: int(fileSize),
+		FileURL:  attachment.FileURL,
+		FileName: attachment.FileName,
+		FileSize: attachment.FileSize,
 	}, nil
+}
+
+func (s *service) storeAttachment(ctx context.Context, maxSize int64, fileName string, fileSize int64, reader io.Reader) (spec.NewMysteryAttachment, error) {
+	urlPath, err := s.uploadSvc.SaveAttachment(ctx, "mystery-attachments", fileSize, maxSize, reader)
+	if err != nil {
+		return spec.NewMysteryAttachment{}, err
+	}
+
+	return spec.NewMysteryAttachment{FileURL: urlPath, FileName: fileName, FileSize: int(fileSize)}, nil
 }
 
 func (s *service) validateAttachments(ctx context.Context, attachments []upload.FileUpload) error {
@@ -86,47 +88,45 @@ func (s *service) validateAttachments(ctx context.Context, attachments []upload.
 	return nil
 }
 
-func (s *service) attachCreatedFiles(ctx context.Context, mysteryID uuid.UUID, validated upload.ValidatedMedia, attachments []upload.FileUpload) error {
-	if err := validated.SaveToEntity(ctx, s.uploader, s.uploadSvc, "mysteries", s.mysteryRepo, mysteryID); err != nil {
-		return err
-	}
-
+func (s *service) storeAttachments(ctx context.Context, attachments []upload.FileUpload) ([]spec.NewMysteryAttachment, error) {
 	if len(attachments) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxGeneralSize))
+
+	var stored []spec.NewMysteryAttachment
 	for _, f := range attachments {
-		if err := s.storeAttachmentFile(ctx, mysteryID, maxSize, f); err != nil {
-			return err
+		attachment, err := s.storeAttachmentFile(ctx, maxSize, f)
+		if err != nil {
+			s.discardAttachments(stored)
+
+			return nil, err
 		}
+
+		stored = append(stored, attachment)
 	}
 
-	return nil
+	return stored, nil
 }
 
-func (s *service) storeAttachmentFile(ctx context.Context, mysteryID uuid.UUID, maxSize int64, f upload.FileUpload) error {
+func (s *service) storeAttachmentFile(ctx context.Context, maxSize int64, f upload.FileUpload) (spec.NewMysteryAttachment, error) {
 	r, err := f.Open()
 	if err != nil {
-		return fmt.Errorf("open attachment: %w", err)
+		return spec.NewMysteryAttachment{}, fmt.Errorf("open attachment: %w", err)
 	}
 	defer r.Close()
 
-	_, err = s.storeAttachment(ctx, mysteryID, maxSize, f.Filename, f.Size, r)
-
-	return err
+	return s.storeAttachment(ctx, maxSize, f.Filename, f.Size, r)
 }
 
-func (s *service) UploadMedia(
-	ctx context.Context,
-	mysteryID uuid.UUID,
-	userID uuid.UUID,
-	contentType string,
-	filename string,
-	fileSize int64,
-	reader io.Reader,
-	isSpoiler bool,
-) (*dto.PostMediaResponse, error) {
+func (s *service) discardAttachments(stored []spec.NewMysteryAttachment) {
+	for _, a := range stored {
+		s.uploadSvc.Delete(a.FileURL)
+	}
+}
+
+func (s *service) UploadMedia(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, file upload.FileUpload) (*dto.PostMediaResponse, error) {
 	authorID, err := s.mysteryAuthor(ctx, mysteryID)
 	if err != nil {
 		return nil, err
@@ -139,27 +139,25 @@ func (s *service) UploadMedia(
 	if err != nil {
 		return nil, fmt.Errorf("existing media: %w", err)
 	}
-	sortOrder := len(existing)
-
-	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, filename, fileSize, reader, isSpoiler,
-		func(mediaURL, mediaType, _, filename string, _ int) (int64, error) {
-			return s.mysteryRepo.AddMedia(ctx, spec.NewMedia{
-				TargetID:  mysteryID,
-				MediaURL:  mediaURL,
-				MediaType: mediaType,
-				Filename:  filename,
-				SortOrder: sortOrder,
-				IsSpoiler: isSpoiler,
-			})
-		},
-		s.mysteryRepo.UpdateMediaURL,
-		s.mysteryRepo.UpdateMediaThumbnail,
-	)
+	stored, err := s.uploadSvc.StoreMedia(ctx, "mysteries", []upload.FileUpload{file})
 	if err != nil {
 		return nil, err
 	}
-	resp.SortOrder = sortOrder
-	return resp, nil
+
+	stored[0].SortOrder = len(existing)
+
+	mediaID, err := s.mysteryRepo.AddMedia(ctx, stored[0].NewMedia(mysteryID))
+	if err != nil {
+		s.uploadSvc.DiscardMedia(stored...)
+
+		return nil, err
+	}
+
+	s.uploadSvc.TranscodeMedia(ctx, "mysteries", stored, []int64{mediaID}, s.mysteryRepo.UpdateMediaURL, s.mysteryRepo.UpdateMediaThumbnail)
+
+	resp := stored[0].Response(mediaID)
+
+	return &resp, nil
 }
 
 func (s *service) DeleteMedia(ctx context.Context, mediaID int64, mysteryID uuid.UUID, userID uuid.UUID) error {

@@ -17,6 +17,7 @@ type (
 	JournalRepository interface {
 		dao.JournalDAO
 
+		CreateEntryWithMedia(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx) (*model.JournalEntryRow, []int64, error)
 		DeleteWithMedia(ctx context.Context, s spec.JournalDeletion, tx ...*sql.Tx) ([]string, error)
 		DeleteEntryWithMedia(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) ([]string, error)
 	}
@@ -79,8 +80,11 @@ func (r *journalRepository) DeleteWithMedia(ctx context.Context, s spec.JournalD
 	return paths, nil
 }
 
-func (r *journalRepository) CreateEntry(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx) (*model.JournalEntryRow, error) {
-	var created *model.JournalEntryRow
+func (r *journalRepository) CreateEntryWithMedia(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx) (*model.JournalEntryRow, []int64, error) {
+	var (
+		created  *model.JournalEntryRow
+		mediaIDs []int64
+	)
 
 	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
@@ -90,17 +94,18 @@ func (r *journalRepository) CreateEntry(ctx context.Context, s spec.NewJournalEn
 			return err
 		}
 
-		if !s.RecordAuthorActivity {
-			return nil
+		mediaIDs, err = addMediaRows(ctx, r.JournalDAO.AddMedia, created.ID, s.Media, tx)
+		if err != nil {
+			return err
 		}
 
 		return r.JournalDAO.UpdateLastAuthorActivity(ctx, s.JournalID, tx)
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return created, nil
+	return created, mediaIDs, nil
 }
 
 func (r *journalRepository) UpdateEntry(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx) (bool, error) {

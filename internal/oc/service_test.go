@@ -15,7 +15,6 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -57,12 +56,11 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	notifSvc := notification.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
-	mediaProc := media.NewProcessor(1)
 	commentSvc := comment.NewMockService(t)
 	activity := sidebar.NewMockActivityBumper(t)
 	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc)
 
-	svc := NewService(ocRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc, uploadSvc, mediaProc, settingsSvc, nil, contentfilter.New(), nil, activity).(*service)
+	svc := NewService(ocRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc, uploadSvc, settingsSvc, nil, contentfilter.New(), nil, activity).(*service)
 	return svc, &testMocks{
 		ocRepo:      ocRepo,
 		commentSvc:  commentSvc,

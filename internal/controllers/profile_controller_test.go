@@ -31,6 +31,7 @@ func newProfileHarness(t *testing.T) (*testutil.Harness, profileDeps) {
 	}
 
 	s := &Service{
+		UploadService:   testutil.NewStaging(t),
 		ProfileService:  deps.profileSvc,
 		FollowService:   deps.followSvc,
 		SettingsService: h.SettingsService,
@@ -217,7 +218,7 @@ func TestUploadAvatar_MissingFile(t *testing.T) {
 
 	// then
 	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "avatar file is required")
+	assert.Contains(t, string(body), "no file provided")
 }
 
 func TestUploadBanner_AuthFailures(t *testing.T) {
@@ -238,7 +239,7 @@ func TestUploadBanner_MissingFile(t *testing.T) {
 
 	// then
 	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "banner file is required")
+	assert.Contains(t, string(body), "no file provided")
 }
 
 func TestChangePassword_AuthFailures(t *testing.T) {

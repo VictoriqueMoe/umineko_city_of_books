@@ -708,7 +708,7 @@ func (_c *MockMysteryRepository_CreateAttempt_Call) RunAndReturn(run func(ctx co
 }
 
 // CreateWithClues provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) CreateWithClues(ctx context.Context, s spec.NewMysteryWithClues, tx ...*sql.Tx) (*model.MysteryRow, error) {
+func (_mock *MockMysteryRepository) CreateWithClues(ctx context.Context, s spec.NewMysteryWithClues, tx ...*sql.Tx) (*model.MysteryRow, []int64, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, s, tx)
@@ -722,8 +722,9 @@ func (_mock *MockMysteryRepository) CreateWithClues(ctx context.Context, s spec.
 	}
 
 	var r0 *model.MysteryRow
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMysteryWithClues, ...*sql.Tx) (*model.MysteryRow, error)); ok {
+	var r1 []int64
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMysteryWithClues, ...*sql.Tx) (*model.MysteryRow, []int64, error)); ok {
 		return returnFunc(ctx, s, tx...)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMysteryWithClues, ...*sql.Tx) *model.MysteryRow); ok {
@@ -733,12 +734,19 @@ func (_mock *MockMysteryRepository) CreateWithClues(ctx context.Context, s spec.
 			r0 = ret.Get(0).(*model.MysteryRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewMysteryWithClues, ...*sql.Tx) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewMysteryWithClues, ...*sql.Tx) []int64); ok {
 		r1 = returnFunc(ctx, s, tx...)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]int64)
+		}
 	}
-	return r0, r1
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.NewMysteryWithClues, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, s, tx...)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
 }
 
 // MockMysteryRepository_CreateWithClues_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateWithClues'
@@ -780,12 +788,12 @@ func (_c *MockMysteryRepository_CreateWithClues_Call) Run(run func(ctx context.C
 	return _c
 }
 
-func (_c *MockMysteryRepository_CreateWithClues_Call) Return(mysteryRow *model.MysteryRow, err error) *MockMysteryRepository_CreateWithClues_Call {
-	_c.Call.Return(mysteryRow, err)
+func (_c *MockMysteryRepository_CreateWithClues_Call) Return(mysteryRow *model.MysteryRow, int64s []int64, err error) *MockMysteryRepository_CreateWithClues_Call {
+	_c.Call.Return(mysteryRow, int64s, err)
 	return _c
 }
 
-func (_c *MockMysteryRepository_CreateWithClues_Call) RunAndReturn(run func(ctx context.Context, s spec.NewMysteryWithClues, tx ...*sql.Tx) (*model.MysteryRow, error)) *MockMysteryRepository_CreateWithClues_Call {
+func (_c *MockMysteryRepository_CreateWithClues_Call) RunAndReturn(run func(ctx context.Context, s spec.NewMysteryWithClues, tx ...*sql.Tx) (*model.MysteryRow, []int64, error)) *MockMysteryRepository_CreateWithClues_Call {
 	_c.Call.Return(run)
 	return _c
 }

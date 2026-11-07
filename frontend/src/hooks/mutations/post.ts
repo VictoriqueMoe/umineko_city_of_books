@@ -13,7 +13,7 @@ import {
 } from "../../api/endpoints/post";
 import { createComment, deleteComment, likeComment, unlikeComment, updateComment } from "../../api/endpoints/comments";
 import type { CreatePollPayload, MediaUpload } from "../../types/api";
-import { ApiError } from "../../api/client";
+import { ApiError, type UploadProgress } from "../../api/client";
 import { invalidateViews } from "../../api/cache/invalidate";
 import { queryKeys } from "../../api/queryKeys";
 
@@ -24,6 +24,7 @@ type CreatePostInput = {
     sharedContentId?: string;
     sharedContentType?: string;
     media?: readonly MediaUpload[];
+    onProgress?: UploadProgress;
 };
 
 export function useCreatePost() {
@@ -37,6 +38,7 @@ export function useCreatePost() {
                 input.sharedContentId,
                 input.sharedContentType,
                 input.media,
+                input.onProgress,
             ),
         onSuccess: () => {
             invalidateViews(qc, "post");

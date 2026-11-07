@@ -1,25 +1,19 @@
 package middleware
 
 import (
-	"fmt"
-
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/utils"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
 
-func carriesUpload(ctx fiber.Ctx) bool {
-	form, err := ctx.MultipartForm()
-	if err != nil || form == nil {
-		return false
-	}
-
-	return len(form.File) > 0
-}
+const (
+	RestrictedUploadHoursLocal = "restrictedUploadHours"
+)
 
 func RequireEstablishedAccount(authzSvc authz.Service, settingsSvc settings.Service) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
@@ -29,7 +23,7 @@ func RequireEstablishedAccount(authzSvc authz.Service, settingsSvc settings.Serv
 			return ctx.Next()
 		}
 
-		if !carriesUpload(ctx) {
+		if !utils.IsMultipart(ctx) {
 			return ctx.Next()
 		}
 
@@ -42,10 +36,8 @@ func RequireEstablishedAccount(authzSvc authz.Service, settingsSvc settings.Serv
 			return ctx.Next()
 		}
 
-		hours := settingsSvc.GetInt(ctx.Context(), config.SettingNewAccountHours)
+		ctx.Locals(RestrictedUploadHoursLocal, settingsSvc.GetInt(ctx.Context(), config.SettingNewAccountHours))
 
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": fmt.Sprintf("new accounts cannot post attachments for their first %d hours", hours),
-		})
+		return ctx.Next()
 	}
 }

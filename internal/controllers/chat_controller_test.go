@@ -66,6 +66,7 @@ func newChatHarness(t *testing.T) (*testutil.Harness, *chatsvc.MockService) {
 	chatMock := chatsvc.NewMockService(t)
 
 	s := &Service{
+		UploadService:   testutil.NewStaging(t),
 		ChatService:     chatMock,
 		SettingsService: h.SettingsService,
 		AuthSession:     h.SessionManager,
@@ -216,7 +217,7 @@ func TestChatRoutes_RejectMalformedInput(t *testing.T) {
 		{"set room nickname with a bad room id", chatCtlRequest{method: "PUT", path: "/chat/rooms/not-a-uuid/me", json: dto.UpdateMemberProfileRequest{Nickname: "nick"}}, "invalid roomID"},
 		{"set room nickname with bad json", chatCtlRequest{method: "PUT", path: chatCtlRoomPath + "/me", raw: "not json", contentType: "application/json"}, "invalid request"},
 		{"set room avatar with a bad room id", chatCtlRequest{method: "POST", path: "/chat/rooms/not-a-uuid/me/avatar"}, "invalid roomID"},
-		{"set room avatar with no file", chatCtlRequest{method: "POST", path: chatCtlRoomPath + "/me/avatar", contentType: "multipart/form-data; boundary=----xxx"}, "avatar file is required"},
+		{"set room avatar with no file", chatCtlRequest{method: "POST", path: chatCtlRoomPath + "/me/avatar", contentType: "multipart/form-data; boundary=----xxx"}, "no file provided"},
 		{"clear room avatar with a bad room id", chatCtlRequest{method: "DELETE", path: "/chat/rooms/not-a-uuid/me/avatar"}, "invalid roomID"},
 		{"pin message with a bad message id", chatCtlRequest{method: "POST", path: "/chat/messages/not-a-uuid/pin"}, "invalid messageID"},
 		{"unpin message with a bad message id", chatCtlRequest{method: "DELETE", path: "/chat/messages/not-a-uuid/pin"}, "invalid messageID"},

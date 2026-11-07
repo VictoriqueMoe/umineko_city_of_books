@@ -1,4 +1,12 @@
-import { apiDelete, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "../client";
+import {
+    apiDelete,
+    apiFetch,
+    apiPost,
+    apiPostFormData,
+    apiPut,
+    buildQueryString,
+    type UploadProgress,
+} from "../client";
 import { mediaFormData, postCreate } from "./mediaFormData";
 import type { CreatePollPayload, MediaUpload, Poll, PostDetail, PostListResponse, PostMedia } from "../../types/api";
 
@@ -34,6 +42,7 @@ export async function createPost(
     sharedContentId?: string,
     sharedContentType?: string,
     media: readonly MediaUpload[] = [],
+    onProgress?: UploadProgress,
 ): Promise<{ id: string }> {
     return postCreate<
         { id: string },
@@ -54,6 +63,7 @@ export async function createPost(
             shared_content_type: sharedContentType,
         },
         { media },
+        onProgress,
     );
 }
 

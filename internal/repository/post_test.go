@@ -92,7 +92,7 @@ func postCornerCountWriters(postID, userID uuid.UUID) []postWriterCase {
 				postDAO.EXPECT().Create(mock.Anything, spec.NewPost{UserID: userID, Corner: "general", Body: "b"}, mock.Anything).Return(created, err)
 			},
 			call: func(repo PostRepository) error {
-				_, err := repo.CreateWithDetails(context.Background(), spec.NewPost{UserID: userID, Corner: "general", Body: "b"}, new(sql.Tx))
+				_, _, err := repo.CreateWithDetails(context.Background(), spec.NewPost{UserID: userID, Corner: "general", Body: "b"}, new(sql.Tx))
 
 				return err
 			},

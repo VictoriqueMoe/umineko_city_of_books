@@ -19,7 +19,6 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -61,13 +60,13 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	blockSvc := block.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
+	uploadtest.ExpectNoMedia(uploadSvc)
 	settingsSvc := settings.NewMockService(t)
-	mediaProc := &media.Processor{}
 	hub := ws.NewHub()
 	activity := sidebar.NewMockActivityBumper(t)
 	commentSvc := comment.NewMockService(t)
 	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc)
-	svc := NewService(repo, userRepo, followRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New(), nil, activity).(*service)
+	svc := NewService(repo, userRepo, followRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc, settingsSvc, uploadSvc, hub, contentfilter.New(), nil, activity).(*service)
 	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
 	fanout := make(chan uuid.UUID, 8)
 	followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Run(func(_ context.Context, userID uuid.UUID, _ ...*sql.Tx) {
@@ -122,7 +121,7 @@ func TestAFailedMysteryAuthorLookupIsSurfacedNotReportedAsNotFound(t *testing.T)
 		{
 			name: "upload media",
 			call: func(s *service) error {
-				_, err := s.UploadMedia(ctx, mid, userID, "image/png", "p.png", 10, strings.NewReader("x"), false)
+				_, err := s.UploadMedia(ctx, mid, userID, uploadtest.MemoryUpload("image/png", "p.png", []byte("x"), false))
 				return err
 			},
 		},
@@ -338,7 +337,7 @@ func TestCreateMystery_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(nil, errors.New("boom"))
+	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(nil, nil, errors.New("boom"))
 
 	// when
 	_, err := svc.CreateMystery(context.Background(), userID, validCreateReq(), nil, nil)
@@ -351,7 +350,7 @@ func TestCreateMystery_NotifiesFollowersAndBumpsTheMysteriesSection(t *testing.T
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(&model.MysteryRow{ID: uuid.New()}, nil)
+	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(&model.MysteryRow{ID: uuid.New()}, nil, nil)
 	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyMysteries).Return().Once()
 
 	// when
@@ -371,7 +370,7 @@ func TestCreateMystery_RepoErrorSkipsFollowerFanout(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(nil, errors.New("boom"))
+	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(nil, nil, errors.New("boom"))
 
 	// when
 	_, err := svc.CreateMystery(context.Background(), userID, validCreateReq(), nil, nil)
@@ -387,7 +386,7 @@ func TestCreateMystery_DefaultDifficulty(t *testing.T) {
 	userID := uuid.New()
 	req := validCreateReq()
 	req.Difficulty = ""
-	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(&model.MysteryRow{ID: uuid.New()}, nil)
+	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(&model.MysteryRow{ID: uuid.New()}, nil, nil)
 	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyMysteries).Return().Once()
 
 	// when
@@ -411,7 +410,7 @@ func TestCreateMystery_WithClues(t *testing.T) {
 		spec.NewClue{Body: "clue1", TruthType: "red", SortOrder: 0},
 		spec.NewClue{Body: "clue2", TruthType: "blue", SortOrder: 2},
 	)
-	m.repo.EXPECT().CreateWithClues(mock.Anything, createSpec).Return(&model.MysteryRow{ID: uuid.New()}, nil)
+	m.repo.EXPECT().CreateWithClues(mock.Anything, createSpec).Return(&model.MysteryRow{ID: uuid.New()}, nil, nil)
 	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyMysteries).Return().Once()
 
 	// when
@@ -435,7 +434,7 @@ func TestCreateMystery_MentionInTheBodyNotifiesTheNamedUser(t *testing.T) {
 	createSpec := validCreateSpec(userID)
 	createSpec.Body = req.Body
 
-	m.repo.EXPECT().CreateWithClues(mock.Anything, createSpec).Return(&model.MysteryRow{ID: mysteryID}, nil)
+	m.repo.EXPECT().CreateWithClues(mock.Anything, createSpec).Return(&model.MysteryRow{ID: mysteryID}, nil, nil)
 	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyMysteries).Return().Once()
 	stubActor(m, userID, "Battler")
 	stubMentionOf(m, userID, mentionedID, "alice")
@@ -468,39 +467,34 @@ func TestCreateMystery_MentionInTheBodyNotifiesTheNamedUser(t *testing.T) {
 func TestCreateMystery_SavesMediaAndAttachmentsBeforeAnySideEffect(t *testing.T) {
 	// given a mystery carrying two images, the second spoilered, and one attachment
 	svc, m := newTestService(t)
-	recorder := upload.NewMockMediaRecorder(t)
-	svc.uploader = recorder
 	userID := uuid.New()
 	mysteryID := uuid.New()
 	files := []upload.FileUpload{uploadtest.PNGUpload(t, "one.png", false), uploadtest.PNGUpload(t, "two.png", true)}
 	notes := pdfUpload("notes.pdf")
+	stored := []upload.StoredMedia{storedMysteryFile("one.png", 0, false), storedMysteryFile("two.png", 1, true)}
+	attachment := spec.NewMysteryAttachment{FileURL: "/uploads/mystery-attachments/notes.pdf", FileName: "notes.pdf", FileSize: int(notes.Size)}
+
+	createSpec := validCreateSpec(userID)
+	createSpec.Media = upload.MediaRows(stored)
+	createSpec.Attachments = []spec.NewMysteryAttachment{attachment}
 
 	var order []string
 
-	uploadtest.ExpectMediaLimits(m.settingsSvc, testMediaLimit)
 	expectAttachmentLimit(m, testMediaLimit)
-	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(&model.MysteryRow{ID: mysteryID}, nil)
-	expectStored(recorder, files[0], "/uploads/mysteries/one.png")
-	expectStored(recorder, files[1], "/uploads/mysteries/two.png")
-	m.repo.EXPECT().
-		AddMedia(mock.Anything, spec.NewMedia{TargetID: mysteryID, MediaURL: "/uploads/mysteries/one.png", MediaType: media.MediaTypeImage, Filename: "one.png", SortOrder: 0}).
-		Run(func(_ context.Context, _ spec.NewMedia, _ ...*sql.Tx) { order = append(order, "one.png") }).
-		Return(1, nil).
-		Once()
-	m.repo.EXPECT().
-		AddMedia(mock.Anything, spec.NewMedia{TargetID: mysteryID, MediaURL: "/uploads/mysteries/two.png", MediaType: media.MediaTypeImage, Filename: "two.png", SortOrder: 1, IsSpoiler: true}).
-		Run(func(_ context.Context, _ spec.NewMedia, _ ...*sql.Tx) { order = append(order, "two.png") }).
-		Return(2, nil).
+	m.uploadSvc.EXPECT().StoreMedia(mock.Anything, "mysteries", uploadtest.Files("one.png", "two.png")).
+		Run(func(context.Context, string, []upload.FileUpload) { order = append(order, "media") }).
+		Return(stored, nil).
 		Once()
 	m.uploadSvc.EXPECT().
-		SaveAttachment(mock.Anything, "mystery-attachments/"+mysteryID.String(), notes.Size, int64(testMediaLimit), mock.Anything).
-		Return("/uploads/mystery-attachments/notes.pdf", nil).
+		SaveAttachment(mock.Anything, "mystery-attachments", notes.Size, int64(testMediaLimit), mock.Anything).
+		Run(func(context.Context, string, int64, int64, io.Reader) { order = append(order, "attachment") }).
+		Return(attachment.FileURL, nil).
 		Once()
-	m.repo.EXPECT().
-		AddAttachment(mock.Anything, spec.NewMysteryAttachment{MysteryID: mysteryID, FileURL: "/uploads/mystery-attachments/notes.pdf", FileName: "notes.pdf", FileSize: int(notes.Size)}).
-		Run(func(_ context.Context, _ spec.NewMysteryAttachment, _ ...*sql.Tx) { order = append(order, "notes.pdf") }).
-		Return(7, nil).
+	m.repo.EXPECT().CreateWithClues(mock.Anything, createSpec).
+		Run(func(context.Context, spec.NewMysteryWithClues, ...*sql.Tx) { order = append(order, "write") }).
+		Return(&model.MysteryRow{ID: mysteryID}, []int64{1, 2}, nil).
 		Once()
+	m.uploadSvc.EXPECT().TranscodeMedia(mock.Anything, "mysteries", stored, []int64{1, 2}, mock.Anything, mock.Anything).Return().Once()
 	m.activity.EXPECT().
 		BumpSidebarActivity(sidebar.KeyMysteries).
 		Run(func(_ sidebar.Key) { order = append(order, "bump") }).
@@ -510,85 +504,43 @@ func TestCreateMystery_SavesMediaAndAttachmentsBeforeAnySideEffect(t *testing.T)
 	// when
 	id, err := svc.CreateMystery(context.Background(), userID, validCreateReq(), files, []upload.FileUpload{notes})
 
-	// then every file is recorded against the mystery in order, and only then is the section bumped
+	// then every file is stored before the mystery exists, the mystery and every row land in one write, and only then is the section bumped
 	require.NoError(t, err)
 	assert.Equal(t, mysteryID, id)
-	assert.Equal(t, []string{"one.png", "two.png", "notes.pdf", "bump"}, order)
+	assert.Equal(t, []string{"media", "attachment", "write", "bump"}, order)
 }
 
-func TestCreateMystery_AFailedSaveRollsTheMysteryBackAndFiresNothing(t *testing.T) {
-	rollbackErr := errors.New("db down")
-	rowErr := errors.New("attachment row refused")
+func TestCreateMystery_AFailureLeavesNoMysteryAndNoStoredFilesAndFiresNothing(t *testing.T) {
+	stored := []upload.StoredMedia{storedMysteryFile("one.png", 0, false)}
+	notesURL := "/uploads/mystery-attachments/notes.pdf"
 
 	cases := []struct {
-		name          string
-		expect        func(m *testMocks, recorder *upload.MockMediaRecorder, mysteryID uuid.UUID, cancel context.CancelFunc)
-		rollbackPaths []string
-		rollbackErr   error
-		wantErr       error
+		name   string
+		expect func(m *testMocks)
 	}{
 		{
-			name: "a media failure deletes the mystery",
-			expect: func(_ *testMocks, recorder *upload.MockMediaRecorder, _ uuid.UUID, _ context.CancelFunc) {
-				recorder.EXPECT().
-					SaveAndRecord(mock.Anything, "mysteries", "image/png", "one.png", mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
-					Return(nil, errStoreFailed).
-					Once()
+			name: "a refused media store stops before any attachment is stored",
+			expect: func(m *testMocks) {
+				m.uploadSvc.EXPECT().StoreMedia(mock.Anything, "mysteries", uploadtest.Files("one.png")).Return(nil, errStoreFailed).Once()
 			},
-			wantErr: errStoreFailed,
 		},
 		{
-			name: "an attachment store failure deletes the mystery and its stored media",
-			expect: func(m *testMocks, recorder *upload.MockMediaRecorder, mysteryID uuid.UUID, _ context.CancelFunc) {
-				recorder.EXPECT().
-					SaveAndRecord(mock.Anything, "mysteries", "image/png", "one.png", mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
-					RunAndReturn(storeAs("/uploads/mysteries/one.png")).
-					Once()
-				m.repo.EXPECT().AddMedia(mock.Anything, mock.Anything).Return(1, nil).Once()
-				m.uploadSvc.EXPECT().SaveAttachment(mock.Anything, "mystery-attachments/"+mysteryID.String(), mock.Anything, mock.Anything, mock.Anything).Return("", errStoreFailed).Once()
+			name: "a failed attachment store discards the stored media",
+			expect: func(m *testMocks) {
+				m.uploadSvc.EXPECT().StoreMedia(mock.Anything, "mysteries", uploadtest.Files("one.png")).Return(stored, nil).Once()
+				m.uploadSvc.EXPECT().SaveAttachment(mock.Anything, "mystery-attachments", mock.Anything, mock.Anything, mock.Anything).Return("", errStoreFailed).Once()
+				m.uploadSvc.EXPECT().DiscardMedia(stored).Return().Once()
 			},
-			rollbackPaths: []string{"/uploads/mysteries/one.png"},
-			wantErr:       errStoreFailed,
 		},
 		{
-			name: "a refused attachment row unlinks the stored attachment and deletes the mystery",
-			expect: func(m *testMocks, recorder *upload.MockMediaRecorder, _ uuid.UUID, _ context.CancelFunc) {
-				recorder.EXPECT().
-					SaveAndRecord(mock.Anything, "mysteries", "image/png", "one.png", mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
-					RunAndReturn(storeAs("/uploads/mysteries/one.png")).
-					Once()
-				m.repo.EXPECT().AddMedia(mock.Anything, mock.Anything).Return(1, nil).Once()
-				m.uploadSvc.EXPECT().SaveAttachment(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("/uploads/mystery-attachments/notes.pdf", nil).Once()
-				m.repo.EXPECT().AddAttachment(mock.Anything, mock.Anything).Return(0, rowErr).Once()
-				m.uploadSvc.EXPECT().Delete([]string{"/uploads/mystery-attachments/notes.pdf"}).Return().Once()
+			name: "a refused write discards the stored media and the stored attachment",
+			expect: func(m *testMocks) {
+				m.uploadSvc.EXPECT().StoreMedia(mock.Anything, "mysteries", uploadtest.Files("one.png")).Return(stored, nil).Once()
+				m.uploadSvc.EXPECT().SaveAttachment(mock.Anything, "mystery-attachments", mock.Anything, mock.Anything, mock.Anything).Return(notesURL, nil).Once()
+				m.repo.EXPECT().CreateWithClues(mock.Anything, mock.Anything).Return(nil, nil, errStoreFailed).Once()
+				m.uploadSvc.EXPECT().DiscardMedia(stored).Return().Once()
+				m.uploadSvc.EXPECT().Delete([]string{notesURL}).Return().Once()
 			},
-			rollbackPaths: []string{"/uploads/mysteries/one.png"},
-			wantErr:       rowErr,
-		},
-		{
-			name: "a failed rollback is reported alongside the cause",
-			expect: func(_ *testMocks, recorder *upload.MockMediaRecorder, _ uuid.UUID, _ context.CancelFunc) {
-				recorder.EXPECT().
-					SaveAndRecord(mock.Anything, "mysteries", "image/png", "one.png", mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
-					Return(nil, errStoreFailed).
-					Once()
-			},
-			rollbackErr: rollbackErr,
-			wantErr:     errStoreFailed,
-		},
-		{
-			name: "a client hanging up mid-upload still rolls the mystery back",
-			expect: func(_ *testMocks, recorder *upload.MockMediaRecorder, _ uuid.UUID, cancel context.CancelFunc) {
-				recorder.EXPECT().
-					SaveAndRecord(mock.Anything, "mysteries", "image/png", "one.png", mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
-					RunAndReturn(func(context.Context, string, string, string, int64, io.Reader, bool, media.AddFn, media.UpdateURLFn, media.UpdateURLFn) (*dto.PostMediaResponse, error) {
-						cancel()
-
-						return nil, errStoreFailed
-					}).
-					Once()
-			},
-			wantErr: errStoreFailed,
 		},
 	}
 
@@ -596,39 +548,19 @@ func TestCreateMystery_AFailedSaveRollsTheMysteryBackAndFiresNothing(t *testing.
 		t.Run(tc.name, func(t *testing.T) {
 			// given a mystery that mentions someone, carrying one image and one attachment
 			svc, m := newTestService(t)
-			recorder := upload.NewMockMediaRecorder(t)
-			svc.uploader = recorder
 			userID := uuid.New()
-			mysteryID := uuid.New()
 			req := validCreateReq()
 			req.Body = "solve this with @alice"
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			uploadtest.ExpectMediaLimits(m.settingsSvc, testMediaLimit)
 			expectAttachmentLimit(m, testMediaLimit)
-			m.repo.EXPECT().CreateWithClues(mock.Anything, mock.Anything).Return(&model.MysteryRow{ID: mysteryID}, nil)
-			tc.expect(m, recorder, mysteryID, cancel)
-
-			var rollbackCtxErr error
-			m.repo.EXPECT().
-				DeleteWithMedia(mock.Anything, spec.OwnedDeletion{ID: mysteryID, UserID: userID}).
-				Run(func(ctx context.Context, _ spec.OwnedDeletion, _ ...*sql.Tx) { rollbackCtxErr = ctx.Err() }).
-				Return(tc.rollbackPaths, tc.rollbackErr).
-				Once()
-			expectUnlinked(m, tc.rollbackPaths)
+			tc.expect(m)
 
 			// when
-			id, err := svc.CreateMystery(ctx, userID, req, []upload.FileUpload{uploadtest.PNGUpload(t, "one.png", false)}, []upload.FileUpload{pdfUpload("notes.pdf")})
+			id, err := svc.CreateMystery(context.Background(), userID, req, []upload.FileUpload{uploadtest.PNGUpload(t, "one.png", false)}, []upload.FileUpload{pdfUpload("notes.pdf")})
 
-			// then the mystery is gone, and the strict mocks prove no mention, follower notice or section bump fired
-			require.ErrorIs(t, err, tc.wantErr)
-			if tc.rollbackErr != nil {
-				require.ErrorIs(t, err, tc.rollbackErr)
-			}
+			// then nothing was kept, and the strict mocks prove no mention, follower notice or section bump fired
+			require.ErrorIs(t, err, errStoreFailed)
 			assert.Equal(t, uuid.Nil, id)
-			require.NoError(t, rollbackCtxErr)
 			assert.Empty(t, m.fanout)
 		})
 	}
@@ -639,42 +571,30 @@ func TestCreateMystery_ARefusedFileWritesNothing(t *testing.T) {
 		name          string
 		files         []upload.FileUpload
 		attachments   []upload.FileUpload
-		maxImageSize  int
 		maxAttachment int
 		wantErr       error
 	}{
 		{
-			name:          "an image over the size limit",
+			name:          "an image the upload service refuses",
 			files:         []upload.FileUpload{uploadtest.PNGUpload(t, "big.png", false)},
-			maxImageSize:  1,
 			maxAttachment: testMediaLimit,
 			wantErr:       upload.ErrFileTooLarge,
 		},
 		{
-			name:          "an image that is not what it claims to be",
-			files:         []upload.FileUpload{uploadtest.MemoryUpload("image/png", "fake.png", []byte("not an image at all"), false)},
-			maxImageSize:  testMediaLimit,
-			maxAttachment: testMediaLimit,
-			wantErr:       upload.ErrInvalidFileType,
-		},
-		{
 			name:          "an attachment over the size limit",
 			attachments:   []upload.FileUpload{pdfUpload("notes.pdf")},
-			maxImageSize:  testMediaLimit,
 			maxAttachment: 1,
 			wantErr:       upload.ErrFileTooLarge,
 		},
 		{
 			name:          "an attachment of a refused type",
 			attachments:   []upload.FileUpload{uploadtest.MemoryUpload("text/html", "page.html", []byte("<html><body>trap</body></html>"), false)},
-			maxImageSize:  testMediaLimit,
 			maxAttachment: testMediaLimit,
 			wantErr:       upload.ErrInvalidAttachmentType,
 		},
 		{
 			name:          "two attachments sharing a name",
 			attachments:   []upload.FileUpload{pdfUpload("notes.pdf"), pdfUpload("notes.pdf")},
-			maxImageSize:  testMediaLimit,
 			maxAttachment: testMediaLimit,
 			wantErr:       ErrDuplicateAttachment,
 		},
@@ -682,11 +602,12 @@ func TestCreateMystery_ARefusedFileWritesNothing(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// given strict repo, recorder and upload mocks that expect no write at all
+			// given strict repo and upload mocks that expect no write at all
 			svc, m := newTestService(t)
-			svc.uploader = upload.NewMockMediaRecorder(t)
-			uploadtest.ExpectMediaLimits(m.settingsSvc, tc.maxImageSize)
 			expectAttachmentLimit(m, tc.maxAttachment)
+			if tc.files != nil {
+				m.uploadSvc.EXPECT().StoreMedia(mock.Anything, "mysteries", uploadtest.Files("big.png")).Return(nil, upload.ErrFileTooLarge).Once()
+			}
 
 			// when
 			id, err := svc.CreateMystery(context.Background(), uuid.New(), validCreateReq(), tc.files, tc.attachments)

@@ -38,6 +38,7 @@ require (
 	github.com/valkey-io/valkey-go/mock v1.0.79
 	github.com/valkey-io/valkey-go/valkeyhook v1.0.79
 	github.com/valkey-io/valkey-go/valkeylimiter v1.0.79
+	github.com/valyala/fasthttp v1.76.0
 	github.com/wneessen/go-mail v0.8.1
 	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.47.0
@@ -302,7 +303,6 @@ require (
 	github.com/tklauser/numcpus v0.12.0 // indirect
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.76.0 // indirect
 	github.com/vektra/mockery/v3 v3.8.0 // indirect
 	github.com/wasilibs/go-pgquery v0.0.0-20250409022910-10ac41983c07 // indirect
 	github.com/wasilibs/go-re2 v1.9.0 // indirect

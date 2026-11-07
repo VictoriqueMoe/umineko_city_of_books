@@ -1,10 +1,10 @@
-import { apiPost, apiPostFormData } from "../client";
+import { apiPost, apiPostFormData, type UploadProgress } from "../client";
 import type { MediaUpload } from "../../types/api";
 
-export interface CreateUploads {
+export type CreateUploads = {
     media?: readonly MediaUpload[];
     attachments?: readonly File[];
-}
+};
 
 export function mediaFormData(file: File, isSpoiler: boolean): FormData {
     const formData = new FormData();
@@ -52,12 +52,17 @@ export function createFormData(payload: unknown, uploads: CreateUploads): FormDa
     return formData;
 }
 
-export async function postCreate<T, B>(path: string, payload: B, uploads: CreateUploads = {}): Promise<T> {
+export async function postCreate<T, B>(
+    path: string,
+    payload: B,
+    uploads: CreateUploads = {},
+    onProgress?: UploadProgress,
+): Promise<T> {
     const hasMedia = (uploads.media?.length ?? 0) > 0;
     const hasAttachments = (uploads.attachments?.length ?? 0) > 0;
     if (!hasMedia && !hasAttachments) {
         return apiPost<T, B>(path, payload);
     }
 
-    return apiPostFormData<T>(path, createFormData(payload, uploads));
+    return apiPostFormData<T>(path, createFormData(payload, uploads), onProgress);
 }

@@ -51,6 +51,56 @@ beforeEach(() => {
 });
 
 describe("PostComposer", () => {
+    it("shows how far the files have uploaded, then that the server is processing them", async () => {
+        // given a post with a picture whose request reports progress and then waits on the server
+        const user = userEvent.setup();
+        let report: (sent: number, total: number) => void = () => {};
+        mocks.createPost.mockImplementation((input: { onProgress: (sent: number, total: number) => void }) => {
+            report = input.onProgress;
+
+            return new Promise(() => {});
+        });
+        const { container } = renderWithProviders(<PostComposer />);
+        fireEvent.change(fileInput(container), { target: { files: [makeImage()] } });
+
+        // when
+        await user.click(postButton());
+        const beforeProgress = screen
+            .getByRole("progressbar", { name: "Upload progress" })
+            .getAttribute("aria-valuetext");
+        act(() => {
+            report(42, 100);
+        });
+        const partWay = screen.getByRole("progressbar", { name: "Upload progress" }).getAttribute("aria-valuetext");
+        act(() => {
+            report(100, 100);
+        });
+
+        // then
+        expect(beforeProgress).toBe("Uploading 0%");
+        expect(partWay).toBe("Uploading 42%");
+        expect(screen.getByRole("progressbar", { name: "Upload progress" })).toHaveAttribute(
+            "aria-valuetext",
+            "Processing...",
+        );
+        expect(screen.getByRole("button", { name: "Posting..." })).toBeDisabled();
+    });
+
+    it("shows no upload bar for a post without files", async () => {
+        // given a text post whose request is still in flight
+        const user = userEvent.setup();
+        mocks.createPost.mockReturnValue(new Promise(() => {}));
+        renderWithProviders(<PostComposer />);
+        await user.type(bodyField(), "the golden truth");
+
+        // when
+        await user.click(postButton());
+
+        // then
+        expect(screen.getByRole("button", { name: "Posting..." })).toBeDisabled();
+        expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    });
+
     it("keeps the post button disabled until there is something to post", async () => {
         // given
         const user = userEvent.setup();
@@ -92,6 +142,7 @@ describe("PostComposer", () => {
             corner: "umineko",
             poll: undefined,
             media: [],
+            onProgress: expect.any(Function),
         });
     });
 
@@ -110,6 +161,7 @@ describe("PostComposer", () => {
             corner: "general",
             poll: undefined,
             media: [],
+            onProgress: expect.any(Function),
         });
     });
 
@@ -165,6 +217,7 @@ describe("PostComposer", () => {
                 duration_seconds: 3600,
             },
             media: [],
+            onProgress: expect.any(Function),
         });
     });
 
@@ -340,6 +393,7 @@ describe("PostComposer", () => {
             corner: "general",
             poll: undefined,
             media: [{ file, isSpoiler: false }],
+            onProgress: expect.any(Function),
         });
         expect(mocks.navigate).toHaveBeenCalledWith(`/game-board/${newPostId}`);
     });

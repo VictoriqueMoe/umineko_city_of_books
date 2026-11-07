@@ -303,7 +303,7 @@ func TestStageMedia_VideoTooLarge(t *testing.T) {
 	id := uuid.New()
 
 	// when
-	_, err := svc.StageMedia(context.Background(), media.MediaTypeVideo, "videos", id, 200, 100, bytes.NewReader(mp4Magic))
+	_, err := svc.StageMedia(context.Background(), MediaTypeVideo, "videos", id, 200, 100, bytes.NewReader(mp4Magic))
 
 	// then
 	require.ErrorIs(t, err, ErrFileTooLarge)
@@ -343,7 +343,7 @@ func TestStageMedia_VideoInvalidType(t *testing.T) {
 	id := uuid.New()
 
 	// when: image bytes in the video flow
-	_, err := svc.StageMedia(context.Background(), media.MediaTypeVideo, "videos", id, int64(len(pngMagic)), 1024, bytes.NewReader(pngMagic))
+	_, err := svc.StageMedia(context.Background(), MediaTypeVideo, "videos", id, int64(len(pngMagic)), 1024, bytes.NewReader(pngMagic))
 
 	// then
 	require.ErrorIs(t, err, ErrInvalidVideoType)
@@ -382,7 +382,7 @@ func TestStageMedia_AllAllowedVideoTypes(t *testing.T) {
 			expectNoPreviousUploads(svc, "videos", id)
 
 			// when
-			staged, err := svc.StageMedia(context.Background(), media.MediaTypeVideo, "videos", id, int64(len(tc.body)), 1024, bytes.NewReader(tc.body))
+			staged, err := svc.StageMedia(context.Background(), MediaTypeVideo, "videos", id, int64(len(tc.body)), 1024, bytes.NewReader(tc.body))
 
 			// then the caller owns a staged copy with the full bytes until it discards it
 			require.NoError(t, err)
@@ -449,7 +449,7 @@ func TestSaveImage_AviAliasNormalizedForVideo(t *testing.T) {
 	id := uuid.New()
 	expectNoPreviousUploads(svc, "videos", id)
 
-	staged, err := svc.StageMedia(context.Background(), media.MediaTypeVideo, "videos", id, int64(len(aviMagic)), 1024, bytes.NewReader(aviMagic))
+	staged, err := svc.StageMedia(context.Background(), MediaTypeVideo, "videos", id, int64(len(aviMagic)), 1024, bytes.NewReader(aviMagic))
 	require.NoError(t, err)
 	assert.True(t, strings.HasSuffix(staged, ".avi"))
 	svc.Discard(staged)
@@ -578,7 +578,7 @@ func TestCleanStaging_NeverRemovesAStagedFileStillInUse(t *testing.T) {
 	svc, _, dir := newTestService(t)
 	id := uuid.New()
 	expectNoPreviousUploads(svc, "videos", id)
-	staged, err := svc.StageMedia(context.Background(), media.MediaTypeVideo, "videos", id, int64(len(mp4Magic)), 1024, bytes.NewReader(mp4Magic))
+	staged, err := svc.StageMedia(context.Background(), MediaTypeVideo, "videos", id, int64(len(mp4Magic)), 1024, bytes.NewReader(mp4Magic))
 	require.NoError(t, err)
 	old := time.Now().Add(-2 * time.Hour)
 	require.NoError(t, os.Chtimes(filepath.Dir(staged), old, old))

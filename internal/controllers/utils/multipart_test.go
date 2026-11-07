@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -12,10 +13,14 @@ import (
 	"testing"
 	"time"
 
+	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/middleware"
+	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -74,18 +79,29 @@ func readBoundFiles(files []upload.FileUpload) ([]boundFile, error) {
 	return out, nil
 }
 
+func newStaging(t *testing.T) upload.Service {
+	t.Helper()
+
+	settingsSvc := settings.NewMockService(t)
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingUploadDir).Return(t.TempDir()).Maybe()
+
+	return upload.NewService(settingsSvc, nil, nil)
+}
+
 func runBind(t *testing.T, contentType string, body string) (*http.Response, string, bindResult) {
 	t.Helper()
 
 	var got bindResult
 
+	staging := newStaging(t)
 	app := fiber.New()
 	app.Post("/", func(ctx fiber.Ctx) error {
-		req, ok := BindWithMedia[bindPayload](ctx, "attachments")
+		req, ok := BindWithMedia[bindPayload](ctx, staging, "attachments")
 		got.ok = ok
 		if !ok {
 			return nil
 		}
+		defer req.Close()
 
 		got.payload = req.Payload
 
@@ -257,26 +273,24 @@ func TestBindWithMedia_Rejections(t *testing.T) {
 func TestSpoilerIndexes(t *testing.T) {
 	tests := []struct {
 		name   string
-		form   *multipart.Form
+		raw    string
 		want   map[int]struct{}
 		wantOK bool
 	}{
-		{"no form means no spoilers", nil, nil, true},
-		{"an absent field means no spoilers", &multipart.Form{Value: map[string][]string{}}, nil, true},
-		{"an empty field means no spoilers", &multipart.Form{Value: map[string][]string{"spoiler_indexes": {""}}}, nil, true},
-		{"a single index", &multipart.Form{Value: map[string][]string{"spoiler_indexes": {"0"}}}, map[int]struct{}{0: {}}, true},
-		{"several indexes", &multipart.Form{Value: map[string][]string{"spoiler_indexes": {"0,2"}}}, map[int]struct{}{0: {}, 2: {}}, true},
-		{"surrounding space is tolerated", &multipart.Form{Value: map[string][]string{"spoiler_indexes": {" 1 , 3 "}}}, map[int]struct{}{1: {}, 3: {}}, true},
-		{"a negative index is refused", &multipart.Form{Value: map[string][]string{"spoiler_indexes": {"-1"}}}, nil, false},
-		{"a non-numeric token is refused", &multipart.Form{Value: map[string][]string{"spoiler_indexes": {"0,beatrice"}}}, nil, false},
+		{"an empty field means no spoilers", "", nil, true},
+		{"a single index", "0", map[int]struct{}{0: {}}, true},
+		{"several indexes", "0,2", map[int]struct{}{0: {}, 2: {}}, true},
+		{"surrounding space is tolerated", " 1 , 3 ", map[int]struct{}{1: {}, 3: {}}, true},
+		{"a negative index is refused", "-1", nil, false},
+		{"a non-numeric token is refused", "0,beatrice", nil, false},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// given a multipart form carrying the sender's spoiler choices
+			// given the sender's spoiler choices as sent in the form
 
-			// when it is parsed
-			got, ok := SpoilerIndexes(tc.form)
+			// when they are parsed
+			got, ok := SpoilerIndexes(tc.raw)
 
 			// then only a well-formed list is accepted
 			assert.Equal(t, tc.wantOK, ok)
@@ -285,19 +299,17 @@ func TestSpoilerIndexes(t *testing.T) {
 	}
 }
 
-func TestFormFiles_MarksOnlyTheChosenFiles(t *testing.T) {
+func TestFileUploads_MarksOnlyTheChosenFiles(t *testing.T) {
 	// given two attachments where only the second was marked
-	form := &multipart.Form{
-		File: map[string][]*multipart.FileHeader{
-			MediaField: {
-				{Filename: "one.png"},
-				{Filename: "two.png"},
-			},
+	received := &Upload{files: map[string][]ReceivedFile{
+		MediaField: {
+			{Filename: "one.png"},
+			{Filename: "two.png"},
 		},
-	}
+	}}
 
 	// when they are collected
-	uploads := FormFiles(form, MediaField, map[int]struct{}{1: {}})
+	uploads := received.FileUploads(MediaField, map[int]struct{}{1: {}})
 
 	// then the flag lands on the file the sender picked, and the filename is carried
 	require.Len(t, uploads, 2)
@@ -305,4 +317,130 @@ func TestFormFiles_MarksOnlyTheChosenFiles(t *testing.T) {
 	assert.True(t, uploads[1].IsSpoiler)
 	assert.Equal(t, "one.png", uploads[0].Filename)
 	assert.Equal(t, "two.png", uploads[1].Filename)
+}
+
+func receive(t *testing.T, staging upload.Service, limit int64, restrictedHours int, contentType string, body string) (*Upload, error) {
+	t.Helper()
+
+	var (
+		received *Upload
+		err      error
+	)
+
+	app := fiber.New()
+	app.Post("/", func(ctx fiber.Ctx) error {
+		if restrictedHours > 0 {
+			ctx.Locals(middleware.RestrictedUploadHoursLocal, restrictedHours)
+		}
+
+		received, err = ReceiveUpload(ctx, staging, limit)
+
+		return ctx.SendStatus(fiber.StatusOK)
+	})
+
+	httpReq := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+	httpReq.Header.Set(fiber.HeaderContentType, contentType)
+
+	resp, testErr := app.Test(httpReq, fiber.TestConfig{Timeout: bindTestTimeout, FailOnTimeout: true})
+	require.NoError(t, testErr)
+	require.NoError(t, resp.Body.Close())
+
+	return received, err
+}
+
+func TestReceiveUpload_StagesEachFileAndCloseRemovesThem(t *testing.T) {
+	// given an upload carrying one file
+	staging := newStaging(t)
+	body, contentType := multipartBody(t, nil, []formPart{{field: MediaField, filename: "one.png", contentType: "image/png", data: "first"}})
+
+	// when it is received
+	received, err := receive(t, staging, int64(len(body)), 0, contentType, body)
+
+	// then the file sits in the shared staging area until the request lets it go
+	require.NoError(t, err)
+	file, ok := received.File(MediaField)
+	require.True(t, ok)
+	assert.Equal(t, int64(len("first")), file.Size)
+	assert.FileExists(t, file.Path)
+
+	received.Close()
+	assert.NoFileExists(t, file.Path)
+}
+
+func TestReceiveUpload_RefusesBeforeStagingAnything(t *testing.T) {
+	tests := []struct {
+		name            string
+		filename        string
+		restrictedHours int
+		wantErr         error
+	}{
+		{name: "a file from a restricted new account is refused at its first part", filename: "one.png", restrictedHours: 24, wantErr: ErrNewAccountUpload},
+		{name: "a file named dot cannot become a staging path", filename: ".", wantErr: ErrNotMultipart},
+		{name: "a file named dot dot cannot become a staging path", filename: "..", wantErr: ErrNotMultipart},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given a strict staging mock that fails the test if anything is staged
+			staging := upload.NewMockService(t)
+			body, contentType := multipartBody(t, nil, []formPart{{field: MediaField, filename: tt.filename, contentType: "image/png", data: "x"}})
+
+			// when
+			received, err := receive(t, staging, 1<<10, tt.restrictedHours, contentType, body)
+
+			// then
+			require.ErrorIs(t, err, tt.wantErr)
+			assert.Nil(t, received)
+		})
+	}
+}
+
+func TestReceiveUpload_AStagingFailureIsAServerFaultNotBadInput(t *testing.T) {
+	// given a staging area whose disk is full
+	diskFull := errors.New("no space left on device")
+	staging := upload.NewMockService(t)
+	staging.EXPECT().Stage("one.png", mock.Anything).Return("", diskFull).Once()
+	body, contentType := multipartBody(t, nil, []formPart{{field: MediaField, filename: "one.png", contentType: "image/png", data: "x"}})
+
+	// when
+	_, err := receive(t, staging, 1<<10, 0, contentType, body)
+
+	// then the cause survives and it is not reported as a malformed form
+	require.ErrorIs(t, err, diskFull)
+	assert.NotErrorIs(t, err, ErrNotMultipart)
+}
+
+func TestReceiveUpload_Refusals(t *testing.T) {
+	fileBody, fileType := multipartBody(t, nil, []formPart{{field: MediaField, filename: "one.png", contentType: "image/png", data: strings.Repeat("x", 64)}})
+	textBody, textType := multipartBody(t, map[string]string{"body": "just text"}, nil)
+
+	tests := []struct {
+		name            string
+		body            string
+		contentType     string
+		limit           int64
+		restrictedHours int
+		wantErr         error
+	}{
+		{name: "a body larger than the limit", body: fileBody, contentType: fileType, limit: 16, wantErr: ErrUploadTooLarge},
+		{name: "a request that is not multipart", body: `{"a":1}`, contentType: fiber.MIMEApplicationJSON, limit: 1 << 10, wantErr: ErrNotMultipart},
+		{name: "a file from a restricted new account", body: fileBody, contentType: fileType, limit: 1 << 10, restrictedHours: 24, wantErr: ErrNewAccountUpload},
+		{name: "text only from a restricted new account", body: textBody, contentType: textType, limit: 1 << 10, restrictedHours: 24},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			staging := newStaging(t)
+
+			// when
+			received, err := receive(t, staging, tt.limit, tt.restrictedHours, tt.contentType, tt.body)
+
+			// then
+			require.ErrorIs(t, err, tt.wantErr)
+			if tt.wantErr != nil {
+				assert.Nil(t, received)
+			}
+		})
+	}
 }

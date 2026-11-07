@@ -509,23 +509,18 @@ func (s *Service) adminUpdateSettings(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminUploadOGImage(ctx fiber.Ctx) error {
-	file, err := ctx.FormFile("image")
+	file, err := utils.ReceiveFile(ctx, s.UploadService, "image")
 	if err != nil {
-		return utils.BadRequest(ctx, "image file is required")
+		return utils.UploadFailed(ctx, err)
 	}
+	defer file.Close()
 
 	maxSize := int64(s.SettingsService.GetInt(ctx.Context(), config.SettingMaxImageSize))
 	if file.Size > maxSize {
 		return utils.BadRequest(ctx, "file too large")
 	}
 
-	src, err := file.Open()
-	if err != nil {
-		return utils.BadRequest(ctx, "failed to read file")
-	}
-	defer src.Close()
-
-	sniffed, wrapped, err := upload.DetectContentType(src)
+	sniffed, wrapped, err := upload.DetectContentType(file)
 	if err != nil {
 		return utils.BadRequest(ctx, "failed to read file")
 	}

@@ -18,7 +18,7 @@ type (
 		dao.PostDAO
 
 		RecordView(ctx context.Context, s spec.ViewRecord, tx ...*sql.Tx) (bool, error)
-		CreateWithDetails(ctx context.Context, post spec.NewPost, tx ...*sql.Tx) (*model.PostRow, error)
+		CreateWithDetails(ctx context.Context, post spec.NewPost, tx ...*sql.Tx) (*model.PostRow, []int64, error)
 		UpdateWithDetails(ctx context.Context, update spec.PostUpdate, tx ...*sql.Tx) error
 		DeleteWithSharedContent(ctx context.Context, deletion spec.PostDelete, tx ...*sql.Tx) (*model.SharedContentRef, []string, error)
 		DeleteWithMedia(ctx context.Context, deletion spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error)
@@ -80,13 +80,21 @@ func (r *postRepository) RecordView(ctx context.Context, s spec.ViewRecord, tx .
 	return inserted, nil
 }
 
-func (r *postRepository) CreateWithDetails(ctx context.Context, post spec.NewPost, tx ...*sql.Tx) (*model.PostRow, error) {
-	var created *model.PostRow
+func (r *postRepository) CreateWithDetails(ctx context.Context, post spec.NewPost, tx ...*sql.Tx) (*model.PostRow, []int64, error) {
+	var (
+		created  *model.PostRow
+		mediaIDs []int64
+	)
 
 	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		created, err = r.PostDAO.Create(ctx, post, tx)
+		if err != nil {
+			return err
+		}
+
+		mediaIDs, err = addMediaRows(ctx, r.PostDAO.AddMedia, created.ID, post.Media, tx)
 		if err != nil {
 			return err
 		}
@@ -103,12 +111,12 @@ func (r *postRepository) CreateWithDetails(ctx context.Context, post spec.NewPos
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	r.invalidateCornerCounts(ctx)
 
-	return created, nil
+	return created, mediaIDs, nil
 }
 
 func (r *postRepository) UpdateWithDetails(ctx context.Context, update spec.PostUpdate, tx ...*sql.Tx) error {

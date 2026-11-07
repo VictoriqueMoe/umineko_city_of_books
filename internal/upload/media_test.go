@@ -3,16 +3,21 @@ package upload
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
+	"fmt"
 	"io"
+	"os"
+	"strings"
 	"testing"
 
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
-	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/storage"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -40,41 +45,25 @@ func memoryUpload(contentType string, filename string, data []byte, isSpoiler bo
 	}
 }
 
-func mediaSettings(t *testing.T, maxImageSize int, maxPixels int) settings.Service {
+func newMediaService(t *testing.T, maxImageSize int, maxPixels int) (*service, *storage.MockService, string) {
 	t.Helper()
 
+	dir := t.TempDir()
 	settingsSvc := settings.NewMockService(t)
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingUploadDir).Return(dir).Maybe()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(maxImageSize).Maybe()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxVideoSize).Return(testMediaLimit).Maybe()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxAudioSize).Return(testMediaLimit).Maybe()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImagePixels).Return(maxPixels).Maybe()
 
-	return settingsSvc
+	storageSvc := storage.NewMockService(t)
+	storedFiles := repository.NewMockStoredFileRepository(t)
+	storedFiles.EXPECT().ListByPrefix(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	return NewService(settingsSvc, storageSvc, storedFiles).(*service), storageSvc, dir
 }
 
-func recordingTarget(records *[]MediaRecord) MediaTarget {
-	return MediaTarget{
-		SubDir: "posts",
-		Record: func(r MediaRecord) (int64, error) {
-			*records = append(*records, r)
-
-			return int64(len(*records)), nil
-		},
-	}
-}
-
-func recordAndReturn(urlPath string) func(context.Context, string, string, string, int64, io.Reader, bool, media.AddFn, media.UpdateURLFn, media.UpdateURLFn) (*dto.PostMediaResponse, error) {
-	return func(_ context.Context, _ string, _ string, filename string, _ int64, _ io.Reader, isSpoiler bool, addFn media.AddFn, _ media.UpdateURLFn, _ media.UpdateURLFn) (*dto.PostMediaResponse, error) {
-		id, err := addFn(urlPath, media.MediaTypeImage, "", filename, 0)
-		if err != nil {
-			return nil, err
-		}
-
-		return &dto.PostMediaResponse{ID: int(id), MediaURL: urlPath, MediaType: media.MediaTypeImage, Filename: filename, IsSpoiler: isSpoiler}, nil
-	}
-}
-
-func TestValidateMedia(t *testing.T) {
+func TestStoreMedia_RefusesTheWholeBatchBeforeStoringAnything(t *testing.T) {
 	png := mustPNGBytes()
 	notAnImage := []byte("this is plainly not an image at all")
 
@@ -85,12 +74,6 @@ func TestValidateMedia(t *testing.T) {
 		maxPixels    int
 		wantErr      error
 	}{
-		{
-			name:         "a well-formed png passes",
-			files:        []FileUpload{memoryUpload("image/png", "one.png", png, false)},
-			maxImageSize: testMediaLimit,
-			maxPixels:    bounds.FallbackMaxImagePixels,
-		},
 		{
 			name:         "an image over the size limit is refused",
 			files:        []FileUpload{memoryUpload("image/png", "one.png", png, false)},
@@ -127,7 +110,7 @@ func TestValidateMedia(t *testing.T) {
 			wantErr:      bounds.ErrImageBounds,
 		},
 		{
-			name: "one bad file rejects the whole batch",
+			name: "a bad last file stops the good first file from being stored",
 			files: []FileUpload{
 				memoryUpload("image/png", "one.png", png, false),
 				memoryUpload("image/png", "two.png", notAnImage, false),
@@ -140,162 +123,197 @@ func TestValidateMedia(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// given
-			settingsSvc := mediaSettings(t, tt.maxImageSize, tt.maxPixels)
+			// given a strict storage mock that fails the test on any write
+			svc, _, dir := newMediaService(t, tt.maxImageSize, tt.maxPixels)
 
 			// when
-			_, err := ValidateMedia(t.Context(), settingsSvc, tt.files)
+			stored, err := svc.StoreMedia(t.Context(), "posts", tt.files)
 
 			// then
-			if tt.wantErr != nil {
-				require.ErrorIs(t, err, tt.wantErr)
-				return
-			}
-
-			require.NoError(t, err)
+			require.ErrorIs(t, err, tt.wantErr)
+			assert.Nil(t, stored)
+			assertStagingEmpty(t, dir)
 		})
 	}
 }
 
-func TestValidatedMediaSave_RefusedBatchWritesNothing(t *testing.T) {
-	// given a batch whose second file is over the limit, and stores that fail on any call
-	png := mustPNGBytes()
-	settingsSvc := mediaSettings(t, len(png), bounds.FallbackMaxImagePixels)
-	recorder := NewMockMediaRecorder(t)
-	deleter := NewMockService(t)
-
-	files := []FileUpload{
-		memoryUpload("image/png", "one.png", png, false),
-		memoryUpload("image/png", "two.png", append(bytes.Clone(png), 0), false),
-	}
-
-	var records []MediaRecord
-
-	// when the batch is validated and whatever came back is saved
-	validated, err := ValidateMedia(t.Context(), settingsSvc, files)
-	saved, saveErr := validated.Save(t.Context(), recorder, deleter, recordingTarget(&records))
-
-	// then the refusal is reported and nothing was stored or recorded
-	require.ErrorIs(t, err, ErrFileTooLarge)
-	require.NoError(t, saveErr)
-	assert.Nil(t, saved)
-	assert.Empty(t, records)
-}
-
-func TestValidatedMediaSave_RecordsEachFileInDisplayOrder(t *testing.T) {
+func TestStoreMedia_StoresEachFileInDisplayOrder(t *testing.T) {
 	// given two valid images, the second marked as a spoiler
 	png := mustPNGBytes()
-	settingsSvc := mediaSettings(t, testMediaLimit, bounds.FallbackMaxImagePixels)
-	recorder := NewMockMediaRecorder(t)
-	deleter := NewMockService(t)
-	targetID := uuid.New()
+	svc, storageSvc, dir := newMediaService(t, testMediaLimit, bounds.FallbackMaxImagePixels)
+	objects := captureStore(t, storageSvc)
 
-	recorder.EXPECT().
-		SaveAndRecord(mock.Anything, "posts", "image/png", "one.png", int64(len(png)), mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
-		RunAndReturn(recordAndReturn("/uploads/posts/one.png")).
-		Once()
-	recorder.EXPECT().
-		SaveAndRecord(mock.Anything, "posts", "image/png", "two.png", int64(len(png)), mock.Anything, true, mock.Anything, mock.Anything, mock.Anything).
-		RunAndReturn(recordAndReturn("/uploads/posts/two.png")).
-		Once()
-
-	validated, err := ValidateMedia(t.Context(), settingsSvc, []FileUpload{
+	// when
+	stored, err := svc.StoreMedia(t.Context(), "posts", []FileUpload{
 		memoryUpload("image/png", "one.png", png, false),
 		memoryUpload("image/png", "two.png", png, true),
 	})
+
+	// then each file is stored at its position with its own spoiler flag and dimensions
 	require.NoError(t, err)
-
-	var records []MediaRecord
-
-	// when the batch is saved
-	saved, err := validated.Save(t.Context(), recorder, deleter, recordingTarget(&records))
-
-	// then each file is recorded at its position with its own spoiler flag and dimensions
-	require.NoError(t, err)
-	require.Len(t, records, 2)
-	assert.Equal(t, spec.NewMedia{
-		TargetID:  targetID,
-		MediaURL:  "/uploads/posts/one.png",
-		MediaType: media.MediaTypeImage,
-		Filename:  "one.png",
-		SortOrder: 0,
-	}, records[0].NewMedia(targetID))
-	assert.Equal(t, spec.NewMedia{
-		TargetID:  targetID,
-		MediaURL:  "/uploads/posts/two.png",
-		MediaType: media.MediaTypeImage,
-		Filename:  "two.png",
-		SortOrder: 1,
-		IsSpoiler: true,
-	}, records[1].NewMedia(targetID))
-	assert.Equal(t, 2, records[1].Width)
-	assert.Equal(t, 2, records[1].Height)
-
-	require.Len(t, saved, 2)
-	assert.Equal(t, "/uploads/posts/one.png", saved[0].MediaURL)
-	assert.Equal(t, 0, saved[0].SortOrder)
-	assert.False(t, saved[0].IsSpoiler)
-	assert.Equal(t, "/uploads/posts/two.png", saved[1].MediaURL)
-	assert.Equal(t, 1, saved[1].SortOrder)
-	assert.True(t, saved[1].IsSpoiler)
-	assert.Equal(t, 2, saved[1].Width)
-	assert.Equal(t, 2, saved[1].Height)
+	require.Len(t, stored, 2)
+	require.Len(t, *objects, 2)
+	for i, m := range stored {
+		assert.Equal(t, "/uploads/"+(*objects)[i].key, m.URL)
+		assert.Equal(t, MediaTypeImage, m.MediaType)
+		assert.Equal(t, i, m.SortOrder)
+		assert.Equal(t, 2, m.Width)
+		assert.Equal(t, 2, m.Height)
+	}
+	assert.Equal(t, "one.png", stored[0].Filename)
+	assert.False(t, stored[0].IsSpoiler)
+	assert.Equal(t, "two.png", stored[1].Filename)
+	assert.True(t, stored[1].IsSpoiler)
+	assertStagingEmpty(t, dir)
 }
 
-func TestValidatedMediaSave_FailureDiscardsWhatWasStored(t *testing.T) {
-	tests := []struct {
-		name        string
-		failOn      string
-		wantDeleted []string
-	}{
-		{
-			name:   "a first-file failure has nothing to discard",
-			failOn: "one.png",
-		},
-		{
-			name:        "a second-file failure discards the first stored object",
-			failOn:      "two.png",
-			wantDeleted: []string{"/uploads/posts/one.png"},
-		},
+func TestStoreMedia_AFailedStoreDiscardsWhatWasAlreadyStored(t *testing.T) {
+	// given two valid images where storage accepts the first and refuses the second
+	png := mustPNGBytes()
+	svc, storageSvc, dir := newMediaService(t, testMediaLimit, bounds.FallbackMaxImagePixels)
+
+	var firstKey string
+	storageSvc.EXPECT().Store(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, key string, _ string) error {
+		firstKey = key
+		return nil
+	}).Once()
+	storageSvc.EXPECT().Store(mock.Anything, mock.Anything, mock.Anything).Return(errStoreFailed).Once()
+
+	var deletedKeys []string
+	storageSvc.EXPECT().Delete(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, keys ...string) error {
+		deletedKeys = keys
+		return nil
+	}).Once()
+
+	// when
+	stored, err := svc.StoreMedia(t.Context(), "posts", []FileUpload{
+		memoryUpload("image/png", "one.png", png, false),
+		memoryUpload("image/png", "two.png", png, false),
+	})
+
+	// then the failure is returned and the first object is removed again
+	require.ErrorIs(t, err, errStoreFailed)
+	assert.Nil(t, stored)
+	assert.Equal(t, []string{firstKey}, deletedKeys)
+	assertStagingEmpty(t, dir)
+}
+
+func TestStoreMedia_AVideoKeepsItsStagedCopyUntilItIsDiscarded(t *testing.T) {
+	// given
+	svc, storageSvc, dir := newMediaService(t, testMediaLimit, bounds.FallbackMaxImagePixels)
+	objects := captureStore(t, storageSvc)
+
+	// when
+	stored, err := svc.StoreMedia(t.Context(), "posts", []FileUpload{memoryUpload("video/mp4", "clip.mp4", mp4Magic, false)})
+
+	// then the transcoder can still read the local copy, so nothing has to come back from storage
+	require.NoError(t, err)
+	require.Len(t, stored, 1)
+	assert.Equal(t, MediaTypeVideo, stored[0].MediaType)
+	assert.Equal(t, "/uploads/"+(*objects)[0].key, stored[0].URL)
+	data, err := os.ReadFile(stored[0].stagedVideo)
+	require.NoError(t, err)
+	assert.Equal(t, mp4Magic, data)
+
+	// and when it is discarded
+	storageSvc.EXPECT().Delete(mock.Anything, []string{(*objects)[0].key}).Return(nil).Once()
+	svc.DiscardMedia(stored...)
+
+	// then both the staged copy and the stored object are gone
+	assertStagingEmpty(t, dir)
+}
+
+func TestTranscodeMedia_WithoutAProcessorKeepsTheRawVideoAndReleasesTheStagedCopy(t *testing.T) {
+	// given a stored video on a service that has no media processor
+	svc, storageSvc, dir := newMediaService(t, testMediaLimit, bounds.FallbackMaxImagePixels)
+	captureStore(t, storageSvc)
+	stored, err := svc.StoreMedia(t.Context(), "posts", []FileUpload{memoryUpload("video/mp4", "clip.mp4", mp4Magic, false)})
+	require.NoError(t, err)
+
+	// when
+	svc.TranscodeMedia(t.Context(), "posts", stored, []int64{7}, nil, nil)
+
+	// then the staged copy is gone and the strict storage mock proves the raw upload was left alone
+	assertStagingEmpty(t, dir)
+}
+
+func TestStoreMedia_AVideoStoreFailureReleasesTheStagedCopy(t *testing.T) {
+	// given
+	svc, storageSvc, dir := newMediaService(t, testMediaLimit, bounds.FallbackMaxImagePixels)
+	storageSvc.EXPECT().Store(mock.Anything, mock.Anything, mock.Anything).Return(errStoreFailed).Once()
+
+	// when
+	stored, err := svc.StoreMedia(t.Context(), "posts", []FileUpload{memoryUpload("video/mp4", "clip.mp4", mp4Magic, false)})
+
+	// then
+	require.ErrorIs(t, err, errStoreFailed)
+	assert.Nil(t, stored)
+	assertStagingEmpty(t, dir)
+}
+
+func TestStoredMedia_RowsAndResponsesKeepTheirOrder(t *testing.T) {
+	// given
+	stored := []StoredMedia{
+		{URL: "/uploads/posts/a.webp", MediaType: MediaTypeImage, Filename: "a.png", SortOrder: 0, Width: 4, Height: 3},
+		{URL: "/uploads/posts/b.mp4", MediaType: MediaTypeVideo, Filename: "b.mp4", SortOrder: 1, IsSpoiler: true},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// given two valid images where the store fails on one of them
-			png := mustPNGBytes()
-			settingsSvc := mediaSettings(t, testMediaLimit, bounds.FallbackMaxImagePixels)
-			recorder := NewMockMediaRecorder(t)
-			deleter := NewMockService(t)
+	// when
+	rows := MediaRows(stored)
+	responses := MediaResponses(stored, []int64{11, 12})
 
-			for _, name := range []string{"one.png", "two.png"} {
-				call := recorder.EXPECT().
-					SaveAndRecord(mock.Anything, "posts", "image/png", name, mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything)
-				if name == tt.failOn {
-					call.Return(nil, errStoreFailed).Once()
-					break
-				}
+	// then rows wait for the repository to fill in their owner, responses carry the new row ids
+	assert.Equal(t, []spec.NewMedia{
+		{MediaURL: "/uploads/posts/a.webp", MediaType: MediaTypeImage, Filename: "a.png", SortOrder: 0},
+		{MediaURL: "/uploads/posts/b.mp4", MediaType: MediaTypeVideo, Filename: "b.mp4", SortOrder: 1, IsSpoiler: true},
+	}, rows)
+	require.Len(t, responses, 2)
+	assert.Equal(t, 11, responses[0].ID)
+	assert.Equal(t, 4, responses[0].Width)
+	assert.Equal(t, 12, responses[1].ID)
+	assert.True(t, responses[1].IsSpoiler)
+	assert.Equal(t, uuid.Nil, rows[1].TargetID)
+}
 
-				call.RunAndReturn(recordAndReturn("/uploads/posts/" + name)).Once()
-			}
+func TestTranscodeDone_ARowRemovedMeanwhileDiscardsTheTranscodedOutput(t *testing.T) {
+	tests := []struct {
+		name      string
+		updateErr error
+	}{
+		{name: "the row was rolled back or deleted", updateErr: fmt.Errorf("update media url 7: %w", daoerr.ErrNotFound)},
+		{name: "the update failed for another reason", updateErr: errors.New("db down")},
+	}
 
-			if tt.wantDeleted != nil {
-				deleter.EXPECT().Delete(tt.wantDeleted).Return().Once()
-			}
-
-			validated, err := ValidateMedia(t.Context(), settingsSvc, []FileUpload{
-				memoryUpload("image/png", "one.png", png, false),
-				memoryUpload("image/png", "two.png", png, false),
-			})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a finished transcode whose media row update fails
+			svc, storageSvc, dir := newMediaService(t, testMediaLimit, bounds.FallbackMaxImagePixels)
+			output, err := svc.Stage("clip.mp4", strings.NewReader("transcoded"))
 			require.NoError(t, err)
 
-			var records []MediaRecord
+			var transcodedKey string
+			storageSvc.EXPECT().Store(mock.Anything, mock.Anything, output).RunAndReturn(func(_ context.Context, key string, _ string) error {
+				transcodedKey = key
+				return nil
+			}).Once()
+			storageSvc.EXPECT().Delete(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, keys ...string) error {
+				assert.Equal(t, []string{transcodedKey}, keys)
+				return nil
+			}).Once()
 
-			// when the batch is saved
-			saved, err := validated.Save(t.Context(), recorder, deleter, recordingTarget(&records))
+			var updated spec.MediaURLUpdate
+			updateURL := func(_ context.Context, s spec.MediaURLUpdate, _ ...*sql.Tx) error {
+				updated = s
+				return tc.updateErr
+			}
+			done := svc.transcodeDone(context.Background(), "posts", "/uploads/posts/raw.mp4", "/uploads/.staging/upload-1/raw.mp4", 7, updateURL, nil)
 
-			// then the store failure is returned and only the objects already written are discarded
-			require.ErrorIs(t, err, errStoreFailed)
-			assert.Nil(t, saved)
+			// when
+			done(output)
+
+			// then only the transcoded copy is deleted, the raw upload stays, and the output is released
+			assert.Equal(t, spec.MediaURLUpdate{ID: 7, URL: "/uploads/" + transcodedKey}, updated)
+			assertStagingEmpty(t, dir)
 		})
 	}
 }

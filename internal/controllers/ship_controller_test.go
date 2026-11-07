@@ -22,10 +22,11 @@ func newShipHarness(t *testing.T) (*testutil.Harness, *shipsvc.MockService) {
 	ss := shipsvc.NewMockService(t)
 
 	s := &Service{
-		ShipService:  ss,
-		AuthSession:  h.SessionManager,
-		AuthService:  h.AuthService,
-		AuthzService: h.AuthzService,
+		UploadService: testutil.NewStaging(t),
+		ShipService:   ss,
+		AuthSession:   h.SessionManager,
+		AuthService:   h.AuthService,
+		AuthzService:  h.AuthzService,
 	}
 	for _, setup := range s.getAllShipRoutes() {
 		setup(h.App)
@@ -398,7 +399,7 @@ func TestUploadShipImage_NoFile_BadRequest(t *testing.T) {
 
 	// then
 	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "no image file provided")
+	assert.Contains(t, string(body), "invalid form data")
 }
 
 func TestVoteShip_AuthFailures(t *testing.T) {

@@ -59,7 +59,7 @@ func (s *Service) createSecretComment(ctx fiber.Ctx) error {
 	secretID := ctx.Params("id")
 	userID := utils.UserID(ctx)
 
-	return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
+	return handleCreateComment(ctx, s.UploadService, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
 		return s.SecretService.CreateComment(c, secretID, userID, req, files)
 	}, []errorResponse{
 		{err: secretsvc.ErrNotFound, respond: utils.NotFound, message: "secret not found"},

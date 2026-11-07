@@ -96,10 +96,6 @@ packages:
   umineko_city_of_books/internal/upload:
     interfaces:
       Service:
-      MediaRecorder:
-  umineko_city_of_books/internal/media:
-    interfaces:
-      uploadSvc:
   umineko_city_of_books/internal/storage:
     interfaces:
       Service:

@@ -113,23 +113,18 @@ func (s *Service) updateProfile(ctx fiber.Ctx) error {
 func (s *Service) uploadAvatar(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
-	file, err := ctx.FormFile("avatar")
+	file, err := utils.ReceiveFile(ctx, s.UploadService, "avatar")
 	if err != nil {
-		return utils.BadRequest(ctx, "avatar file is required")
+		return utils.UploadFailed(ctx, err)
 	}
-
-	src, err := file.Open()
-	if err != nil {
-		return utils.BadRequest(ctx, "failed to read file")
-	}
-	defer src.Close()
+	defer file.Close()
 
 	avatarURL, err := s.ProfileService.UploadAvatar(
 		ctx.Context(),
 		userID,
-		file.Header.Get("Content-Type"),
+		file.ContentType,
 		file.Size,
-		src,
+		file,
 	)
 	if err != nil {
 		if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) {
@@ -144,23 +139,18 @@ func (s *Service) uploadAvatar(ctx fiber.Ctx) error {
 func (s *Service) uploadBanner(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
-	file, err := ctx.FormFile("banner")
+	file, err := utils.ReceiveFile(ctx, s.UploadService, "banner")
 	if err != nil {
-		return utils.BadRequest(ctx, "banner file is required")
+		return utils.UploadFailed(ctx, err)
 	}
-
-	src, err := file.Open()
-	if err != nil {
-		return utils.BadRequest(ctx, "failed to read file")
-	}
-	defer src.Close()
+	defer file.Close()
 
 	bannerURL, err := s.ProfileService.UploadBanner(
 		ctx.Context(),
 		userID,
-		file.Header.Get("Content-Type"),
+		file.ContentType,
 		file.Size,
-		src,
+		file,
 	)
 	if err != nil {
 		if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) {

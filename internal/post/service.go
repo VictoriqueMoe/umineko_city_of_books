@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -44,7 +42,7 @@ type (
 		DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, cornerSlug string, search string, sort string, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error)
 		ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.PostListResponse, error)
-		UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
+		UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, file upload.FileUpload) (*dto.PostMediaResponse, error)
 		DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID int64, userID uuid.UUID) error
 		LikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
 		UnlikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
@@ -68,8 +66,6 @@ type (
 		mentionSvc    mention.Service
 		commentSvc    comment.Service
 		uploadSvc     upload.Service
-		mediaProc     *media.Processor
-		uploader      upload.MediaRecorder
 		settingsSvc   settings.Service
 		hub           *ws.Hub
 		contentFilter *contentfilter.Manager
@@ -96,7 +92,6 @@ func NewService(
 	mentionSvc mention.Service,
 	commentSvc comment.Service,
 	uploadSvc upload.Service,
-	mediaProc *media.Processor,
 	settingsSvc settings.Service,
 	hub *ws.Hub,
 	contentFilter *contentfilter.Manager,
@@ -115,8 +110,6 @@ func NewService(
 		mentionSvc:    mentionSvc,
 		commentSvc:    commentSvc,
 		uploadSvc:     uploadSvc,
-		mediaProc:     mediaProc,
-		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		settingsSvc:   settingsSvc,
 		hub:           hub,
 		contentFilter: contentFilter,
@@ -170,11 +163,6 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 		}
 	}
 
-	validated, err := upload.ValidateMedia(ctx, s.settingsSvc, files)
-	if err != nil {
-		return uuid.Nil, err
-	}
-
 	body := strings.TrimSpace(req.Body)
 
 	newPost := spec.NewPost{
@@ -189,16 +177,23 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 		newPost.Poll = newPollSpec(req.Poll)
 	}
 
-	created, err := s.postRepo.CreateWithDetails(ctx, newPost)
+	stored, err := s.uploadSvc.StoreMedia(ctx, "posts", files)
 	if err != nil {
+		return uuid.Nil, err
+	}
+
+	newPost.Media = upload.MediaRows(stored)
+
+	created, mediaIDs, err := s.postRepo.CreateWithDetails(ctx, newPost)
+	if err != nil {
+		s.uploadSvc.DiscardMedia(stored...)
+
 		return uuid.Nil, err
 	}
 
 	id := created.ID
 
-	if err := validated.SaveToEntity(ctx, s.uploader, s.uploadSvc, "posts", s.postRepo, id); err != nil {
-		return uuid.Nil, upload.DiscardOwned(ctx, s.postRepo, s.uploadSvc, "post", spec.OwnedDeletion{ID: id, UserID: userID}, err)
-	}
+	s.uploadSvc.TranscodeMedia(ctx, "posts", stored, mediaIDs, s.postRepo.UpdateMediaURL, s.postRepo.UpdateMediaThumbnail)
 
 	if isShare {
 		shared := model.SharedContentRef{ID: req.SharedContentID, Type: req.SharedContentType}
@@ -521,7 +516,7 @@ func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total
 	}, nil
 }
 
-func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
+func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, file upload.FileUpload) (*dto.PostMediaResponse, error) {
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
 	if errors.Is(err, daoerr.ErrNotFound) {
 		return nil, ErrNotFound
@@ -533,21 +528,23 @@ func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID 
 		return nil, ErrNotAuthor
 	}
 
-	return s.uploader.SaveAndRecord(ctx, "posts", contentType, filename, fileSize, reader, isSpoiler,
-		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-			return s.postRepo.AddMedia(ctx, spec.NewMedia{
-				TargetID:     postID,
-				MediaURL:     mediaURL,
-				MediaType:    mediaType,
-				ThumbnailURL: thumbURL,
-				Filename:     filename,
-				SortOrder:    sortOrder,
-				IsSpoiler:    isSpoiler,
-			})
-		},
-		s.postRepo.UpdateMediaURL,
-		s.postRepo.UpdateMediaThumbnail,
-	)
+	stored, err := s.uploadSvc.StoreMedia(ctx, "posts", []upload.FileUpload{file})
+	if err != nil {
+		return nil, err
+	}
+
+	mediaID, err := s.postRepo.AddMedia(ctx, stored[0].NewMedia(postID))
+	if err != nil {
+		s.uploadSvc.DiscardMedia(stored...)
+
+		return nil, err
+	}
+
+	s.uploadSvc.TranscodeMedia(ctx, "posts", stored, []int64{mediaID}, s.postRepo.UpdateMediaURL, s.postRepo.UpdateMediaThumbnail)
+
+	resp := stored[0].Response(mediaID)
+
+	return &resp, nil
 }
 
 func (s *service) DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID int64, userID uuid.UUID) error {

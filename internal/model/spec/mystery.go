@@ -19,7 +19,9 @@ type (
 
 	NewMysteryWithClues struct {
 		NewMystery
-		Clues []NewClue
+		Clues       []NewClue
+		Media       []NewMedia
+		Attachments []NewMysteryAttachment
 	}
 
 	MysteryUpdate struct {

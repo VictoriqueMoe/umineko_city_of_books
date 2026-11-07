@@ -73,7 +73,7 @@ func (s *Service) createComment(kind spec.CommentKind) fiber.Handler {
 		userID := utils.UserID(ctx)
 		target := spec.CommentTarget{Kind: kind, ID: entityID}
 
-		return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
+		return handleCreateComment(ctx, s.UploadService, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
 			return s.CommentService.Create(c, target, userID, req, files)
 		}, nil)
 	}
@@ -155,19 +155,14 @@ func (s *Service) uploadCommentMedia(kind spec.CommentKind) fiber.Handler {
 			return nil
 		}
 
-		file, err := ctx.FormFile("media")
+		file, err := utils.ReceiveFile(ctx, s.UploadService, "media")
 		if err != nil {
-			return utils.BadRequest(ctx, "no media file provided")
+			return utils.UploadFailed(ctx, err)
 		}
-
-		reader, err := file.Open()
-		if err != nil {
-			return utils.InternalError(ctx, "failed to read file", err)
-		}
-		defer reader.Close()
+		defer file.Close()
 
 		ref := spec.CommentRef{Kind: kind, CommentID: commentID}
-		result, err := s.CommentService.UploadMedia(ctx.Context(), ref, utils.UserID(ctx), file.Header.Get("Content-Type"), file.Filename, file.Size, reader, isSpoilerUpload(ctx))
+		result, err := s.CommentService.UploadMedia(ctx.Context(), ref, utils.UserID(ctx), file.FileUpload(isSpoilerUpload(file)))
 		if err != nil {
 			return commentError(ctx, err, "failed to upload media")
 		}
@@ -178,13 +173,15 @@ func (s *Service) uploadCommentMedia(kind spec.CommentKind) fiber.Handler {
 
 func handleCreateComment[T any](
 	ctx fiber.Ctx,
+	staging upload.Service,
 	create func(context.Context, T, []upload.FileUpload) (uuid.UUID, error),
 	familyErrors []errorResponse,
 ) error {
-	req, ok := utils.BindWithMedia[T](ctx)
+	req, ok := utils.BindWithMedia[T](ctx, staging)
 	if !ok {
 		return nil
 	}
+	defer req.Close()
 
 	id, err := create(ctx.Context(), req.Payload, req.Media)
 	if err != nil {
@@ -232,6 +229,6 @@ func commentError(ctx fiber.Ctx, err error, failure string) error {
 	return utils.InternalError(ctx, failure, err)
 }
 
-func isSpoilerUpload(ctx fiber.Ctx) bool {
-	return ctx.FormValue("is_spoiler") == "true"
+func isSpoilerUpload(file *utils.OpenedFile) bool {
+	return file.Form.Value("is_spoiler") == "true"
 }

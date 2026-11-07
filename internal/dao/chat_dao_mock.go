@@ -2013,6 +2013,89 @@ func (_c *MockChatDAO_GetMessageByID_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// GetMessageBySenderNonce provides a mock function for the type MockChatDAO
+func (_mock *MockChatDAO) GetMessageBySenderNonce(ctx context.Context, s spec.ChatSenderNonce, tx ...*sql.Tx) (*model.ChatMessageRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMessageBySenderNonce")
+	}
+
+	var r0 *model.ChatMessageRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ChatSenderNonce, ...*sql.Tx) (*model.ChatMessageRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ChatSenderNonce, ...*sql.Tx) *model.ChatMessageRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.ChatMessageRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.ChatSenderNonce, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatDAO_GetMessageBySenderNonce_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMessageBySenderNonce'
+type MockChatDAO_GetMessageBySenderNonce_Call struct {
+	*mock.Call
+}
+
+// GetMessageBySenderNonce is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.ChatSenderNonce
+//   - tx ...*sql.Tx
+func (_e *MockChatDAO_Expecter) GetMessageBySenderNonce(ctx any, s any, tx ...any) *MockChatDAO_GetMessageBySenderNonce_Call {
+	return &MockChatDAO_GetMessageBySenderNonce_Call{Call: _e.mock.On("GetMessageBySenderNonce",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockChatDAO_GetMessageBySenderNonce_Call) Run(run func(ctx context.Context, s spec.ChatSenderNonce, tx ...*sql.Tx)) *MockChatDAO_GetMessageBySenderNonce_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.ChatSenderNonce
+		if args[1] != nil {
+			arg1 = args[1].(spec.ChatSenderNonce)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatDAO_GetMessageBySenderNonce_Call) Return(chatMessageRow *model.ChatMessageRow, err error) *MockChatDAO_GetMessageBySenderNonce_Call {
+	_c.Call.Return(chatMessageRow, err)
+	return _c
+}
+
+func (_c *MockChatDAO_GetMessageBySenderNonce_Call) RunAndReturn(run func(ctx context.Context, s spec.ChatSenderNonce, tx ...*sql.Tx) (*model.ChatMessageRow, error)) *MockChatDAO_GetMessageBySenderNonce_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetMessageMediaBatch provides a mock function for the type MockChatDAO
 func (_mock *MockChatDAO) GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]dto.PostMediaResponse, error) {
 	var tmpRet mock.Arguments
