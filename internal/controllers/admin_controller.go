@@ -520,7 +520,7 @@ func (s *Service) adminUploadOGImage(ctx fiber.Ctx) error {
 		return utils.BadRequest(ctx, "file too large")
 	}
 
-	sniffed, wrapped, err := upload.DetectContentType(file)
+	sniffed, wrapped, err := upload.DetectContentType(file.File)
 	if err != nil {
 		return utils.BadRequest(ctx, "failed to read file")
 	}
