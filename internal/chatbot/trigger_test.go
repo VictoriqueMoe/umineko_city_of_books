@@ -13,7 +13,6 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/settings"
-	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -330,8 +329,8 @@ func TestObserve_RefusedSummonIsExplainedRatherThanSilent(t *testing.T) {
 
 			chatSvc := chat.NewMockService(t)
 			sends := 0
-			chatSvc.EXPECT().SendMessage(mock.Anything, botID, event.ScopeID, mock.Anything, mock.Anything).
-				Run(func(context.Context, uuid.UUID, uuid.UUID, dto.SendMessageRequest, []upload.FileUpload) {
+			chatSvc.EXPECT().SendMessage(mock.Anything, botID, event.ScopeID, mock.Anything).
+				Run(func(context.Context, uuid.UUID, uuid.UUID, dto.SendMessageRequest) {
 					sends++
 				}).Return(nil, nil).Maybe()
 

@@ -5,6 +5,7 @@ import type {
     LiveStream,
     Notification,
     OCSummary,
+    PendingUpload,
     SecretProgressEvent,
     SecretSolvedEvent,
     SiteRole,
@@ -111,6 +112,9 @@ export const REALTIME_EVENTS = {
     STREAM_OFFLINE: "stream_offline",
     STREAM_VIEWERS: "stream_viewers",
     STREAM_TITLE: "stream_title",
+
+    UPLOAD_READY: "upload_ready",
+    UPLOAD_FAILED: "upload_failed",
 } as const satisfies Record<string, RealtimeEventName>;
 
 type EmptyEventPayload = Record<string, never>;
@@ -470,6 +474,8 @@ export interface StreamTitlePayload {
     title: string;
 }
 
+export type UploadSettledPayload = PendingUpload;
+
 export type RealtimeEvent =
     | { type: "pong"; data: PongPayload }
     | { type: "notification"; data: NotificationPayload }
@@ -547,7 +553,9 @@ export type RealtimeEvent =
     | { type: "stream_live"; data: StreamLivePayload }
     | { type: "stream_offline"; data: StreamOfflinePayload }
     | { type: "stream_viewers"; data: StreamViewersPayload }
-    | { type: "stream_title"; data: StreamTitlePayload };
+    | { type: "stream_title"; data: StreamTitlePayload }
+    | { type: "upload_ready"; data: UploadSettledPayload }
+    | { type: "upload_failed"; data: UploadSettledPayload };
 
 export type RealtimeEventName = RealtimeEvent["type"];
 

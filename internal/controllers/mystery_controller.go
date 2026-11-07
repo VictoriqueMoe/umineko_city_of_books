@@ -11,14 +11,9 @@ import (
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	mysterysvc "umineko_city_of_books/internal/mystery"
-	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
-)
-
-const (
-	mysteryAttachmentsField = "attachments"
 )
 
 func (s *Service) getAllMysteryRoutes() []FSetupRoute {
@@ -141,13 +136,12 @@ func (s *Service) getMystery(ctx fiber.Ctx) error {
 func (s *Service) createMystery(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
-	req, ok := utils.BindWithMedia[dto.CreateMysteryRequest](ctx, s.UploadService, mysteryAttachmentsField)
+	req, ok := utils.BindJSON[dto.CreateMysteryRequest](ctx)
 	if !ok {
 		return nil
 	}
-	defer req.Close()
 
-	id, err := s.MysteryService.CreateMystery(ctx.Context(), userID, req.Payload, req.Media, req.Files[mysteryAttachmentsField])
+	id, err := s.MysteryService.CreateMystery(ctx.Context(), userID, req)
 	if err != nil {
 		if utils.MapFilterError(ctx, err) {
 			return nil
@@ -418,8 +412,8 @@ func (s *Service) createMysteryComment(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	return handleCreateComment(ctx, s.UploadService, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
-		return s.MysteryService.CreateComment(c, mysteryID, userID, req, files)
+	return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest) (uuid.UUID, error) {
+		return s.MysteryService.CreateComment(c, mysteryID, userID, req)
 	}, []errorResponse{
 		{err: mysterysvc.ErrNotSolved, respond: utils.Forbidden},
 		{err: mysterysvc.ErrNotFound, respond: utils.NotFound, message: "mystery not found"},
@@ -441,13 +435,12 @@ func (s *Service) uploadMysteryAttachment(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	file, err := utils.ReceiveFile(ctx, s.UploadService, "file")
-	if err != nil {
-		return utils.UploadFailed(ctx, err)
+	attachment, ok := utils.BindJSON[dto.UploadRef](ctx)
+	if !ok {
+		return nil
 	}
-	defer file.Close()
 
-	result, err := s.MysteryService.UploadAttachment(ctx.Context(), mysteryID, userID, file.Filename, file.Size, file)
+	result, err := s.MysteryService.AttachFile(ctx.Context(), mysteryID, userID, attachment)
 	if err != nil {
 		if errors.Is(err, mysterysvc.ErrDuplicateAttachment) {
 			return utils.BadRequest(ctx, err.Error())
@@ -495,13 +488,12 @@ func (s *Service) uploadMysteryMedia(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	file, err := utils.ReceiveFile(ctx, s.UploadService, "media")
-	if err != nil {
-		return utils.UploadFailed(ctx, err)
+	media, ok := utils.BindJSON[dto.UploadRef](ctx)
+	if !ok {
+		return nil
 	}
-	defer file.Close()
 
-	result, err := s.MysteryService.UploadMedia(ctx.Context(), mysteryID, userID, file.FileUpload(isSpoilerUpload(file)))
+	result, err := s.MysteryService.AttachMedia(ctx.Context(), mysteryID, userID, media)
 	if err != nil {
 		return mysteryUploadError(ctx, err)
 	}

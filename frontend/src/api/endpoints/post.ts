@@ -1,14 +1,5 @@
-import {
-    apiDelete,
-    apiFetch,
-    apiPost,
-    apiPostFormData,
-    apiPut,
-    buildQueryString,
-    type UploadProgress,
-} from "../client";
-import { mediaFormData, postCreate } from "./mediaFormData";
-import type { CreatePollPayload, MediaUpload, Poll, PostDetail, PostListResponse, PostMedia } from "../../types/api";
+import { apiDelete, apiFetch, apiPost, apiPut, buildQueryString } from "../client";
+import type { CreatePollPayload, Poll, PostDetail, PostListResponse, PostMedia, UploadRef } from "../../types/api";
 
 export async function getCornerCounts(): Promise<Record<string, number>> {
     return apiFetch<Record<string, number>>("/posts/corner-counts");
@@ -41,10 +32,9 @@ export async function createPost(
     poll?: CreatePollPayload,
     sharedContentId?: string,
     sharedContentType?: string,
-    media: readonly MediaUpload[] = [],
-    onProgress?: UploadProgress,
+    media: readonly UploadRef[] = [],
 ): Promise<{ id: string }> {
-    return postCreate<
+    return apiPost<
         { id: string },
         {
             body: string;
@@ -52,19 +42,16 @@ export async function createPost(
             poll?: CreatePollPayload;
             shared_content_id?: string;
             shared_content_type?: string;
+            media: readonly UploadRef[];
         }
-    >(
-        "/posts",
-        {
-            body,
-            corner,
-            poll,
-            shared_content_id: sharedContentId,
-            shared_content_type: sharedContentType,
-        },
-        { media },
-        onProgress,
-    );
+    >("/posts", {
+        body,
+        corner,
+        poll,
+        shared_content_id: sharedContentId,
+        shared_content_type: sharedContentType,
+        media,
+    });
 }
 
 export async function votePoll(postId: string, optionId: number): Promise<Poll> {
@@ -83,8 +70,8 @@ export async function deletePost(id: string): Promise<void> {
     await apiDelete(`/posts/${id}`);
 }
 
-export async function uploadPostMedia(postId: string, file: File, isSpoiler = false): Promise<PostMedia> {
-    return apiPostFormData<PostMedia>(`/posts/${postId}/media`, mediaFormData(file, isSpoiler));
+export async function attachPostMedia(postId: string, media: UploadRef): Promise<PostMedia> {
+    return apiPost<PostMedia, UploadRef>(`/posts/${postId}/media`, media);
 }
 
 export async function deletePostMedia(postId: string, mediaId: number): Promise<void> {

@@ -6,11 +6,13 @@ import {
     useCreateMystery,
     useDeleteMysteryMedia,
     useUpdateMystery,
-    useUploadMysteryAttachmentToAny,
-    useUploadMysteryMediaToAny,
+    useAttachMysteryFileToAny,
+    useAttachMysteryMediaToAny,
 } from "../../hooks/mutations/mystery";
+import { useWarnBeforeLeaving } from "../../hooks/useWarnBeforeLeaving";
 import { formatSize } from "../../utils/fileValidation";
 import { type UploadFailure, uploadFailure, uploadFailureMessage } from "../../domain/uploadFailures";
+import { uploadStatus } from "../../domain/uploadProgress";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { TextArea } from "../../components/TextArea/TextArea";
@@ -19,18 +21,18 @@ import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { MediaPickerButton, MediaPreviews } from "../../components/MediaPicker/MediaPicker";
-import { useStagedMedia } from "../../hooks/useStagedMedia";
+import { type StagedAttachment, useStagedMedia } from "../../hooks/useStagedMedia";
 import { ALL_KNOX_RULES_ON, KNOX_RULES } from "./knoxRules";
 import type { KnoxContract } from "../../types/api";
 import { ExistingMediaGrid } from "../../components/ExistingMediaGrid/ExistingMediaGrid";
 import styles from "./MysteryPages.module.css";
 
-interface ClueInput {
+type ClueInput = {
     body: string;
     truth_type: string;
-}
+};
 
-interface MysteryDraft {
+type MysteryDraft = {
     sourceId: string | null;
     title?: string;
     body?: string;
@@ -39,6 +41,14 @@ interface MysteryDraft {
     keepOpenAfterSolve?: boolean;
     knox?: KnoxContract;
     clues?: ClueInput[];
+};
+
+function attachmentStatus(item: StagedAttachment): string {
+    if (item.state === "failed") {
+        return "Failed";
+    }
+
+    return uploadStatus(item.state === "processing" ? 100 : item.percent);
 }
 
 export function CreateMysteryPage() {
@@ -47,7 +57,7 @@ export function CreateMysteryPage() {
     usePageTitle(isEdit ? "Edit Mystery" : "New Mystery");
     const navigate = useNavigate();
     const [draft, setDraft] = useState<MysteryDraft>({ sourceId: null });
-    const [attachments, setAttachments] = useState<File[]>([]);
+    const documents = useStagedMedia("document");
     const media = useStagedMedia();
     const [pendingMediaDeletions, setPendingMediaDeletions] = useState<number[]>([]);
     const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -57,9 +67,10 @@ export function CreateMysteryPage() {
     const editLoading = isEdit && editFetchLoading;
     const createMutation = useCreateMystery();
     const updateMutation = useUpdateMystery(editId ?? "");
-    const uploadAttachmentMutation = useUploadMysteryAttachmentToAny();
-    const uploadMediaMutation = useUploadMysteryMediaToAny();
+    const attachFileMutation = useAttachMysteryFileToAny();
+    const attachMediaMutation = useAttachMysteryMediaToAny();
     const deleteMediaMutation = useDeleteMysteryMedia(editId ?? "");
+    useWarnBeforeLeaving(media.busy || documents.busy);
 
     const existingMedia = isEdit ? (editMystery?.media ?? []) : [];
 
@@ -89,6 +100,7 @@ export function CreateMysteryPage() {
     const knox = activeDraft.knox ?? (isEdit ? (editMystery?.knox_contract ?? ALL_KNOX_RULES_ON) : ALL_KNOX_RULES_ON);
     const knoxLocked = isEdit && (editMystery?.knox_contract_locked ?? false);
     const clues = activeDraft.clues ?? baseClues;
+    const canSave = !submitting && media.ready && documents.ready && title.trim() !== "" && body.trim() !== "";
 
     function patch(update: Partial<MysteryDraft>) {
         setDraft(prev => {
@@ -138,7 +150,7 @@ export function CreateMysteryPage() {
 
     async function handleSubmit(e: SubmitEvent) {
         e.preventDefault();
-        if (!title.trim() || !body.trim() || submitting) {
+        if (!canSave) {
             return;
         }
         setSubmitting(true);
@@ -158,8 +170,8 @@ export function CreateMysteryPage() {
             if (!editId) {
                 const result = await createMutation.mutateAsync({
                     data: payload,
-                    media: media.staged,
-                    attachments,
+                    media: media.refs,
+                    attachments: documents.refs,
                 });
 
                 navigate(`/mystery/${result.id}`);
@@ -181,31 +193,29 @@ export function CreateMysteryPage() {
             }
             setPendingMediaDeletions(stillPresent);
 
-            const unsentAttachments: File[] = [];
-            for (const file of attachments) {
+            for (const item of documents.items) {
                 try {
-                    await uploadAttachmentMutation.mutateAsync({ mysteryId: editId, file });
-                } catch (thrown) {
-                    unsentAttachments.push(file);
-                    failures.push(uploadFailure(file.name, thrown));
-                }
-            }
-            setAttachments(unsentAttachments);
-
-            const unsentMedia: File[] = [];
-            for (const item of media.staged) {
-                try {
-                    await uploadMediaMutation.mutateAsync({
+                    await attachFileMutation.mutateAsync({
                         mysteryId: editId,
-                        file: item.file,
-                        isSpoiler: item.isSpoiler,
+                        attachment: { upload_id: item.uploadId as string },
                     });
+                    documents.forget(item.key);
                 } catch (thrown) {
-                    unsentMedia.push(item.file);
                     failures.push(uploadFailure(item.file.name, thrown));
                 }
             }
-            media.keepOnly(unsentMedia);
+
+            for (const item of media.items) {
+                try {
+                    await attachMediaMutation.mutateAsync({
+                        mysteryId: editId,
+                        media: { upload_id: item.uploadId as string, is_spoiler: item.isSpoiler },
+                    });
+                    media.forget(item.key);
+                } catch (thrown) {
+                    failures.push(uploadFailure(item.file.name, thrown));
+                }
+            }
 
             if (failures.length > 0) {
                 setError(uploadFailureMessage(failures));
@@ -376,6 +386,7 @@ export function CreateMysteryPage() {
                         onRemove={media.remove}
                         spoilers={media.spoilers}
                         onToggleSpoiler={media.toggleSpoiler}
+                        progress={media.progress}
                     />
                     <MediaPickerButton onFiles={media.add} onError={setError} />
                 </div>
@@ -385,16 +396,21 @@ export function CreateMysteryPage() {
                     <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
                         Upload PDF, TXT, or DOCX files as evidence or supplementary material.
                     </p>
-                    {attachments.map((file, i) => (
-                        <div key={i} className={styles.attachmentItem}>
+                    {documents.items.map((item, i) => (
+                        <div key={item.key} className={styles.attachmentItem}>
                             <span dir="auto" className={styles.attachmentLink}>
-                                {file.name}
+                                {item.file.name}
                             </span>
-                            <span className={styles.attachmentSize}>{formatSize(file.size)}</span>
+                            <span className={styles.attachmentSize}>{formatSize(item.file.size)}</span>
+                            {item.state !== "ready" && (
+                                <span className={styles.attachmentSize} role="status" title={item.error ?? undefined}>
+                                    {attachmentStatus(item)}
+                                </span>
+                            )}
                             <button
                                 type="button"
                                 className={styles.attachmentDelete}
-                                onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}
+                                onClick={() => documents.remove(i)}
                             >
                                 &times;
                             </button>
@@ -408,7 +424,7 @@ export function CreateMysteryPage() {
                         onChange={e => {
                             const file = e.target.files?.[0];
                             if (file) {
-                                setAttachments(prev => [...prev, file]);
+                                documents.add([file]);
                             }
                             if (attachmentInputRef.current) {
                                 attachmentInputRef.current.value = "";
@@ -428,7 +444,7 @@ export function CreateMysteryPage() {
                     >
                         Cancel
                     </Button>
-                    <Button variant="primary" type="submit" disabled={!title.trim() || !body.trim() || submitting}>
+                    <Button variant="primary" type="submit" disabled={!canSave}>
                         {submitting
                             ? isEdit
                                 ? "Saving..."

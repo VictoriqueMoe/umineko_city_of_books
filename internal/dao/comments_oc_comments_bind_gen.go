@@ -99,10 +99,6 @@ func (oCCommentQuerier) AuthorID(ctx context.Context, q *sqlcgen.Queries, id uui
 	return q.GetOCCommentAuthorID(ctx, id)
 }
 
-func (oCCommentQuerier) MediaDir() string {
-	return "ocs"
-}
-
 func (oCCommentQuerier) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
 	return q.GetOCCommentTargetOwner(ctx, target.ID)
 }
@@ -153,14 +149,6 @@ func (oCCommentQuerier) MediaBatch(ctx context.Context, q *sqlcgen.Queries, ids 
 	}
 
 	return out, nil
-}
-
-func (oCCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.UpdateOCCommentMediaURL(ctx, sqlcgen.UpdateOCCommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
-}
-
-func (oCCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.UpdateOCCommentMediaThumbnail(ctx, sqlcgen.UpdateOCCommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
 func (oCCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {

@@ -19,7 +19,8 @@ import type { MysteryAttachment, MysteryAttempt, MysteryClue, MysteryDetail } fr
 import { errorMessage } from "../utils/errorMessage";
 import { useAuth } from "./useAuth";
 import { useResetOnChange } from "./useResetOnChange";
-import { stageMedia, type StagedMedia } from "./useStagedMedia";
+import { type UseStagedMediaResult, useStagedMedia } from "./useStagedMedia";
+import { useAttachWhenReady } from "./useAttachWhenReady";
 import { type CommentHandlers, useCommentHandlers } from "./useCommentHandlers";
 import { useMystery } from "./queries/mystery";
 import {
@@ -33,8 +34,8 @@ import {
     useSetMysteryGmAway,
     useSetMysteryPaused,
     useUpdateMysteryClue,
-    useUploadMysteryAttachment,
-    useUploadMysteryMedia,
+    useAttachMysteryFile,
+    useAttachMysteryMedia,
 } from "./mutations/mystery";
 import { useThrottled } from "./useThrottled";
 
@@ -92,14 +93,10 @@ export interface MysteryBoard {
     closeMystery: () => Promise<void>;
     uploadingAttachment: boolean;
     attachmentError: string;
-    uploadAttachment: (file: File | null | undefined) => Promise<void>;
+    uploadAttachment: (file: File | null | undefined) => void;
     removeAttachment: (attachment: MysteryAttachment) => Promise<void>;
-    pendingMedia: File[];
-    pendingMediaSpoilers: boolean[];
-    addPendingMedia: (files: File[]) => void;
-    removePendingMedia: (index: number) => void;
-    togglePendingMediaSpoiler: (index: number) => void;
-    uploadingMedia: boolean;
+    pendingMedia: UseStagedMediaResult;
+    attachingMedia: boolean;
     mediaError: string;
     setMediaError: (message: string) => void;
     uploadMedia: () => Promise<void>;
@@ -142,10 +139,13 @@ export function useMysteryBoard(mysteryId: string): MysteryBoard {
     const setPausedMutation = useSetMysteryPaused(mysteryId);
     const setGmAwayMutation = useSetMysteryGmAway(mysteryId);
     const closeMysteryMutation = useCloseMystery(mysteryId);
-    const uploadAttachmentMutation = useUploadMysteryAttachment(mysteryId);
+    const attachFileMutation = useAttachMysteryFile(mysteryId);
     const deleteAttachmentMutation = useDeleteMysteryAttachment(mysteryId);
-    const uploadMediaMutation = useUploadMysteryMedia(mysteryId);
+    const attachMediaMutation = useAttachMysteryMedia(mysteryId);
     const deleteMediaMutation = useDeleteMysteryMedia(mysteryId);
+    const documents = useStagedMedia("document");
+    const pendingMedia = useStagedMedia();
+    useAttachWhenReady(documents, attachFileMutation.mutateAsync, () => undefined);
 
     const comments = useCommentHandlers("mystery", mysteryId, {
         enabled: ["create", "update", "delete", "like", "unlike"],
@@ -158,12 +158,10 @@ export function useMysteryBoard(mysteryId: string): MysteryBoard {
     const [collapsedPlayers, setCollapsedPlayers] = useState<Set<string>>(new Set());
     const [arrivedPlayers, setArrivedPlayers] = useState<Set<string>>(new Set());
     const [readPlayers, setReadPlayers] = useState<Set<string>>(new Set());
-    const [uploadingAttachment, setUploadingAttachment] = useState(false);
-    const [attachmentError, setAttachmentError] = useState("");
-    const [pendingStaged, setPendingStaged] = useState<StagedMedia[]>([]);
-    const pendingMedia = useMemo(() => pendingStaged.map(s => s.file), [pendingStaged]);
-    const pendingMediaSpoilers = useMemo(() => pendingStaged.map(s => s.isSpoiler), [pendingStaged]);
-    const [uploadingMedia, setUploadingMedia] = useState(false);
+    const [deleteAttachmentError, setAttachmentError] = useState("");
+    const failedDocument = documents.items.find(item => item.state === "failed");
+    const attachmentError = failedDocument?.error ?? deleteAttachmentError;
+    const [attachingMedia, setAttachingMedia] = useState(false);
     const [mediaError, setMediaError] = useState("");
 
     useResetOnChange(mysteryId, () => {
@@ -174,10 +172,10 @@ export function useMysteryBoard(mysteryId: string): MysteryBoard {
         setCollapsedPlayers(new Set());
         setArrivedPlayers(new Set());
         setReadPlayers(new Set());
-        setUploadingAttachment(false);
         setAttachmentError("");
-        setPendingStaged([]);
-        setUploadingMedia(false);
+        documents.reset();
+        pendingMedia.reset();
+        setAttachingMedia(false);
         setMediaError("");
     });
 
@@ -412,23 +410,21 @@ export function useMysteryBoard(mysteryId: string): MysteryBoard {
         await closeMysteryMutation.mutateAsync();
     }, [closeMysteryMutation]);
 
+    const { add: addDocuments, forget: forgetDocument } = documents;
+    const failedDocumentKey = failedDocument?.key;
     const uploadAttachment = useCallback(
-        async (file: File | null | undefined) => {
-            if (!file || uploadingAttachment || !mysteryId) {
+        (file: File | null | undefined) => {
+            if (!file || !mysteryId) {
                 return;
             }
 
-            setUploadingAttachment(true);
             setAttachmentError("");
-            try {
-                await uploadAttachmentMutation.mutateAsync(file);
-            } catch (e) {
-                setAttachmentError(errorMessage(e, "Failed to upload attachment"));
-            } finally {
-                setUploadingAttachment(false);
+            if (failedDocumentKey) {
+                forgetDocument(failedDocumentKey);
             }
+            addDocuments([file]);
         },
-        [mysteryId, uploadAttachmentMutation, uploadingAttachment],
+        [mysteryId, addDocuments, forgetDocument, failedDocumentKey],
     );
 
     const removeAttachment = useCallback(
@@ -447,38 +443,27 @@ export function useMysteryBoard(mysteryId: string): MysteryBoard {
         [deleteAttachmentMutation],
     );
 
-    const addPendingMedia = useCallback((files: File[]) => {
-        setPendingStaged(previous => [...previous, ...stageMedia(files)]);
-    }, []);
-
-    const togglePendingMediaSpoiler = useCallback((index: number) => {
-        setPendingStaged(previous =>
-            previous.map((item, position) => (position === index ? { ...item, isSpoiler: !item.isSpoiler } : item)),
-        );
-    }, []);
-
-    const removePendingMedia = useCallback((index: number) => {
-        setPendingStaged(previous => previous.filter((_, position) => position !== index));
-    }, []);
-
     const uploadMedia = useCallback(async () => {
-        if (pendingStaged.length === 0 || uploadingMedia) {
+        if (pendingMedia.items.length === 0 || !pendingMedia.ready || attachingMedia) {
             return;
         }
 
-        setUploadingMedia(true);
+        setAttachingMedia(true);
         setMediaError("");
         try {
-            for (const item of pendingStaged) {
-                await uploadMediaMutation.mutateAsync({ file: item.file, isSpoiler: item.isSpoiler });
+            for (const item of pendingMedia.items) {
+                await attachMediaMutation.mutateAsync({
+                    upload_id: item.uploadId as string,
+                    is_spoiler: item.isSpoiler,
+                });
+                pendingMedia.forget(item.key);
             }
-            setPendingStaged([]);
         } catch (e) {
-            setMediaError(errorMessage(e, "Failed to upload image"));
+            setMediaError(errorMessage(e, "Failed to attach image"));
         } finally {
-            setUploadingMedia(false);
+            setAttachingMedia(false);
         }
-    }, [pendingStaged, uploadMediaMutation, uploadingMedia]);
+    }, [pendingMedia, attachMediaMutation, attachingMedia]);
 
     const removeMedia = useCallback(
         async (mediaId: number) => {
@@ -523,16 +508,12 @@ export function useMysteryBoard(mysteryId: string): MysteryBoard {
         togglePaused,
         toggleGmAway,
         closeMystery,
-        uploadingAttachment,
+        uploadingAttachment: documents.busy,
         attachmentError,
         uploadAttachment,
         removeAttachment,
         pendingMedia,
-        addPendingMedia,
-        removePendingMedia,
-        pendingMediaSpoilers,
-        togglePendingMediaSpoiler,
-        uploadingMedia,
+        attachingMedia,
         mediaError,
         setMediaError,
         uploadMedia,

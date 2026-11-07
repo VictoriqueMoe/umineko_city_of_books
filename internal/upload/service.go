@@ -15,12 +15,14 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/storage"
+	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 )
@@ -86,10 +88,12 @@ type (
 		SaveFile(ctx context.Context, subDir string, filename string, reader io.Reader) (string, error)
 		Stage(filename string, reader io.Reader) (string, error)
 		SaveImage(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
-		SaveAttachment(ctx context.Context, subDir string, fileSize int64, maxSize int64, reader io.Reader) (string, error)
-		StoreMedia(ctx context.Context, subDir string, files []FileUpload) ([]StoredMedia, error)
-		DiscardMedia(stored ...StoredMedia)
-		TranscodeMedia(ctx context.Context, subDir string, stored []StoredMedia, rowIDs []int64, updateURL UpdateURLFn, updateThumb UpdateURLFn)
+		BeginMediaUpload(ctx context.Context, userID uuid.UUID, file FileUpload) (*dto.PendingUploadResponse, error)
+		BeginFileUpload(ctx context.Context, userID uuid.UUID, file FileUpload) (*dto.PendingUploadResponse, error)
+		UploadStatuses(ctx context.Context, userID uuid.UUID, ids []uuid.UUID) ([]dto.PendingUploadResponse, error)
+		RemoveUpload(ctx context.Context, userID uuid.UUID, id uuid.UUID) error
+		ExpireUploads(ctx context.Context) (int, error)
+		FailInterruptedUploads(ctx context.Context) error
 		Discard(localPath string)
 		Delete(urlPaths ...string)
 		DeleteByPrefix(ctx context.Context, subDir string, prefix string) error
@@ -100,18 +104,20 @@ type (
 		settingsSvc settings.Service
 		storageSvc  storage.Service
 		storedFiles repository.StoredFileRepository
+		pending     repository.PendingUploadRepository
+		hub         *ws.Hub
 		mediaProc   *media.Processor
 		liveStaging sync.Map
 	}
 )
 
-func NewService(settingsSvc settings.Service, storageSvc storage.Service, storedFiles repository.StoredFileRepository, processors ...*media.Processor) Service {
+func NewService(settingsSvc settings.Service, storageSvc storage.Service, storedFiles repository.StoredFileRepository, pending repository.PendingUploadRepository, hub *ws.Hub, processors ...*media.Processor) Service {
 	var mediaProc *media.Processor
 	if len(processors) > 0 {
 		mediaProc = processors[0]
 	}
 
-	return &service{settingsSvc: settingsSvc, storageSvc: storageSvc, storedFiles: storedFiles, mediaProc: mediaProc}
+	return &service{settingsSvc: settingsSvc, storageSvc: storageSvc, storedFiles: storedFiles, pending: pending, hub: hub, mediaProc: mediaProc}
 }
 
 func (s *service) SaveFile(ctx context.Context, subDir string, filename string, reader io.Reader) (string, error) {
@@ -206,6 +212,10 @@ func (s *service) SaveImage(ctx context.Context, subDir string, id uuid.UUID, fi
 	}
 	defer s.Discard(staged)
 
+	return s.storeImage(ctx, subDir, staged)
+}
+
+func (s *service) storeImage(ctx context.Context, subDir string, staged string) (string, error) {
 	maxPixels := s.settingsSvc.GetInt(ctx, config.SettingMaxImagePixels)
 	if err := media.CheckImageFileBounds(staged, maxPixels); err != nil {
 		return "", err
@@ -240,6 +250,10 @@ func (s *service) encodeImage(ctx context.Context, subDir string, staged string)
 		job.Quality = media.BannerQuality
 	}
 
+	return s.runJob(ctx, job)
+}
+
+func (s *service) runJob(ctx context.Context, job media.Job) (string, error) {
 	result := make(chan string, 1)
 	errCh := make(chan error, 1)
 	job.Callback = func(outputPath string) {
@@ -258,29 +272,6 @@ func (s *service) encodeImage(ctx context.Context, subDir string, staged string)
 	case <-ctx.Done():
 		return "", ctx.Err()
 	}
-}
-
-func (s *service) SaveAudio(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
-	staged, err := s.StageMedia(ctx, MediaTypeAudio, subDir, id, fileSize, maxSize, reader)
-	if err != nil {
-		return "", err
-	}
-	defer s.Discard(staged)
-
-	return s.Store(ctx, subDir, staged)
-}
-
-func (s *service) SaveAttachment(ctx context.Context, subDir string, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
-	if err := checkAttachmentSize(fileSize, maxSize); err != nil {
-		return "", err
-	}
-
-	ext, wrapped, err := sniffAttachment(reader)
-	if err != nil {
-		return "", err
-	}
-
-	return s.SaveFile(ctx, subDir, uuid.New().String()+ext, wrapped)
 }
 
 func (s *service) Delete(urlPaths ...string) {

@@ -83,12 +83,6 @@ FROM ship_comment_media
 WHERE comment_id = ANY(string_to_array($1::text, ',')::uuid[])
 ORDER BY sort_order;
 
--- name: UpdateShipCommentMediaURL :execrows
-UPDATE ship_comment_media SET media_url = $1 WHERE id = $2;
-
--- name: UpdateShipCommentMediaThumbnail :execrows
-UPDATE ship_comment_media SET thumbnail_url = $1 WHERE id = $2;
-
 -- name: CollectShipCommentMediaPaths :many
 SELECT m.media_url, m.thumbnail_url
 FROM ship_comment_media m

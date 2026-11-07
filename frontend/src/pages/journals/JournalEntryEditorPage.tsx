@@ -14,8 +14,9 @@ import {
     useCreateJournalEntry,
     useDeleteJournalEntryMedia,
     useUpdateJournalEntry,
-    useUploadJournalEntryMedia,
+    useAttachJournalEntryMedia,
 } from "../../hooks/mutations/journal";
+import { useWarnBeforeLeaving } from "../../hooks/useWarnBeforeLeaving";
 import { ExistingMediaGrid } from "../../components/ExistingMediaGrid/ExistingMediaGrid";
 import styles from "./JournalEntryEditorPage.module.css";
 
@@ -30,7 +31,7 @@ export function JournalEntryEditorPage() {
 
     const createMutation = useCreateJournalEntry(journalId ?? "");
     const updateMutation = useUpdateJournalEntry(journalId ?? "");
-    const uploadMediaMutation = useUploadJournalEntryMedia(journalId ?? "");
+    const attachMediaMutation = useAttachJournalEntryMedia(journalId ?? "");
     const deleteMediaMutation = useDeleteJournalEntryMedia(journalId ?? "");
 
     const [titleDraft, setTitleDraft] = useState<string | null>(null);
@@ -41,6 +42,7 @@ export function JournalEntryEditorPage() {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [gifPickerOpen, setGifPickerOpen] = useState(false);
+    useWarnBeforeLeaving(media.busy);
 
     const title = titleDraft ?? (isEdit && entry ? (entry.title ?? "") : "");
     const body = bodyDraft ?? (isEdit && entry ? entry.body : "");
@@ -81,13 +83,17 @@ export function JournalEntryEditorPage() {
         return <div className="empty-state">Entry not found.</div>;
     }
 
-    async function uploadAllTo(entryId: string): Promise<boolean> {
+    async function attachAllTo(entryId: string): Promise<boolean> {
         let allDone = true;
-        for (const item of media.staged) {
+        for (const item of media.items) {
             try {
-                await uploadMediaMutation.mutateAsync({ entryId, file: item.file, isSpoiler: item.isSpoiler });
+                await attachMediaMutation.mutateAsync({
+                    entryId,
+                    media: { upload_id: item.uploadId as string, is_spoiler: item.isSpoiler },
+                });
+                media.forget(item.key);
             } catch (err) {
-                setError(err instanceof Error ? err.message : "Failed to upload media");
+                setError(err instanceof Error ? err.message : "Failed to attach media");
                 allDone = false;
             }
         }
@@ -112,7 +118,7 @@ export function JournalEntryEditorPage() {
     }
 
     async function save(asDraft: boolean) {
-        if ((!body.trim() && media.files.length === 0) || submitting) {
+        if (!canSave) {
             return;
         }
         setSubmitting(true);
@@ -124,8 +130,8 @@ export function JournalEntryEditorPage() {
                     payload: { title: title.trim(), body: body.trim(), is_draft: asDraft },
                 });
                 const removed = await deletePendingFrom(entry.id);
-                const uploaded = await uploadAllTo(entry.id);
-                if (!removed || !uploaded) {
+                const attached = await attachAllTo(entry.id);
+                if (!removed || !attached) {
                     setSubmitting(false);
                     return;
                 }
@@ -138,7 +144,7 @@ export function JournalEntryEditorPage() {
             } else {
                 const result = await createMutation.mutateAsync({
                     payload: { title: title.trim(), body: body.trim(), is_draft: asDraft },
-                    media: media.staged,
+                    media: media.refs,
                 });
 
                 if (asDraft) {
@@ -153,6 +159,7 @@ export function JournalEntryEditorPage() {
         }
     }
 
+    const canSave = !submitting && media.ready && (body.trim() !== "" || media.files.length > 0);
     const wasDraft = isEdit && entry ? entry.is_draft : false;
     const canSaveAsDraft = !isEdit || (isEdit && entry !== null && entry !== undefined && entry.is_draft);
 
@@ -217,6 +224,7 @@ export function JournalEntryEditorPage() {
                     onRemove={media.remove}
                     spoilers={media.spoilers}
                     onToggleSpoiler={media.toggleSpoiler}
+                    progress={media.progress}
                 />
 
                 <div className={styles.toolbar}>
@@ -248,16 +256,12 @@ export function JournalEntryEditorPage() {
                             variant="ghost"
                             size="medium"
                             onClick={() => save(true)}
-                            disabled={submitting || (!body.trim() && media.files.length === 0)}
+                            disabled={!canSave}
                         >
                             {submitting ? "Saving..." : "Save as draft"}
                         </Button>
                     )}
-                    <Button
-                        variant="primary"
-                        size="medium"
-                        disabled={submitting || (!body.trim() && media.files.length === 0)}
-                    >
+                    <Button variant="primary" size="medium" disabled={!canSave}>
                         {submitting
                             ? "Saving..."
                             : isEdit

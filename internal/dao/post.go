@@ -33,8 +33,6 @@ type (
 
 		AddMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)
 		DeleteMedia(ctx context.Context, s spec.MediaDeletion, tx ...*sql.Tx) (string, error)
-		UpdateMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
-		UpdateMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
 		GetMedia(ctx context.Context, postID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error)
 		GetMediaBatch(ctx context.Context, postIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)
 		CollectMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)

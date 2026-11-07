@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import type { MediaUpload } from "../types/api";
+import type { UploadRef } from "../types/api";
 import {
     useCreateAnnouncementComment,
     useDeleteAnnouncementComment,
@@ -81,7 +81,7 @@ export type CreateCommentHandler = (
     targetId: string,
     body: string,
     parentId?: string,
-    media?: readonly MediaUpload[],
+    media?: readonly UploadRef[],
 ) => Promise<{ id: string }>;
 type UpdateCommentHandler = (commentId: string, body: string) => Promise<void>;
 type CommentIdHandler = (commentId: string) => Promise<void>;
@@ -115,7 +115,7 @@ interface CreateCommentMutation {
     mutateAsync: (variables: {
         body: string;
         parentId?: string;
-        media?: readonly MediaUpload[];
+        media?: readonly UploadRef[];
     }) => Promise<{ id: string }>;
 }
 

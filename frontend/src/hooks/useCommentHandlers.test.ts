@@ -249,8 +249,8 @@ describe("createCommentFn", () => {
     it("sends the staged media with the comment so it is created in one request", async () => {
         // given
         const media = [
-            { file: new File(["x"], "witch.png"), isSpoiler: false },
-            { file: new File(["y"], "truth.png"), isSpoiler: true },
+            { upload_id: "upload-1", is_spoiler: false },
+            { upload_id: "upload-2", is_spoiler: true },
         ];
         const { result } = renderHook(() => useCommentHandlers("fanfic", "fanfic-1", { enabled: ["create"] }));
 

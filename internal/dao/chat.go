@@ -72,14 +72,11 @@ type (
 		SearchMessagesForViewer(ctx context.Context, s spec.ChatMessageSearch, tx ...*sql.Tx) ([]model.SearchResult, int, error)
 		GetMessagesBefore(ctx context.Context, q spec.ChatMessageCursorPage, tx ...*sql.Tx) ([]model.ChatMessageRow, error)
 		GetMessageByID(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (*model.ChatMessageRow, error)
-		GetMessageBySenderNonce(ctx context.Context, s spec.ChatSenderNonce, tx ...*sql.Tx) (*model.ChatMessageRow, error)
 		DeleteMessages(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) error
 		DeleteMessage(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) error
 		GetMessageSenderID(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
 		GetMessageRoomID(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
 		AddMessageMedia(ctx context.Context, s spec.NewChatMessageMedia, tx ...*sql.Tx) (int64, error)
-		UpdateMessageMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
-		UpdateMessageMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
 		GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]dto.PostMediaResponse, error)
 
 		TouchRoomActivity(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) error
@@ -1024,21 +1021,6 @@ func (r *chatDAO) GetMessageByID(ctx context.Context, messageID uuid.UUID, tx ..
 	return new(toChatMessageRow(row)), nil
 }
 
-func (r *chatDAO) GetMessageBySenderNonce(ctx context.Context, s spec.ChatSenderNonce, tx ...*sql.Tx) (*model.ChatMessageRow, error) {
-	row, err := genQueries(r.db, tx).GetChatMessageBySenderNonce(ctx, sqlcgen.GetChatMessageBySenderNonceParams{
-		SenderID:    s.SenderID,
-		ClientNonce: s.ClientNonce,
-	})
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get message by sender nonce: %w", err)
-	}
-
-	return new(toChatMessageRow(chatMessageJoinRow(row))), nil
-}
-
 func (r *chatDAO) GetMessageRoomID(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	roomID, err := genQueries(r.db, tx).GetChatMessageRoomID(ctx, messageID)
 	if err != nil {
@@ -1141,30 +1123,6 @@ func (r *chatDAO) AddMessageMedia(ctx context.Context, s spec.NewChatMessageMedi
 	}
 
 	return id, nil
-}
-
-func (r *chatDAO) UpdateMessageMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	err := genQueries(r.db, tx).UpdateChatMessageMediaURL(ctx, sqlcgen.UpdateChatMessageMediaURLParams{
-		MediaUrl: s.URL,
-		ID:       s.ID,
-	})
-	if err != nil {
-		return fmt.Errorf("update message media url: %w", err)
-	}
-
-	return nil
-}
-
-func (r *chatDAO) UpdateMessageMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	err := genQueries(r.db, tx).UpdateChatMessageMediaThumbnail(ctx, sqlcgen.UpdateChatMessageMediaThumbnailParams{
-		ThumbnailUrl: s.URL,
-		ID:           s.ID,
-	})
-	if err != nil {
-		return fmt.Errorf("update message media thumbnail: %w", err)
-	}
-
-	return nil
 }
 
 func (r *chatDAO) GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]dto.PostMediaResponse, error) {

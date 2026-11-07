@@ -1,5 +1,4 @@
-import { apiDelete, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "../client";
-import { type CreateUploads, mediaFormData, postCreate } from "./mediaFormData";
+import { apiDelete, apiFetch, apiPost, apiPut, buildQueryString } from "../client";
 import type {
     GMLeaderboardResponse,
     KnoxContract,
@@ -8,7 +7,13 @@ import type {
     MysteryLeaderboardResponse,
     MysteryListResponse,
     PostMedia,
+    UploadRef,
 } from "../../types/api";
+
+export type MysteryUploads = {
+    media?: readonly UploadRef[];
+    attachments?: readonly UploadRef[];
+};
 
 export async function listMysteries(params: {
     sort?: string;
@@ -39,9 +44,9 @@ export async function createMystery(
         knox_contract: KnoxContract;
         clues: { body: string; truth_type: string }[];
     },
-    uploads: CreateUploads = {},
+    uploads: MysteryUploads = {},
 ): Promise<{ id: string }> {
-    return postCreate<{ id: string }, typeof data>("/mysteries", data, uploads);
+    return apiPost<{ id: string }, typeof data & MysteryUploads>("/mysteries", { ...data, ...uploads });
 }
 
 export async function updateMystery(
@@ -119,18 +124,16 @@ export async function addMysteryClue(
     });
 }
 
-export async function uploadMysteryAttachment(mysteryId: string, file: File): Promise<MysteryAttachment> {
-    const formData = new FormData();
-    formData.append("file", file);
-    return apiPostFormData<MysteryAttachment>(`/mysteries/${mysteryId}/attachments`, formData);
+export async function attachMysteryFile(mysteryId: string, attachment: UploadRef): Promise<MysteryAttachment> {
+    return apiPost<MysteryAttachment, UploadRef>(`/mysteries/${mysteryId}/attachments`, attachment);
 }
 
 export async function deleteMysteryAttachment(mysteryId: string, attachmentId: number): Promise<void> {
     await apiDelete(`/mysteries/${mysteryId}/attachments/${attachmentId}`);
 }
 
-export async function uploadMysteryMedia(mysteryId: string, file: File, isSpoiler = false): Promise<PostMedia> {
-    return apiPostFormData<PostMedia>(`/mysteries/${mysteryId}/media`, mediaFormData(file, isSpoiler));
+export async function attachMysteryMedia(mysteryId: string, media: UploadRef): Promise<PostMedia> {
+    return apiPost<PostMedia, UploadRef>(`/mysteries/${mysteryId}/media`, media);
 }
 
 export async function deleteMysteryMedia(mysteryId: string, mediaId: number): Promise<void> {

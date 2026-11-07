@@ -6,7 +6,7 @@ export {
     makeSiteInfo,
     makeThemeContext,
 } from "./contexts";
-export { makeAnnouncement, makeArt, makeGallery, makePost, makeSiteSecret } from "./content";
+export { makeAnnouncement, makeArt, makeGallery, makePendingUpload, makePost, makeSiteSecret } from "./content";
 export { makeGamePlayer, makeGameRoom, makeMinesweeperState, makeSpectatorMessage } from "./game";
 export { makeHomeActivity, makeHomeMember, makeHomePublicRoom, makeStream, makeWatchPartySession } from "./live";
 export { makePublicUser, makeStats, makeUser } from "./user";

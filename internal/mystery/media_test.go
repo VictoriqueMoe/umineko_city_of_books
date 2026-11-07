@@ -1,14 +1,15 @@
 package mystery
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"testing"
-	"umineko_city_of_books/internal/config"
+
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
-	"umineko_city_of_books/internal/upload/uploadtest"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -16,120 +17,84 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUploadAttachment_MysteryNotFound(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	mid := uuid.New()
-	userID := uuid.New()
-	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errMissingRow)
+func TestAttachFile_Refusals(t *testing.T) {
+	cases := []struct {
+		name   string
+		expect func(m *testMocks, mid, userID, uploadID uuid.UUID)
+		want   error
+	}{
+		{
+			name: "a missing mystery is not found",
+			expect: func(m *testMocks, mid, _, _ uuid.UUID) {
+				m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errMissingRow)
+			},
+			want: ErrNotFound,
+		},
+		{
+			name: "only the author or an editor may attach",
+			expect: func(m *testMocks, mid, userID, _ uuid.UUID) {
+				stubNotAuthor(m, mid, userID)
+			},
+			want: ErrNotAuthor,
+		},
+		{
+			name: "a file named like one already attached is refused",
+			expect: func(m *testMocks, mid, userID, uploadID uuid.UUID) {
+				stubAuthor(m, mid, userID)
+				m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return([]dto.MysteryAttachment{{FileName: "f.txt"}}, nil)
+				m.uploadSvc.EXPECT().UploadStatuses(mock.Anything, userID, []uuid.UUID{uploadID}).Return([]dto.PendingUploadResponse{{ID: uploadID, Filename: "f.txt"}}, nil)
+			},
+			want: ErrDuplicateAttachment,
+		},
+		{
+			name: "an upload that cannot be claimed is surfaced",
+			expect: func(m *testMocks, mid, userID, uploadID uuid.UUID) {
+				stubAuthor(m, mid, userID)
+				m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(nil, nil)
+				m.uploadSvc.EXPECT().UploadStatuses(mock.Anything, userID, []uuid.UUID{uploadID}).Return(nil, nil)
+				m.repo.EXPECT().
+					AttachFile(mock.Anything, spec.MediaAttachment{TargetID: mid, Uploads: upload.FileClaim(userID, []dto.UploadRef{{ID: uploadID}})}).
+					Return(nil, daoerr.ErrUploadUnavailable)
+			},
+			want: daoerr.ErrUploadUnavailable,
+		},
+	}
 
-	// when
-	_, err := svc.UploadAttachment(context.Background(), mid, userID, "f.txt", 10, bytes.NewReader(nil))
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			mid, userID, uploadID := uuid.New(), uuid.New(), uuid.New()
+			tc.expect(m, mid, userID, uploadID)
 
-	// then
-	require.ErrorIs(t, err, ErrNotFound)
+			// when
+			got, err := svc.AttachFile(context.Background(), mid, userID, dto.UploadRef{ID: uploadID})
+
+			// then
+			require.ErrorIs(t, err, tc.want)
+			assert.Nil(t, got)
+		})
+	}
 }
 
-func TestUploadAttachment_NotAuthor(t *testing.T) {
-	// given
+func TestAttachFile_OK(t *testing.T) {
+	// given a finished upload whose name is new to the mystery
 	svc, m := newTestService(t)
-	mid := uuid.New()
-	userID := uuid.New()
-	stubNotAuthor(m, mid, userID)
-
-	// when
-	_, err := svc.UploadAttachment(context.Background(), mid, userID, "f.txt", 10, bytes.NewReader(nil))
-
-	// then
-	require.ErrorIs(t, err, ErrNotAuthor)
-}
-
-func TestUploadAttachment_FileTooBig(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	mid := uuid.New()
-	userID := uuid.New()
+	mid, userID, uploadID := uuid.New(), uuid.New(), uuid.New()
 	stubAuthor(m, mid, userID)
-	m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(nil, nil)
-	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxGeneralSize).Return(5)
-	m.uploadSvc.EXPECT().SaveAttachment(mock.Anything, mock.Anything, int64(999), int64(5), mock.Anything).Return("", errors.New("too big"))
+	m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return([]dto.MysteryAttachment{{FileName: "other.txt"}}, nil)
+	m.uploadSvc.EXPECT().UploadStatuses(mock.Anything, userID, []uuid.UUID{uploadID}).Return([]dto.PendingUploadResponse{{ID: uploadID, Filename: "f.txt"}}, nil)
+	m.repo.EXPECT().
+		AttachFile(mock.Anything, spec.MediaAttachment{TargetID: mid, Uploads: upload.FileClaim(userID, []dto.UploadRef{{ID: uploadID}})}).
+		Return(&dto.MysteryAttachment{ID: 42, FileURL: "/uploads/attachments/x.txt", FileName: "f.txt", FileSize: 10}, nil)
 
 	// when
-	_, err := svc.UploadAttachment(context.Background(), mid, userID, "f.txt", 999, bytes.NewReader(nil))
-
-	// then
-	require.Error(t, err)
-}
-
-func TestUploadAttachment_DuplicateName(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	mid := uuid.New()
-	userID := uuid.New()
-	stubAuthor(m, mid, userID)
-	m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return([]dto.MysteryAttachment{{FileName: "f.txt"}}, nil)
-
-	// when
-	_, err := svc.UploadAttachment(context.Background(), mid, userID, "f.txt", 10, bytes.NewReader(nil))
-
-	// then
-	require.ErrorIs(t, err, ErrDuplicateAttachment)
-}
-
-func TestUploadAttachment_SaveAttachmentError(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	mid := uuid.New()
-	userID := uuid.New()
-	stubAuthor(m, mid, userID)
-	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxGeneralSize).Return(1024 * 1024)
-	m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(nil, nil)
-	m.uploadSvc.EXPECT().SaveAttachment(mock.Anything, mock.Anything, int64(10), int64(1024*1024), mock.Anything).Return("", errors.New("boom"))
-
-	// when
-	_, err := svc.UploadAttachment(context.Background(), mid, userID, "f.txt", 10, bytes.NewReader(nil))
-
-	// then
-	require.Error(t, err)
-}
-
-func TestUploadAttachment_AddAttachmentError(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	mid := uuid.New()
-	userID := uuid.New()
-	stubAuthor(m, mid, userID)
-	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxGeneralSize).Return(1024 * 1024)
-	m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(nil, nil)
-	m.uploadSvc.EXPECT().SaveAttachment(mock.Anything, mock.Anything, int64(10), int64(1024*1024), mock.Anything).Return("/uploads/x", nil)
-	m.repo.EXPECT().AddAttachment(mock.Anything, spec.NewMysteryAttachment{MysteryID: mid, FileURL: "/uploads/x", FileName: "f.txt", FileSize: 10}).Return(int64(0), errors.New("boom"))
-	m.uploadSvc.EXPECT().Delete([]string{"/uploads/x"}).Return().Once()
-
-	// when
-	_, err := svc.UploadAttachment(context.Background(), mid, userID, "f.txt", 10, bytes.NewReader(nil))
-
-	// then the stored file is unlinked rather than left with no row pointing at it
-	require.Error(t, err)
-}
-
-func TestUploadAttachment_OK(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	mid := uuid.New()
-	userID := uuid.New()
-	stubAuthor(m, mid, userID)
-	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxGeneralSize).Return(1024 * 1024)
-	m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(nil, nil)
-	m.uploadSvc.EXPECT().SaveAttachment(mock.Anything, mock.Anything, int64(10), int64(1024*1024), mock.Anything).Return("/uploads/x", nil)
-	m.repo.EXPECT().AddAttachment(mock.Anything, spec.NewMysteryAttachment{MysteryID: mid, FileURL: "/uploads/x", FileName: "f.txt", FileSize: 10}).Return(int64(42), nil)
-
-	// when
-	got, err := svc.UploadAttachment(context.Background(), mid, userID, "f.txt", 10, bytes.NewReader(nil))
+	got, err := svc.AttachFile(context.Background(), mid, userID, dto.UploadRef{ID: uploadID})
 
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, 42, got.ID)
-	assert.Equal(t, "/uploads/x", got.FileURL)
+	assert.Equal(t, "/uploads/attachments/x.txt", got.FileURL)
 }
 
 func TestDeleteAttachment_MysteryNotFound(t *testing.T) {
@@ -206,7 +171,7 @@ func TestMysteryFiles_AFailedExistingFilesLookupIsSurfaced(t *testing.T) {
 				m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(nil, boom)
 			},
 			call: func(s *service, mid, userID uuid.UUID) error {
-				_, err := s.UploadAttachment(context.Background(), mid, userID, "f.txt", 10, bytes.NewReader(nil))
+				_, err := s.AttachFile(context.Background(), mid, userID, dto.UploadRef{ID: uuid.New()})
 				return err
 			},
 		},
@@ -225,7 +190,7 @@ func TestMysteryFiles_AFailedExistingFilesLookupIsSurfaced(t *testing.T) {
 				m.repo.EXPECT().GetMedia(mock.Anything, mid).Return(nil, boom)
 			},
 			call: func(s *service, mid, userID uuid.UUID) error {
-				_, err := s.UploadMedia(context.Background(), mid, userID, uploadtest.PNGUpload(t, "photo.png", false))
+				_, err := s.AttachMedia(context.Background(), mid, userID, dto.UploadRef{ID: uuid.New()})
 				return err
 			},
 		},
@@ -250,7 +215,7 @@ func TestMysteryFiles_AFailedExistingFilesLookupIsSurfaced(t *testing.T) {
 	}
 }
 
-func TestUploadMedia_MysteryNotFound(t *testing.T) {
+func TestAttachMedia_MysteryNotFound(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	mid := uuid.New()
@@ -258,13 +223,13 @@ func TestUploadMedia_MysteryNotFound(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errMissingRow)
 
 	// when
-	_, err := svc.UploadMedia(context.Background(), mid, userID, uploadtest.PNGUpload(t, "photo.png", false))
+	_, err := svc.AttachMedia(context.Background(), mid, userID, dto.UploadRef{ID: uuid.New()})
 
 	// then
 	require.ErrorIs(t, err, ErrNotFound)
 }
 
-func TestUploadMedia_NotAuthor(t *testing.T) {
+func TestAttachMedia_NotAuthor(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	mid := uuid.New()
@@ -272,10 +237,29 @@ func TestUploadMedia_NotAuthor(t *testing.T) {
 	stubNotAuthor(m, mid, userID)
 
 	// when
-	_, err := svc.UploadMedia(context.Background(), mid, userID, uploadtest.PNGUpload(t, "photo.png", false))
+	_, err := svc.AttachMedia(context.Background(), mid, userID, dto.UploadRef{ID: uuid.New()})
 
 	// then
 	require.ErrorIs(t, err, ErrNotAuthor)
+}
+
+func TestAttachMedia_PlacesTheUploadAfterTheExistingMedia(t *testing.T) {
+	// given a mystery with two pictures and a finished upload marked as a spoiler
+	svc, m := newTestService(t)
+	mid, userID := uuid.New(), uuid.New()
+	ref := dto.UploadRef{ID: uuid.New(), IsSpoiler: true}
+	stubAuthor(m, mid, userID)
+	m.repo.EXPECT().GetMedia(mock.Anything, mid).Return([]model.PostMediaRow{{ID: 1}, {ID: 2}}, nil)
+	m.repo.EXPECT().
+		AttachMedia(mock.Anything, spec.MediaAttachment{TargetID: mid, SortOrder: 2, Uploads: upload.MediaClaim(userID, []dto.UploadRef{ref})}).
+		Return(&model.PostMediaRow{ID: 9, PostID: mid, MediaURL: "/uploads/media/x.webp", MediaType: upload.MediaTypeImage, SortOrder: 2, IsSpoiler: true}, nil)
+
+	// when
+	got, err := svc.AttachMedia(context.Background(), mid, userID, ref)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, dto.PostMediaResponse{ID: 9, MediaURL: "/uploads/media/x.webp", MediaType: upload.MediaTypeImage, SortOrder: 2, IsSpoiler: true}, *got)
 }
 
 func TestDeleteMedia_MysteryNotFound(t *testing.T) {

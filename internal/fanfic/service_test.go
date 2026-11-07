@@ -1745,12 +1745,12 @@ func TestCreateComment(t *testing.T) {
 				if tc.createErr != nil {
 					returned = uuid.Nil
 				}
-				m.commentSvc.EXPECT().Create(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindFanfic, ID: fanficID}, userID, req, []upload.FileUpload(nil)).Return(returned, tc.createErr).Once()
+				m.commentSvc.EXPECT().Create(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindFanfic, ID: fanficID}, userID, req).Return(returned, tc.createErr).Once()
 				wantID = returned
 			}
 
 			// when
-			id, err := svc.CreateComment(context.Background(), fanficID, userID, req, nil)
+			id, err := svc.CreateComment(context.Background(), fanficID, userID, req)
 
 			// then
 			require.ErrorIs(t, err, tc.wantErr)

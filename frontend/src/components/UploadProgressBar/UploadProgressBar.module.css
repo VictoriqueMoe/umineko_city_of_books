@@ -1,41 +1,37 @@
 .wrapper {
     display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-top: 0.75rem;
+    flex-direction: column;
+    gap: 0.2rem;
+    width: 100%;
 }
 
 .track {
-    flex: 1;
-    height: 6px;
-    border-radius: 3px;
-    background: rgba(var(--purple-rgb), 0.25);
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.25);
     overflow: hidden;
 }
 
 .fill {
     width: var(--percent, 0%);
     height: 100%;
-    border-radius: 3px;
+    border-radius: 2px;
     background: var(--gold);
     transition: width 0.2s ease-out;
 }
 
 .processing {
-    background: linear-gradient(
-        90deg,
-        rgba(var(--purple-rgb), 0.5) 0%,
-        var(--gold) 50%,
-        rgba(var(--purple-rgb), 0.5) 100%
-    );
+    width: 100%;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, var(--gold) 50%, rgba(255, 255, 255, 0.2) 100%);
     background-size: 200% 100%;
     animation: processing 1.2s linear infinite;
 }
 
 .status {
-    flex-shrink: 0;
-    font-size: 0.8rem;
-    color: var(--text-muted);
+    font-size: 0.65rem;
+    line-height: 1;
+    color: #fff;
+    text-align: center;
     font-variant-numeric: tabular-nums;
 }
 

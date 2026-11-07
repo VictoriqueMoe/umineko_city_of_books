@@ -37,7 +37,7 @@ func newCachedPostRepo(t *testing.T) (PostRepository, *dao.MockPostDAO, *dao.Moc
 	comments := dao.NewMockCommentDAO(t)
 	audit := NewMockAuditLogRepository(t)
 
-	return NewPostRepo(nil, postDAO, comments, audit, cache.NewManager(engines.NewValkeyWithClient(client))), postDAO, comments, audit, client
+	return NewPostRepo(nil, postDAO, comments, dao.NewMockPendingUploadDAO(t), audit, cache.NewManager(engines.NewValkeyWithClient(client))), postDAO, comments, audit, client
 }
 
 func cachedCornerCounts(payload string) func(cmd valkey.Completed) valkey.ValkeyResult {
@@ -92,7 +92,7 @@ func postCornerCountWriters(postID, userID uuid.UUID) []postWriterCase {
 				postDAO.EXPECT().Create(mock.Anything, spec.NewPost{UserID: userID, Corner: "general", Body: "b"}, mock.Anything).Return(created, err)
 			},
 			call: func(repo PostRepository) error {
-				_, _, err := repo.CreateWithDetails(context.Background(), spec.NewPost{UserID: userID, Corner: "general", Body: "b"}, new(sql.Tx))
+				_, err := repo.CreateWithDetails(context.Background(), spec.NewPost{UserID: userID, Corner: "general", Body: "b"}, new(sql.Tx))
 
 				return err
 			},

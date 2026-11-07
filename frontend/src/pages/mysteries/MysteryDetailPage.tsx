@@ -158,22 +158,23 @@ export function MysteryDetailPage() {
                 {(isAuthor || canEdit) && (
                     <div className={styles.mediaUploader}>
                         <MediaPreviews
-                            files={board.pendingMedia}
-                            onRemove={board.removePendingMedia}
-                            spoilers={board.pendingMediaSpoilers}
-                            onToggleSpoiler={board.togglePendingMediaSpoiler}
+                            files={board.pendingMedia.files}
+                            onRemove={board.pendingMedia.remove}
+                            spoilers={board.pendingMedia.spoilers}
+                            onToggleSpoiler={board.pendingMedia.toggleSpoiler}
+                            progress={board.pendingMedia.progress}
                         />
                         <div className={styles.mediaUploaderActions}>
-                            <MediaPickerButton onFiles={board.addPendingMedia} onError={board.setMediaError} />
-                            {board.pendingMedia.length > 0 && (
+                            <MediaPickerButton onFiles={board.pendingMedia.add} onError={board.setMediaError} />
+                            {board.pendingMedia.files.length > 0 && (
                                 <Button
                                     type="button"
                                     variant="secondary"
                                     size="small"
                                     onClick={board.uploadMedia}
-                                    disabled={board.uploadingMedia}
+                                    disabled={board.attachingMedia || !board.pendingMedia.ready}
                                 >
-                                    {board.uploadingMedia ? "Uploading..." : `Upload ${board.pendingMedia.length}`}
+                                    {board.attachingMedia ? "Adding..." : `Add ${board.pendingMedia.files.length}`}
                                 </Button>
                             )}
                         </div>
@@ -280,10 +281,9 @@ export function MysteryDetailPage() {
                                     type="file"
                                     accept=".pdf,.txt,.docx"
                                     style={{ display: "none" }}
-                                    onChange={async e => {
-                                        const input = e.currentTarget;
-                                        await board.uploadAttachment(e.target.files?.[0]);
-                                        input.value = "";
+                                    onChange={e => {
+                                        board.uploadAttachment(e.target.files?.[0]);
+                                        e.currentTarget.value = "";
                                     }}
                                 />
                                 <Button

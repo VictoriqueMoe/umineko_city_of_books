@@ -147,28 +147,6 @@ func TestChatDAO_InsertMessage_ClientNonce(t *testing.T) {
 	}
 }
 
-func TestChatDAO_GetMessageBySenderNonce(t *testing.T) {
-	// given a message sent under a nonce
-	repos := daotest.NewRepos(t)
-	ctx := context.Background()
-	sender := daotest.CreateUser(t, repos)
-	roomID := daotest.CreateChatRoom(t, repos, sender.ID, daotest.WithRoomMembers(sender.ID))
-	sent, _, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: sender.ID, Body: "hello", ClientNonce: "nonce-1"})
-	require.NoError(t, err)
-
-	// when
-	found, foundErr := repos.Chat.GetMessageBySenderNonce(ctx, spec.ChatSenderNonce{SenderID: sender.ID, ClientNonce: "nonce-1"})
-	missing, missingErr := repos.Chat.GetMessageBySenderNonce(ctx, spec.ChatSenderNonce{SenderID: sender.ID, ClientNonce: "nonce-2"})
-
-	// then the sent message comes back, and an unused nonce finds nothing without an error
-	require.NoError(t, foundErr)
-	require.NotNil(t, found)
-	assert.Equal(t, sent.ID, found.ID)
-	assert.Equal(t, roomID, found.RoomID)
-	require.NoError(t, missingErr)
-	assert.Nil(t, missing)
-}
-
 func TestChatDAO_InsertMessage_ReplyPreview(t *testing.T) {
 	tests := []struct {
 		name        string

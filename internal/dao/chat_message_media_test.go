@@ -3,8 +3,10 @@ package dao_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -75,33 +77,56 @@ func TestChatDAO_GetMessageMediaBatch_RoundTripsAddedMediaInSortOrder(t *testing
 	})
 }
 
-func TestChatDAO_UpdateMessageMedia_RewritesOnlyTheTargetRowsColumn(t *testing.T) {
-	// given
+func TestChatRepository_InsertMessageAndMarkRead_ClaimsItsUploadsInOrder(t *testing.T) {
+	// given two finished uploads, the second marked as a spoiler
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 	roomID := daotest.CreateChatRoom(t, repos, user.ID, daotest.WithRoomMembers(user.ID))
-	msgID := daotest.SendChatMessage(t, repos, roomID, user.ID, "m")
-
-	targetID := mediaAttach(t, repos, spec.NewMedia{TargetID: msgID, MediaURL: "/old", MediaType: "image", ThumbnailURL: "/oldthumb", SortOrder: 0})
-	bystanderID := mediaAttach(t, repos, spec.NewMedia{TargetID: msgID, MediaURL: "/other", MediaType: "image", ThumbnailURL: "/otherthumb", SortOrder: 1})
+	first := daotest.ReadyUpload(t, repos, user.ID, "image", "/uploads/media/a.webp")
+	second := daotest.ReadyUpload(t, repos, user.ID, "video", "/uploads/media/b.mp4")
+	claim := spec.ClaimedUploads{UserID: user.ID, Uploads: []spec.UploadRef{{ID: first}, {ID: second, IsSpoiler: true}}, MediaTypes: []string{"image", "video", "audio"}, MaxAge: time.Hour}
 
 	// when
-	urlErr := repos.Chat.UpdateMessageMediaURL(ctx, spec.MediaURLUpdate{ID: targetID, URL: "/new"})
-	thumbErr := repos.Chat.UpdateMessageMediaThumbnail(ctx, spec.MediaURLUpdate{ID: bystanderID, URL: "/newthumb"})
+	msg, media, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "look", Media: claim})
 
-	// then
-	require.NoError(t, urlErr)
-	require.NoError(t, thumbErr)
-
-	media, err := repos.Chat.GetMessageMediaBatch(ctx, []uuid.UUID{msgID})
+	// then the message carries both files with their stored dimensions, and the uploads are no longer pending
 	require.NoError(t, err)
-	require.Len(t, media[msgID], 2)
+	require.Len(t, media, 2)
+	assert.Equal(t, "/uploads/media/a.webp", media[0].MediaURL)
+	assert.Equal(t, 0, media[0].SortOrder)
+	assert.Equal(t, 4, media[0].Width)
+	assert.False(t, media[0].IsSpoiler)
+	assert.Equal(t, "/uploads/media/b.mp4", media[1].MediaURL)
+	assert.True(t, media[1].IsSpoiler)
 
-	assert.Equal(t, "/new", media[msgID][0].MediaURL)
-	assert.Equal(t, "/oldthumb", media[msgID][0].ThumbnailURL)
-	assert.Equal(t, "/other", media[msgID][1].MediaURL)
-	assert.Equal(t, "/newthumb", media[msgID][1].ThumbnailURL)
+	stored, err := repos.Chat.GetMessageMediaBatch(ctx, []uuid.UUID{msg.ID})
+	require.NoError(t, err)
+	assert.Equal(t, media, stored[msg.ID])
+
+	pending, err := repos.PendingUpload.List(ctx, spec.UserUploads{UserID: user.ID, IDs: []uuid.UUID{first, second}})
+	require.NoError(t, err)
+	assert.Empty(t, pending)
+}
+
+func TestChatRepository_InsertMessageAndMarkRead_AnUnclaimableUploadWritesNothing(t *testing.T) {
+	// given one finished upload and one that does not exist
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	user := daotest.CreateUser(t, repos)
+	roomID := daotest.CreateChatRoom(t, repos, user.ID, daotest.WithRoomMembers(user.ID))
+	ready := daotest.ReadyUpload(t, repos, user.ID, "image", "/uploads/media/a.webp")
+	claim := spec.ClaimedUploads{UserID: user.ID, Uploads: []spec.UploadRef{{ID: ready}, {ID: uuid.New()}}, MediaTypes: []string{"image", "video", "audio"}, MaxAge: time.Hour}
+
+	// when
+	msg, _, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "look", Media: claim})
+
+	// then no message exists and the ready upload is still pending
+	require.ErrorIs(t, err, daoerr.ErrUploadUnavailable)
+	assert.Nil(t, msg)
+	pending, err := repos.PendingUpload.List(ctx, spec.UserUploads{UserID: user.ID, IDs: []uuid.UUID{ready}})
+	require.NoError(t, err)
+	assert.Len(t, pending, 1)
 }
 
 func TestChatDAO_ListRoomAttachments(t *testing.T) {

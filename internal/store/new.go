@@ -23,12 +23,15 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 	repos.PasswordReset = repository.NewPasswordResetRepo(db, dao.NewPasswordReset(db))
 	repos.EmailVerification = repository.NewEmailVerificationRepo(db, dao.NewEmailVerification(db))
 	repos.User = repository.NewUserRepo(db, dao.NewUser(db), c, repos.Role, repos.AuditLog, repos.EmailVerification, repos.Invite, repos.Session, repos.PasswordReset)
-	repos.Chat = repository.NewChatRepo(db, dao.NewChat(db), repos.AuditLog)
+	pendingUploads := dao.NewPendingUpload(db)
+	repos.PendingUpload = repository.NewPendingUploadRepo(pendingUploads)
+
+	repos.Chat = repository.NewChatRepo(db, dao.NewChat(db), pendingUploads, repos.AuditLog)
 	repos.Report = repository.NewReportRepo(dao.NewReport(db))
 
 	comments := dao.NewComments(db)
-	repos.Comment = repository.NewCommentRepo(db, comments, repos.AuditLog)
-	repos.Post = repository.NewPostRepo(db, dao.NewPost(db), comments, repos.AuditLog, c)
+	repos.Comment = repository.NewCommentRepo(db, comments, pendingUploads, repos.AuditLog)
+	repos.Post = repository.NewPostRepo(db, dao.NewPost(db), comments, pendingUploads, repos.AuditLog, c)
 
 	repos.Follow = repository.NewFollowRepo(dao.NewFollow(db))
 
@@ -38,11 +41,11 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 	repos.Block = repository.NewBlockRepo(dao.NewBlock(db), c)
 
 	repos.Announcement = repository.NewAnnouncementRepo(db, dao.NewAnnouncement(db), comments)
-	repos.Mystery = repository.NewMysteryRepo(db, dao.NewMystery(db), comments, repos.AuditLog, c)
+	repos.Mystery = repository.NewMysteryRepo(db, dao.NewMystery(db), comments, pendingUploads, repos.AuditLog, c)
 	repos.Ship = repository.NewShipRepo(db, dao.NewShip(db), comments)
 	repos.OC = repository.NewOCRepo(db, dao.NewOC(db), comments)
 	repos.Fanfic = repository.NewFanficRepo(db, dao.NewFanfic(db), comments, repos.AuditLog)
-	repos.Journal = repository.NewJournalRepo(db, dao.NewJournal(db), comments)
+	repos.Journal = repository.NewJournalRepo(db, dao.NewJournal(db), comments, pendingUploads)
 
 	repos.VanityRole = repository.NewVanityRoleRepo(db, dao.NewVanityRole(db), c)
 	repos.Permission = repository.NewPermissionRepo(dao.NewPermission(db), c)

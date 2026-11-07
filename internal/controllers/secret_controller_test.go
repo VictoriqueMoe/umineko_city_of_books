@@ -7,7 +7,6 @@ import (
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/comment"
-	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	secretsvc "umineko_city_of_books/internal/secret"
@@ -90,7 +89,7 @@ func TestCreateSecretComment_OK(t *testing.T) {
 	commentID := uuid.New()
 	h.ExpectValidSession("valid", userID)
 	ms.EXPECT().
-		CreateComment(mock.Anything, "witchHunter", userID, dto.CreateCommentRequest{Body: "hi"}, []upload.FileUpload(nil)).
+		CreateComment(mock.Anything, "witchHunter", userID, dto.CreateCommentRequest{Body: "hi"}).
 		Return(commentID, nil)
 
 	// when
@@ -110,7 +109,7 @@ func TestCreateSecretComment_EmptyBody(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid", userID)
 	ms.EXPECT().
-		CreateComment(mock.Anything, "witchHunter", userID, mock.Anything, []upload.FileUpload(nil)).
+		CreateComment(mock.Anything, "witchHunter", userID, mock.Anything).
 		Return(uuid.Nil, comment.ErrEmptyBody)
 
 	// when
@@ -130,7 +129,7 @@ func TestCreateSecretComment_NotFound(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid", userID)
 	ms.EXPECT().
-		CreateComment(mock.Anything, "nonsense", userID, mock.Anything, []upload.FileUpload(nil)).
+		CreateComment(mock.Anything, "nonsense", userID, mock.Anything).
 		Return(uuid.Nil, secretsvc.ErrNotFound)
 
 	// when
@@ -161,7 +160,7 @@ func TestCreateSecretComment_ServiceOutcomes(t *testing.T) {
 			userID := uuid.New()
 			h.ExpectValidSession("valid", userID)
 			ms.EXPECT().
-				CreateComment(mock.Anything, "witchHunter", userID, dto.CreateCommentRequest{Body: "hi"}, []upload.FileUpload(nil)).
+				CreateComment(mock.Anything, "witchHunter", userID, dto.CreateCommentRequest{Body: "hi"}).
 				Return(uuid.Nil, tc.err)
 
 			// when
@@ -177,26 +176,19 @@ func TestCreateSecretComment_ServiceOutcomes(t *testing.T) {
 	}
 }
 
-func TestCreateSecretComment_MultipartPassesTheMediaThrough(t *testing.T) {
-	// given a multipart comment with no text and one spoilered image
+func TestCreateSecretComment_PassesTheMediaThrough(t *testing.T) {
+	// given a comment with no text and one finished upload marked as a spoiler
 	h, ms := newSecretHarness(t)
 	userID := uuid.New()
 	commentID := uuid.New()
 	h.ExpectValidSession("valid", userID)
-	ms.EXPECT().
-		CreateComment(mock.Anything, "witchHunter", userID, dto.CreateCommentRequest{}, mock.MatchedBy(func(files []upload.FileUpload) bool {
-			return len(files) == 1 && files[0].Filename == "pic.png" && files[0].ContentType == "image/png" && files[0].IsSpoiler
-		})).
-		Return(commentID, nil)
-	form, contentType := testutil.MediaForm(t, utils.MediaField, map[string]string{
-		utils.PayloadField:        `{"body":""}`,
-		utils.SpoilerIndexesField: "0",
-	})
+	req := dto.CreateCommentRequest{Media: []dto.UploadRef{{ID: uuid.New(), IsSpoiler: true}}}
+	ms.EXPECT().CreateComment(mock.Anything, "witchHunter", userID, req).Return(commentID, nil)
 
 	// when
 	status, body := h.NewRequest("POST", "/secrets/witchHunter/comments").
 		WithCookie("valid").
-		WithRawBody(form, contentType).
+		WithJSONBody(req).
 		Do()
 
 	// then

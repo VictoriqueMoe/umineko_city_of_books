@@ -19,7 +19,6 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
-	"umineko_city_of_books/internal/upload/uploadtest"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -71,7 +70,6 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	notifSvc := notification.NewMockService(t)
 	blockSvc := block.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
-	uploadtest.ExpectNoMedia(uploadSvc)
 	settingsSvc := settings.NewMockService(t)
 	hub := ws.NewHub()
 	hyperbeamSvc := hyperbeam.NewMockService(t)

@@ -93,7 +93,12 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 
 	mediaProc := media.NewProcessor(4)
 
-	uploadSvc := upload.NewService(settingsSvc, storageSvc, repos.StoredFile, mediaProc)
+	hub := ws.NewHub("main")
+
+	uploadSvc := upload.NewService(settingsSvc, storageSvc, repos.StoredFile, repos.PendingUpload, hub, mediaProc)
+	if err := uploadSvc.FailInterruptedUploads(context.Background()); err != nil {
+		logger.Log.Error().Err(err).Msg("fail uploads interrupted by the last shutdown")
+	}
 
 	authzSvc := authz.NewService(repos.Role, repos.User, repos.Permission, settingsSvc)
 
@@ -115,8 +120,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	)
 
 	userSvc := user.NewService(repos.User, repos.Role, repos.VanityRole, repos.AuditLog, authzSvc, settingsSvc)
-
-	hub := ws.NewHub("main")
 
 	sessionMgr.SetDisconnector(hub)
 

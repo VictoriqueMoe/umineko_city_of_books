@@ -296,6 +296,172 @@ func (_c *MockMysteryRepository_AddMedia_Call) RunAndReturn(run func(ctx context
 	return _c
 }
 
+// AttachFile provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) AttachFile(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx) (*dto.MysteryAttachment, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for AttachFile")
+	}
+
+	var r0 *dto.MysteryAttachment
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaAttachment, ...*sql.Tx) (*dto.MysteryAttachment, error)); ok {
+		return returnFunc(ctx, s, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaAttachment, ...*sql.Tx) *dto.MysteryAttachment); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.MysteryAttachment)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.MediaAttachment, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_AttachFile_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AttachFile'
+type MockMysteryRepository_AttachFile_Call struct {
+	*mock.Call
+}
+
+// AttachFile is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.MediaAttachment
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) AttachFile(ctx any, s any, tx ...any) *MockMysteryRepository_AttachFile_Call {
+	return &MockMysteryRepository_AttachFile_Call{Call: _e.mock.On("AttachFile",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_AttachFile_Call) Run(run func(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx)) *MockMysteryRepository_AttachFile_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.MediaAttachment
+		if args[1] != nil {
+			arg1 = args[1].(spec.MediaAttachment)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_AttachFile_Call) Return(mysteryAttachment *dto.MysteryAttachment, err error) *MockMysteryRepository_AttachFile_Call {
+	_c.Call.Return(mysteryAttachment, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_AttachFile_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx) (*dto.MysteryAttachment, error)) *MockMysteryRepository_AttachFile_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// AttachMedia provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) AttachMedia(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx) (*model.PostMediaRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for AttachMedia")
+	}
+
+	var r0 *model.PostMediaRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaAttachment, ...*sql.Tx) (*model.PostMediaRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaAttachment, ...*sql.Tx) *model.PostMediaRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.PostMediaRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.MediaAttachment, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_AttachMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AttachMedia'
+type MockMysteryRepository_AttachMedia_Call struct {
+	*mock.Call
+}
+
+// AttachMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.MediaAttachment
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) AttachMedia(ctx any, s any, tx ...any) *MockMysteryRepository_AttachMedia_Call {
+	return &MockMysteryRepository_AttachMedia_Call{Call: _e.mock.On("AttachMedia",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_AttachMedia_Call) Run(run func(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx)) *MockMysteryRepository_AttachMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.MediaAttachment
+		if args[1] != nil {
+			arg1 = args[1].(spec.MediaAttachment)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_AttachMedia_Call) Return(postMediaRow *model.PostMediaRow, err error) *MockMysteryRepository_AttachMedia_Call {
+	_c.Call.Return(postMediaRow, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_AttachMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx) (*model.PostMediaRow, error)) *MockMysteryRepository_AttachMedia_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CollectMediaPaths provides a mock function for the type MockMysteryRepository
 func (_mock *MockMysteryRepository) CollectMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
 	var tmpRet mock.Arguments
@@ -708,7 +874,7 @@ func (_c *MockMysteryRepository_CreateAttempt_Call) RunAndReturn(run func(ctx co
 }
 
 // CreateWithClues provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) CreateWithClues(ctx context.Context, s spec.NewMysteryWithClues, tx ...*sql.Tx) (*model.MysteryRow, []int64, error) {
+func (_mock *MockMysteryRepository) CreateWithClues(ctx context.Context, s spec.NewMysteryWithClues, tx ...*sql.Tx) (*model.MysteryRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, s, tx)
@@ -722,9 +888,8 @@ func (_mock *MockMysteryRepository) CreateWithClues(ctx context.Context, s spec.
 	}
 
 	var r0 *model.MysteryRow
-	var r1 []int64
-	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMysteryWithClues, ...*sql.Tx) (*model.MysteryRow, []int64, error)); ok {
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMysteryWithClues, ...*sql.Tx) (*model.MysteryRow, error)); ok {
 		return returnFunc(ctx, s, tx...)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMysteryWithClues, ...*sql.Tx) *model.MysteryRow); ok {
@@ -734,19 +899,12 @@ func (_mock *MockMysteryRepository) CreateWithClues(ctx context.Context, s spec.
 			r0 = ret.Get(0).(*model.MysteryRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewMysteryWithClues, ...*sql.Tx) []int64); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewMysteryWithClues, ...*sql.Tx) error); ok {
 		r1 = returnFunc(ctx, s, tx...)
 	} else {
-		if ret.Get(1) != nil {
-			r1 = ret.Get(1).([]int64)
-		}
+		r1 = ret.Error(1)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.NewMysteryWithClues, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, s, tx...)
-	} else {
-		r2 = ret.Error(2)
-	}
-	return r0, r1, r2
+	return r0, r1
 }
 
 // MockMysteryRepository_CreateWithClues_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateWithClues'
@@ -788,12 +946,12 @@ func (_c *MockMysteryRepository_CreateWithClues_Call) Run(run func(ctx context.C
 	return _c
 }
 
-func (_c *MockMysteryRepository_CreateWithClues_Call) Return(mysteryRow *model.MysteryRow, int64s []int64, err error) *MockMysteryRepository_CreateWithClues_Call {
-	_c.Call.Return(mysteryRow, int64s, err)
+func (_c *MockMysteryRepository_CreateWithClues_Call) Return(mysteryRow *model.MysteryRow, err error) *MockMysteryRepository_CreateWithClues_Call {
+	_c.Call.Return(mysteryRow, err)
 	return _c
 }
 
-func (_c *MockMysteryRepository_CreateWithClues_Call) RunAndReturn(run func(ctx context.Context, s spec.NewMysteryWithClues, tx ...*sql.Tx) (*model.MysteryRow, []int64, error)) *MockMysteryRepository_CreateWithClues_Call {
+func (_c *MockMysteryRepository_CreateWithClues_Call) RunAndReturn(run func(ctx context.Context, s spec.NewMysteryWithClues, tx ...*sql.Tx) (*model.MysteryRow, error)) *MockMysteryRepository_CreateWithClues_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3857,150 +4015,6 @@ func (_c *MockMysteryRepository_UpdateClue_Call) Return(err error) *MockMysteryR
 }
 
 func (_c *MockMysteryRepository_UpdateClue_Call) RunAndReturn(run func(ctx context.Context, s spec.MysteryClueUpdate, tx ...*sql.Tx) error) *MockMysteryRepository_UpdateClue_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateMediaThumbnail provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UpdateMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, s, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, s)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateMediaThumbnail")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, s, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_UpdateMediaThumbnail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateMediaThumbnail'
-type MockMysteryRepository_UpdateMediaThumbnail_Call struct {
-	*mock.Call
-}
-
-// UpdateMediaThumbnail is a helper method to define mock.On call
-//   - ctx context.Context
-//   - s spec.MediaURLUpdate
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) UpdateMediaThumbnail(ctx any, s any, tx ...any) *MockMysteryRepository_UpdateMediaThumbnail_Call {
-	return &MockMysteryRepository_UpdateMediaThumbnail_Call{Call: _e.mock.On("UpdateMediaThumbnail",
-		append([]any{ctx, s}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_UpdateMediaThumbnail_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockMysteryRepository_UpdateMediaThumbnail_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.MediaURLUpdate
-		if args[1] != nil {
-			arg1 = args[1].(spec.MediaURLUpdate)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateMediaThumbnail_Call) Return(err error) *MockMysteryRepository_UpdateMediaThumbnail_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockMysteryRepository_UpdateMediaThumbnail_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateMediaURL provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UpdateMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, s, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, s)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateMediaURL")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, s, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_UpdateMediaURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateMediaURL'
-type MockMysteryRepository_UpdateMediaURL_Call struct {
-	*mock.Call
-}
-
-// UpdateMediaURL is a helper method to define mock.On call
-//   - ctx context.Context
-//   - s spec.MediaURLUpdate
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) UpdateMediaURL(ctx any, s any, tx ...any) *MockMysteryRepository_UpdateMediaURL_Call {
-	return &MockMysteryRepository_UpdateMediaURL_Call{Call: _e.mock.On("UpdateMediaURL",
-		append([]any{ctx, s}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_UpdateMediaURL_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockMysteryRepository_UpdateMediaURL_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.MediaURLUpdate
-		if args[1] != nil {
-			arg1 = args[1].(spec.MediaURLUpdate)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateMediaURL_Call) Return(err error) *MockMysteryRepository_UpdateMediaURL_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateMediaURL_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockMysteryRepository_UpdateMediaURL_Call {
 	_c.Call.Return(run)
 	return _c
 }

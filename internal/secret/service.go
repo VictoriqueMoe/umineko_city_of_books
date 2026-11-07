@@ -13,7 +13,6 @@ import (
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/secrets"
 	"umineko_city_of_books/internal/sidebar"
-	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -24,7 +23,7 @@ type (
 		List(ctx context.Context, viewerID uuid.UUID) (*dto.SecretListResponse, error)
 		Get(ctx context.Context, id string, viewerID uuid.UUID) (*dto.SecretDetailResponse, error)
 
-		CreateComment(ctx context.Context, secretID string, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error)
+		CreateComment(ctx context.Context, secretID string, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)
 
 		BroadcastProgress(ctx context.Context, parentID string, actor uuid.UUID)
 		BroadcastSolved(ctx context.Context, parentID string, actor uuid.UUID, solvedAt string)
@@ -218,13 +217,13 @@ func (s *service) solvedUserSet(ctx context.Context, parentID string) (map[uuid.
 	return set, nil
 }
 
-func (s *service) CreateComment(ctx context.Context, secretID string, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
+func (s *service) CreateComment(ctx context.Context, secretID string, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
 	secretSpec, ok := secrets.Lookup(secretID)
 	if !ok || secretSpec.Title == "" {
 		return uuid.Nil, ErrNotFound
 	}
 
-	id, err := s.commentSvc.Create(ctx, spec.CommentTarget{Kind: spec.CommentKindSecret, Key: secretID}, userID, req, files)
+	id, err := s.commentSvc.Create(ctx, spec.CommentTarget{Kind: spec.CommentKindSecret, Key: secretID}, userID, req)
 	if err != nil {
 		return uuid.Nil, err
 	}

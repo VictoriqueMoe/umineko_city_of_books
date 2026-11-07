@@ -9,7 +9,6 @@ import (
 	"umineko_city_of_books/internal/dto"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
-	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -413,8 +412,8 @@ func (s *Service) createFanficComment(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	return handleCreateComment(ctx, s.UploadService, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
-		return s.FanficService.CreateComment(c, fanficID, userID, req, files)
+	return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest) (uuid.UUID, error) {
+		return s.FanficService.CreateComment(c, fanficID, userID, req)
 	}, []errorResponse{
 		{err: fanficsvc.ErrNotFound, respond: utils.NotFound, message: "fanfic not found"},
 	})

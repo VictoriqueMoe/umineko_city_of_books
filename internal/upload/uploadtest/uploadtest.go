@@ -16,12 +16,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func MemoryUpload(contentType string, filename string, data []byte, isSpoiler bool) upload.FileUpload {
+func MemoryUpload(contentType string, filename string, data []byte) upload.FileUpload {
 	return upload.FileUpload{
 		ContentType: contentType,
 		Filename:    filename,
 		Size:        int64(len(data)),
-		IsSpoiler:   isSpoiler,
 		Open: func() (io.ReadCloser, error) {
 			return io.NopCloser(bytes.NewReader(data)), nil
 		},
@@ -37,35 +36,10 @@ func PNG(t *testing.T) []byte {
 	return buf.Bytes()
 }
 
-func PNGUpload(t *testing.T, filename string, isSpoiler bool) upload.FileUpload {
+func PNGUpload(t *testing.T, filename string) upload.FileUpload {
 	t.Helper()
 
-	return MemoryUpload("image/png", filename, PNG(t), isSpoiler)
-}
-
-func Files(filenames ...string) any {
-	return mock.MatchedBy(func(files []upload.FileUpload) bool {
-		if len(files) != len(filenames) {
-			return false
-		}
-
-		for i, f := range files {
-			if f.Filename != filenames[i] {
-				return false
-			}
-		}
-
-		return true
-	})
-}
-
-func ExpectNoMedia(uploadSvc *upload.MockService) {
-	noFiles := mock.MatchedBy(func(files []upload.FileUpload) bool {
-		return len(files) == 0
-	})
-	uploadSvc.EXPECT().StoreMedia(mock.Anything, mock.Anything, noFiles).Return(nil, nil).Maybe()
-	uploadSvc.EXPECT().TranscodeMedia(mock.Anything, mock.Anything, []upload.StoredMedia(nil), mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
-	uploadSvc.EXPECT().DiscardMedia().Return().Maybe()
+	return MemoryUpload("image/png", filename, PNG(t))
 }
 
 func ExpectMediaLimits(settingsSvc *settings.MockService, maxImageSize int) {

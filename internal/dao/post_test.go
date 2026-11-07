@@ -531,8 +531,6 @@ func TestPostDAO_Media(t *testing.T) {
 	// when
 	firstMediaID := postAttachMedia(t, repos.Post.AddMedia, first, "/m.jpg", "/t.jpg")
 	postAttachMedia(t, repos.Post.AddMedia, second, "/b.jpg", "")
-	require.NoError(t, repos.Post.UpdateMediaURL(ctx, spec.MediaURLUpdate{ID: firstMediaID, URL: "/new.jpg"}))
-	require.NoError(t, repos.Post.UpdateMediaThumbnail(ctx, spec.MediaURLUpdate{ID: firstMediaID, URL: "/thumb.jpg"}))
 
 	// then
 	assert.Greater(t, firstMediaID, int64(0))
@@ -543,11 +541,11 @@ func TestPostDAO_Media(t *testing.T) {
 	assert.Equal(t, "/b.jpg", untouched[0].MediaURL)
 	assert.Equal(t, "image", untouched[0].MediaType)
 
-	updated, err := repos.Post.GetMedia(ctx, first)
+	stored, err := repos.Post.GetMedia(ctx, first)
 	require.NoError(t, err)
-	require.Len(t, updated, 1)
-	assert.Equal(t, "/new.jpg", updated[0].MediaURL)
-	assert.Equal(t, "/thumb.jpg", updated[0].ThumbnailURL)
+	require.Len(t, stored, 1)
+	assert.Equal(t, "/m.jpg", stored[0].MediaURL)
+	assert.Equal(t, "/t.jpg", stored[0].ThumbnailURL)
 
 	batch, err := repos.Post.GetMediaBatch(ctx, []uuid.UUID{first, second})
 	require.NoError(t, err)

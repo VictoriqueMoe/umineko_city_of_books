@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
@@ -15,7 +14,6 @@ import (
 	"umineko_city_of_books/internal/dto"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
-	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
@@ -224,7 +222,7 @@ func fanficCtlWriteEndpoints() []fanficCtlWrite {
 		{
 			name: "create comment", method: "POST", route: "/fanfics/:id/comments", body: createComment,
 			expect: func(fs *fanficsvc.MockService, userID, targetID, newID uuid.UUID, err error) {
-				fs.EXPECT().CreateComment(mock.Anything, targetID, userID, createComment, []upload.FileUpload(nil)).Return(newID, err)
+				fs.EXPECT().CreateComment(mock.Anything, targetID, userID, createComment).Return(newID, err)
 			},
 			outcomes: []fanficCtlOutcome{
 				created,
@@ -267,86 +265,22 @@ func TestUploadFanficCover(t *testing.T) {
 	}
 }
 
-func TestCreateFanficComment_Multipart(t *testing.T) {
-	newID := uuid.New()
-
-	cases := []struct {
-		name     string
-		values   map[string]string
-		calls    bool
-		wantCode int
-		wantBody string
-	}{
-		{
-			name:     "the payload and spoilered media reach the service",
-			values:   map[string]string{"payload": `{"body":"nice"}`, "spoiler_indexes": "0"},
-			calls:    true,
-			wantCode: http.StatusCreated,
-			wantBody: `{"id":"` + newID.String() + `"}`,
-		},
-		{
-			name:     "a malformed payload is refused",
-			values:   map[string]string{"payload": "not json"},
-			wantCode: http.StatusBadRequest,
-			wantBody: "invalid request body",
-		},
-		{
-			name:     "malformed spoiler indexes are refused",
-			values:   map[string]string{"payload": `{"body":"nice"}`, "spoiler_indexes": "first"},
-			wantCode: http.StatusBadRequest,
-			wantBody: "invalid spoiler_indexes",
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			h, fs := newFanficHarness(t)
-			userID := uuid.New()
-			fanficID := uuid.New()
-			h.ExpectValidSession("valid-cookie", userID)
-			form, contentType := testutil.MediaForm(t, "media", tc.values)
-
-			if tc.calls {
-				fs.EXPECT().
-					CreateComment(mock.Anything, fanficID, userID, dto.CreateCommentRequest{Body: "nice"}, mock.MatchedBy(func(files []upload.FileUpload) bool {
-						return len(files) == 1 && files[0].Filename == "pic.png" && files[0].ContentType == "image/png" && files[0].IsSpoiler
-					})).
-					Return(newID, nil)
-			}
-
-			// when
-			status, body := h.NewRequest("POST", "/fanfics/"+fanficID.String()+"/comments").WithCookie("valid-cookie").WithRawBody(form, contentType).Do()
-
-			// then
-			require.Equal(t, tc.wantCode, status)
-			assert.Contains(t, string(body), tc.wantBody)
-		})
-	}
-}
-
-func TestCreateFanficComment_NewAccountsCannotAttachFiles(t *testing.T) {
-	// given
-	h, _ := newFanficHarness(t)
+func TestCreateFanficComment_CarriesItsUploadRefsToTheService(t *testing.T) {
+	// given a comment carrying one finished upload marked as a spoiler
+	h, fs := newFanficHarness(t)
 	userID := uuid.New()
-	h.AuthService.EXPECT().
-		Authenticate(mock.Anything, "new-cookie").
-		Return(model.SessionAuthState{UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}, nil).
-		Maybe()
-	h.SessionRepo.EXPECT().GetUserID(mock.Anything, "new-cookie").Return(userID, time.Now().Add(time.Hour), nil).Maybe()
-	h.AuthzService.EXPECT().IsBanned(mock.Anything, userID).Return(false).Maybe()
-	h.AuthzService.EXPECT().IsRestrictedNewAccount(mock.Anything, userID).Return(true)
-	form, contentType := testutil.MediaForm(t, "media", map[string]string{"payload": `{"body":"nice"}`})
+	fanficID := uuid.New()
+	newID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	req := dto.CreateCommentRequest{Body: "nice", Media: []dto.UploadRef{{ID: uuid.New(), IsSpoiler: true}}}
+	fs.EXPECT().CreateComment(mock.Anything, fanficID, userID, req).Return(newID, nil).Once()
 
 	// when
-	status, body := h.NewRequest("POST", "/fanfics/"+uuid.NewString()+"/comments").
-		WithCookie("new-cookie").
-		WithRawBody(form, contentType).
-		Do()
+	status, body := h.NewRequest("POST", "/fanfics/"+fanficID.String()+"/comments").WithCookie("valid-cookie").WithJSONBody(req).Do()
 
 	// then
-	require.Equal(t, http.StatusForbidden, status)
-	assert.Contains(t, string(body), "new accounts cannot post attachments")
+	require.Equal(t, http.StatusCreated, status)
+	assert.Contains(t, string(body), `{"id":"`+newID.String()+`"}`)
 }
 
 func TestFanficWrites_AuthFailures(t *testing.T) {

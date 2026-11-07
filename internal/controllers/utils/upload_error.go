@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/upload"
 
@@ -16,7 +17,8 @@ func IsUploadRejection(err error) bool {
 		errors.Is(err, upload.ErrInvalidVideoType) ||
 		errors.Is(err, upload.ErrInvalidAudioType) ||
 		errors.Is(err, upload.ErrInvalidAttachmentType) ||
-		errors.Is(err, bounds.ErrImageBounds)
+		errors.Is(err, bounds.ErrImageBounds) ||
+		errors.Is(err, daoerr.ErrUploadUnavailable)
 }
 
 func UploadRejected(ctx fiber.Ctx, err error) error {

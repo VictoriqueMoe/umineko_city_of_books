@@ -158,9 +158,15 @@ function parseResponseHeaders(raw: string): Headers {
     return headers;
 }
 
-function sendWithProgress(path: string, formData: FormData, onProgress: UploadProgress): Promise<Response> {
+function sendWithProgress(
+    path: string,
+    formData: FormData,
+    onProgress: UploadProgress,
+    signal?: AbortSignal,
+): Promise<Response> {
     return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
+        signal?.addEventListener("abort", () => xhr.abort(), { once: true });
         xhr.open("POST", endpoint(path));
         xhr.withCredentials = true;
         for (const [name, value] of Object.entries(authHeaders())) {
@@ -189,9 +195,14 @@ function sendWithProgress(path: string, formData: FormData, onProgress: UploadPr
     });
 }
 
-export async function apiPostFormData<T>(path: string, formData: FormData, onProgress?: UploadProgress): Promise<T> {
+export async function apiPostFormData<T>(
+    path: string,
+    formData: FormData,
+    onProgress?: UploadProgress,
+    signal?: AbortSignal,
+): Promise<T> {
     if (onProgress) {
-        return handleResponse<T>(await sendWithProgress(path, formData, onProgress));
+        return handleResponse<T>(await sendWithProgress(path, formData, onProgress, signal));
     }
 
     const response = await fetch(endpoint(path), {

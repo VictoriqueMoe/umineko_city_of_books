@@ -36,17 +36,17 @@ import (
 
 type (
 	Service interface {
-		CreatePost(ctx context.Context, userID uuid.UUID, req dto.CreatePostRequest, files []upload.FileUpload) (uuid.UUID, error)
+		CreatePost(ctx context.Context, userID uuid.UUID, req dto.CreatePostRequest) (uuid.UUID, error)
 		GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.PostDetailResponse, error)
 		UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdatePostRequest) error
 		DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, cornerSlug string, search string, sort string, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error)
 		ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.PostListResponse, error)
-		UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, file upload.FileUpload) (*dto.PostMediaResponse, error)
+		AttachPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, ref dto.UploadRef) (*dto.PostMediaResponse, error)
 		DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID int64, userID uuid.UUID) error
 		LikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
 		UnlikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
-		CreateComment(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error)
+		CreateComment(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)
 		GetCornerCounts(ctx context.Context) (map[string]int, error)
 		VotePoll(ctx context.Context, postID uuid.UUID, userID uuid.UUID, optionID int) (*dto.PollResponse, error)
 		ResolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID, status string) error
@@ -124,7 +124,7 @@ var validSharedContentTypes = map[string]bool{
 	"mystery": true, "theory": true, "fanfic": true,
 }
 
-func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.CreatePostRequest, files []upload.FileUpload) (uuid.UUID, error) {
+func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.CreatePostRequest) (uuid.UUID, error) {
 	isShare := req.SharedContentID != ""
 	if isShare {
 		if !validSharedContentTypes[req.SharedContentType] {
@@ -132,7 +132,7 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 		}
 	}
 
-	if strings.TrimSpace(req.Body) == "" && !isShare && len(files) == 0 {
+	if strings.TrimSpace(req.Body) == "" && !isShare && len(req.Media) == 0 {
 		return uuid.Nil, ErrEmptyBody
 	}
 
@@ -177,23 +177,14 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 		newPost.Poll = newPollSpec(req.Poll)
 	}
 
-	stored, err := s.uploadSvc.StoreMedia(ctx, "posts", files)
+	newPost.Media = upload.MediaClaim(userID, req.Media)
+
+	created, err := s.postRepo.CreateWithDetails(ctx, newPost)
 	if err != nil {
-		return uuid.Nil, err
-	}
-
-	newPost.Media = upload.MediaRows(stored)
-
-	created, mediaIDs, err := s.postRepo.CreateWithDetails(ctx, newPost)
-	if err != nil {
-		s.uploadSvc.DiscardMedia(stored...)
-
 		return uuid.Nil, err
 	}
 
 	id := created.ID
-
-	s.uploadSvc.TranscodeMedia(ctx, "posts", stored, mediaIDs, s.postRepo.UpdateMediaURL, s.postRepo.UpdateMediaThumbnail)
 
 	if isShare {
 		shared := model.SharedContentRef{ID: req.SharedContentID, Type: req.SharedContentType}
@@ -516,7 +507,7 @@ func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total
 	}, nil
 }
 
-func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, file upload.FileUpload) (*dto.PostMediaResponse, error) {
+func (s *service) AttachPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, ref dto.UploadRef) (*dto.PostMediaResponse, error) {
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
 	if errors.Is(err, daoerr.ErrNotFound) {
 		return nil, ErrNotFound
@@ -528,23 +519,12 @@ func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID 
 		return nil, ErrNotAuthor
 	}
 
-	stored, err := s.uploadSvc.StoreMedia(ctx, "posts", []upload.FileUpload{file})
+	attached, err := s.postRepo.AttachMedia(ctx, spec.MediaAttachment{TargetID: postID, Uploads: upload.MediaClaim(userID, []dto.UploadRef{ref})})
 	if err != nil {
 		return nil, err
 	}
 
-	mediaID, err := s.postRepo.AddMedia(ctx, stored[0].NewMedia(postID))
-	if err != nil {
-		s.uploadSvc.DiscardMedia(stored...)
-
-		return nil, err
-	}
-
-	s.uploadSvc.TranscodeMedia(ctx, "posts", stored, []int64{mediaID}, s.postRepo.UpdateMediaURL, s.postRepo.UpdateMediaThumbnail)
-
-	resp := stored[0].Response(mediaID)
-
-	return &resp, nil
+	return new(attached.ToResponse()), nil
 }
 
 func (s *service) DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID int64, userID uuid.UUID) error {
@@ -639,8 +619,8 @@ func (s *service) UnlikePost(ctx context.Context, userID uuid.UUID, postID uuid.
 	return nil
 }
 
-func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
-	id, err := s.commentSvc.Create(ctx, spec.CommentTarget{Kind: spec.CommentKindPost, ID: postID}, userID, req, files)
+func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
+	id, err := s.commentSvc.Create(ctx, spec.CommentTarget{Kind: spec.CommentKindPost, ID: postID}, userID, req)
 	if err != nil {
 		return uuid.Nil, err
 	}

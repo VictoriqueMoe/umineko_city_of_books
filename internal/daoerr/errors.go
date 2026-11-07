@@ -33,6 +33,8 @@ var (
 	ErrLiveStreamActiveExists = errors.New("user already has an active live stream")
 
 	ErrRefutationRejected = errors.New("the response cannot refute this theory")
+
+	ErrUploadUnavailable = errors.New("an attachment is missing, still processing or has expired, re-add it and try again")
 )
 
 func (e *ChatMessageReplayError) Error() string {

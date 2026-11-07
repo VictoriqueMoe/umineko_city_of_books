@@ -26,6 +26,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/storage"
+	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -48,7 +49,7 @@ func newTestService(t *testing.T, processors ...*media.Processor) (*service, *st
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImagePixels).Return(bounds.FallbackMaxImagePixels).Maybe()
 	storageSvc := storage.NewMockService(t)
 	storedFiles := repository.NewMockStoredFileRepository(t)
-	svc := NewService(settingsSvc, storageSvc, storedFiles, processors...).(*service)
+	svc := NewService(settingsSvc, storageSvc, storedFiles, repository.NewMockPendingUploadRepository(t), ws.NewHub(), processors...).(*service)
 	return svc, storageSvc, dir
 }
 
@@ -106,7 +107,7 @@ func TestSaveFile_StagingDirectoryError(t *testing.T) {
 	blocker := filepath.Join(t.TempDir(), "blocked")
 	require.NoError(t, os.WriteFile(blocker, []byte("x"), 0644))
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingUploadDir).Return(blocker)
-	svc := NewService(settingsSvc, storage.NewMockService(t), repository.NewMockStoredFileRepository(t)).(*service)
+	svc := NewService(settingsSvc, storage.NewMockService(t), repository.NewMockStoredFileRepository(t), nil, nil).(*service)
 
 	// when
 	_, err := svc.SaveFile(context.Background(), "sub", "f.txt", strings.NewReader("data"))
@@ -308,33 +309,6 @@ func TestStageMedia_VideoTooLarge(t *testing.T) {
 	// then
 	require.ErrorIs(t, err, ErrFileTooLarge)
 	assert.Contains(t, err.Error(), "exceeds maximum")
-}
-
-func TestSaveAttachment_TooLarge(t *testing.T) {
-	// given
-	svc, _, _ := newTestService(t)
-
-	// when
-	_, err := svc.SaveAttachment(context.Background(), "attachments", 200, 100, bytes.NewReader([]byte("x")))
-
-	// then
-	require.ErrorIs(t, err, ErrFileTooLarge)
-}
-
-func TestSaveAttachment_StoresPDF(t *testing.T) {
-	// given
-	svc, storageSvc, _ := newTestService(t)
-	stored := captureStore(t, storageSvc)
-
-	// when
-	url, err := svc.SaveAttachment(context.Background(), "attachments", int64(len(pdfMagic)), 1024, bytes.NewReader(pdfMagic))
-
-	// then
-	require.NoError(t, err)
-	assert.True(t, strings.HasPrefix(url, "/uploads/attachments/"))
-	assert.True(t, strings.HasSuffix(url, ".pdf"))
-	require.Len(t, *stored, 1)
-	assert.Equal(t, pdfMagic, (*stored)[0].data)
 }
 
 func TestStageMedia_VideoInvalidType(t *testing.T) {

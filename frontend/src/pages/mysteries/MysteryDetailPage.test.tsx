@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
-import { makeUser } from "../../test-utils/fixtures";
+import { makePendingUpload, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { MysteryAttempt, MysteryDetail, UserProfile } from "../../types/api";
 import { MysteryDetailPage } from "./MysteryDetailPage";
@@ -25,13 +25,27 @@ const mocked = vi.hoisted(() => ({
         useUnlikeMysteryComment: vi.fn(),
         useUpdateMysteryClue: vi.fn(),
         useUpdateMysteryComment: vi.fn(),
-        useUploadMysteryAttachment: vi.fn(),
-        useUploadMysteryMedia: vi.fn(),
+        useAttachMysteryFile: vi.fn(),
+        useAttachMysteryMedia: vi.fn(),
     },
+    uploads: { begin: vi.fn(), remove: vi.fn(), statuses: vi.fn() },
 }));
 
 vi.mock("../../hooks/queries/mystery", () => ({ useMystery: mocked.useMystery }));
 vi.mock("../../hooks/mutations/mystery", () => mocked.mutations);
+vi.mock("../../hooks/mutations/uploads", () => ({
+    useBeginUpload: () => ({ mutateAsync: mocked.uploads.begin }),
+    useRemoveUpload: () => ({ mutateAsync: mocked.uploads.remove }),
+    useUploadStatuses: () => ({ mutateAsync: mocked.uploads.statuses }),
+}));
+
+beforeEach(() => {
+    mocked.uploads.remove.mockResolvedValue(undefined);
+    mocked.uploads.statuses.mockResolvedValue([]);
+    mocked.uploads.begin.mockImplementation(({ file }: { file: File }) =>
+        Promise.resolve(makePendingUpload({ id: `upload-${file.name}`, filename: file.name })),
+    );
+});
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => mocked.navigate };
@@ -664,15 +678,18 @@ describe("MysteryDetailPage", () => {
 
         // then
         await waitFor(() => {
-            expect(mutateAsync.useUploadMysteryAttachment).toHaveBeenCalledWith(expect.any(File));
+            expect(mutateAsync.useAttachMysteryFile).toHaveBeenCalledWith({
+                upload_id: "upload-notes.pdf",
+                is_spoiler: false,
+            });
         });
         expect(refresh).not.toHaveBeenCalled();
     });
 
     it("reports why an attachment could not be uploaded", async () => {
         // given
-        const { mutateAsync } = stubMystery();
-        mutateAsync.useUploadMysteryAttachment.mockRejectedValue(new Error("the file is cursed"));
+        stubMystery();
+        mocked.uploads.begin.mockRejectedValue(new Error("the file is cursed"));
         const user = userEvent.setup();
         const { container } = renderPage(gameMasterUser);
 
@@ -718,7 +735,7 @@ describe("MysteryDetailPage", () => {
         expect(mutateAsync.useDeleteMysteryMedia).toHaveBeenCalledWith(11);
     });
 
-    it("uploads the images the game master has queued up", async () => {
+    it("adds the images the game master has queued up once they have finished uploading", async () => {
         // given
         const { mutateAsync, refresh } = stubMystery();
         const user = userEvent.setup();
@@ -727,15 +744,32 @@ describe("MysteryDetailPage", () => {
         // when
         const input = container.querySelector<HTMLInputElement>("input[accept='image/*,video/*,audio/*,.mkv,.avi']")!;
         await user.upload(input, new File(["png"], "scene.png", { type: "image/png" }));
-        await user.click(screen.getByRole("button", { name: "Upload 1" }));
+        await waitFor(() => expect(screen.getByRole("button", { name: "Add 1" })).toBeEnabled());
+        await user.click(screen.getByRole("button", { name: "Add 1" }));
 
         // then
         await waitFor(() => {
-            expect(mutateAsync.useUploadMysteryMedia).toHaveBeenCalledWith({
-                file: expect.any(File),
-                isSpoiler: false,
+            expect(mutateAsync.useAttachMysteryMedia).toHaveBeenCalledWith({
+                upload_id: "upload-scene.png",
+                is_spoiler: false,
             });
         });
         expect(refresh).not.toHaveBeenCalled();
+    });
+
+    it("holds the queued images back while one is still uploading", async () => {
+        // given an upload the server has not answered yet
+        stubMystery();
+        mocked.uploads.begin.mockReturnValue(new Promise(() => {}));
+        const user = userEvent.setup();
+        const { container } = renderPage(gameMasterUser);
+
+        // when
+        const input = container.querySelector<HTMLInputElement>("input[accept='image/*,video/*,audio/*,.mkv,.avi']")!;
+        await user.upload(input, new File(["png"], "scene.png", { type: "image/png" }));
+
+        // then
+        expect(screen.getByRole("progressbar", { name: "Upload progress" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Add 1" })).toBeDisabled();
     });
 });

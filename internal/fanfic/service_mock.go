@@ -10,7 +10,6 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/fanfic/params"
-	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -133,8 +132,8 @@ func (_c *MockService_CreateChapter_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // CreateComment provides a mock function for the type MockService
-func (_mock *MockService) CreateComment(ctx context.Context, fanficID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, fanficID, userID, req, files)
+func (_mock *MockService) CreateComment(ctx context.Context, fanficID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
+	ret := _mock.Called(ctx, fanficID, userID, req)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateComment")
@@ -142,18 +141,18 @@ func (_mock *MockService) CreateComment(ctx context.Context, fanficID uuid.UUID,
 
 	var r0 uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest, []upload.FileUpload) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, fanficID, userID, req, files)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, fanficID, userID, req)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest, []upload.FileUpload) uuid.UUID); ok {
-		r0 = returnFunc(ctx, fanficID, userID, req, files)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest) uuid.UUID); ok {
+		r0 = returnFunc(ctx, fanficID, userID, req)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest, []upload.FileUpload) error); ok {
-		r1 = returnFunc(ctx, fanficID, userID, req, files)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateCommentRequest) error); ok {
+		r1 = returnFunc(ctx, fanficID, userID, req)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -170,12 +169,11 @@ type MockService_CreateComment_Call struct {
 //   - fanficID uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.CreateCommentRequest
-//   - files []upload.FileUpload
-func (_e *MockService_Expecter) CreateComment(ctx any, fanficID any, userID any, req any, files any) *MockService_CreateComment_Call {
-	return &MockService_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, fanficID, userID, req, files)}
+func (_e *MockService_Expecter) CreateComment(ctx any, fanficID any, userID any, req any) *MockService_CreateComment_Call {
+	return &MockService_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, fanficID, userID, req)}
 }
 
-func (_c *MockService_CreateComment_Call) Run(run func(ctx context.Context, fanficID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload)) *MockService_CreateComment_Call {
+func (_c *MockService_CreateComment_Call) Run(run func(ctx context.Context, fanficID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest)) *MockService_CreateComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -193,16 +191,11 @@ func (_c *MockService_CreateComment_Call) Run(run func(ctx context.Context, fanf
 		if args[3] != nil {
 			arg3 = args[3].(dto.CreateCommentRequest)
 		}
-		var arg4 []upload.FileUpload
-		if args[4] != nil {
-			arg4 = args[4].([]upload.FileUpload)
-		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
 		)
 	})
 	return _c
@@ -213,7 +206,7 @@ func (_c *MockService_CreateComment_Call) Return(uUID uuid.UUID, err error) *Moc
 	return _c
 }
 
-func (_c *MockService_CreateComment_Call) RunAndReturn(run func(ctx context.Context, fanficID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error)) *MockService_CreateComment_Call {
+func (_c *MockService_CreateComment_Call) RunAndReturn(run func(ctx context.Context, fanficID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)) *MockService_CreateComment_Call {
 	_c.Call.Return(run)
 	return _c
 }

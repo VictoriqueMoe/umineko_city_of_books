@@ -44,7 +44,7 @@ func createJournal(t *testing.T, repos *repository.Repositories, userID uuid.UUI
 
 func journalCreateEntry(t *testing.T, repos *repository.Repositories, s spec.NewJournalEntry) uuid.UUID {
 	t.Helper()
-	created, _, err := repos.Journal.CreateEntryWithMedia(context.Background(), s)
+	created, err := repos.Journal.CreateEntryWithMedia(context.Background(), s)
 	require.NoError(t, err)
 
 	return created.ID
@@ -456,21 +456,24 @@ func TestJournalRepository_CreateEntryWithMedia_WritesTheEntryItsMediaAndTheAuth
 	_, err := repos.Journal.ArchiveStale(ctx, time.Now().Add(time.Hour))
 	require.NoError(t, err)
 
-	// when an entry with two attachments is created
-	created, mediaIDs, err := repos.Journal.CreateEntryWithMedia(ctx, spec.NewJournalEntry{
+	first := daotest.ReadyUpload(t, repos, user.ID, "image", "/uploads/media/a.webp")
+	second := daotest.ReadyUpload(t, repos, user.ID, "image", "/uploads/media/b.webp")
+
+	// when an entry claiming two finished uploads is created
+	created, err := repos.Journal.CreateEntryWithMedia(ctx, spec.NewJournalEntry{
 		JournalID:   id,
 		EntryNumber: 1,
 		Body:        "b",
 		WordCount:   1,
-		Media: []spec.NewMedia{
-			{MediaURL: "/uploads/journals/a.webp", MediaType: "image", Filename: "a.png", SortOrder: 0},
-			{MediaURL: "/uploads/journals/b.webp", MediaType: "image", Filename: "b.png", SortOrder: 1},
-		},
+		Media:       spec.ClaimedUploads{UserID: user.ID, Uploads: []spec.UploadRef{{ID: first}, {ID: second, IsSpoiler: true}}, MediaTypes: []string{"image", "video", "audio"}, MaxAge: time.Hour},
 	})
 
-	// then the journal is revived and both media rows belong to the new entry, in order
+	// then the journal is revived, both media rows belong to the new entry in order, and the uploads are no longer pending
 	require.NoError(t, err)
-	require.Len(t, mediaIDs, 2)
+
+	pending, err := repos.PendingUpload.List(ctx, spec.UserUploads{UserID: user.ID, IDs: []uuid.UUID{first, second}})
+	require.NoError(t, err)
+	assert.Empty(t, pending)
 
 	archived, err := repos.Journal.IsArchived(ctx, id)
 	require.NoError(t, err)
@@ -480,8 +483,36 @@ func TestJournalRepository_CreateEntryWithMedia_WritesTheEntryItsMediaAndTheAuth
 	require.NoError(t, err)
 	media := batch[created.ID]
 	require.Len(t, media, 2)
-	assert.Equal(t, "/uploads/journals/a.webp", media[0].MediaURL)
-	assert.Equal(t, "/uploads/journals/b.webp", media[1].MediaURL)
+	assert.Equal(t, "/uploads/media/a.webp", media[0].MediaURL)
+	assert.False(t, media[0].IsSpoiler)
+	assert.Equal(t, "/uploads/media/b.webp", media[1].MediaURL)
+	assert.True(t, media[1].IsSpoiler)
+}
+
+func TestJournalRepository_CreateEntryWithMedia_AnUnclaimableUploadWritesNoEntry(t *testing.T) {
+	// given a journal and an upload that belongs to someone else
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	user := daotest.CreateUser(t, repos)
+	stranger := daotest.CreateUser(t, repos)
+	id := createJournal(t, repos, user.ID, "T", "", "general")
+	theirs := daotest.ReadyUpload(t, repos, stranger.ID, "image", "/uploads/media/a.webp")
+
+	// when
+	created, err := repos.Journal.CreateEntryWithMedia(ctx, spec.NewJournalEntry{
+		JournalID:   id,
+		EntryNumber: 1,
+		Body:        "b",
+		WordCount:   1,
+		Media:       spec.ClaimedUploads{UserID: user.ID, Uploads: []spec.UploadRef{{ID: theirs}}, MediaTypes: []string{"image", "video", "audio"}, MaxAge: time.Hour},
+	})
+
+	// then no entry exists
+	require.ErrorIs(t, err, daoerr.ErrUploadUnavailable)
+	assert.Nil(t, created)
+	entry, err := repos.Journal.GetEntry(ctx, spec.JournalEntryLookup{JournalID: id, EntryNumber: 1})
+	require.NoError(t, err)
+	assert.Nil(t, entry)
 }
 
 func TestJournalDAO_ArchiveStale(t *testing.T) {

@@ -14,7 +14,7 @@ describe("UploadProgressBar", () => {
         const bar = screen.getByRole("progressbar", { name: "Upload progress" });
         expect(bar).toHaveAttribute("aria-valuenow", "42");
         expect(bar).toHaveAttribute("aria-valuetext", "Uploading 42%");
-        expect(screen.getByText("Uploading 42%")).toBeInTheDocument();
+        expect(screen.getByText("42%")).toBeInTheDocument();
     });
 
     it("shows the server is processing once every byte is sent", () => {
@@ -28,6 +28,6 @@ describe("UploadProgressBar", () => {
         const bar = screen.getByRole("progressbar", { name: "Upload progress" });
         expect(bar).not.toHaveAttribute("aria-valuenow");
         expect(bar).toHaveAttribute("aria-valuetext", "Processing...");
-        expect(screen.getByText("Processing...")).toBeInTheDocument();
+        expect(screen.getByText("Processing")).toBeInTheDocument();
     });
 });

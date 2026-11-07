@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
-import { makeUser } from "../../test-utils/fixtures";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makePendingUpload, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { JournalDetail, JournalEntry, PostMedia, UserProfile } from "../../types/api";
 import { JournalEntryEditorPage } from "./JournalEntryEditorPage";
@@ -11,16 +11,18 @@ const {
     useJournalEntry,
     useCreateJournalEntry,
     useUpdateJournalEntry,
-    useUploadJournalEntryMedia,
+    useAttachJournalEntryMedia,
     useDeleteJournalEntryMedia,
+    uploads,
     navigate,
 } = vi.hoisted(() => ({
     useJournal: vi.fn(),
     useJournalEntry: vi.fn(),
     useCreateJournalEntry: vi.fn(),
     useUpdateJournalEntry: vi.fn(),
-    useUploadJournalEntryMedia: vi.fn(),
+    useAttachJournalEntryMedia: vi.fn(),
     useDeleteJournalEntryMedia: vi.fn(),
+    uploads: { begin: vi.fn(), remove: vi.fn(), statuses: vi.fn() },
     navigate: vi.fn(),
 }));
 
@@ -29,8 +31,26 @@ vi.mock("../../hooks/mutations/journal", () => ({
     useCreateJournalEntry,
     useDeleteJournalEntryMedia,
     useUpdateJournalEntry,
-    useUploadJournalEntryMedia,
+    useAttachJournalEntryMedia,
 }));
+vi.mock("../../hooks/mutations/uploads", () => ({
+    useBeginUpload: () => ({ mutateAsync: uploads.begin }),
+    useRemoveUpload: () => ({ mutateAsync: uploads.remove }),
+    useUploadStatuses: () => ({ mutateAsync: uploads.statuses }),
+}));
+
+beforeEach(() => {
+    uploads.remove.mockResolvedValue(undefined);
+    uploads.statuses.mockResolvedValue([]);
+    uploads.begin.mockImplementation(({ file }: { file: File }) =>
+        Promise.resolve(makePendingUpload({ id: `upload-${file.name}`, filename: file.name })),
+    );
+});
+
+async function attach(user: ReturnType<typeof userEvent.setup>, container: HTMLElement, files: File[]): Promise<void> {
+    await user.upload(container.querySelector<HTMLInputElement>('input[type="file"]')!, files);
+    await waitFor(() => expect(screen.queryByRole("progressbar")).not.toBeInTheDocument());
+}
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => navigate };
@@ -109,7 +129,7 @@ interface StubOptions {
     entryLoading?: boolean;
     create?: () => Promise<{ id: string; entry_number: number }>;
     update?: () => Promise<unknown>;
-    upload?: () => Promise<unknown>;
+    attach?: () => Promise<unknown>;
     remove?: () => Promise<unknown>;
 }
 
@@ -128,14 +148,14 @@ function stubEditor(options: StubOptions = {}) {
 
     const createAsync = vi.fn(options.create ?? (() => Promise.resolve({ id: "entry-new", entry_number: 4 })));
     const updateAsync = vi.fn(options.update ?? (() => Promise.resolve({})));
-    const uploadAsync = vi.fn(options.upload ?? (() => Promise.resolve({})));
+    const attachAsync = vi.fn(options.attach ?? (() => Promise.resolve({})));
     const deleteMediaAsync = vi.fn(options.remove ?? (() => Promise.resolve({})));
     useCreateJournalEntry.mockReturnValue({ mutateAsync: createAsync });
     useUpdateJournalEntry.mockReturnValue({ mutateAsync: updateAsync });
-    useUploadJournalEntryMedia.mockReturnValue({ mutateAsync: uploadAsync });
+    useAttachJournalEntryMedia.mockReturnValue({ mutateAsync: attachAsync });
     useDeleteJournalEntryMedia.mockReturnValue({ mutateAsync: deleteMediaAsync });
 
-    return { createAsync, updateAsync, uploadAsync, deleteMediaAsync };
+    return { createAsync, updateAsync, attachAsync, deleteMediaAsync };
 }
 
 function renderNew(user: UserProfile) {
@@ -422,17 +442,16 @@ describe("JournalEntryEditorPage", () => {
         });
     });
 
-    it("sends the newly attached files with the new entry in a single request", async () => {
+    it("sends the finished uploads with the new entry in a single request", async () => {
         // given
-        const { createAsync, uploadAsync } = stubEditor({
+        const { createAsync, attachAsync } = stubEditor({
             create: () => Promise.resolve({ id: "entry-new", entry_number: 4 }),
         });
         const user = userEvent.setup();
         const { container } = renderNew(author);
-        const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]')!;
 
         // when
-        await user.upload(fileInput, new File(["beato"], "beato.png", { type: "image/png" }));
+        await attach(user, container, [new File(["beato"], "beato.png", { type: "image/png" })]);
         await user.click(screen.getByRole("button", { name: "Mark as spoiler" }));
         await user.click(screen.getByRole("button", { name: "Publish entry" }));
 
@@ -442,9 +461,27 @@ describe("JournalEntryEditorPage", () => {
         });
         expect(createAsync).toHaveBeenCalledWith({
             payload: { title: "", body: "", is_draft: false },
-            media: [{ file: expect.objectContaining({ name: "beato.png" }), isSpoiler: true }],
+            media: [{ upload_id: "upload-beato.png", is_spoiler: true }],
         });
-        expect(uploadAsync).not.toHaveBeenCalled();
+        expect(attachAsync).not.toHaveBeenCalled();
+    });
+
+    it("holds the entry until every attachment has finished uploading", async () => {
+        // given an upload the server has not answered yet
+        stubEditor();
+        uploads.begin.mockReturnValue(new Promise(() => {}));
+        const user = userEvent.setup();
+        const { container } = renderNew(author);
+
+        // when
+        await user.type(screen.getByPlaceholderText(/Write your entry\./), "Beato laughed.");
+        await user.upload(container.querySelector<HTMLInputElement>('input[type="file"]')!, [
+            new File(["beato"], "beato.png", { type: "image/png" }),
+        ]);
+
+        // then
+        expect(screen.getByRole("progressbar", { name: "Upload progress" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Publish entry" })).toBeDisabled();
     });
 
     it("keeps the whole form and says so when the new entry and its attachments are refused", async () => {
@@ -452,10 +489,9 @@ describe("JournalEntryEditorPage", () => {
         stubEditor({ create: () => Promise.reject(new Error("The upload was refused")) });
         const user = userEvent.setup();
         const { container } = renderNew(author);
-        const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]')!;
         await user.type(screen.getByPlaceholderText("Leave empty to use 'Entry N'"), "Arrival");
         await user.type(screen.getByPlaceholderText(/Write your entry\./), "Beato laughed.");
-        await user.upload(fileInput, new File(["beato"], "beato.png", { type: "image/png" }));
+        await attach(user, container, [new File(["beato"], "beato.png", { type: "image/png" })]);
         await user.click(screen.getByRole("button", { name: "Mark as spoiler" }));
 
         // when
@@ -470,25 +506,56 @@ describe("JournalEntryEditorPage", () => {
         expect(screen.getByRole("button", { name: "Publish entry" })).toBeEnabled();
     });
 
-    it("still uploads newly attached files one by one when an existing entry is edited", async () => {
+    it("attaches each finished upload to an existing entry when it is edited", async () => {
         // given
-        const { uploadAsync } = stubEditor({ entry: makeEntry({ id: "entry-9", entry_number: 2 }) });
+        const { attachAsync } = stubEditor({ entry: makeEntry({ id: "entry-9", entry_number: 2 }) });
         const user = userEvent.setup();
         const { container } = renderEdit(author);
-        const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]')!;
 
         // when
-        await user.upload(fileInput, new File(["beato"], "beato.png", { type: "image/png" }));
+        await attach(user, container, [new File(["beato"], "beato.png", { type: "image/png" })]);
         await user.click(screen.getByRole("button", { name: "Save entry" }));
 
         // then
         await waitFor(() => {
-            expect(uploadAsync).toHaveBeenCalledWith({
-                entryId: "entry-9",
-                file: expect.objectContaining({ name: "beato.png" }),
-                isSpoiler: false,
-            });
+            expect(navigate).toHaveBeenCalledWith("/journals/journal-1/entry/2");
         });
+        expect(attachAsync).toHaveBeenCalledExactlyOnceWith({
+            entryId: "entry-9",
+            media: { upload_id: "upload-beato.png", is_spoiler: false },
+        });
+    });
+
+    it("retries only the attachment that failed when an edited entry is saved again", async () => {
+        // given the second of two attachments is refused the first time
+        const attachAsync = vi
+            .fn()
+            .mockResolvedValueOnce({})
+            .mockRejectedValueOnce(new Error("the witch keeps that one"))
+            .mockResolvedValueOnce({});
+        stubEditor({ entry: makeEntry({ id: "entry-9", entry_number: 2 }) });
+        useAttachJournalEntryMedia.mockReturnValue({ mutateAsync: attachAsync });
+        const user = userEvent.setup();
+        const { container } = renderEdit(author);
+        await attach(user, container, [
+            new File(["one"], "one.png", { type: "image/png" }),
+            new File(["two"], "two.png", { type: "image/png" }),
+        ]);
+        await user.click(screen.getByRole("button", { name: "Save entry" }));
+        await screen.findByText("the witch keeps that one");
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Save entry" }));
+
+        // then
+        await waitFor(() => {
+            expect(navigate).toHaveBeenCalledWith("/journals/journal-1/entry/2");
+        });
+        expect(attachAsync.mock.calls.map(call => call[0].media.upload_id)).toEqual([
+            "upload-one.png",
+            "upload-two.png",
+            "upload-two.png",
+        ]);
     });
 
     it("stays on the editor and says so when a marked attachment could not be removed", async () => {
@@ -514,10 +581,9 @@ describe("JournalEntryEditorPage", () => {
         stubEditor();
         const user = userEvent.setup();
         const { container } = renderNew(author);
-        const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]')!;
 
         // when
-        await user.upload(fileInput, new File(["beato"], "beato.png", { type: "image/png" }));
+        await attach(user, container, [new File(["beato"], "beato.png", { type: "image/png" })]);
 
         // then
         expect(screen.getByRole("button", { name: "Publish entry" })).toBeEnabled();

@@ -105,8 +105,7 @@ describe("useOptimisticSends", () => {
             roomId: "room-1",
             body: "without love it cannot be seen",
             reply_to_id: "m-earlier",
-            files: [],
-            spoilers: [],
+            media: [],
             client_nonce: pending.nonce,
         });
         expect(onSending).toHaveBeenCalledOnce();
@@ -131,7 +130,7 @@ describe("useOptimisticSends", () => {
         expect(mocks.sendChatMessage).toHaveBeenCalledTimes(2);
     });
 
-    it("previews each attachment and sends the files with their spoiler flags", () => {
+    it("previews each attachment and sends its finished upload with its spoiler flag", () => {
         // given
         deferSend();
         const file = new File(["portrait"], "beatrice.png", { type: "image/png" });
@@ -139,13 +138,17 @@ describe("useOptimisticSends", () => {
 
         // when
         act(() => {
-            result.current.sender?.send(outgoing({ body: "", attachments: [{ file, spoiler: true }] }));
+            result.current.sender?.send(
+                outgoing({ body: "", attachments: [{ file, spoiler: true, uploadId: "upload-1" }] }),
+            );
         });
 
         // then
-        expect(result.current.pending[0].attachments).toEqual([{ file, spoiler: true, previewUrl: "blob:preview" }]);
+        expect(result.current.pending[0].attachments).toEqual([
+            { file, spoiler: true, uploadId: "upload-1", previewUrl: "blob:preview" },
+        ]);
         expect(mocks.sendChatMessage).toHaveBeenCalledWith(
-            expect.objectContaining({ files: [file], spoilers: [true] }),
+            expect.objectContaining({ media: [{ upload_id: "upload-1", is_spoiler: true }] }),
         );
     });
 
@@ -156,7 +159,7 @@ describe("useOptimisticSends", () => {
         const file = new File(["portrait"], "beatrice.png", { type: "image/png" });
         const { result } = renderSends({ onDelivered });
         act(() => {
-            result.current.sender?.send(outgoing({ attachments: [{ file, spoiler: false }] }));
+            result.current.sender?.send(outgoing({ attachments: [{ file, spoiler: false, uploadId: "upload-1" }] }));
         });
         const confirmed = makeChatMessage({ id: "m-real", client_nonce: result.current.pending[0].nonce });
 
@@ -243,7 +246,7 @@ describe("useOptimisticSends", () => {
         const file = new File(["portrait"], "beatrice.png", { type: "image/png" });
         const { result } = renderSends();
         act(() => {
-            result.current.sender?.send(outgoing({ attachments: [{ file, spoiler: false }] }));
+            result.current.sender?.send(outgoing({ attachments: [{ file, spoiler: false, uploadId: "upload-1" }] }));
         });
         await act(async () => {
             send.reject(new Error("network is down"));
@@ -375,8 +378,7 @@ describe("useOptimisticSends in a draft to someone never messaged", () => {
         expect(mocks.sendFirstDMMessage).toHaveBeenCalledExactlyOnceWith({
             recipientId: RECIPIENT,
             body: "are you there",
-            files: [],
-            spoilers: [],
+            media: [],
             client_nonce: pending.nonce,
         });
         expect(mocks.sendChatMessage).not.toHaveBeenCalled();

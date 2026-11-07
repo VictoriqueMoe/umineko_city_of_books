@@ -57,7 +57,7 @@ type (
 		ReplyToID   *uuid.UUID
 		IsSystem    bool
 		ClientNonce string
-		Media       []NewChatMessageMedia
+		Media       ClaimedUploads
 	}
 
 	NewChatMessageMedia struct {
@@ -71,11 +71,6 @@ type (
 		UserID         uuid.UUID
 		ShouldBeMember bool
 		DesiredRole    string
-	}
-
-	ChatSenderNonce struct {
-		SenderID    uuid.UUID
-		ClientNonce string
 	}
 
 	ChatMemberRef struct {

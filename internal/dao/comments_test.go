@@ -21,47 +21,46 @@ import (
 
 type (
 	commentKindCase struct {
-		kind     spec.CommentKind
-		table    string
-		mediaDir string
-		owned    bool
-		seed     func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget
+		kind  spec.CommentKind
+		table string
+		owned bool
+		seed  func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget
 	}
 )
 
 func commentKinds() []commentKindCase {
 	return []commentKindCase{
-		{kind: spec.CommentKindPost, table: "post_comments", mediaDir: "posts", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
+		{kind: spec.CommentKindPost, table: "post_comments", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
 			return spec.CommentTarget{Kind: spec.CommentKindPost, ID: createPost(t, repos, ownerID, "general", "a theory")}
 		}},
-		{kind: spec.CommentKindArt, table: "art_comments", mediaDir: "art", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
+		{kind: spec.CommentKindArt, table: "art_comments", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
 			return spec.CommentTarget{Kind: spec.CommentKindArt, ID: createArt(t, repos, ownerID, "general", "drawing", "Golden Land", nil, false)}
 		}},
-		{kind: spec.CommentKindAnnouncement, table: "announcement_comments", mediaDir: "announcements", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
+		{kind: spec.CommentKindAnnouncement, table: "announcement_comments", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
 			return spec.CommentTarget{Kind: spec.CommentKindAnnouncement, ID: createAnnouncement(t, repos, ownerID, "Maintenance", "tonight")}
 		}},
-		{kind: spec.CommentKindMystery, table: "mystery_comments", mediaDir: "mysteries", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
+		{kind: spec.CommentKindMystery, table: "mystery_comments", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
 			return spec.CommentTarget{Kind: spec.CommentKindMystery, ID: createMystery(t, repos, ownerID, "The Locked Room", "medium", false)}
 		}},
-		{kind: spec.CommentKindShip, table: "ship_comments", mediaDir: "ships", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
+		{kind: spec.CommentKindShip, table: "ship_comments", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
 			return spec.CommentTarget{Kind: spec.CommentKindShip, ID: createShip(t, repos, ownerID, "BattlerBeato", makeChars())}
 		}},
-		{kind: spec.CommentKindOC, table: "oc_comments", mediaDir: "ocs", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
+		{kind: spec.CommentKindOC, table: "oc_comments", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
 			return spec.CommentTarget{Kind: spec.CommentKindOC, ID: createOC(t, repos, ownerID, "Linda", "umineko", "")}
 		}},
-		{kind: spec.CommentKindFanfic, table: "fanfic_comments", mediaDir: "fanfics", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
+		{kind: spec.CommentKindFanfic, table: "fanfic_comments", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
 			return spec.CommentTarget{Kind: spec.CommentKindFanfic, ID: createFanfic(t, repos, ownerID, "A Tea Party")}
 		}},
-		{kind: spec.CommentKindJournal, table: "journal_comments", mediaDir: "journals", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
+		{kind: spec.CommentKindJournal, table: "journal_comments", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
 			return spec.CommentTarget{Kind: spec.CommentKindJournal, ID: createJournal(t, repos, ownerID, "Reading Log", "", "umineko")}
 		}},
-		{kind: spec.CommentKindJournalEntry, table: "journal_comments", mediaDir: "journals", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
+		{kind: spec.CommentKindJournalEntry, table: "journal_comments", owned: true, seed: func(t *testing.T, repos *repository.Repositories, ownerID uuid.UUID) spec.CommentTarget {
 			journalID := createJournal(t, repos, ownerID, "Reading Log", "", "umineko")
 			journalCreateEntry(t, repos, spec.NewJournalEntry{JournalID: journalID, EntryNumber: 1, Body: "episode one", WordCount: 2})
 
 			return spec.CommentTarget{Kind: spec.CommentKindJournalEntry, ID: journalID, EntryNumber: 1}
 		}},
-		{kind: spec.CommentKindSecret, table: "secret_comments", mediaDir: "secrets", seed: func(*testing.T, *repository.Repositories, uuid.UUID) spec.CommentTarget {
+		{kind: spec.CommentKindSecret, table: "secret_comments", seed: func(*testing.T, *repository.Repositories, uuid.UUID) spec.CommentTarget {
 			return spec.CommentTarget{Kind: spec.CommentKindSecret, Key: "witchHunter"}
 		}},
 	}
@@ -151,10 +150,6 @@ func TestCommentDAO_CreatesAThreadAndKnowsWhereEachCommentLives(t *testing.T) {
 			} else {
 				assert.Equal(t, uuid.Nil, ownerID, "a target nobody owns has no owner to notify")
 			}
-
-			mediaDir, err := repos.Comment.GetCommentMediaDir(kc.kind)
-			require.NoError(t, err)
-			assert.Equal(t, kc.mediaDir, mediaDir)
 		})
 	}
 }
@@ -277,7 +272,7 @@ func TestCommentDAO_LikesAreIdempotentAndReversible(t *testing.T) {
 	}
 }
 
-func TestCommentDAO_MediaIsRecordedReadAndRewrittenPerComment(t *testing.T) {
+func TestCommentDAO_MediaIsRecordedAndReadPerComment(t *testing.T) {
 	for _, kc := range commentKinds() {
 		t.Run(string(kc.kind), func(t *testing.T) {
 			// given
@@ -292,19 +287,16 @@ func TestCommentDAO_MediaIsRecordedReadAndRewrittenPerComment(t *testing.T) {
 			addCommentMedia(t, repos, kc.kind, withOne, "/u/three.png", "")
 
 			// when
-			require.NoError(t, repos.Comment.UpdateCommentMediaURL(context.Background(), spec.CommentMediaURLUpdate{Kind: kc.kind, MediaURLUpdate: spec.MediaURLUpdate{ID: first, URL: "/u/one.webm"}}))
-			require.NoError(t, repos.Comment.UpdateCommentMediaThumbnail(context.Background(), spec.CommentMediaURLUpdate{Kind: kc.kind, MediaURLUpdate: spec.MediaURLUpdate{ID: first, URL: "/u/one-new-thumb.png"}}))
-			missingURL := repos.Comment.UpdateCommentMediaURL(context.Background(), spec.CommentMediaURLUpdate{Kind: kc.kind, MediaURLUpdate: spec.MediaURLUpdate{ID: first + 1000, URL: "/u/ghost.png"}})
 			batch, batchErr := repos.Comment.GetCommentMediaBatch(context.Background(), spec.CommentMediaBatch{Kind: kc.kind, CommentIDs: []uuid.UUID{withTwo, withOne, withNone}})
 			single, singleErr := repos.Comment.GetCommentMedia(context.Background(), spec.CommentRef{Kind: kc.kind, CommentID: withTwo})
 			empty, emptyErr := repos.Comment.GetCommentMediaBatch(context.Background(), spec.CommentMediaBatch{Kind: kc.kind})
 
 			// then
-			require.ErrorIs(t, missingURL, daoerr.ErrNotFound)
 			require.NoError(t, errors.Join(batchErr, singleErr, emptyErr))
 			require.Len(t, batch[withTwo], 2)
-			assert.Equal(t, "/u/one.webm", batch[withTwo][0].MediaURL)
-			assert.Equal(t, "/u/one-new-thumb.png", batch[withTwo][0].ThumbnailURL)
+			assert.Equal(t, first, int64(batch[withTwo][0].ID))
+			assert.Equal(t, "/u/one.png", batch[withTwo][0].MediaURL)
+			assert.Equal(t, "/u/one-thumb.png", batch[withTwo][0].ThumbnailURL)
 			assert.Equal(t, "/u/two.png", batch[withTwo][1].MediaURL)
 			require.Len(t, batch[withOne], 1)
 			assert.NotContains(t, batch, withNone)
@@ -393,11 +385,9 @@ func TestCommentDAO_AnUnknownKindIsRefused(t *testing.T) {
 
 	// when
 	_, createErr := repos.Comment.CreateComment(context.Background(), spec.NewComment{Target: spec.CommentTarget{Kind: unknown, ID: uuid.New()}, UserID: uuid.New(), Body: "hi"})
-	_, dirErr := repos.Comment.GetCommentMediaDir(unknown)
 
 	// then
 	assert.ErrorIs(t, createErr, daoerr.ErrUnknownCommentKind)
-	assert.ErrorIs(t, dirErr, daoerr.ErrUnknownCommentKind)
 }
 
 func TestCommentDAO_JournalEntryCommentsStayOnTheirOwnEntry(t *testing.T) {

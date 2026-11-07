@@ -25,7 +25,6 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
-	"umineko_city_of_books/internal/upload/uploadtest"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -75,8 +74,6 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		settingsSvc:  settings.NewMockService(t),
 		activity:     sidebar.NewMockActivityBumper(t),
 	}
-
-	uploadtest.ExpectNoMedia(m.uploadSvc)
 
 	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifService)
 	svc := NewService(m.repo, m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifService, mentionSvc, m.commentSvc, m.uploadSvc, m.settingsSvc, contentfilter.New(), nil, nil, m.activity).(*service)
@@ -140,14 +137,6 @@ func awaitNotifications(t *testing.T, sent <-chan dto.NotifyParams, count int) m
 	}
 
 	return got
-}
-
-func storedURL(filename string) string {
-	return "/uploads/journals/" + filename
-}
-
-func storedFile(filename string, sortOrder int, isSpoiler bool) upload.StoredMedia {
-	return upload.StoredMedia{URL: storedURL(filename), MediaType: upload.MediaTypeImage, Filename: filename, SortOrder: sortOrder, IsSpoiler: isSpoiler}
 }
 
 func TestCreateJournal(t *testing.T) {
@@ -661,7 +650,7 @@ func TestCreateComment_Rejections(t *testing.T) {
 			name: "a comment the comment service refuses bubbles up",
 			given: func(m *testMocks, f fixture) {
 				expectOpenJournal(m, f)
-				m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, f.userID, mock.Anything, mock.Anything).Return(uuid.Nil, errBoom)
+				m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, f.userID, mock.Anything).Return(uuid.Nil, errBoom)
 			},
 			wantErr: errBoom,
 		},
@@ -680,7 +669,7 @@ func TestCreateComment_Rejections(t *testing.T) {
 			}
 
 			// when
-			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "hi", EntryID: entryID}, nil)
+			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "hi", EntryID: entryID})
 
 			// then
 			require.ErrorIs(t, err, tc.wantErr)
@@ -726,10 +715,10 @@ func TestCreateComment_AReaderCommentReachesTheRightThreadWithoutRecordingActivi
 			}
 
 			want := dto.CreateCommentRequest{Body: "lovely", ParentID: &parentID}
-			m.commentSvc.EXPECT().Create(mock.Anything, tc.wantTarget(f), f.userID, want, []upload.FileUpload(nil)).Return(f.commentID, nil).Once()
+			m.commentSvc.EXPECT().Create(mock.Anything, tc.wantTarget(f), f.userID, want).Return(f.commentID, nil).Once()
 
 			// when
-			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "lovely", ParentID: &parentID, EntryID: entryID}, nil)
+			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "lovely", ParentID: &parentID, EntryID: entryID})
 
 			// then
 			require.NoError(t, err)
@@ -775,7 +764,7 @@ func TestCreateComment_TheAuthorsCommentRecordsActivityAndTellsEligibleFollowers
 				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, EntryNumber: 4}, nil)
 			}
 
-			m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, f.userID, mock.Anything, mock.Anything).Return(f.commentID, nil).Once()
+			m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, f.userID, mock.Anything).Return(f.commentID, nil).Once()
 			m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, f.journalID).Return(nil).Once()
 			m.repo.EXPECT().GetTitle(mock.Anything, f.journalID).Return("A Cat Box Diary", nil)
 			m.repo.EXPECT().GetFollowerIDs(mock.Anything, f.journalID).Return([]uuid.UUID{readerID, blockedID, f.userID}, nil)
@@ -789,7 +778,7 @@ func TestCreateComment_TheAuthorsCommentRecordsActivityAndTellsEligibleFollowers
 				Once()
 
 			// when
-			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "today's entry", EntryID: entryID}, nil)
+			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "today's entry", EntryID: entryID})
 
 			// then only the unblocked reader hears about the update
 			require.NoError(t, err)
@@ -828,12 +817,12 @@ func TestCreateComment_AFailedActivityRecordRollsTheAuthorsCommentBack(t *testin
 			f := newFixture()
 			f.authorID = f.userID
 			expectOpenJournal(m, f)
-			m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, f.userID, mock.Anything, mock.Anything).Return(f.commentID, nil).Once()
+			m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, f.userID, mock.Anything).Return(f.commentID, nil).Once()
 			m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, f.journalID).Return(errBoom).Once()
 			m.commentSvc.EXPECT().Delete(mock.Anything, spec.CommentRef{Kind: spec.CommentKindJournal, CommentID: f.commentID}, f.userID).Return(tc.deleteErr).Once()
 
 			// when
-			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "today's entry"}, nil)
+			got, err := svc.CreateComment(context.Background(), f.journalID, f.userID, dto.CreateJournalCommentRequest{Body: "today's entry"})
 
 			// then
 			for _, want := range tc.wantErrs {
@@ -1051,7 +1040,8 @@ func TestCreateEntry(t *testing.T) {
 					EntryNumber: 7,
 					Body:        "an entry",
 					WordCount:   2,
-				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil, nil)
+					Media:       upload.MediaClaim(f.userID, nil),
+				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
 				allowBackgroundFanOut(m, f.journalID, f.userID)
 				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
 			},
@@ -1069,7 +1059,8 @@ func TestCreateEntry(t *testing.T) {
 					Title:       new("Day 1"),
 					Body:        "the body",
 					WordCount:   2,
-				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil, nil)
+					Media:       upload.MediaClaim(f.userID, nil),
+				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
 				allowBackgroundFanOut(m, f.journalID, f.userID)
 				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
 			},
@@ -1087,7 +1078,8 @@ func TestCreateEntry(t *testing.T) {
 					Body:        "a draft",
 					WordCount:   2,
 					IsDraft:     true,
-				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil, nil)
+					Media:       upload.MediaClaim(f.userID, nil),
+				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
 			},
 			wantNumber: 2,
 		},
@@ -1101,7 +1093,7 @@ func TestCreateEntry(t *testing.T) {
 			tc.given(m, f)
 
 			// when
-			id, number, err := svc.CreateEntry(context.Background(), f.journalID, f.userID, tc.req, nil)
+			id, number, err := svc.CreateEntry(context.Background(), f.journalID, f.userID, tc.req)
 
 			// then
 			require.ErrorIs(t, err, tc.wantErr)
@@ -1117,14 +1109,14 @@ func TestCreateEntry(t *testing.T) {
 }
 
 func TestCreateEntry_WithMedia(t *testing.T) {
-	stored := []upload.StoredMedia{storedFile("one.png", 0, false), storedFile("two.png", 1, true)}
+	refs := []dto.UploadRef{{ID: uuid.New()}, {ID: uuid.New(), IsSpoiler: true}}
 	entryWithMedia := func(f fixture) spec.NewJournalEntry {
 		return spec.NewJournalEntry{
 			JournalID:   f.journalID,
 			EntryNumber: 3,
 			Body:        "an entry",
 			WordCount:   2,
-			Media:       upload.MediaRows(stored),
+			Media:       upload.MediaClaim(f.userID, refs),
 		}
 	}
 
@@ -1134,30 +1126,19 @@ func TestCreateEntry_WithMedia(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "a refused upload writes no entry",
+			name: "the entry and the claim on its uploads in display order are written together, then the entry is announced",
 			given: func(m *testMocks, f fixture) {
-				m.uploadSvc.EXPECT().StoreMedia(mock.Anything, "journals", uploadtest.Files("one.png", "two.png")).Return(nil, upload.ErrInvalidFileType).Once()
-			},
-			wantErr: upload.ErrInvalidFileType,
-		},
-		{
-			name: "the entry and every file in display order with its spoiler flag are written together, then the videos are handed on and the entry announced",
-			given: func(m *testMocks, f fixture) {
-				m.uploadSvc.EXPECT().StoreMedia(mock.Anything, "journals", uploadtest.Files("one.png", "two.png")).Return(stored, nil).Once()
-				m.repo.EXPECT().CreateEntryWithMedia(mock.Anything, entryWithMedia(f)).Return(&model.JournalEntryRow{ID: f.entryID}, []int64{1, 2}, nil).Once()
-				m.uploadSvc.EXPECT().TranscodeMedia(mock.Anything, "journals", stored, []int64{1, 2}, mock.Anything, mock.Anything).Return().Once()
+				m.repo.EXPECT().CreateEntryWithMedia(mock.Anything, entryWithMedia(f)).Return(&model.JournalEntryRow{ID: f.entryID}, nil).Once()
 				allowBackgroundFanOut(m, f.journalID, f.userID)
 				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
 			},
 		},
 		{
-			name: "a refused write discards the stored files and announces nothing",
+			name: "an upload that cannot be claimed writes no entry and announces nothing",
 			given: func(m *testMocks, f fixture) {
-				m.uploadSvc.EXPECT().StoreMedia(mock.Anything, "journals", uploadtest.Files("one.png", "two.png")).Return(stored, nil).Once()
-				m.repo.EXPECT().CreateEntryWithMedia(mock.Anything, entryWithMedia(f)).Return(nil, nil, errBoom).Once()
-				m.uploadSvc.EXPECT().DiscardMedia(stored).Return().Once()
+				m.repo.EXPECT().CreateEntryWithMedia(mock.Anything, entryWithMedia(f)).Return(nil, daoerr.ErrUploadUnavailable).Once()
 			},
-			wantErr: errBoom,
+			wantErr: daoerr.ErrUploadUnavailable,
 		},
 	}
 
@@ -1171,10 +1152,7 @@ func TestCreateEntry_WithMedia(t *testing.T) {
 			tc.given(m, f)
 
 			// when
-			id, number, err := svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: "an entry"}, []upload.FileUpload{
-				uploadtest.PNGUpload(t, "one.png", false),
-				uploadtest.PNGUpload(t, "two.png", true),
-			})
+			id, number, err := svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: "an entry", Media: refs})
 
 			// then
 			if tc.wantErr != nil {
@@ -1193,25 +1171,23 @@ func TestCreateEntry_WithMedia(t *testing.T) {
 	}
 }
 
-func TestCreateEntry_FilesWithoutText(t *testing.T) {
+func TestCreateEntry_UploadsWithoutText(t *testing.T) {
 	// given an entry with no words but one picture
 	svc, m := newTestService(t)
 	f := newFixture()
-	stored := []upload.StoredMedia{storedFile("one.png", 0, false)}
+	refs := []dto.UploadRef{{ID: uuid.New()}}
 	m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.userID, nil)
 	m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(5, nil).Once()
-	m.uploadSvc.EXPECT().StoreMedia(mock.Anything, "journals", uploadtest.Files("one.png")).Return(stored, nil).Once()
 	m.repo.EXPECT().CreateEntryWithMedia(mock.Anything, spec.NewJournalEntry{
 		JournalID:   f.journalID,
 		EntryNumber: 5,
-		Media:       upload.MediaRows(stored),
-	}).Return(&model.JournalEntryRow{ID: f.entryID}, []int64{1}, nil).Once()
-	m.uploadSvc.EXPECT().TranscodeMedia(mock.Anything, "journals", stored, []int64{1}, mock.Anything, mock.Anything).Return().Once()
+		Media:       upload.MediaClaim(f.userID, refs),
+	}).Return(&model.JournalEntryRow{ID: f.entryID}, nil).Once()
 	allowBackgroundFanOut(m, f.journalID, f.userID)
 	m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
 
 	// when
-	id, number, err := svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: "  "}, []upload.FileUpload{uploadtest.PNGUpload(t, "one.png", false)})
+	id, number, err := svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: "  ", Media: refs})
 
 	// then
 	require.NoError(t, err)
@@ -1261,7 +1237,7 @@ func TestJournalEntryPublish_NotifiesMentionsAndFollowersOnlyOnTheFirstPublish(t
 
 			if tc.create {
 				m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(3, nil)
-				m.repo.EXPECT().CreateEntryWithMedia(mock.Anything, mock.Anything).Return(&model.JournalEntryRow{ID: f.entryID}, nil, nil)
+				m.repo.EXPECT().CreateEntryWithMedia(mock.Anything, mock.Anything).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
 			} else {
 				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).
 					Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, EntryNumber: 3, IsDraft: true}, nil)
@@ -1288,7 +1264,7 @@ func TestJournalEntryPublish_NotifiesMentionsAndFollowersOnlyOnTheFirstPublish(t
 			// when
 			var err error
 			if tc.create {
-				_, _, err = svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: body, IsDraft: tc.draft}, nil)
+				_, _, err = svc.CreateEntry(context.Background(), f.journalID, f.userID, dto.CreateJournalEntryRequest{Body: body, IsDraft: tc.draft})
 			} else {
 				err = svc.UpdateEntry(context.Background(), f.entryID, f.userID, dto.UpdateJournalEntryRequest{Body: body})
 			}

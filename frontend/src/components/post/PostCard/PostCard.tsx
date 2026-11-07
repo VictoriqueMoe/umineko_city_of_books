@@ -7,9 +7,11 @@ import {
     useLikePost,
     useUnlikePost,
     useUpdatePost,
-    useUploadPostMedia,
+    useAttachPostMedia,
 } from "../../../hooks/mutations/post";
+import { useAttachWhenReady } from "../../../hooks/useAttachWhenReady";
 import { useAuth } from "../../../hooks/useAuth";
+import { useStagedMedia } from "../../../hooks/useStagedMedia";
 import { useResetOnChange } from "../../../hooks/useResetOnChange";
 import { usePostLikeEvents } from "../../../hooks/usePostEvents";
 import { contentPermissions } from "../../../domain/contentPermissions";
@@ -26,6 +28,7 @@ import { SharedContentCard } from "../SharedContentCard/SharedContentCard";
 import { ShareDialog } from "../ShareDialog/ShareDialog";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import { Button } from "../../Button/Button";
+import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
 import { CommentComposer } from "../CommentComposer/CommentComposer";
 import { siteUrl } from "../../../platform/siteOrigin";
 import styles from "./PostCard.module.css";
@@ -51,7 +54,6 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
     const [shareOpen, setShareOpen] = useState(false);
     const [replyOpen, setReplyOpen] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
-    const mediaInputRef = useRef<HTMLInputElement>(null);
 
     const pendingLikeRef = useRef(0);
 
@@ -77,8 +79,12 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
     const unlikeMutation = useUnlikePost();
     const deleteMutation = useDeletePost();
     const updateMutation = useUpdatePost(post.id);
-    const uploadMediaMutation = useUploadPostMedia(post.id);
+    const attachMediaMutation = useAttachPostMedia(post.id);
     const deleteMediaMutation = useDeletePostMedia(post.id);
+    const newMedia = useStagedMedia();
+    useAttachWhenReady(newMedia, attachMediaMutation.mutateAsync, attached => {
+        setEditMedia(prev => [...prev, attached]);
+    });
 
     const gifURL = useMemo(() => extractGif(displayBody), [displayBody]);
 
@@ -191,25 +197,16 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                             ))}
                         </div>
                     )}
+                    <MediaPreviews
+                        files={newMedia.files}
+                        onRemove={newMedia.remove}
+                        spoilers={newMedia.spoilers}
+                        onToggleSpoiler={newMedia.toggleSpoiler}
+                        progress={newMedia.progress}
+                        size="small"
+                    />
                     <div className={styles.editActions}>
-                        <input
-                            ref={mediaInputRef}
-                            type="file"
-                            accept="image/*,video/*,audio/*"
-                            hidden
-                            onChange={async e => {
-                                const file = e.target.files?.[0];
-                                if (!file) {
-                                    return;
-                                }
-                                e.target.value = "";
-                                const result = await uploadMediaMutation.mutateAsync({ file });
-                                setEditMedia(prev => [...prev, result]);
-                            }}
-                        />
-                        <Button variant="ghost" size="small" onClick={() => mediaInputRef.current?.click()}>
-                            + Media
-                        </Button>
+                        <MediaPickerButton onFiles={newMedia.add} />
                         <Button variant="ghost" size="small" onClick={() => setEditing(false)}>
                             Cancel
                         </Button>

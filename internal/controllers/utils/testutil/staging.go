@@ -16,12 +16,12 @@ func NewStaging(t *testing.T) upload.Service {
 	settingsSvc := settingssvc.NewMockService(t)
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingUploadDir).Return(t.TempDir()).Maybe()
 
-	return upload.NewService(settingsSvc, nil, nil)
+	return upload.NewService(settingsSvc, nil, nil, nil, nil)
 }
 
-func FileUploadOf(contentType string, filename string, isSpoiler bool) any {
+func FileUploadOf(contentType string, filename string) any {
 	return mock.MatchedBy(func(f upload.FileUpload) bool {
-		return f.ContentType == contentType && f.Filename == filename && f.IsSpoiler == isSpoiler && f.Size > 0
+		return f.ContentType == contentType && f.Filename == filename && f.Size > 0
 	})
 }
 

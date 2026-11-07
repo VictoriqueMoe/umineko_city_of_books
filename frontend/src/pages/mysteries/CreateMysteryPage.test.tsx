@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makePendingUpload } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { MysteryDetail } from "../../types/api";
 import { CreateMysteryPage } from "./CreateMysteryPage";
@@ -10,16 +11,18 @@ const {
     useCreateMystery,
     useUpdateMystery,
     useDeleteMysteryMedia,
-    useUploadMysteryAttachmentToAny,
-    useUploadMysteryMediaToAny,
+    useAttachMysteryFileToAny,
+    useAttachMysteryMediaToAny,
+    uploads,
     navigate,
 } = vi.hoisted(() => ({
     useMystery: vi.fn(),
     useCreateMystery: vi.fn(),
     useUpdateMystery: vi.fn(),
     useDeleteMysteryMedia: vi.fn(),
-    useUploadMysteryAttachmentToAny: vi.fn(),
-    useUploadMysteryMediaToAny: vi.fn(),
+    useAttachMysteryFileToAny: vi.fn(),
+    useAttachMysteryMediaToAny: vi.fn(),
+    uploads: { begin: vi.fn(), remove: vi.fn(), statuses: vi.fn() },
     navigate: vi.fn(),
 }));
 
@@ -28,9 +31,22 @@ vi.mock("../../hooks/mutations/mystery", () => ({
     useCreateMystery,
     useUpdateMystery,
     useDeleteMysteryMedia,
-    useUploadMysteryAttachmentToAny,
-    useUploadMysteryMediaToAny,
+    useAttachMysteryFileToAny,
+    useAttachMysteryMediaToAny,
 }));
+vi.mock("../../hooks/mutations/uploads", () => ({
+    useBeginUpload: () => ({ mutateAsync: uploads.begin }),
+    useRemoveUpload: () => ({ mutateAsync: uploads.remove }),
+    useUploadStatuses: () => ({ mutateAsync: uploads.statuses }),
+}));
+
+beforeEach(() => {
+    uploads.remove.mockResolvedValue(undefined);
+    uploads.statuses.mockResolvedValue([]);
+    uploads.begin.mockImplementation(({ file }: { file: File }) =>
+        Promise.resolve(makePendingUpload({ id: `upload-${file.name}`, filename: file.name })),
+    );
+});
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => navigate };
@@ -79,7 +95,7 @@ interface StubOptions {
     loading?: boolean;
     create?: () => Promise<{ id: string }>;
     update?: () => Promise<unknown>;
-    uploadAttachment?: () => Promise<unknown>;
+    attachFile?: () => Promise<unknown>;
     deleteMedia?: () => Promise<unknown>;
 }
 
@@ -92,15 +108,21 @@ function stubMystery(options: StubOptions = {}) {
     const createAsync = vi.fn(options.create ?? (() => Promise.resolve({ id: "mystery-9" })));
     const updateAsync = vi.fn(options.update ?? (() => Promise.resolve({})));
     const deleteMediaAsync = vi.fn(options.deleteMedia ?? (() => Promise.resolve({})));
-    const uploadAttachmentAsync = vi.fn(options.uploadAttachment ?? (() => Promise.resolve({})));
-    const uploadMediaAsync = vi.fn(() => Promise.resolve({}));
+    const attachFileAsync = vi.fn(options.attachFile ?? (() => Promise.resolve({})));
+    const attachMediaAsync = vi.fn(() => Promise.resolve({}));
     useCreateMystery.mockReturnValue({ mutateAsync: createAsync });
     useUpdateMystery.mockReturnValue({ mutateAsync: updateAsync });
     useDeleteMysteryMedia.mockReturnValue({ mutateAsync: deleteMediaAsync });
-    useUploadMysteryAttachmentToAny.mockReturnValue({ mutateAsync: uploadAttachmentAsync });
-    useUploadMysteryMediaToAny.mockReturnValue({ mutateAsync: uploadMediaAsync });
+    useAttachMysteryFileToAny.mockReturnValue({ mutateAsync: attachFileAsync });
+    useAttachMysteryMediaToAny.mockReturnValue({ mutateAsync: attachMediaAsync });
 
-    return { createAsync, updateAsync, deleteMediaAsync, uploadAttachmentAsync, uploadMediaAsync };
+    return { createAsync, updateAsync, deleteMediaAsync, attachFileAsync, attachMediaAsync };
+}
+
+async function attach(user: ReturnType<typeof userEvent.setup>, input: HTMLInputElement, file: File): Promise<void> {
+    await user.upload(input, file);
+    await waitFor(() => expect(screen.queryByRole("progressbar")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
 }
 
 function renderCreatePage() {
@@ -319,20 +341,18 @@ describe("CreateMysteryPage", () => {
         expect(navigate).not.toHaveBeenCalled();
     });
 
-    it("sends every image and attachment with the new mystery in a single request", async () => {
+    it("sends every finished image and attachment upload with the new mystery in a single request", async () => {
         // given
-        const { createAsync, uploadAttachmentAsync, uploadMediaAsync } = stubMystery({
+        const { createAsync, attachFileAsync, attachMediaAsync } = stubMystery({
             create: () => Promise.resolve({ id: "mystery-5" }),
         });
         const user = userEvent.setup();
         const { container } = renderCreatePage();
         await fillScenario(user);
         const inputs = container.querySelectorAll<HTMLInputElement>("input[type='file']");
-        const scene = makeFile("scene.png", "image/png");
-        const notes = makeFile("notes.txt", "text/plain", 2048);
-        await user.upload(inputs[0], scene);
+        await attach(user, inputs[0], makeFile("scene.png", "image/png"));
         await user.click(screen.getByRole("button", { name: "Mark as spoiler" }));
-        await user.upload(inputs[1], notes);
+        await attach(user, inputs[1], makeFile("notes.txt", "text/plain", 2048));
 
         // when
         await user.click(screen.getByRole("button", { name: "Present Mystery" }));
@@ -343,12 +363,29 @@ describe("CreateMysteryPage", () => {
         });
         expect(createAsync).toHaveBeenCalledWith(
             expect.objectContaining({
-                media: [{ file: scene, isSpoiler: true }],
-                attachments: [notes],
+                media: [{ upload_id: "upload-scene.png", is_spoiler: true }],
+                attachments: [{ upload_id: "upload-notes.txt", is_spoiler: false }],
             }),
         );
-        expect(uploadAttachmentAsync).not.toHaveBeenCalled();
-        expect(uploadMediaAsync).not.toHaveBeenCalled();
+        expect(attachFileAsync).not.toHaveBeenCalled();
+        expect(attachMediaAsync).not.toHaveBeenCalled();
+    });
+
+    it("shows each attachment's upload state and holds the mystery until it is ready", async () => {
+        // given an attachment upload the server has not answered yet
+        stubMystery();
+        uploads.begin.mockReturnValue(new Promise(() => {}));
+        const user = userEvent.setup();
+        const { container } = renderCreatePage();
+        await fillScenario(user);
+        const inputs = container.querySelectorAll<HTMLInputElement>("input[type='file']");
+
+        // when
+        await user.upload(inputs[1], makeFile("notes.txt", "text/plain", 2048));
+
+        // then
+        expect(screen.getByRole("status")).toHaveTextContent("Uploading 0%");
+        expect(screen.getByRole("button", { name: "Present Mystery" })).toBeDisabled();
     });
 
     it("keeps the whole form and shows the error when the new mystery and its files are refused", async () => {
@@ -358,9 +395,9 @@ describe("CreateMysteryPage", () => {
         const { container } = renderCreatePage();
         await fillScenario(user);
         const inputs = container.querySelectorAll<HTMLInputElement>("input[type='file']");
-        await user.upload(inputs[0], makeFile("scene.png", "image/png"));
+        await attach(user, inputs[0], makeFile("scene.png", "image/png"));
         await user.click(screen.getByRole("button", { name: "Mark as spoiler" }));
-        await user.upload(inputs[1], makeFile("notes.txt", "text/plain", 2048));
+        await attach(user, inputs[1], makeFile("notes.txt", "text/plain", 2048));
 
         // when
         await user.click(screen.getByRole("button", { name: "Present Mystery" }));
@@ -385,8 +422,7 @@ describe("CreateMysteryPage", () => {
         const { container } = renderCreatePage();
         await fillScenario(user);
         const inputs = container.querySelectorAll<HTMLInputElement>("input[type='file']");
-        const notes = makeFile("notes.txt", "text/plain", 2048);
-        await user.upload(inputs[1], notes);
+        await attach(user, inputs[1], makeFile("notes.txt", "text/plain", 2048));
         await user.click(screen.getByRole("button", { name: "Present Mystery" }));
         await screen.findByText("the disk is full");
 
@@ -399,24 +435,28 @@ describe("CreateMysteryPage", () => {
             expect(navigate).toHaveBeenCalledWith("/mystery/mystery-5");
         });
         expect(createAsync).toHaveBeenCalledTimes(2);
-        expect(createAsync).toHaveBeenLastCalledWith(expect.objectContaining({ media: [], attachments: [notes] }));
+        expect(createAsync).toHaveBeenLastCalledWith(
+            expect.objectContaining({ media: [], attachments: [{ upload_id: "upload-notes.txt", is_spoiler: false }] }),
+        );
     });
 
-    it("still uploads new attachments one by one against an existing mystery when it is edited", async () => {
+    it("attaches each finished upload to an existing mystery when it is edited", async () => {
         // given
-        const { uploadAttachmentAsync, createAsync } = stubMystery({ mystery: makeMysteryDetail() });
+        const { attachFileAsync, createAsync } = stubMystery({ mystery: makeMysteryDetail() });
         const user = userEvent.setup();
         const { container } = renderEditPage();
         const inputs = container.querySelectorAll<HTMLInputElement>("input[type='file']");
-        const notes = makeFile("notes.txt", "text/plain", 2048);
-        await user.upload(inputs[1], notes);
+        await attach(user, inputs[1], makeFile("notes.txt", "text/plain", 2048));
 
         // when
         await user.click(screen.getByRole("button", { name: "Save Changes" }));
 
         // then
         await waitFor(() => {
-            expect(uploadAttachmentAsync).toHaveBeenCalledWith({ mysteryId: "mystery-1", file: notes });
+            expect(attachFileAsync).toHaveBeenCalledWith({
+                mysteryId: "mystery-1",
+                attachment: { upload_id: "upload-notes.txt" },
+            });
         });
         expect(createAsync).not.toHaveBeenCalled();
     });
@@ -429,13 +469,14 @@ describe("CreateMysteryPage", () => {
         const inputs = container.querySelectorAll<HTMLInputElement>("input[type='file']");
 
         // when
-        await user.upload(inputs[1], makeFile("notes.txt", "text/plain", 2048));
+        await attach(user, inputs[1], makeFile("notes.txt", "text/plain", 2048));
 
         // then
         expect(screen.getByText("notes.txt")).toBeInTheDocument();
         expect(screen.getByText("2.0 KB")).toBeInTheDocument();
         await user.click(screen.getByRole("button", { name: "×" }));
         expect(screen.queryByText("notes.txt")).not.toBeInTheDocument();
+        expect(uploads.remove).toHaveBeenCalledExactlyOnceWith("upload-notes.txt");
     });
 
     it("returns to the mystery list when the composer is abandoned", async () => {

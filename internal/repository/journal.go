@@ -17,7 +17,8 @@ type (
 	JournalRepository interface {
 		dao.JournalDAO
 
-		CreateEntryWithMedia(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx) (*model.JournalEntryRow, []int64, error)
+		CreateEntryWithMedia(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx) (*model.JournalEntryRow, error)
+		AttachEntryMedia(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx) (*model.PostMediaRow, error)
 		DeleteWithMedia(ctx context.Context, s spec.JournalDeletion, tx ...*sql.Tx) ([]string, error)
 		DeleteEntryWithMedia(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) ([]string, error)
 	}
@@ -27,10 +28,11 @@ type journalRepository struct {
 	db *sql.DB
 	dao.JournalDAO
 	comments dao.CommentDAO
+	pending  dao.PendingUploadDAO
 }
 
-func NewJournalRepo(database *sql.DB, journalDAO dao.JournalDAO, comments dao.CommentDAO) JournalRepository {
-	return &journalRepository{db: database, JournalDAO: journalDAO, comments: comments}
+func NewJournalRepo(database *sql.DB, journalDAO dao.JournalDAO, comments dao.CommentDAO, pending dao.PendingUploadDAO) JournalRepository {
+	return &journalRepository{db: database, JournalDAO: journalDAO, comments: comments, pending: pending}
 }
 
 func (r *journalRepository) DeleteWithMedia(ctx context.Context, s spec.JournalDeletion, tx ...*sql.Tx) ([]string, error) {
@@ -80,11 +82,8 @@ func (r *journalRepository) DeleteWithMedia(ctx context.Context, s spec.JournalD
 	return paths, nil
 }
 
-func (r *journalRepository) CreateEntryWithMedia(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx) (*model.JournalEntryRow, []int64, error) {
-	var (
-		created  *model.JournalEntryRow
-		mediaIDs []int64
-	)
+func (r *journalRepository) CreateEntryWithMedia(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx) (*model.JournalEntryRow, error) {
+	var created *model.JournalEntryRow
 
 	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
@@ -94,18 +93,38 @@ func (r *journalRepository) CreateEntryWithMedia(ctx context.Context, s spec.New
 			return err
 		}
 
-		mediaIDs, err = addMediaRows(ctx, r.JournalDAO.AddMedia, created.ID, s.Media, tx)
+		rows, err := claimMediaRows(ctx, r.pending, s.Media, tx)
 		if err != nil {
+			return err
+		}
+
+		if _, err := addMediaRows(ctx, r.JournalDAO.AddMedia, created.ID, rows, tx); err != nil {
 			return err
 		}
 
 		return r.JournalDAO.UpdateLastAuthorActivity(ctx, s.JournalID, tx)
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return created, mediaIDs, nil
+	return created, nil
+}
+
+func (r *journalRepository) AttachEntryMedia(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx) (*model.PostMediaRow, error) {
+	var attached *model.PostMediaRow
+
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
+		var err error
+		attached, err = attachMedia(ctx, r.pending, r.JournalDAO.AddMedia, s, tx)
+
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return attached, nil
 }
 
 func (r *journalRepository) UpdateEntry(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx) (bool, error) {

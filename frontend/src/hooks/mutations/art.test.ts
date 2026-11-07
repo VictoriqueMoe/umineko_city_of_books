@@ -287,7 +287,7 @@ describe("art comment mutations", () => {
     it("sends the staged media with the comment in the same request", async () => {
         // given
         const { qc } = client();
-        const media = [{ file: new File(["gif"], "reaction.gif", { type: "image/gif" }), isSpoiler: false }];
+        const media = [{ upload_id: "upload-1", is_spoiler: false }];
 
         // when
         await runMutation(() => useCreateArtComment(artId), { body: "look", media }, qc);

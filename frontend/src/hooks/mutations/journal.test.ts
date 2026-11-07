@@ -20,7 +20,7 @@ import {
     useUpdateJournal,
     useUpdateJournalComment,
     useUpdateJournalEntry,
-    useUploadJournalEntryMedia,
+    useAttachJournalEntryMedia,
 } from "./journal";
 
 const mocks = vi.hoisted(() => ({
@@ -35,7 +35,7 @@ const mocks = vi.hoisted(() => ({
     unfollowJournal: vi.fn(),
     updateJournal: vi.fn(),
     updateJournalEntry: vi.fn(),
-    uploadJournalEntryMedia: vi.fn(),
+    attachJournalEntryMedia: vi.fn(),
 }));
 
 const commentMocks = vi.hoisted(() => ({
@@ -61,10 +61,6 @@ function harness() {
     const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
 
     return { invalidateQueries, queryClient, wrapper: providerWrapper({ queryClient }) };
-}
-
-function makeFile() {
-    return new File(["gold"], "butterfly.png", { type: "image/png" });
 }
 
 function makeDetail(overrides: Partial<JournalDetail> = {}): JournalDetail {
@@ -375,7 +371,7 @@ describe("useCreateJournalComment", () => {
     it("sends the staged media with the entry comment in the same request", async () => {
         // given
         const { wrapper } = harness();
-        const media = [{ file: makeFile(), isSpoiler: true }];
+        const media = [{ upload_id: "upload-1", is_spoiler: true }];
         const { result } = renderHook(() => useCreateJournalComment(journalId, entryId), { wrapper });
 
         // when
@@ -430,7 +426,7 @@ describe("useCreateJournalEntry", () => {
         // given
         const { wrapper } = harness();
         mocks.createJournalEntry.mockResolvedValue({ id: entryId, entry_number: 2 });
-        const media = [{ file: makeFile(), isSpoiler: false }];
+        const media = [{ upload_id: "upload-1", is_spoiler: false }];
         const { result } = renderHook(() => useCreateJournalEntry(journalId), { wrapper });
 
         // when
@@ -561,20 +557,20 @@ describe("useUnlikeJournalComment", () => {
     });
 });
 
-describe("useUploadJournalEntryMedia", () => {
-    it("uploads the file against the entry it was given", async () => {
+describe("useAttachJournalEntryMedia", () => {
+    it("attaches the finished upload to the entry it was given", async () => {
         // given
         const { wrapper, invalidateQueries } = harness();
-        const file = makeFile();
-        const { result } = renderHook(() => useUploadJournalEntryMedia(journalId), { wrapper });
+        const media = { upload_id: "upload-1", is_spoiler: false };
+        const { result } = renderHook(() => useAttachJournalEntryMedia(journalId), { wrapper });
 
         // when
         await act(async () => {
-            await result.current.mutateAsync({ entryId, file });
+            await result.current.mutateAsync({ entryId, media });
         });
 
         // then
-        expect(mocks.uploadJournalEntryMedia).toHaveBeenCalledWith(entryId, file, false);
+        expect(mocks.attachJournalEntryMedia).toHaveBeenCalledWith(entryId, media);
         expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: journalKey });
     });
 });

@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -176,7 +177,7 @@ func TestSendDMMessage_Rejections(t *testing.T) {
 			}
 
 			// when
-			got, err := svc.SendDMMessage(context.Background(), senderID, recipientID, dto.SendDMRequest{Body: tc.body, ClientNonce: tc.nonce}, nil)
+			got, err := svc.SendDMMessage(context.Background(), senderID, recipientID, dto.SendDMRequest{Body: tc.body, ClientNonce: tc.nonce})
 
 			// then
 			require.ErrorIs(t, err, tc.wantErr)
@@ -198,7 +199,7 @@ func TestSendDMMessage_FirstEverDMJoinsBothPartiesToTheHub(t *testing.T) {
 	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: senderID}).Return(false, "", false, nil)
 	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, roomID).Return(nil, nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{senderID, recipientID}, nil)
-	m.chatRepo.EXPECT().InsertMessageAndMarkRead(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: "hi"}).Return(&model.ChatMessageRow{ID: uuid.New(), RoomID: roomID, SenderID: senderID, Body: "hi"}, nil, nil)
+	m.chatRepo.EXPECT().InsertMessageAndMarkRead(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: "hi", Media: upload.MediaClaim(senderID, nil)}).Return(&model.ChatMessageRow{ID: uuid.New(), RoomID: roomID, SenderID: senderID, Body: "hi"}, nil, nil)
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return(nil, nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, senderID).Return(nil, nil)
 	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&model.ChatRoomSendContext{Type: "dm"}, nil)
@@ -212,7 +213,7 @@ func TestSendDMMessage_FirstEverDMJoinsBothPartiesToTheHub(t *testing.T) {
 	require.False(t, m.hub.IsUserInRoom(roomID, recipientID), "the room cannot be in the hub before it exists")
 
 	// when
-	got, err := svc.SendDMMessage(context.Background(), senderID, recipientID, dto.SendDMRequest{Body: "hi"}, nil)
+	got, err := svc.SendDMMessage(context.Background(), senderID, recipientID, dto.SendDMRequest{Body: "hi"})
 	svc.sideEffectsWG.Wait()
 
 	// then
@@ -240,7 +241,7 @@ func TestSendDMMessage_CarriesTheClientNonceIntoTheStoredMessage(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: roomID, ViewerID: senderID}).Return(&model.ChatRoomRow{ID: roomID, Type: "dm"}, nil)
 
 	// when
-	got, err := svc.SendDMMessage(context.Background(), senderID, recipientID, dto.SendDMRequest{Body: "hi", ClientNonce: nonce}, nil)
+	got, err := svc.SendDMMessage(context.Background(), senderID, recipientID, dto.SendDMRequest{Body: "hi", ClientNonce: nonce})
 	svc.sideEffectsWG.Wait()
 
 	// then
@@ -273,7 +274,7 @@ func TestSendDMMessage_RetryWithTheSameClientNonceAnswersWithTheStoredMessageAnd
 		&model.ChatRoomSendContext{Type: dto.RoomTypeDM, LastMessageAt: sql.NullString{String: stored.CreatedAt, Valid: true}})
 	m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(sampleUser(senderID), nil)
 	m.chatRepo.EXPECT().
-		InsertMessageAndMarkRead(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: "hi", ClientNonce: nonce}).
+		InsertMessageAndMarkRead(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: senderID, Body: "hi", ClientNonce: nonce, Media: upload.MediaClaim(senderID, nil)}).
 		Return(nil, nil, fmt.Errorf("insert message: %w", &daoerr.ChatMessageReplayError{Existing: stored}))
 	m.chatRepo.EXPECT().GetMessageMediaBatch(mock.Anything, []uuid.UUID{storedID}).Return(nil, nil)
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return(nil, nil)
@@ -282,7 +283,7 @@ func TestSendDMMessage_RetryWithTheSameClientNonceAnswersWithTheStoredMessageAnd
 	m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{senderID, recipientID}).Return([]model.User{*sampleUser(senderID), *sampleUser(recipientID)}, nil).Once()
 
 	// when the client retries the first DM
-	got, err := svc.SendDMMessage(context.Background(), senderID, recipientID, dto.SendDMRequest{Body: "hi", ClientNonce: nonce}, nil)
+	got, err := svc.SendDMMessage(context.Background(), senderID, recipientID, dto.SendDMRequest{Body: "hi", ClientNonce: nonce})
 	svc.sideEffectsWG.Wait()
 
 	// then the same room and stored message come back, and nothing is sent again

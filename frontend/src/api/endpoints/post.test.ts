@@ -1,10 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, vi } from "vitest";
 import * as api from "./post";
 import {
     deleteMock,
     fetchMock,
-    lastFormData,
-    postFormDataMock,
     postMock,
     putMock,
     resetTransports,
@@ -90,50 +88,32 @@ describe("the post API", () => {
     runRequestCases(cases);
 });
 
-describe("post media uploads", () => {
-    it("uploadPostMedia posts the file under the media field of the post", async () => {
-        // given
-        const file = new File(["x"], "post.png", { type: "image/png" });
+describe("post media", () => {
+    const media = [
+        { upload_id: "upload-1", is_spoiler: true },
+        { upload_id: "upload-2", is_spoiler: false },
+    ];
 
-        // when
-        await api.uploadPostMedia("p-1", file);
+    const cases: RequestCase[] = [
+        {
+            name: "attachPostMedia posts the finished upload with its spoiler flag to the post",
+            call: () => api.attachPostMedia("p-1", media[0]),
+            transport: postMock,
+            request: ["/posts/p-1/media", media[0]],
+        },
+        {
+            name: "createPost sends the post and its finished uploads in display order in one JSON request",
+            call: () => api.createPost("look", "umineko", undefined, undefined, undefined, media),
+            transport: postMock,
+            request: ["/posts", expect.objectContaining({ body: "look", corner: "umineko", media })],
+        },
+        {
+            name: "createPost sends an empty media list when nothing is attached",
+            call: () => api.createPost("words only"),
+            transport: postMock,
+            request: ["/posts", expect.objectContaining({ body: "words only", corner: "general", media: [] })],
+        },
+    ];
 
-        // then
-        expect(postFormDataMock.mock.calls[0][0]).toBe("/posts/p-1/media");
-        expect(postFormDataMock.mock.calls[0][1].get("media")).toBe(file);
-    });
-});
-
-describe("creating a post with media", () => {
-    it("createPost sends the post and every file in one multipart request", async () => {
-        // given
-        const first = new File(["x"], "first.png", { type: "image/png" });
-        const second = new File(["y"], "second.png", { type: "image/png" });
-
-        // when
-        await api.createPost("look", "umineko", undefined, undefined, undefined, [
-            { file: first, isSpoiler: true },
-            { file: second, isSpoiler: false },
-        ]);
-
-        // then
-        expect(postMock).not.toHaveBeenCalled();
-        expect(postFormDataMock.mock.calls[0][0]).toBe("/posts");
-        const formData = lastFormData();
-        expect(JSON.parse(formData.get("payload") as string)).toEqual({ body: "look", corner: "umineko" });
-        expect(formData.getAll("media")).toEqual([first, second]);
-        expect(formData.get("spoiler_indexes")).toBe("0");
-    });
-
-    it("createPost keeps the JSON body when no file is staged", async () => {
-        // when
-        await api.createPost("words only", "general", undefined, undefined, undefined, []);
-
-        // then
-        expect(postFormDataMock).not.toHaveBeenCalled();
-        expect(postMock).toHaveBeenCalledWith(
-            "/posts",
-            expect.objectContaining({ body: "words only", corner: "general" }),
-        );
-    });
+    runRequestCases(cases);
 });

@@ -6,14 +6,14 @@ import {
     unlikeAnnouncementComment,
     updateAnnouncementComment,
 } from "../../api/endpoints/comments";
-import type { MediaUpload } from "../../types/api";
+import type { UploadRef } from "../../types/api";
 import { invalidateViews } from "../../api/cache/invalidate";
 import { commentMutations } from "./comments";
 
 export function useCreateAnnouncementComment(announcementId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly MediaUpload[] }) =>
+        mutationFn: ({ body, parentId, media }: { body: string; parentId?: string; media?: readonly UploadRef[] }) =>
             createAnnouncementComment(announcementId, body, parentId, media),
         onSuccess: () => invalidateViews(qc, "announcement"),
     });

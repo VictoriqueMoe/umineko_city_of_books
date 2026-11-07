@@ -99,10 +99,6 @@ func (fanficCommentQuerier) AuthorID(ctx context.Context, q *sqlcgen.Queries, id
 	return q.GetFanficCommentAuthorID(ctx, id)
 }
 
-func (fanficCommentQuerier) MediaDir() string {
-	return "fanfics"
-}
-
 func (fanficCommentQuerier) Owner(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) (uuid.UUID, error) {
 	return q.GetFanficCommentTargetOwner(ctx, target.ID)
 }
@@ -153,14 +149,6 @@ func (fanficCommentQuerier) MediaBatch(ctx context.Context, q *sqlcgen.Queries, 
 	}
 
 	return out, nil
-}
-
-func (fanficCommentQuerier) SetMediaURL(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.UpdateFanficCommentMediaURL(ctx, sqlcgen.UpdateFanficCommentMediaURLParams{MediaUrl: s.URL, ID: s.ID})
-}
-
-func (fanficCommentQuerier) SetMediaThumbnail(ctx context.Context, q *sqlcgen.Queries, s spec.MediaURLUpdate) (int64, error) {
-	return q.UpdateFanficCommentMediaThumbnail(ctx, sqlcgen.UpdateFanficCommentMediaThumbnailParams{ThumbnailUrl: s.URL, ID: s.ID})
 }
 
 func (fanficCommentQuerier) Paths(ctx context.Context, q *sqlcgen.Queries, target spec.CommentTarget) ([]string, error) {

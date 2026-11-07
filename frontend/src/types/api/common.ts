@@ -46,10 +46,23 @@ export interface PostMedia {
     is_spoiler?: boolean;
 }
 
-export interface MediaUpload {
-    file: File;
-    isSpoiler: boolean;
-}
+export type UploadRef = {
+    upload_id: string;
+    is_spoiler?: boolean;
+};
+
+export type PendingUploadStatus = "processing" | "ready" | "failed";
+
+export type PendingUpload = {
+    id: string;
+    media_type: string;
+    filename: string;
+    status: PendingUploadStatus;
+    media_url?: string;
+    thumbnail_url?: string;
+};
+
+export type UploadKind = "media" | "document";
 
 export type LinkPreviewType = "" | "link" | "youtube" | "image" | "video";
 

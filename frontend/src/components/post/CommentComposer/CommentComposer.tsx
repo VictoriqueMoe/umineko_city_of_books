@@ -3,6 +3,7 @@ import { useCreateComment } from "../../../hooks/mutations/post";
 import type { CreateCommentHandler } from "../../../hooks/useCommentHandlers";
 import { useResetOnChange } from "../../../hooks/useResetOnChange";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
+import { useWarnBeforeLeaving } from "../../../hooks/useWarnBeforeLeaving";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { Button } from "../../Button/Button";
 import { GifPicker } from "../../chat/GifPicker/GifPicker";
@@ -11,12 +12,12 @@ import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker"
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import styles from "./CommentComposer.module.css";
 
-interface CommentComposerProps {
+type CommentComposerProps = {
     postId: string;
     parentId?: string;
     onCreated: () => void;
     createCommentFn?: CreateCommentHandler;
-}
+};
 
 export function CommentComposer({ postId, parentId, onCreated, createCommentFn }: CommentComposerProps) {
     const siteInfo = useSiteInfo();
@@ -26,6 +27,7 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn }
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [gifPickerOpen, setGifPickerOpen] = useState(false);
+    useWarnBeforeLeaving(media.busy);
 
     useResetOnChange(postId, () => {
         setBody("");
@@ -36,8 +38,9 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn }
     });
 
     const createCommentMutation = useCreateComment(postId);
-    const defaultCreate: CreateCommentHandler = (_postId, b, parent, staged) =>
-        createCommentMutation.mutateAsync({ body: b, parentId: parent, media: staged });
+    const defaultCreate: CreateCommentHandler = (_postId, b, parent, refs) =>
+        createCommentMutation.mutateAsync({ body: b, parentId: parent, media: refs });
+    const canComment = !submitting && media.ready && (body.trim() !== "" || media.files.length > 0);
 
     const handlePasteFiles = useCallback(
         (pasted: File[]) => {
@@ -85,14 +88,14 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn }
     }
 
     async function handleSubmit() {
-        if ((!body.trim() && media.files.length === 0) || submitting) {
+        if (!canComment) {
             return;
         }
         setSubmitting(true);
         setError("");
         try {
             const doCreate = createCommentFn || defaultCreate;
-            await doCreate(postId, body.trim(), parentId, media.staged);
+            await doCreate(postId, body.trim(), parentId, media.refs);
 
             setBody("");
             media.reset();
@@ -123,6 +126,7 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn }
                 onReorder={media.reorder}
                 spoilers={media.spoilers}
                 onToggleSpoiler={media.toggleSpoiler}
+                progress={media.progress}
                 size="small"
             />
 
@@ -139,12 +143,7 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn }
                     </Button>
                     {gifPickerOpen && <GifPicker onPick={handleGifPick} onClose={() => setGifPickerOpen(false)} />}
                 </div>
-                <Button
-                    variant="primary"
-                    size="small"
-                    onClick={handleSubmit}
-                    disabled={submitting || (!body.trim() && media.files.length === 0)}
-                >
+                <Button variant="primary" size="small" onClick={handleSubmit} disabled={!canComment}>
                     {submitting ? "..." : parentId ? "Reply" : "Comment"}
                 </Button>
             </div>

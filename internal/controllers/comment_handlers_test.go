@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -21,9 +20,7 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/comment"
 	"umineko_city_of_books/internal/contentfilter"
-	ctrlutils "umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
@@ -173,21 +170,17 @@ func declaredCommentKinds(t *testing.T) []spec.CommentKind {
 }
 
 func TestCommentRoutes_EveryDeclaredCommentKindIsWired(t *testing.T) {
-	// given every CommentKind constant in spec, the DAO's registry and the route table
+	// given every CommentKind constant in spec and the route table
 	routed := make(map[spec.CommentKind]bool, len(commentRoutes))
 	for _, route := range commentRoutes {
 		routed[route.kind] = true
 	}
-	comments := dao.NewComments(nil)
 
 	for _, kind := range declaredCommentKinds(t) {
 		t.Run(string(kind), func(t *testing.T) {
-			// when
-			_, err := comments.GetCommentMediaDir(kind)
+			// when the kind is looked up in the route table
 
 			// then
-			require.NoError(t, err, "register a querier for this kind in dao.NewComments")
-
 			if kind == spec.CommentKindJournalEntry {
 				assert.True(t, routed[spec.CommentKindJournal], "journal entry comments share the journal_comments table, so the journal routes reach them")
 
@@ -321,7 +314,7 @@ func TestCreateComment_OwnedRoutesCreateOnTheirOwnKind(t *testing.T) {
 			entityID := uuid.New()
 			newID := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
-			deps.svc.EXPECT().Create(mock.Anything, spec.CommentTarget{Kind: route.kind, ID: entityID}, userID, dto.CreateCommentRequest{Body: "hello"}, []upload.FileUpload(nil)).Return(newID, nil).Once()
+			deps.svc.EXPECT().Create(mock.Anything, spec.CommentTarget{Kind: route.kind, ID: entityID}, userID, dto.CreateCommentRequest{Body: "hello"}).Return(newID, nil).Once()
 
 			// when
 			status, body := h.NewRequest("POST", strings.Replace(route.createPath, ":id", entityID.String(), 1)).
@@ -337,33 +330,25 @@ func TestCreateComment_OwnedRoutesCreateOnTheirOwnKind(t *testing.T) {
 	}
 }
 
-func TestCreateComment_MultipartCarriesThePayloadAndFiles(t *testing.T) {
-	// given
+func TestCreateComment_CarriesItsUploadRefsToTheService(t *testing.T) {
+	// given a reply carrying one finished upload marked as a spoiler
 	h, deps := newCommentHarness(t)
 	userID := uuid.New()
 	artID := uuid.New()
 	parentID := uuid.New()
 	newID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-
-	payload, err := json.Marshal(dto.CreateCommentRequest{ParentID: &parentID})
-	require.NoError(t, err)
-	form, contentType := testutil.MediaForm(t, ctrlutils.MediaField, map[string]string{
-		ctrlutils.PayloadField:        string(payload),
-		ctrlutils.SpoilerIndexesField: "0",
-	})
+	req := dto.CreateCommentRequest{ParentID: &parentID, Media: []dto.UploadRef{{ID: uuid.New(), IsSpoiler: true}}}
 
 	deps.svc.EXPECT().
-		Create(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindArt, ID: artID}, userID, dto.CreateCommentRequest{ParentID: &parentID}, mock.MatchedBy(func(files []upload.FileUpload) bool {
-			return len(files) == 1 && files[0].Filename == "pic.png" && files[0].ContentType == "image/png" && files[0].IsSpoiler
-		})).
+		Create(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindArt, ID: artID}, userID, req).
 		Return(newID, nil).
 		Once()
 
 	// when
 	status, body := h.NewRequest("POST", "/art/"+artID.String()+"/comments").
 		WithCookie("valid-cookie").
-		WithRawBody(form, contentType).
+		WithJSONBody(req).
 		Do()
 
 	// then
@@ -404,53 +389,6 @@ func TestCommentRoutes_MalformedBodiesAreRefusedBeforeTheService(t *testing.T) {
 	}
 }
 
-func TestCreateComment_MalformedMultipartIsRefusedBeforeTheService(t *testing.T) {
-	cases := []struct {
-		name     string
-		values   map[string]string
-		wantBody string
-	}{
-		{name: "a malformed payload", values: map[string]string{ctrlutils.PayloadField: "not json"}, wantBody: "invalid request body"},
-		{name: "malformed spoiler indexes", values: map[string]string{ctrlutils.PayloadField: `{"body":"hi"}`, ctrlutils.SpoilerIndexesField: "first"}, wantBody: "invalid spoiler_indexes"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given a strict service mock that expects nothing
-			h, _ := newCommentHarness(t)
-			h.ExpectValidSession("valid-cookie", uuid.New())
-			form, contentType := testutil.MediaForm(t, ctrlutils.MediaField, tc.values)
-
-			// when
-			status, body := h.NewRequest("POST", "/announcements/"+uuid.NewString()+"/comments").
-				WithCookie("valid-cookie").
-				WithRawBody(form, contentType).
-				Do()
-
-			// then
-			require.Equal(t, http.StatusBadRequest, status)
-			assert.Contains(t, string(body), tc.wantBody)
-		})
-	}
-}
-
-func TestCreateComment_NewAccountsCannotAttachFiles(t *testing.T) {
-	// given a strict service mock that expects nothing
-	h, _ := newCommentHarness(t)
-	expectNewAccountSession(h, "new-cookie", uuid.New())
-	form, contentType := testutil.MediaForm(t, ctrlutils.MediaField, map[string]string{ctrlutils.PayloadField: `{"body":"hi"}`})
-
-	// when
-	status, body := h.NewRequest("POST", "/ships/"+uuid.NewString()+"/comments").
-		WithCookie("new-cookie").
-		WithRawBody(form, contentType).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusForbidden, status)
-	assert.Contains(t, string(body), "new accounts cannot post attachments")
-}
-
 func TestCreateComment_ServiceErrorsMapToResponses(t *testing.T) {
 	cases := slices.Concat(commentErrorCases, []commentErrorCase{{
 		name:     "a server failure is not echoed back",
@@ -466,7 +404,7 @@ func TestCreateComment_ServiceErrorsMapToResponses(t *testing.T) {
 			userID := uuid.New()
 			ocID := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
-			deps.svc.EXPECT().Create(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindOC, ID: ocID}, userID, dto.CreateCommentRequest{Body: "hi"}, []upload.FileUpload(nil)).Return(uuid.Nil, tc.err).Once()
+			deps.svc.EXPECT().Create(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindOC, ID: ocID}, userID, dto.CreateCommentRequest{Body: "hi"}).Return(uuid.Nil, tc.err).Once()
 
 			// when
 			status, body := h.NewRequest("POST", "/ocs/"+ocID.String()+"/comments").
@@ -481,57 +419,35 @@ func TestCreateComment_ServiceErrorsMapToResponses(t *testing.T) {
 	}
 }
 
-func TestUploadCommentMedia_EveryKindReachesTheServiceWithItsOwnKind(t *testing.T) {
+func TestAttachCommentMedia_EveryKindReachesTheServiceWithItsOwnKind(t *testing.T) {
 	for _, route := range commentRoutes {
 		t.Run(string(route.kind), func(t *testing.T) {
-			// given
+			// given a finished upload marked as a spoiler
 			h, deps := newCommentHarness(t)
 			userID := uuid.New()
 			commentID := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
-			form, contentType := testutil.MediaForm(t, "media", nil)
+			media := dto.UploadRef{ID: uuid.New(), IsSpoiler: true}
 			deps.svc.EXPECT().
-				UploadMedia(mock.Anything, spec.CommentRef{Kind: route.kind, CommentID: commentID}, userID, testutil.FileUploadOf("image/png", "pic.png", false)).
-				Return(&dto.PostMediaResponse{ID: 7, MediaURL: "/uploads/pic.webp", MediaType: "image", SortOrder: 2}, nil).
+				AttachMedia(mock.Anything, spec.CommentRef{Kind: route.kind, CommentID: commentID}, userID, media).
+				Return(&dto.PostMediaResponse{ID: 7, MediaURL: "/uploads/media/pic.webp", MediaType: "image", SortOrder: 2, IsSpoiler: true}, nil).
 				Once()
 
 			// when
 			status, body := h.NewRequest("POST", route.path+"/"+commentID.String()+"/media").
 				WithCookie("valid-cookie").
-				WithRawBody(form, contentType).
+				WithJSONBody(media).
 				Do()
 
 			// then
 			require.Equal(t, http.StatusCreated, status)
 			got := testutil.UnmarshalJSON[dto.PostMediaResponse](t, body)
-			assert.Equal(t, dto.PostMediaResponse{ID: 7, MediaURL: "/uploads/pic.webp", MediaType: "image", SortOrder: 2}, got)
+			assert.Equal(t, dto.PostMediaResponse{ID: 7, MediaURL: "/uploads/media/pic.webp", MediaType: "image", SortOrder: 2, IsSpoiler: true}, got)
 		})
 	}
 }
 
-func TestUploadCommentMedia_TheSpoilerFlagReachesTheService(t *testing.T) {
-	// given
-	h, deps := newCommentHarness(t)
-	userID := uuid.New()
-	commentID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-	form, contentType := testutil.MediaForm(t, "media", map[string]string{"is_spoiler": "true"})
-	deps.svc.EXPECT().
-		UploadMedia(mock.Anything, spec.CommentRef{Kind: spec.CommentKindMystery, CommentID: commentID}, userID, testutil.FileUploadOf("image/png", "pic.png", true)).
-		Return(&dto.PostMediaResponse{ID: 1, IsSpoiler: true}, nil).
-		Once()
-
-	// when
-	status, _ := h.NewRequest("POST", "/mystery-comments/"+commentID.String()+"/media").
-		WithCookie("valid-cookie").
-		WithRawBody(form, contentType).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusCreated, status)
-}
-
-func TestUploadCommentMedia_AMissingFileIsABadRequest(t *testing.T) {
+func TestAttachCommentMedia_AMalformedBodyIsABadRequest(t *testing.T) {
 	// given a strict service mock that expects nothing
 	h, _ := newCommentHarness(t)
 	h.ExpectValidSession("valid-cookie", uuid.New())
@@ -539,38 +455,29 @@ func TestUploadCommentMedia_AMissingFileIsABadRequest(t *testing.T) {
 	// when
 	status, body := h.NewRequest("POST", "/fanfic-comments/"+uuid.NewString()+"/media").
 		WithCookie("valid-cookie").
-		WithRawBody("", "multipart/form-data; boundary=----xxx").
+		WithRawBody("not json", "application/json").
 		Do()
 
 	// then
 	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "no file provided")
+	assert.Contains(t, string(body), "invalid request body")
 }
 
-func TestUploadCommentMedia_NewAccountsCannotUpload(t *testing.T) {
-	// given a strict service mock that expects nothing
-	h, _ := newCommentHarness(t)
-	expectNewAccountSession(h, "new-cookie", uuid.New())
-	form, contentType := testutil.MediaForm(t, "media", nil)
-
-	// when
-	status, body := h.NewRequest("POST", "/journal-comments/"+uuid.NewString()+"/media").
-		WithCookie("new-cookie").
-		WithRawBody(form, contentType).
-		Do()
-
-	// then
-	require.Equal(t, http.StatusForbidden, status)
-	assert.Contains(t, string(body), "new accounts cannot post attachments")
-}
-
-func TestUploadCommentMedia_ServiceErrorsMapToResponses(t *testing.T) {
-	cases := slices.Concat(commentErrorCases, []commentErrorCase{{
-		name:     "a server failure is not echoed back",
-		err:      errors.New("pq: connection refused"),
-		wantCode: http.StatusInternalServerError,
-		wantBody: `{"error":"failed to upload media"}`,
-	}})
+func TestAttachCommentMedia_ServiceErrorsMapToResponses(t *testing.T) {
+	cases := slices.Concat(commentErrorCases, []commentErrorCase{
+		{
+			name:     "an upload that is not ready is a bad request",
+			err:      daoerr.ErrUploadUnavailable,
+			wantCode: http.StatusBadRequest,
+			wantBody: daoerr.ErrUploadUnavailable.Error(),
+		},
+		{
+			name:     "a server failure is not echoed back",
+			err:      errors.New("pq: connection refused"),
+			wantCode: http.StatusInternalServerError,
+			wantBody: `{"error":"failed to attach media"}`,
+		},
+	})
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -579,16 +486,16 @@ func TestUploadCommentMedia_ServiceErrorsMapToResponses(t *testing.T) {
 			userID := uuid.New()
 			commentID := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
-			form, contentType := testutil.MediaForm(t, "media", nil)
+			media := dto.UploadRef{ID: uuid.New()}
 			deps.svc.EXPECT().
-				UploadMedia(mock.Anything, spec.CommentRef{Kind: spec.CommentKindSecret, CommentID: commentID}, userID, testutil.FileUploadOf("image/png", "pic.png", false)).
+				AttachMedia(mock.Anything, spec.CommentRef{Kind: spec.CommentKindSecret, CommentID: commentID}, userID, media).
 				Return(nil, tc.err).
 				Once()
 
 			// when
 			status, body := h.NewRequest("POST", "/secret-comments/"+commentID.String()+"/media").
 				WithCookie("valid-cookie").
-				WithRawBody(form, contentType).
+				WithJSONBody(media).
 				Do()
 
 			// then

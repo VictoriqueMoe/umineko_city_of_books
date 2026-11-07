@@ -103,6 +103,49 @@ func (ns NullChatbotInvocationStatus) Value() (driver.Value, error) {
 	return string(ns.ChatbotInvocationStatus), nil
 }
 
+type PendingUploadStatus string
+
+const (
+	PendingUploadStatusProcessing PendingUploadStatus = "processing"
+	PendingUploadStatusReady      PendingUploadStatus = "ready"
+	PendingUploadStatusFailed     PendingUploadStatus = "failed"
+)
+
+func (e *PendingUploadStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PendingUploadStatus(s)
+	case string:
+		*e = PendingUploadStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PendingUploadStatus: %T", src)
+	}
+	return nil
+}
+
+type NullPendingUploadStatus struct {
+	PendingUploadStatus PendingUploadStatus
+	Valid               bool // Valid is true if PendingUploadStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPendingUploadStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.PendingUploadStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PendingUploadStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPendingUploadStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PendingUploadStatus), nil
+}
+
 type StorageBackend string
 
 const (
@@ -1010,6 +1053,20 @@ type PasswordResetToken struct {
 	ExpiresAt time.Time
 	UsedAt    sql.NullTime
 	CreatedAt time.Time
+}
+
+type PendingUpload struct {
+	ID           uuid.UUID
+	UserID       uuid.UUID
+	MediaType    string
+	Filename     string
+	FileSize     int64
+	Status       PendingUploadStatus
+	MediaUrl     string
+	ThumbnailUrl string
+	Width        int32
+	Height       int32
+	CreatedAt    time.Time
 }
 
 type Post struct {

@@ -79,6 +79,7 @@ type (
 		Poll              *CreatePollInput `json:"poll,omitempty"`
 		SharedContentID   string           `json:"shared_content_id,omitempty"`
 		SharedContentType string           `json:"shared_content_type,omitempty"`
+		Media             []UploadRef      `json:"media,omitempty"`
 	}
 
 	CreatePollInput struct {
@@ -112,8 +113,9 @@ type (
 	}
 
 	CreateCommentRequest struct {
-		ParentID *uuid.UUID `json:"parent_id,omitempty"`
-		Body     string     `json:"body"`
+		ParentID *uuid.UUID  `json:"parent_id,omitempty"`
+		Body     string      `json:"body"`
+		Media    []UploadRef `json:"media,omitempty"`
 	}
 
 	UpdateCommentRequest struct {

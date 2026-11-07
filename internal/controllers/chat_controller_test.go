@@ -92,18 +92,15 @@ func chatCtlHarnessFor(t *testing.T, r chatCtlRequest) (*testutil.Harness, *chat
 	return h, chatMock
 }
 
-func chatCtlMessageForm(t *testing.T, path string, extra map[string]string) chatCtlRequest {
+func chatCtlMessage(t *testing.T, path string, extra map[string]string) chatCtlRequest {
 	t.Helper()
 
-	var buf bytes.Buffer
-	w := multipart.NewWriter(&buf)
-	require.NoError(t, w.WriteField("body", "hi"))
+	body := map[string]string{"body": "hi"}
 	for name, value := range extra {
-		require.NoError(t, w.WriteField(name, value))
+		body[name] = value
 	}
-	require.NoError(t, w.Close())
 
-	return chatCtlRequest{method: "POST", path: path, raw: buf.String(), contentType: w.FormDataContentType()}
+	return chatCtlRequest{method: "POST", path: path, json: body}
 }
 
 func chatCtlAvatarUpload(t *testing.T) chatCtlRequest {
@@ -193,7 +190,7 @@ func TestChatRoutes_RejectMalformedInput(t *testing.T) {
 		wantBody string
 	}{
 		{"resolve dm with a bad user id", chatCtlRequest{method: "GET", path: "/chat/dm/not-a-uuid/resolve"}, "invalid userID"},
-		{"send first dm with a bad user id", chatCtlMessageForm(t, "/chat/dm/not-a-uuid/messages", nil), "invalid userID"},
+		{"send first dm with a bad user id", chatCtlMessage(t, "/chat/dm/not-a-uuid/messages", nil), "invalid userID"},
 		{"create group room with bad json", chatCtlRequest{method: "POST", path: "/chat/rooms", raw: "not json", contentType: "application/json"}, "invalid request body"},
 		{"update room with a bad room id", chatCtlRequest{method: "PUT", path: "/chat/rooms/not-a-uuid", json: dto.UpdateGroupRoomRequest{Name: "room"}}, "invalid roomID"},
 		{"update room with bad json", chatCtlRequest{method: "PUT", path: chatCtlRoomPath, raw: "not json", contentType: "application/json"}, "invalid request body"},
@@ -209,9 +206,9 @@ func TestChatRoutes_RejectMalformedInput(t *testing.T) {
 		{"set room mute with a bad room id", chatCtlRequest{method: "PUT", path: "/chat/rooms/not-a-uuid/mute", json: map[string]bool{"muted": true}}, "invalid roomID"},
 		{"set room mute with bad json", chatCtlRequest{method: "PUT", path: chatCtlRoomPath + "/mute", raw: "not json", contentType: "application/json"}, "invalid request"},
 		{"get messages with a bad room id", chatCtlRequest{method: "GET", path: "/chat/rooms/not-a-uuid/messages"}, "invalid roomID"},
-		{"send message with a bad room id", chatCtlMessageForm(t, "/chat/rooms/not-a-uuid/messages", nil), "invalid roomID"},
-		{"send message with a body that is not a form", chatCtlRequest{method: "POST", path: chatCtlRoomPath + "/messages", json: dto.SendMessageRequest{Body: "hi"}}, "invalid form data"},
-		{"send first dm with a body that is not a form", chatCtlRequest{method: "POST", path: chatCtlDMPath + "/messages", json: dto.SendMessageRequest{Body: "hi"}}, "invalid form data"},
+		{"send message with a bad room id", chatCtlMessage(t, "/chat/rooms/not-a-uuid/messages", nil), "invalid roomID"},
+		{"send message with a body that is not json", chatCtlRequest{method: "POST", path: chatCtlRoomPath + "/messages", raw: "not json", contentType: "application/json"}, "invalid request body"},
+		{"send first dm with a body that is not json", chatCtlRequest{method: "POST", path: chatCtlDMPath + "/messages", raw: "not json", contentType: "application/json"}, "invalid request body"},
 		{"delete chat with a bad room id", chatCtlRequest{method: "DELETE", path: "/chat/rooms/not-a-uuid"}, "invalid roomID"},
 		{"mark room read with a bad room id", chatCtlRequest{method: "POST", path: "/chat/rooms/not-a-uuid/read"}, "invalid roomID"},
 		{"set room nickname with a bad room id", chatCtlRequest{method: "PUT", path: "/chat/rooms/not-a-uuid/me", json: dto.UpdateMemberProfileRequest{Nickname: "nick"}}, "invalid roomID"},
@@ -270,17 +267,17 @@ func TestChatRoutes_Success(t *testing.T) {
 		},
 		{
 			name: "send first dm",
-			req:  chatCtlMessageForm(t, chatCtlDMPath+"/messages", nil),
+			req:  chatCtlMessage(t, chatCtlDMPath+"/messages", nil),
 			expect: func(m *chatsvc.MockService) {
-				m.EXPECT().SendDMMessage(mock.Anything, chatCtlUserID, chatCtlTargetID, dto.SendDMRequest{Body: "hi"}, []upload.FileUpload(nil)).Return(&dto.SendDMResponse{}, nil)
+				m.EXPECT().SendDMMessage(mock.Anything, chatCtlUserID, chatCtlTargetID, dto.SendDMRequest{Body: "hi"}).Return(&dto.SendDMResponse{}, nil)
 			},
 			wantCode: http.StatusCreated,
 		},
 		{
 			name: "send first dm passes the client nonce through and echoes the stored message back",
-			req:  chatCtlMessageForm(t, chatCtlDMPath+"/messages", map[string]string{"client_nonce": "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}),
+			req:  chatCtlMessage(t, chatCtlDMPath+"/messages", map[string]string{"client_nonce": "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}),
 			expect: func(m *chatsvc.MockService) {
-				m.EXPECT().SendDMMessage(mock.Anything, chatCtlUserID, chatCtlTargetID, dto.SendDMRequest{Body: "hi", ClientNonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}, []upload.FileUpload(nil)).
+				m.EXPECT().SendDMMessage(mock.Anything, chatCtlUserID, chatCtlTargetID, dto.SendDMRequest{Body: "hi", ClientNonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}).
 					Return(&dto.SendDMResponse{
 						Room:    dto.ChatRoomResponse{ID: chatCtlRoomID},
 						Message: dto.ChatMessageResponse{ID: chatCtlMessageID, RoomID: chatCtlRoomID, ClientNonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0"},
@@ -446,18 +443,18 @@ func TestChatRoutes_Success(t *testing.T) {
 		},
 		{
 			name: "send message",
-			req:  chatCtlMessageForm(t, chatCtlRoomPath+"/messages", nil),
+			req:  chatCtlMessage(t, chatCtlRoomPath+"/messages", nil),
 			expect: func(m *chatsvc.MockService) {
-				m.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}, []upload.FileUpload(nil)).
+				m.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}).
 					Return(&dto.ChatMessageResponse{ID: uuid.New()}, nil)
 			},
 			wantCode: http.StatusCreated,
 		},
 		{
 			name: "send message passes the client nonce through and echoes it back",
-			req:  chatCtlMessageForm(t, chatCtlRoomPath+"/messages", map[string]string{"client_nonce": "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}),
+			req:  chatCtlMessage(t, chatCtlRoomPath+"/messages", map[string]string{"client_nonce": "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}),
 			expect: func(m *chatsvc.MockService) {
-				m.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi", ClientNonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}, []upload.FileUpload(nil)).
+				m.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi", ClientNonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}).
 					Return(&dto.ChatMessageResponse{ID: chatCtlMessageID, ClientNonce: "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}, nil)
 			},
 			wantCode: http.StatusCreated,
@@ -667,9 +664,9 @@ func TestChatRoutes_ServiceErrors(t *testing.T) {
 		},
 		{
 			name: "send first dm",
-			req:  chatCtlMessageForm(t, chatCtlDMPath+"/messages", nil),
+			req:  chatCtlMessage(t, chatCtlDMPath+"/messages", nil),
 			expect: func(m *chatsvc.MockService, err error) {
-				m.EXPECT().SendDMMessage(mock.Anything, chatCtlUserID, chatCtlTargetID, dto.SendDMRequest{Body: "hi"}, []upload.FileUpload(nil)).Return(nil, err)
+				m.EXPECT().SendDMMessage(mock.Anything, chatCtlUserID, chatCtlTargetID, dto.SendDMRequest{Body: "hi"}).Return(nil, err)
 			},
 			cases: []chatCtlErrCase{
 				{"missing fields", chatsvc.ErrMissingFields, http.StatusBadRequest, "message body is required"},
@@ -862,9 +859,9 @@ func TestChatRoutes_ServiceErrors(t *testing.T) {
 		},
 		{
 			name: "send message",
-			req:  chatCtlMessageForm(t, chatCtlRoomPath+"/messages", nil),
+			req:  chatCtlMessage(t, chatCtlRoomPath+"/messages", nil),
 			expect: func(m *chatsvc.MockService, err error) {
-				m.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}, []upload.FileUpload(nil)).Return(nil, err)
+				m.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}).Return(nil, err)
 			},
 			cases: []chatCtlErrCase{
 				{"blocked", chatsvc.ErrUserBlocked, http.StatusForbidden, "cannot message"},
@@ -1116,8 +1113,8 @@ func TestUpdateRoom_RouteIsRegistered(t *testing.T) {
 }
 
 func TestChatSendRoutes_ShareOneRateLimitBudget(t *testing.T) {
-	room := chatCtlMessageForm(t, chatCtlRoomPath+"/messages", nil)
-	dm := chatCtlMessageForm(t, chatCtlDMPath+"/messages", nil)
+	room := chatCtlMessage(t, chatCtlRoomPath+"/messages", nil)
+	dm := chatCtlMessage(t, chatCtlDMPath+"/messages", nil)
 
 	cases := []struct {
 		name      string
@@ -1140,12 +1137,12 @@ func TestChatSendRoutes_ShareOneRateLimitBudget(t *testing.T) {
 			h.ExpectValidSession(chatCtlCookie, chatCtlUserID)
 
 			if tc.roomSends > 0 {
-				chatMock.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}, []upload.FileUpload(nil)).
+				chatMock.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}).
 					Return(&dto.ChatMessageResponse{ID: uuid.New()}, nil).
 					Times(tc.roomSends)
 			}
 			if tc.dmSends > 0 {
-				chatMock.EXPECT().SendDMMessage(mock.Anything, chatCtlUserID, chatCtlTargetID, dto.SendDMRequest{Body: "hi"}, []upload.FileUpload(nil)).
+				chatMock.EXPECT().SendDMMessage(mock.Anything, chatCtlUserID, chatCtlTargetID, dto.SendDMRequest{Body: "hi"}).
 					Return(&dto.SendDMResponse{}, nil).
 					Times(tc.dmSends)
 			}
@@ -1184,14 +1181,14 @@ func TestChatSendRoutes_EachUserHasTheirOwnBudget(t *testing.T) {
 	otherUserID := uuid.New()
 	h.ExpectValidSession(otherCookie, otherUserID)
 
-	chatMock.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}, []upload.FileUpload(nil)).
+	chatMock.EXPECT().SendMessage(mock.Anything, chatCtlUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}).
 		Return(&dto.ChatMessageResponse{ID: uuid.New()}, nil).
 		Times(5)
-	chatMock.EXPECT().SendMessage(mock.Anything, otherUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}, []upload.FileUpload(nil)).
+	chatMock.EXPECT().SendMessage(mock.Anything, otherUserID, chatCtlRoomID, dto.SendMessageRequest{Body: "hi"}).
 		Return(&dto.ChatMessageResponse{ID: uuid.New()}, nil).
 		Once()
 
-	send := chatCtlMessageForm(t, chatCtlRoomPath+"/messages", nil)
+	send := chatCtlMessage(t, chatCtlRoomPath+"/messages", nil)
 	for range 5 {
 		status, _ := send.do(h)
 		require.Equal(t, http.StatusCreated, status)
@@ -1200,7 +1197,7 @@ func TestChatSendRoutes_EachUserHasTheirOwnBudget(t *testing.T) {
 	// when someone else sends in the same room
 	status, _ := h.NewRequest(send.method, send.path).
 		WithCookie(otherCookie).
-		WithRawBody(send.raw, send.contentType).
+		WithJSONBody(send.json).
 		Do()
 
 	// then

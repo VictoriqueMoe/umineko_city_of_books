@@ -39,7 +39,7 @@ type (
 		ParentID *uuid.UUID
 		UserID   uuid.UUID
 		Body     string
-		Media    []NewMedia
+		Media    ClaimedUploads
 	}
 
 	CommentQuery struct {
@@ -81,11 +81,6 @@ type (
 	NewCommentMedia struct {
 		Kind CommentKind
 		NewMedia
-	}
-
-	CommentMediaURLUpdate struct {
-		Kind CommentKind
-		MediaURLUpdate
 	}
 
 	CommentMediaBatch struct {

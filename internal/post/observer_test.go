@@ -254,12 +254,12 @@ func TestCreateComment_EmitsBotTrigger(t *testing.T) {
 	botID := uuid.New()
 	req := dto.CreateCommentRequest{Body: "  @beatrice hello  "}
 
-	m.commentSvc.EXPECT().Create(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindPost, ID: postID}, userID, req, []upload.FileUpload(nil)).Return(uuid.New(), nil).Once()
+	m.commentSvc.EXPECT().Create(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindPost, ID: postID}, userID, req).Return(uuid.New(), nil).Once()
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil).Once()
 	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"beatrice"}).Return([]model.User{{ID: botID}}, nil).Once()
 
 	// when
-	id, err := svc.CreateComment(context.Background(), postID, userID, req, nil)
+	id, err := svc.CreateComment(context.Background(), postID, userID, req)
 
 	// then
 	require.NoError(t, err)
@@ -284,10 +284,10 @@ func TestCreateComment_ARefusedCommentSummonsNoBot(t *testing.T) {
 	obs := newCaptureObserver()
 	svc.SetCommentObserver(obs)
 	boom := errors.New("boom")
-	m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(uuid.Nil, boom).Once()
+	m.commentSvc.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(uuid.Nil, boom).Once()
 
 	// when
-	_, err := svc.CreateComment(context.Background(), uuid.New(), uuid.New(), dto.CreateCommentRequest{Body: "@beatrice hello"}, nil)
+	_, err := svc.CreateComment(context.Background(), uuid.New(), uuid.New(), dto.CreateCommentRequest{Body: "@beatrice hello"})
 
 	// then the strict user mock proves the trigger never started
 	require.ErrorIs(t, err, boom)
@@ -315,14 +315,14 @@ func TestCreatePost_EmitsBotTriggerOutsideSuggestions(t *testing.T) {
 			botID := uuid.New()
 
 			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-			m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: string(tc.corner), Body: "@beatrice hello"}).Return(&model.PostRow{ID: uuid.New()}, nil, nil)
+			m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: string(tc.corner), Body: "@beatrice hello", Media: upload.MediaClaim(userID, nil)}).Return(&model.PostRow{ID: uuid.New()}, nil)
 			m.activity.EXPECT().BumpSidebarActivity(sidebar.GameBoardKey(tc.corner)).Return().Once()
 			m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil).Maybe()
 			m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"beatrice"}).Return([]model.User{{ID: botID}}, nil).Maybe()
 			expectBackgroundSocial(m)
 
 			// when
-			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: string(tc.corner), Body: "@beatrice hello"}, nil)
+			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: string(tc.corner), Body: "@beatrice hello"})
 
 			// then
 			require.NoError(t, err)

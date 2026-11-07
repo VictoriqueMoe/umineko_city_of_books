@@ -1,6 +1,7 @@
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     addPendingSend,
+    attachmentRefs,
     createClientNonce,
     createPendingSend,
     failSendingInThread,
@@ -115,8 +116,7 @@ export function useOptimisticSends(options: OptimisticSendsOptions): OptimisticS
                 roomId: targetRoomId,
                 body: entry.body,
                 reply_to_id: entry.replyTo?.id,
-                files: entry.attachments.map(attachment => attachment.file),
-                spoilers: entry.attachments.map(attachment => attachment.spoiler),
+                media: attachmentRefs(entry),
                 client_nonce: entry.nonce,
             }).then(
                 message => {
@@ -139,8 +139,7 @@ export function useOptimisticSends(options: OptimisticSendsOptions): OptimisticS
             sendFirstMessage({
                 recipientId,
                 body: entry.body,
-                files: entry.attachments.map(attachment => attachment.file),
-                spoilers: entry.attachments.map(attachment => attachment.spoiler),
+                media: attachmentRefs(entry),
                 client_nonce: entry.nonce,
             }).then(
                 created => {

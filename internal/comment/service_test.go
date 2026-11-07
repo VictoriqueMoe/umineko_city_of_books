@@ -20,7 +20,6 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
-	"umineko_city_of_books/internal/upload/uploadtest"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -45,9 +44,8 @@ type fixture struct {
 }
 
 var (
-	errBoom     = errors.New("boom")
-	errDiskFull = errors.New("disk full")
-	errMissing  = errors.Join(errors.New("no row"), daoerr.ErrNotFound)
+	errBoom    = errors.New("boom")
+	errMissing = errors.Join(errors.New("no row"), daoerr.ErrNotFound)
 )
 
 func newFixture(t *testing.T) *fixture {
@@ -61,8 +59,6 @@ func newFixture(t *testing.T) *fixture {
 		settingsSvc: settings.NewMockService(t),
 		notified:    make(chan dto.NotifyParams, 16),
 	}
-
-	uploadtest.ExpectNoMedia(f.uploadSvc)
 
 	f.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
 		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
@@ -105,18 +101,9 @@ func (f *fixture) awaitNotifications(t *testing.T, want int) []dto.NotifyParams 
 
 func (f *fixture) expectCreate(target spec.CommentTarget, parentID *uuid.UUID, userID uuid.UUID, body string, commentID uuid.UUID) {
 	f.repo.EXPECT().
-		CreateCommentWithMedia(mock.Anything, spec.NewComment{Target: target, ParentID: parentID, UserID: userID, Body: body}).
-		Return(&model.CommentRow{ID: commentID}, nil, nil).
+		CreateCommentWithMedia(mock.Anything, spec.NewComment{Target: target, ParentID: parentID, UserID: userID, Body: body, Media: upload.MediaClaim(userID, nil)}).
+		Return(&model.CommentRow{ID: commentID}, nil).
 		Once()
-}
-
-func storedImages(names ...string) []upload.StoredMedia {
-	stored := make([]upload.StoredMedia, 0, len(names))
-	for i, name := range names {
-		stored = append(stored, upload.StoredMedia{URL: "/uploads/ships/" + name, MediaType: upload.MediaTypeImage, Filename: name, SortOrder: i})
-	}
-
-	return stored
 }
 
 func shipTarget(shipID uuid.UUID) spec.CommentTarget {
@@ -127,16 +114,12 @@ func TestCreate_RefusesBeforeWritingAnything(t *testing.T) {
 	cases := []struct {
 		name     string
 		body     string
-		files    func(t *testing.T) []upload.FileUpload
 		ownerErr error
 		blocked  bool
 		blockErr error
 		want     error
 	}{
 		{name: "a blank body with no files is refused", body: "   ", want: comment.ErrEmptyBody},
-		{name: "a refused upload writes no comment", body: "hi", files: func(t *testing.T) []upload.FileUpload {
-			return []upload.FileUpload{uploadtest.PNGUpload(t, "one.png", false)}
-		}, want: upload.ErrInvalidFileType},
 		{name: "a missing target is reported as such, not as a missing comment", body: "hi", ownerErr: errMissing, want: comment.ErrTargetNotFound},
 		{name: "a failed owner lookup is surfaced", body: "hi", ownerErr: errBoom, want: errBoom},
 		{name: "a block either way refuses the comment", body: "hi", blocked: true, want: block.ErrUserBlocked},
@@ -149,11 +132,6 @@ func TestCreate_RefusesBeforeWritingAnything(t *testing.T) {
 			f := newFixture(t)
 			shipID, userID, ownerID := uuid.New(), uuid.New(), uuid.New()
 
-			var files []upload.FileUpload
-			if tc.files != nil {
-				files = tc.files(t)
-			}
-
 			validInput := tc.want != comment.ErrEmptyBody
 			if validInput {
 				f.repo.EXPECT().GetTargetOwnerID(mock.Anything, shipTarget(shipID)).Return(ownerID, tc.ownerErr)
@@ -161,13 +139,9 @@ func TestCreate_RefusesBeforeWritingAnything(t *testing.T) {
 			if validInput && tc.ownerErr == nil {
 				f.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, ownerID).Return(tc.blocked, tc.blockErr)
 			}
-			if files != nil {
-				f.repo.EXPECT().GetCommentMediaDir(spec.CommentKindShip).Return("ships", nil)
-				f.uploadSvc.EXPECT().StoreMedia(mock.Anything, "ships", uploadtest.Files("one.png")).Return(nil, upload.ErrInvalidFileType).Once()
-			}
 
 			// when
-			id, err := f.svc.Create(context.Background(), shipTarget(shipID), userID, dto.CreateCommentRequest{Body: tc.body}, files)
+			id, err := f.svc.Create(context.Background(), shipTarget(shipID), userID, dto.CreateCommentRequest{Body: tc.body})
 
 			// then
 			require.ErrorIs(t, err, tc.want)
@@ -183,11 +157,10 @@ func TestCreate_AFailedWriteIsSurfaced(t *testing.T) {
 	shipID, userID, ownerID := uuid.New(), uuid.New(), uuid.New()
 	f.repo.EXPECT().GetTargetOwnerID(mock.Anything, shipTarget(shipID)).Return(ownerID, nil)
 	f.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, ownerID).Return(false, nil)
-	f.repo.EXPECT().GetCommentMediaDir(spec.CommentKindShip).Return("ships", nil)
-	f.repo.EXPECT().CreateCommentWithMedia(mock.Anything, spec.NewComment{Target: shipTarget(shipID), UserID: userID, Body: "hi"}).Return(nil, nil, errBoom)
+	f.repo.EXPECT().CreateCommentWithMedia(mock.Anything, spec.NewComment{Target: shipTarget(shipID), UserID: userID, Body: "hi", Media: upload.MediaClaim(userID, nil)}).Return(nil, errBoom)
 
 	// when
-	id, err := f.svc.Create(context.Background(), shipTarget(shipID), userID, dto.CreateCommentRequest{Body: "  hi  "}, nil)
+	id, err := f.svc.Create(context.Background(), shipTarget(shipID), userID, dto.CreateCommentRequest{Body: "  hi  "})
 
 	// then
 	require.ErrorIs(t, err, errBoom)
@@ -278,12 +251,11 @@ func TestCreate_NotifiesTheOwnerAndTheParentAuthorOnceEach(t *testing.T) {
 			if tc.actorID == ownerID {
 				f.blockSvc.EXPECT().IsBlockedEither(mock.Anything, ownerID, ownerID).Return(false, nil)
 			}
-			f.repo.EXPECT().GetCommentMediaDir(tc.kind).Return("dir", nil)
 			f.expectCreate(target, parentID, tc.actorID, "nice", commentID)
 			f.expectActor(tc.actorID, "Battler")
 
 			// when
-			id, err := f.svc.Create(context.Background(), target, tc.actorID, dto.CreateCommentRequest{Body: "nice", ParentID: parentID}, nil)
+			id, err := f.svc.Create(context.Background(), target, tc.actorID, dto.CreateCommentRequest{Body: "nice", ParentID: parentID})
 
 			// then
 			require.NoError(t, err)
@@ -306,12 +278,11 @@ func TestCreate_TheNotificationLinksToTheNewComment(t *testing.T) {
 	shipID, userID, ownerID, commentID := uuid.New(), uuid.New(), uuid.New(), uuid.New()
 	f.repo.EXPECT().GetTargetOwnerID(mock.Anything, shipTarget(shipID)).Return(ownerID, nil)
 	f.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, ownerID).Return(false, nil)
-	f.repo.EXPECT().GetCommentMediaDir(spec.CommentKindShip).Return("ships", nil)
 	f.expectCreate(shipTarget(shipID), nil, userID, "hi", commentID)
 	f.expectActor(userID, "Battler")
 
 	// when
-	_, err := f.svc.Create(context.Background(), shipTarget(shipID), userID, dto.CreateCommentRequest{Body: "hi"}, nil)
+	_, err := f.svc.Create(context.Background(), shipTarget(shipID), userID, dto.CreateCommentRequest{Body: "hi"})
 
 	// then
 	require.NoError(t, err)
@@ -327,14 +298,13 @@ func TestCreate_MentionNotifiesTheNamedUser(t *testing.T) {
 	shipID, userID, commentID, mentionedID := uuid.New(), uuid.New(), uuid.New(), uuid.New()
 	f.repo.EXPECT().GetTargetOwnerID(mock.Anything, shipTarget(shipID)).Return(userID, nil)
 	f.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, userID).Return(false, nil)
-	f.repo.EXPECT().GetCommentMediaDir(spec.CommentKindShip).Return("ships", nil)
 	f.expectCreate(shipTarget(shipID), nil, userID, "look at this @alice", commentID)
 	f.expectActor(userID, "Battler")
 	f.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
 	f.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
 
 	// when
-	_, err := f.svc.Create(context.Background(), shipTarget(shipID), userID, dto.CreateCommentRequest{Body: "look at this @alice"}, nil)
+	_, err := f.svc.Create(context.Background(), shipTarget(shipID), userID, dto.CreateCommentRequest{Body: "look at this @alice"})
 
 	// then
 	require.NoError(t, err)
@@ -345,60 +315,43 @@ func TestCreate_MentionNotifiesTheNamedUser(t *testing.T) {
 	assert.Equal(t, "/ships/"+shipID.String()+"#comment-"+commentID.String(), got[0].EmailLink)
 }
 
-func TestCreate_SavesItsMediaInDisplayOrderIntoTheKindsDirectory(t *testing.T) {
-	// given a media-only comment with two images, the second marked as a spoiler
+func TestCreate_ClaimsItsUploadsInDisplayOrder(t *testing.T) {
+	// given a media-only comment with two finished uploads, the second marked as a spoiler
 	f := newFixture(t)
 	shipID, userID, commentID := uuid.New(), uuid.New(), uuid.New()
-	stored := storedImages("one.png", "two.png")
-	stored[1].IsSpoiler = true
+	refs := []dto.UploadRef{{ID: uuid.New()}, {ID: uuid.New(), IsSpoiler: true}}
 
 	f.repo.EXPECT().GetTargetOwnerID(mock.Anything, shipTarget(shipID)).Return(userID, nil)
 	f.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, userID).Return(false, nil)
-	f.repo.EXPECT().GetCommentMediaDir(spec.CommentKindShip).Return("ships", nil)
-	f.uploadSvc.EXPECT().StoreMedia(mock.Anything, "ships", uploadtest.Files("one.png", "two.png")).Return(stored, nil).Once()
 	f.repo.EXPECT().
-		CreateCommentWithMedia(mock.Anything, spec.NewComment{Target: shipTarget(shipID), UserID: userID, Media: []spec.NewMedia{
-			{MediaURL: "/uploads/ships/one.png", MediaType: upload.MediaTypeImage, Filename: "one.png", SortOrder: 0},
-			{MediaURL: "/uploads/ships/two.png", MediaType: upload.MediaTypeImage, Filename: "two.png", SortOrder: 1, IsSpoiler: true},
-		}}).
-		Return(&model.CommentRow{ID: commentID}, []int64{1, 2}, nil).
+		CreateCommentWithMedia(mock.Anything, spec.NewComment{Target: shipTarget(shipID), UserID: userID, Media: upload.MediaClaim(userID, refs)}).
+		Return(&model.CommentRow{ID: commentID}, nil).
 		Once()
-	f.uploadSvc.EXPECT().TranscodeMedia(mock.Anything, "ships", stored, []int64{1, 2}, mock.Anything, mock.Anything).Return().Once()
 	f.expectActor(userID, "Battler")
 
 	// when
-	id, err := f.svc.Create(context.Background(), shipTarget(shipID), userID, dto.CreateCommentRequest{Body: "   "}, []upload.FileUpload{
-		uploadtest.PNGUpload(t, "one.png", false),
-		uploadtest.PNGUpload(t, "two.png", true),
-	})
+	id, err := f.svc.Create(context.Background(), shipTarget(shipID), userID, dto.CreateCommentRequest{Body: "   ", Media: refs})
 
-	// then the comment and its media rows were written together, and the stored files were handed on for transcoding
+	// then the comment and the claim on its uploads go to the repository together
 	require.NoError(t, err)
 	assert.Equal(t, commentID, id)
 	f.awaitNotifications(t, 0)
 }
 
-func TestCreate_AFailedWriteDiscardsTheStoredFilesAndTellsNobody(t *testing.T) {
-	// given a comment mentioning someone whose files were stored but whose row is refused
+func TestCreate_AFailedWriteTellsNobody(t *testing.T) {
+	// given a comment mentioning someone whose uploads cannot be claimed
 	f := newFixture(t)
 	shipID, userID, ownerID := uuid.New(), uuid.New(), uuid.New()
-	stored := storedImages("one.png", "two.png")
 
 	f.repo.EXPECT().GetTargetOwnerID(mock.Anything, shipTarget(shipID)).Return(ownerID, nil)
 	f.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, ownerID).Return(false, nil)
-	f.repo.EXPECT().GetCommentMediaDir(spec.CommentKindShip).Return("ships", nil)
-	f.uploadSvc.EXPECT().StoreMedia(mock.Anything, "ships", uploadtest.Files("one.png", "two.png")).Return(stored, nil).Once()
-	f.repo.EXPECT().CreateCommentWithMedia(mock.Anything, mock.Anything).Return(nil, nil, errDiskFull).Once()
-	f.uploadSvc.EXPECT().DiscardMedia(stored).Return().Once()
+	f.repo.EXPECT().CreateCommentWithMedia(mock.Anything, mock.Anything).Return(nil, daoerr.ErrUploadUnavailable).Once()
 
 	// when
-	id, err := f.svc.Create(context.Background(), shipTarget(shipID), userID, dto.CreateCommentRequest{Body: "look at this @alice"}, []upload.FileUpload{
-		uploadtest.PNGUpload(t, "one.png", false),
-		uploadtest.PNGUpload(t, "two.png", false),
-	})
+	id, err := f.svc.Create(context.Background(), shipTarget(shipID), userID, dto.CreateCommentRequest{Body: "look at this @alice", Media: []dto.UploadRef{{ID: uuid.New()}}})
 
-	// then no comment exists, so nothing is left behind and nobody hears about it
-	require.ErrorIs(t, err, errDiskFull)
+	// then no comment exists, so nobody hears about it
+	require.ErrorIs(t, err, daoerr.ErrUploadUnavailable)
 	assert.Equal(t, uuid.Nil, id)
 	f.userRepo.AssertNotCalled(t, "GetByID", mock.Anything, mock.Anything)
 	f.awaitNotifications(t, 0)
@@ -619,66 +572,56 @@ func TestUnlike(t *testing.T) {
 	}
 }
 
-func TestUploadMedia(t *testing.T) {
+func TestAttachMedia(t *testing.T) {
 	cases := []struct {
 		name        string
 		stranger    bool
 		lookupErr   error
 		existingErr error
-		saveErr     error
-		addErr      error
+		attachErr   error
 		want        error
 	}{
 		{name: "a missing comment is not found", lookupErr: errMissing, want: comment.ErrNotFound},
 		{name: "a failed author lookup is surfaced, not reported as not found", lookupErr: errBoom, want: errBoom},
 		{name: "only the comment's author may attach media", stranger: true, want: authz.ErrNotCommentAuthor},
 		{name: "a failed existing media lookup is surfaced instead of reusing a sort position", existingErr: errBoom, want: errBoom},
-		{name: "a failed save bubbles", saveErr: errDiskFull, want: errDiskFull},
-		{name: "a refused media row discards the stored file", addErr: errBoom, want: errBoom},
-		{name: "the file lands in the kind's directory after the comment's existing media"},
+		{name: "an upload that is not ready is refused", attachErr: daoerr.ErrUploadUnavailable, want: daoerr.ErrUploadUnavailable},
+		{name: "the upload is attached after the comment's existing media"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given a comment that already carries two files
 			f := newFixture(t)
-			commentID, userID := uuid.New(), uuid.New()
+			commentID, userID, uploadID := uuid.New(), uuid.New(), uuid.New()
 			authorID := userID
 			if tc.stranger {
 				authorID = uuid.New()
 			}
 			ref := spec.CommentRef{Kind: spec.CommentKindShip, CommentID: commentID}
+			media := dto.UploadRef{ID: uploadID, IsSpoiler: true}
 			f.repo.EXPECT().GetCommentAuthorID(mock.Anything, ref).Return(authorID, tc.lookupErr)
 
 			reachesLookup := tc.lookupErr == nil && !tc.stranger
 			if reachesLookup {
-				f.repo.EXPECT().GetCommentMediaDir(spec.CommentKindShip).Return("ships", nil)
 				f.repo.EXPECT().GetCommentMedia(mock.Anything, ref).Return([]model.PostMediaRow{{ID: 1}, {ID: 2}}, tc.existingErr)
 			}
 
-			stored := upload.StoredMedia{URL: "/uploads/ships/photo.png", MediaType: upload.MediaTypeImage, Filename: "photo.png", IsSpoiler: true}
-			reachesSave := reachesLookup && tc.existingErr == nil
-			if reachesSave && tc.saveErr != nil {
-				f.uploadSvc.EXPECT().StoreMedia(mock.Anything, "ships", uploadtest.Files("photo.png")).Return(nil, tc.saveErr)
-			}
-			if reachesSave && tc.saveErr == nil {
-				f.uploadSvc.EXPECT().StoreMedia(mock.Anything, "ships", uploadtest.Files("photo.png")).Return([]upload.StoredMedia{stored}, nil)
+			if reachesLookup && tc.existingErr == nil {
+				attached := &model.PostMediaRow{ID: 42, PostID: commentID, MediaURL: "/uploads/media/photo.webp", MediaType: upload.MediaTypeImage, SortOrder: 2, IsSpoiler: true}
+				if tc.attachErr != nil {
+					attached = nil
+				}
 				f.repo.EXPECT().
-					AddCommentMedia(mock.Anything, spec.NewCommentMedia{Kind: spec.CommentKindShip, NewMedia: spec.NewMedia{TargetID: commentID, MediaURL: "/uploads/ships/photo.png", MediaType: upload.MediaTypeImage, Filename: "photo.png", SortOrder: 2, IsSpoiler: true}}).
-					Return(int64(42), tc.addErr)
-			}
-
-			placed := stored
-			placed.SortOrder = 2
-			if reachesSave && tc.saveErr == nil && tc.addErr != nil {
-				f.uploadSvc.EXPECT().DiscardMedia([]upload.StoredMedia{placed}).Return().Once()
-			}
-			if reachesSave && tc.saveErr == nil && tc.addErr == nil {
-				f.uploadSvc.EXPECT().TranscodeMedia(mock.Anything, "ships", []upload.StoredMedia{placed}, []int64{42}, mock.Anything, mock.Anything).Return().Once()
+					AttachCommentMedia(mock.Anything, spec.CommentMediaAttachment{
+						Kind:            spec.CommentKindShip,
+						MediaAttachment: spec.MediaAttachment{TargetID: commentID, SortOrder: 2, Uploads: upload.MediaClaim(userID, []dto.UploadRef{media})},
+					}).
+					Return(attached, tc.attachErr).Once()
 			}
 
 			// when
-			resp, err := f.svc.UploadMedia(context.Background(), ref, userID, uploadtest.PNGUpload(t, "photo.png", true))
+			resp, err := f.svc.AttachMedia(context.Background(), ref, userID, media)
 
 			// then
 			require.ErrorIs(t, err, tc.want)
@@ -689,8 +632,9 @@ func TestUploadMedia(t *testing.T) {
 
 			require.NotNil(t, resp)
 			assert.Equal(t, 42, resp.ID)
-			assert.Equal(t, "/uploads/ships/photo.png", resp.MediaURL)
+			assert.Equal(t, "/uploads/media/photo.webp", resp.MediaURL)
 			assert.Equal(t, 2, resp.SortOrder)
+			assert.True(t, resp.IsSpoiler)
 		})
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
-	"time"
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
@@ -15,7 +14,6 @@ import (
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/follow"
-	"umineko_city_of_books/internal/model"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/upload"
 
@@ -66,9 +64,8 @@ type (
 )
 
 const (
-	postCtlCookie    = "valid-cookie"
-	postCtlJSON      = "application/json"
-	postCtlMultipart = "multipart/form-data; boundary=xxx"
+	postCtlCookie = "valid-cookie"
+	postCtlJSON   = "application/json"
 )
 
 func newPostHarness(t *testing.T) (*testutil.Harness, postDeps) {
@@ -158,7 +155,7 @@ func TestPostController_RejectsMalformedRequests(t *testing.T) {
 		{name: "update post bad json", method: "PUT", path: "/posts/" + id, rawBody: "not json", contentType: postCtlJSON, wantBody: "invalid request body"},
 		{name: "delete post invalid id", method: "DELETE", path: "/posts/not-a-uuid", wantBody: "invalid id"},
 		{name: "upload post media invalid id", method: "POST", path: "/posts/not-a-uuid/media", wantBody: "invalid id"},
-		{name: "upload post media no file", method: "POST", path: "/posts/" + id + "/media", contentType: postCtlMultipart, wantBody: "no file provided"},
+		{name: "attach post media bad json", method: "POST", path: "/posts/" + id + "/media", rawBody: "not json", contentType: postCtlJSON, wantBody: "invalid request body"},
 		{name: "delete post media invalid post id", method: "DELETE", path: "/posts/not-a-uuid/media/42", wantBody: "invalid id"},
 		{name: "delete post media invalid media id", method: "DELETE", path: "/posts/" + id + "/media/0", wantBody: "invalid media id"},
 		{name: "like post invalid id", method: "POST", path: "/posts/not-a-uuid/like", wantBody: "invalid id"},
@@ -267,15 +264,15 @@ func TestCreatePost(t *testing.T) {
 		{"invalid share type", postsvc.ErrInvalidShareType, http.StatusBadRequest, "invalid shared content type"},
 		{"unknown corner", fmt.Errorf("%w %q", corner.ErrInvalidCorner, "phantom"), http.StatusBadRequest, "invalid corner"},
 		{"rate limited", postsvc.ErrRateLimited, http.StatusTooManyRequests, "daily post limit"},
-		{"a refused file", fmt.Errorf("%w: file size 9MB exceeds maximum 5MB", upload.ErrFileTooLarge), http.StatusBadRequest, "exceeds maximum 5MB"},
+		{"an upload that is not ready", fmt.Errorf("%w: 1 of 2 uploads are ready", daoerr.ErrUploadUnavailable), http.StatusBadRequest, daoerr.ErrUploadUnavailable.Error()},
 		{"internal error", errors.New("pq: connection refused"), http.StatusInternalServerError, "failed to create post"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// given an old client posting plain json with no media
+			// given
 			h, deps, userID := postCtlSignedIn(t)
 			req := dto.CreatePostRequest{Body: "hello"}
-			deps.post.EXPECT().CreatePost(mock.Anything, userID, req, []upload.FileUpload(nil)).Return(postID, tc.err)
+			deps.post.EXPECT().CreatePost(mock.Anything, userID, req).Return(postID, tc.err)
 
 			// when
 			status, body := h.NewRequest("POST", "/posts").WithCookie(postCtlCookie).WithJSONBody(req).Do()
@@ -288,59 +285,19 @@ func TestCreatePost(t *testing.T) {
 	}
 }
 
-func postCtlOneSpoileredPic(files []upload.FileUpload) bool {
-	return len(files) == 1 && files[0].Filename == "pic.png" && files[0].ContentType == "image/png" && files[0].IsSpoiler
-}
-
-func TestCreatePost_MultipartCarriesThePayloadAndItsMedia(t *testing.T) {
-	// given a form carrying the json payload and one image marked as a spoiler
+func TestCreatePost_CarriesItsUploadRefsToTheService(t *testing.T) {
+	// given a post carrying one finished upload marked as a spoiler
 	h, deps, userID := postCtlSignedIn(t)
 	postID := uuid.New()
-	form, contentType := testutil.MediaForm(t, "media", map[string]string{"payload": `{"corner":"umineko","body":"hello"}`, "spoiler_indexes": "0"})
-	deps.post.EXPECT().CreatePost(mock.Anything, userID, dto.CreatePostRequest{Corner: "umineko", Body: "hello"}, mock.MatchedBy(postCtlOneSpoileredPic)).Return(postID, nil)
+	req := dto.CreatePostRequest{Corner: "umineko", Body: "hello", Media: []dto.UploadRef{{ID: uuid.New(), IsSpoiler: true}}}
+	deps.post.EXPECT().CreatePost(mock.Anything, userID, req).Return(postID, nil)
 
 	// when
-	status, body := h.NewRequest("POST", "/posts").WithCookie(postCtlCookie).WithRawBody(form, contentType).Do()
+	status, body := h.NewRequest("POST", "/posts").WithCookie(postCtlCookie).WithJSONBody(req).Do()
 
 	// then
 	require.Equal(t, http.StatusCreated, status)
 	assert.Contains(t, string(body), `{"id":"`+postID.String()+`"}`)
-}
-
-func TestPostCreateRoutes_NewAccountsCannotAttachFiles(t *testing.T) {
-	cases := []struct {
-		name string
-		path string
-	}{
-		{name: "a post", path: "/posts"},
-		{name: "a comment", path: "/posts/" + uuid.NewString() + "/comments"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			h, _ := newPostHarness(t)
-			userID := uuid.New()
-			h.AuthService.EXPECT().
-				Authenticate(mock.Anything, "new-cookie").
-				Return(model.SessionAuthState{UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}, nil).
-				Maybe()
-			h.SessionRepo.EXPECT().GetUserID(mock.Anything, "new-cookie").Return(userID, time.Now().Add(time.Hour), nil).Maybe()
-			h.AuthzService.EXPECT().IsBanned(mock.Anything, userID).Return(false).Maybe()
-			h.AuthzService.EXPECT().IsRestrictedNewAccount(mock.Anything, userID).Return(true)
-			form, contentType := testutil.MediaForm(t, "media", map[string]string{"payload": `{"corner":"umineko","body":"hi"}`})
-
-			// when
-			status, body := h.NewRequest("POST", tc.path).
-				WithCookie("new-cookie").
-				WithRawBody(form, contentType).
-				Do()
-
-			// then
-			require.Equal(t, http.StatusForbidden, status)
-			assert.Contains(t, string(body), "new accounts cannot post attachments")
-		})
-	}
 }
 
 func TestGetPost(t *testing.T) {
@@ -417,11 +374,11 @@ func TestDeletePost(t *testing.T) {
 	}
 }
 
-func TestUploadPostMedia(t *testing.T) {
+func TestAttachPostMedia(t *testing.T) {
 	cases := []postCtlOutcome{
 		{"not the post author", postsvc.ErrNotAuthor, http.StatusForbidden, "not the post author"},
 		{"not found", postsvc.ErrNotFound, http.StatusNotFound, "not found"},
-		{"too large", fmt.Errorf("%w: file size 9MB exceeds maximum 5MB", upload.ErrFileTooLarge), http.StatusBadRequest, "exceeds maximum 5MB"},
+		{"an upload that is not ready", daoerr.ErrUploadUnavailable, http.StatusBadRequest, daoerr.ErrUploadUnavailable.Error()},
 		{"a server failure is not echoed back as a bad request", errors.New("pq: connection refused"), http.StatusInternalServerError, "failed to upload media"},
 	}
 
@@ -430,11 +387,11 @@ func TestUploadPostMedia(t *testing.T) {
 			// given
 			h, deps, userID := postCtlSignedIn(t)
 			id := uuid.New()
-			form, contentType := testutil.MediaForm(t, "media", nil)
-			deps.post.EXPECT().UploadPostMedia(mock.Anything, id, userID, testutil.FileUploadOf("image/png", "pic.png", false)).Return(nil, tc.err)
+			media := dto.UploadRef{ID: uuid.New(), IsSpoiler: true}
+			deps.post.EXPECT().AttachPostMedia(mock.Anything, id, userID, media).Return(nil, tc.err)
 
 			// when
-			status, body := h.NewRequest("POST", "/posts/"+id.String()+"/media").WithCookie(postCtlCookie).WithRawBody(form, contentType).Do()
+			status, body := h.NewRequest("POST", "/posts/"+id.String()+"/media").WithCookie(postCtlCookie).WithJSONBody(media).Do()
 
 			// then
 			require.Equal(t, tc.wantCode, status)
@@ -526,11 +483,11 @@ func TestCreateComment(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// given an old client posting plain json with no media
+			// given
 			h, deps, userID := postCtlSignedIn(t)
 			postID := uuid.New()
 			req := dto.CreateCommentRequest{Body: "hello"}
-			deps.post.EXPECT().CreateComment(mock.Anything, postID, userID, req, []upload.FileUpload(nil)).Return(commentID, tc.err)
+			deps.post.EXPECT().CreateComment(mock.Anything, postID, userID, req).Return(commentID, tc.err)
 
 			// when
 			status, body := h.NewRequest("POST", "/posts/"+postID.String()+"/comments").WithCookie(postCtlCookie).WithJSONBody(req).Do()
@@ -543,16 +500,16 @@ func TestCreateComment(t *testing.T) {
 	}
 }
 
-func TestCreateComment_MultipartCarriesABlankBodyAndItsMedia(t *testing.T) {
-	// given a form carrying a blank comment and one image marked as a spoiler
+func TestCreateComment_CarriesABlankBodyAndItsMedia(t *testing.T) {
+	// given a blank comment carrying one finished upload marked as a spoiler
 	h, deps, userID := postCtlSignedIn(t)
 	postID := uuid.New()
 	commentID := uuid.New()
-	form, contentType := testutil.MediaForm(t, "media", map[string]string{"payload": `{"body":""}`, "spoiler_indexes": "0"})
-	deps.post.EXPECT().CreateComment(mock.Anything, postID, userID, dto.CreateCommentRequest{}, mock.MatchedBy(postCtlOneSpoileredPic)).Return(commentID, nil)
+	req := dto.CreateCommentRequest{Media: []dto.UploadRef{{ID: uuid.New(), IsSpoiler: true}}}
+	deps.post.EXPECT().CreateComment(mock.Anything, postID, userID, req).Return(commentID, nil)
 
 	// when
-	status, body := h.NewRequest("POST", "/posts/"+postID.String()+"/comments").WithCookie(postCtlCookie).WithRawBody(form, contentType).Do()
+	status, body := h.NewRequest("POST", "/posts/"+postID.String()+"/comments").WithCookie(postCtlCookie).WithJSONBody(req).Do()
 
 	// then
 	require.Equal(t, http.StatusCreated, status)

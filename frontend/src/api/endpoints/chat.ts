@@ -8,26 +8,30 @@ import type {
     ChatRoomMember,
     CreateBannedWordRequest,
     UpdateGroupRoomRequest,
+    UploadRef,
     User,
     VoiceTokenResponse,
 } from "../../types/api";
-import { appendMediaParts } from "./mediaFormData";
 
 export async function resolveDMRoom(recipientId: string): Promise<{ room: ChatRoom | null; recipient: User }> {
     return apiFetch<{ room: ChatRoom | null; recipient: User }>(`/chat/dm/${encodeURIComponent(recipientId)}/resolve`);
 }
 
+export type SendMessagePayload = {
+    body: string;
+    reply_to_id?: string;
+    media?: readonly UploadRef[];
+    client_nonce?: string;
+};
+
 export async function sendFirstDMMessage(
     recipientId: string,
-    payload: { body: string; files?: File[]; spoilers?: boolean[]; client_nonce?: string },
+    payload: Omit<SendMessagePayload, "reply_to_id">,
 ): Promise<{ room: ChatRoom; message: ChatMessage }> {
-    const formData = new FormData();
-    formData.append("body", payload.body);
-    if (payload.client_nonce) {
-        formData.append("client_nonce", payload.client_nonce);
-    }
-    appendMediaParts(formData, payload.files, payload.spoilers);
-    return apiPostFormData<{ room: ChatRoom; message: ChatMessage }>(`/chat/dm/${recipientId}/messages`, formData);
+    return apiPost<{ room: ChatRoom; message: ChatMessage }, Omit<SendMessagePayload, "reply_to_id">>(
+        `/chat/dm/${recipientId}/messages`,
+        payload,
+    );
 }
 
 export async function createGroupRoom(payload: {
@@ -177,20 +181,8 @@ export async function getRoomMessagesBefore(
     return apiFetch<{ messages: ChatMessage[] }>(`/chat/rooms/${roomId}/messages${qs}`);
 }
 
-export async function sendChatMessage(
-    roomId: string,
-    payload: { body: string; reply_to_id?: string; files?: File[]; spoilers?: boolean[]; client_nonce?: string },
-): Promise<ChatMessage> {
-    const formData = new FormData();
-    formData.append("body", payload.body);
-    if (payload.reply_to_id) {
-        formData.append("reply_to_id", payload.reply_to_id);
-    }
-    if (payload.client_nonce) {
-        formData.append("client_nonce", payload.client_nonce);
-    }
-    appendMediaParts(formData, payload.files, payload.spoilers);
-    return apiPostFormData<ChatMessage>(`/chat/rooms/${roomId}/messages`, formData);
+export async function sendChatMessage(roomId: string, payload: SendMessagePayload): Promise<ChatMessage> {
+    return apiPost<ChatMessage, SendMessagePayload>(`/chat/rooms/${roomId}/messages`, payload);
 }
 
 export async function deleteChatRoom(roomId: string): Promise<void> {

@@ -7,7 +7,6 @@ import (
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	secretsvc "umineko_city_of_books/internal/secret"
-	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -59,8 +58,8 @@ func (s *Service) createSecretComment(ctx fiber.Ctx) error {
 	secretID := ctx.Params("id")
 	userID := utils.UserID(ctx)
 
-	return handleCreateComment(ctx, s.UploadService, func(c context.Context, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
-		return s.SecretService.CreateComment(c, secretID, userID, req, files)
+	return handleCreateComment(ctx, func(c context.Context, req dto.CreateCommentRequest) (uuid.UUID, error) {
+		return s.SecretService.CreateComment(c, secretID, userID, req)
 	}, []errorResponse{
 		{err: secretsvc.ErrNotFound, respond: utils.NotFound, message: "secret not found"},
 	})

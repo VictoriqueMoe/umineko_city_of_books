@@ -172,15 +172,6 @@ func (c *commentDAO) GetTargetOwnerID(ctx context.Context, t spec.CommentTarget,
 	return ownerID, nil
 }
 
-func (c *commentDAO) GetCommentMediaDir(kind spec.CommentKind) (string, error) {
-	table, err := c.table(kind)
-	if err != nil {
-		return "", err
-	}
-
-	return table.MediaDir(), nil
-}
-
 func (c *commentDAO) LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
 	table, err := c.table(s.Kind)
 	if err != nil {
@@ -251,42 +242,6 @@ func (c *commentDAO) GetCommentMediaBatch(ctx context.Context, s spec.CommentMed
 	}
 
 	return rows, nil
-}
-
-func (c *commentDAO) UpdateCommentMediaURL(ctx context.Context, s spec.CommentMediaURLUpdate, tx ...*sql.Tx) error {
-	table, err := c.table(s.Kind)
-	if err != nil {
-		return err
-	}
-
-	n, err := table.SetMediaURL(ctx, c.queries(tx), s.MediaURLUpdate)
-	if err != nil {
-		return fmt.Errorf("update comment media url: %w", err)
-	}
-
-	if n == 0 {
-		return fmt.Errorf("update comment media url %d: %w", s.ID, daoerr.ErrNotFound)
-	}
-
-	return nil
-}
-
-func (c *commentDAO) UpdateCommentMediaThumbnail(ctx context.Context, s spec.CommentMediaURLUpdate, tx ...*sql.Tx) error {
-	table, err := c.table(s.Kind)
-	if err != nil {
-		return err
-	}
-
-	n, err := table.SetMediaThumbnail(ctx, c.queries(tx), s.MediaURLUpdate)
-	if err != nil {
-		return fmt.Errorf("update comment media thumbnail: %w", err)
-	}
-
-	if n == 0 {
-		return fmt.Errorf("update comment media thumbnail %d: %w", s.ID, daoerr.ErrNotFound)
-	}
-
-	return nil
 }
 
 func (c *commentDAO) CollectCommentMediaPaths(ctx context.Context, t spec.CommentTarget, tx ...*sql.Tx) ([]string, error) {

@@ -207,28 +207,11 @@ func (u *Upload) File(field string) (ReceivedFile, bool) {
 	return files[0], true
 }
 
-func (u *Upload) FileUploads(field string, spoilers map[int]struct{}) []upload.FileUpload {
-	files := u.files[field]
-	if len(files) == 0 {
-		return nil
-	}
-
-	uploads := make([]upload.FileUpload, 0, len(files))
-	for i, file := range files {
-		_, isSpoiler := spoilers[i]
-
-		uploads = append(uploads, file.FileUpload(isSpoiler))
-	}
-
-	return uploads
-}
-
-func (f ReceivedFile) FileUpload(isSpoiler bool) upload.FileUpload {
+func (f ReceivedFile) FileUpload() upload.FileUpload {
 	return upload.FileUpload{
 		ContentType: f.ContentType,
 		Filename:    f.Filename,
 		Size:        f.Size,
-		IsSpoiler:   isSpoiler,
 		Open: func() (io.ReadCloser, error) {
 			return os.Open(f.Path)
 		},

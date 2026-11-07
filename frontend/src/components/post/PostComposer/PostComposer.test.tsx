@@ -1,16 +1,28 @@
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makePendingUpload } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
+import { emitRealtimeEvent } from "../../../test-utils/ws";
+import type { PendingUpload } from "../../../types/api";
 import { PostComposer } from "./PostComposer";
 
 const mocks = vi.hoisted(() => ({
     createPost: vi.fn(),
+    beginUpload: vi.fn(),
+    removeUpload: vi.fn(),
+    uploadStatuses: vi.fn(),
     navigate: vi.fn(),
 }));
 
 vi.mock("../../../hooks/mutations/post", () => ({
     useCreatePost: () => ({ mutateAsync: mocks.createPost }),
+}));
+
+vi.mock("../../../hooks/mutations/uploads", () => ({
+    useBeginUpload: () => ({ mutateAsync: mocks.beginUpload }),
+    useRemoveUpload: () => ({ mutateAsync: mocks.removeUpload }),
+    useUploadStatuses: () => ({ mutateAsync: mocks.uploadStatuses }),
 }));
 
 vi.mock("../../chat/GifPicker/GifPicker", () => ({
@@ -46,44 +58,96 @@ function fileInput(container: HTMLElement): HTMLInputElement {
     return input as HTMLInputElement;
 }
 
+function uploadRef(name: string, isSpoiler = false) {
+    return { upload_id: `upload-${name}`, is_spoiler: isSpoiler };
+}
+
+async function attach(container: HTMLElement, files: File[]): Promise<void> {
+    fireEvent.change(fileInput(container), { target: { files } });
+    await waitFor(() => expect(screen.queryByRole("progressbar")).not.toBeInTheDocument());
+}
+
 beforeEach(() => {
     mocks.createPost.mockResolvedValue({ id: newPostId });
+    mocks.removeUpload.mockResolvedValue(undefined);
+    mocks.uploadStatuses.mockResolvedValue([]);
+    mocks.beginUpload.mockImplementation(({ file }: { file: File }) =>
+        Promise.resolve(makePendingUpload({ id: `upload-${file.name}`, filename: file.name })),
+    );
 });
 
 describe("PostComposer", () => {
-    it("shows how far the files have uploaded, then that the server is processing them", async () => {
-        // given a post with a picture whose request reports progress and then waits on the server
-        const user = userEvent.setup();
+    it("uploads an attachment as soon as it is added and shows its own progress, then processing", async () => {
+        // given an upload that reports progress and then waits on the server to encode it
         let report: (sent: number, total: number) => void = () => {};
-        mocks.createPost.mockImplementation((input: { onProgress: (sent: number, total: number) => void }) => {
-            report = input.onProgress;
-
-            return new Promise(() => {});
-        });
+        let finish: (upload: PendingUpload) => void = () => {};
+        mocks.beginUpload.mockImplementation(
+            (input: { onProgress: (sent: number, total: number) => void }) =>
+                new Promise<PendingUpload>(resolve => {
+                    report = input.onProgress;
+                    finish = resolve;
+                }),
+        );
         const { container } = renderWithProviders(<PostComposer />);
-        fireEvent.change(fileInput(container), { target: { files: [makeImage()] } });
 
         // when
-        await user.click(postButton());
-        const beforeProgress = screen
-            .getByRole("progressbar", { name: "Upload progress" })
-            .getAttribute("aria-valuetext");
+        fireEvent.change(fileInput(container), { target: { files: [makeImage()] } });
+        const beforeProgress = screen.getByRole("progressbar", { name: "Upload progress" });
+        const startText = beforeProgress.getAttribute("aria-valuetext");
         act(() => {
             report(42, 100);
         });
         const partWay = screen.getByRole("progressbar", { name: "Upload progress" }).getAttribute("aria-valuetext");
-        act(() => {
-            report(100, 100);
+        await act(async () => {
+            finish(makePendingUpload({ id: "upload-beato.png", status: "processing" }));
         });
 
         // then
-        expect(beforeProgress).toBe("Uploading 0%");
+        expect(mocks.beginUpload).toHaveBeenCalledOnce();
+        expect(mocks.createPost).not.toHaveBeenCalled();
+        expect(startText).toBe("Uploading 0%");
         expect(partWay).toBe("Uploading 42%");
         expect(screen.getByRole("progressbar", { name: "Upload progress" })).toHaveAttribute(
             "aria-valuetext",
             "Processing...",
         );
-        expect(screen.getByRole("button", { name: "Posting..." })).toBeDisabled();
+        expect(postButton()).toBeDisabled();
+    });
+
+    it("lets the post go out once the server reports the attachment processed", async () => {
+        // given an attachment the server is still encoding
+        const user = userEvent.setup();
+        mocks.beginUpload.mockResolvedValue(makePendingUpload({ id: "upload-beato.png", status: "processing" }));
+        const { container } = renderWithProviders(<PostComposer />);
+        fireEvent.change(fileInput(container), { target: { files: [makeImage()] } });
+        await waitFor(() =>
+            expect(screen.getByRole("progressbar", { name: "Upload progress" })).toHaveAttribute(
+                "aria-valuetext",
+                "Processing...",
+            ),
+        );
+
+        // when
+        emitRealtimeEvent({ type: "upload_ready", data: makePendingUpload({ id: "upload-beato.png" }) });
+        await user.click(postButton());
+
+        // then
+        expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+        expect(mocks.createPost).toHaveBeenCalledWith(expect.objectContaining({ media: [uploadRef("beato.png")] }));
+    });
+
+    it("marks an attachment the server could not process and keeps the post held", async () => {
+        // given
+        mocks.beginUpload.mockRejectedValue(new Error("the file is cursed"));
+        const { container } = renderWithProviders(<PostComposer />);
+
+        // when
+        fireEvent.change(fileInput(container), { target: { files: [makeImage()] } });
+
+        // then
+        expect(await screen.findByRole("alert")).toHaveTextContent("Failed");
+        expect(screen.getByRole("alert").parentElement).toHaveAttribute("title", "the file is cursed");
+        expect(postButton()).toBeDisabled();
     });
 
     it("shows no upload bar for a post without files", async () => {
@@ -142,7 +206,6 @@ describe("PostComposer", () => {
             corner: "umineko",
             poll: undefined,
             media: [],
-            onProgress: expect.any(Function),
         });
     });
 
@@ -161,7 +224,6 @@ describe("PostComposer", () => {
             corner: "general",
             poll: undefined,
             media: [],
-            onProgress: expect.any(Function),
         });
     });
 
@@ -217,7 +279,6 @@ describe("PostComposer", () => {
                 duration_seconds: 3600,
             },
             media: [],
-            onProgress: expect.any(Function),
         });
     });
 
@@ -285,28 +346,26 @@ describe("PostComposer", () => {
         expect(await screen.findByText("Failed to create post")).toBeInTheDocument();
     });
 
-    it("sends every attached file with the post it creates", async () => {
+    it("sends every finished upload with the post it creates", async () => {
         // given
         const user = userEvent.setup();
-        const file = makeImage();
         const { container } = renderWithProviders(<PostComposer />);
-        fireEvent.change(fileInput(container), { target: { files: [file] } });
+        await attach(container, [makeImage()]);
 
         // when
         await user.type(bodyField(), "look at this");
         await user.click(postButton());
 
         // then
-        expect(mocks.createPost).toHaveBeenCalledWith(expect.objectContaining({ media: [{ file, isSpoiler: false }] }));
+        expect(mocks.createPost).toHaveBeenCalledWith(expect.objectContaining({ media: [uploadRef("beato.png")] }));
         expect(mocks.navigate).toHaveBeenCalledWith(`/game-board/${newPostId}`);
     });
 
     it("sends an attachment the author marked as a spoiler with its flag set", async () => {
         // given an attached image the author has marked
         const user = userEvent.setup();
-        const file = makeImage();
         const { container } = renderWithProviders(<PostComposer />);
-        fireEvent.change(fileInput(container), { target: { files: [file] } });
+        await attach(container, [makeImage()]);
 
         // when
         await user.click(screen.getByRole("button", { name: "Mark as spoiler" }));
@@ -314,16 +373,16 @@ describe("PostComposer", () => {
         await user.click(postButton());
 
         // then
-        expect(mocks.createPost).toHaveBeenCalledWith(expect.objectContaining({ media: [{ file, isSpoiler: true }] }));
+        expect(mocks.createPost).toHaveBeenCalledWith(
+            expect.objectContaining({ media: [uploadRef("beato.png", true)] }),
+        );
     });
 
     it("keeps the spoiler flag with its own attachment when they are reordered", async () => {
         // given two attachments where only the second is marked
         const user = userEvent.setup();
-        const first = makeImage("first.png");
-        const second = makeImage("second.png");
         const { container } = renderWithProviders(<PostComposer />);
-        fireEvent.change(fileInput(container), { target: { files: [first, second] } });
+        await attach(container, [makeImage("first.png"), makeImage("second.png")]);
         await user.click(screen.getAllByRole("button", { name: "Mark as spoiler" })[1]);
 
         // when the marked one is moved to the front
@@ -331,25 +390,18 @@ describe("PostComposer", () => {
         await user.type(bodyField(), "look at this");
         await user.click(postButton());
 
-        // then the flag travelled with its own file
+        // then the flag travelled with its own upload
         expect(mocks.createPost).toHaveBeenCalledWith(
-            expect.objectContaining({
-                media: [
-                    { file: second, isSpoiler: true },
-                    { file: first, isSpoiler: false },
-                ],
-            }),
+            expect.objectContaining({ media: [uploadRef("second.png", true), uploadRef("first.png")] }),
         );
     });
 
     it("keeps the whole draft and shows the error instead of leaving when the post and its media are refused", async () => {
         // given
         const user = userEvent.setup();
-        const good = makeImage("good.png");
-        const bad = makeImage("bad.png");
         mocks.createPost.mockRejectedValue(new Error("the media room is sealed"));
         const { container } = renderWithProviders(<PostComposer />);
-        fireEvent.change(fileInput(container), { target: { files: [good, bad] } });
+        await attach(container, [makeImage("good.png"), makeImage("bad.png")]);
         await user.click(screen.getAllByRole("button", { name: "Mark as spoiler" })[1]);
         await user.click(screen.getByRole("button", { name: "+ Poll" }));
         await user.type(screen.getByPlaceholderText("Option 1"), "Beatrice");
@@ -375,10 +427,9 @@ describe("PostComposer", () => {
     it("sends the kept draft again in one request when the refused post is retried", async () => {
         // given
         const user = userEvent.setup();
-        const file = makeImage();
         mocks.createPost.mockRejectedValueOnce(new Error("storage is unavailable"));
         const { container } = renderWithProviders(<PostComposer />);
-        fireEvent.change(fileInput(container), { target: { files: [file] } });
+        await attach(container, [makeImage()]);
         await user.type(bodyField(), "look at this");
         await user.click(postButton());
         await screen.findByText("storage is unavailable");
@@ -392,8 +443,7 @@ describe("PostComposer", () => {
             body: "look at this",
             corner: "general",
             poll: undefined,
-            media: [{ file, isSpoiler: false }],
-            onProgress: expect.any(Function),
+            media: [uploadRef("beato.png")],
         });
         expect(mocks.navigate).toHaveBeenCalledWith(`/game-board/${newPostId}`);
     });
@@ -404,7 +454,7 @@ describe("PostComposer", () => {
         const { container } = renderWithProviders(<PostComposer />);
 
         // when
-        fireEvent.change(fileInput(container), { target: { files: [makeImage()] } });
+        await attach(container, [makeImage()]);
 
         // then
         expect(postButton()).toBeEnabled();

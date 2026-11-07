@@ -170,8 +170,8 @@ func (m *messagesService) ListRoomAttachments(ctx context.Context, userID, roomI
 	}, nil
 }
 
-func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest, files []upload.FileUpload) (*dto.ChatMessageResponse, error) {
-	if req.Body == "" && len(files) == 0 {
+func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest) (*dto.ChatMessageResponse, error) {
+	if req.Body == "" && len(req.Media) == 0 {
 		return nil, ErrMissingFields
 	}
 	if !validClientNonce(req.ClientNonce) {
@@ -248,32 +248,14 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		}
 	}
 
-	if req.ClientNonce != "" && len(files) > 0 {
-		existing, err := m.chatRepo.GetMessageBySenderNonce(ctx, spec.ChatSenderNonce{SenderID: senderID, ClientNonce: req.ClientNonce})
-		if err != nil {
-			return nil, err
-		}
-		if existing != nil {
-			return m.replayedMessage(ctx, roomID, sender, *existing)
-		}
-	}
-
-	stored, err := m.uploadSvc.StoreMedia(ctx, "chat", files)
-	if err != nil {
-		return nil, err
-	}
-
-	created, mediaIDs, err := m.chatRepo.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{
+	created, mediaResponses, err := m.chatRepo.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{
 		RoomID:      roomID,
 		SenderID:    senderID,
 		Body:        req.Body,
 		ReplyToID:   replyToID,
 		ClientNonce: req.ClientNonce,
-		Media:       chatMediaRows(stored),
+		Media:       upload.MediaClaim(senderID, req.Media),
 	})
-	if err != nil {
-		m.uploadSvc.DiscardMedia(stored...)
-	}
 	if replay, ok := errors.AsType[*daoerr.ChatMessageReplayError](err); ok {
 		return m.replayedMessage(ctx, roomID, sender, replay.Existing)
 	}
@@ -282,10 +264,6 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 	}
 
 	msgID := created.ID
-
-	m.uploadSvc.TranscodeMedia(ctx, "chat", stored, mediaIDs, m.chatRepo.UpdateMessageMediaURL, m.chatRepo.UpdateMessageMediaThumbnail)
-
-	mediaResponses := upload.MediaResponses(stored, mediaIDs)
 
 	resp := m.sentMessageResponse(ctx, *created, sender, mediaResponses, replyToPreview)
 	displayName := resp.Sender.DisplayName
@@ -884,13 +862,4 @@ func (m *messagesService) auditMessageDelete(ctx context.Context, msg model.Chat
 		Details:    details,
 		SubjectID:  msg.SenderID,
 	})
-}
-
-func chatMediaRows(stored []upload.StoredMedia) []spec.NewChatMessageMedia {
-	var rows []spec.NewChatMessageMedia
-	for _, m := range stored {
-		rows = append(rows, spec.NewChatMessageMedia{NewMedia: m.NewMedia(uuid.Nil), Width: m.Width, Height: m.Height})
-	}
-
-	return rows
 }

@@ -13,7 +13,6 @@ import (
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 )
 
 const (
@@ -184,24 +183,12 @@ func (s *Service) sendFirstDM(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	form, err := utils.ReceiveUpload(ctx, s.UploadService, int64(ctx.App().Server().MaxRequestBodySize))
-	if err != nil {
-		return utils.UploadFailed(ctx, err)
-	}
-	defer form.Close()
-
-	spoilers, ok := utils.SpoilerIndexes(form.Value(utils.SpoilerIndexesField))
+	req, ok := utils.BindJSON[dto.SendDMRequest](ctx)
 	if !ok {
-		return utils.BadRequest(ctx, "invalid spoiler_indexes")
+		return nil
 	}
 
-	req := dto.SendDMRequest{
-		Body:        form.Value("body"),
-		ClientNonce: form.Value("client_nonce"),
-	}
-	files := form.FileUploads(utils.MediaField, spoilers)
-
-	resp, err := s.ChatService.SendDMMessage(ctx.Context(), userID, recipientID, req, files)
+	resp, err := s.ChatService.SendDMMessage(ctx.Context(), userID, recipientID, req)
 	if errors.Is(err, chat.ErrDmsDisabled) || errors.Is(err, chat.ErrUserNotFound) || errors.Is(err, chat.ErrCannotDMSelf) {
 		return dmRouteError(ctx, err)
 	}
@@ -306,30 +293,12 @@ func (s *Service) sendMessage(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	form, err := utils.ReceiveUpload(ctx, s.UploadService, int64(ctx.App().Server().MaxRequestBodySize))
-	if err != nil {
-		return utils.UploadFailed(ctx, err)
-	}
-	defer form.Close()
-
-	replyToID, ok := parseReplyToID(form)
+	req, ok := utils.BindJSON[dto.SendMessageRequest](ctx)
 	if !ok {
-		return utils.BadRequest(ctx, "invalid reply_to_id")
+		return nil
 	}
 
-	spoilers, ok := utils.SpoilerIndexes(form.Value(utils.SpoilerIndexesField))
-	if !ok {
-		return utils.BadRequest(ctx, "invalid spoiler_indexes")
-	}
-
-	req := dto.SendMessageRequest{
-		Body:        form.Value("body"),
-		ReplyToID:   replyToID,
-		ClientNonce: form.Value("client_nonce"),
-	}
-	files := form.FileUploads(utils.MediaField, spoilers)
-
-	resp, err := s.ChatService.SendMessage(ctx.Context(), userID, roomID, req, files)
+	resp, err := s.ChatService.SendMessage(ctx.Context(), userID, roomID, req)
 	if err != nil {
 		return messageSendError(ctx, err)
 	}
@@ -1139,18 +1108,4 @@ func (s *Service) removeReaction(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to remove reaction")
 	}
 	return utils.OK(ctx)
-}
-
-func parseReplyToID(form *utils.Upload) (*uuid.UUID, bool) {
-	raw := form.Value("reply_to_id")
-	if raw == "" {
-		return nil, true
-	}
-
-	id, err := uuid.Parse(raw)
-	if err != nil {
-		return nil, false
-	}
-
-	return &id, true
 }

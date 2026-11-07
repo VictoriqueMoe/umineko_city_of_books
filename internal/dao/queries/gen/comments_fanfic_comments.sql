@@ -83,12 +83,6 @@ FROM fanfic_comment_media
 WHERE comment_id = ANY(string_to_array($1::text, ',')::uuid[])
 ORDER BY sort_order;
 
--- name: UpdateFanficCommentMediaURL :execrows
-UPDATE fanfic_comment_media SET media_url = $1 WHERE id = $2;
-
--- name: UpdateFanficCommentMediaThumbnail :execrows
-UPDATE fanfic_comment_media SET thumbnail_url = $1 WHERE id = $2;
-
 -- name: CollectFanficCommentMediaPaths :many
 SELECT m.media_url, m.thumbnail_url
 FROM fanfic_comment_media m

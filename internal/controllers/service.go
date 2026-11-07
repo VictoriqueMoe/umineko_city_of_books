@@ -127,6 +127,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllFanficRoutes()...)
 	all = append(all, s.getAllJournalRoutes()...)
 	all = append(all, s.getAllSecretRoutes()...)
+	all = append(all, s.getAllPendingUploadRoutes()...)
 	all = append(all, s.getAllUserPreferencesRoutes()...)
 	all = append(all, s.getAllGiphyRoutes()...)
 	all = append(all, s.getAllGameRoomRoutes()...)

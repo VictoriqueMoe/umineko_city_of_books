@@ -28,7 +28,6 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/upload"
-	"umineko_city_of_books/internal/upload/uploadtest"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -64,10 +63,8 @@ type (
 )
 
 var (
-	errStoreFailed = errors.New("store failed")
-
-	uploadPostMedia = func(svc *service, ctx context.Context, postID uuid.UUID, userID uuid.UUID) error {
-		_, err := svc.UploadPostMedia(ctx, postID, userID, uploadtest.MemoryUpload("image/png", "photo.png", []byte("x"), false))
+	attachPostMedia = func(svc *service, ctx context.Context, postID uuid.UUID, userID uuid.UUID) error {
+		_, err := svc.AttachPostMedia(ctx, postID, userID, dto.UploadRef{ID: uuid.New()})
 
 		return err
 	}
@@ -83,7 +80,6 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	blockSvc := block.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
-	uploadtest.ExpectNoMedia(uploadSvc)
 	settingsSvc := settings.NewMockService(t)
 	hub := ws.NewHub()
 	activity := sidebar.NewMockActivityBumper(t)
@@ -149,6 +145,10 @@ func expectPostListBatch(m *testMocks, rows []model.PostRow, viewerID uuid.UUID)
 }
 
 func matchNewPost(want spec.NewPost) any {
+	if want.Media.UserID == uuid.Nil {
+		want.Media = upload.MediaClaim(want.UserID, nil)
+	}
+
 	return mock.MatchedBy(func(got spec.NewPost) bool {
 		if got.Poll != nil {
 			poll := *got.Poll
@@ -202,7 +202,7 @@ func TestBlankBodyIsRejected(t *testing.T) {
 		{
 			name: "CreatePost without a share",
 			call: func(svc *service) error {
-				_, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{Corner: "general", Body: "   "}, nil)
+				_, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{Corner: "general", Body: "   "})
 
 				return err
 			},
@@ -265,7 +265,7 @@ func TestCreatePost_Rejected(t *testing.T) {
 			}
 
 			// when
-			_, err := svc.CreatePost(context.Background(), userID, tc.req, nil)
+			_, err := svc.CreatePost(context.Background(), userID, tc.req)
 
 			// then
 			require.ErrorIs(t, err, tc.wantErr)
@@ -281,7 +281,7 @@ func TestCreatePost_RejectedByContentFilter(t *testing.T) {
 	svc.contentFilter = contentfilter.New(rule)
 
 	// when
-	_, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{Corner: "general", Body: "https://giphy.com/gifs/abc123"}, nil)
+	_, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{Corner: "general", Body: "https://giphy.com/gifs/abc123"})
 
 	// then
 	var rej *contentfilter.RejectedError
@@ -325,7 +325,7 @@ func TestCreatePost(t *testing.T) {
 			}
 
 			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-			m.postRepo.EXPECT().CreateWithDetails(mock.Anything, matchNewPost(want)).Return(created, nil, tc.createErr)
+			m.postRepo.EXPECT().CreateWithDetails(mock.Anything, matchNewPost(want)).Return(created, tc.createErr)
 			if tc.createErr == nil {
 				expectBackgroundSocial(m)
 			}
@@ -334,7 +334,7 @@ func TestCreatePost(t *testing.T) {
 			}
 
 			// when
-			id, err := svc.CreatePost(context.Background(), userID, tc.req, nil)
+			id, err := svc.CreatePost(context.Background(), userID, tc.req)
 
 			// then
 			if tc.createErr != nil {
@@ -372,12 +372,12 @@ func TestCreatePost_EveryRealCornerIsStoredAndBumped(t *testing.T) {
 			postID := uuid.New()
 
 			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-			m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: tc.corner, Body: "hello"}).Return(&model.PostRow{ID: postID}, nil, nil)
+			m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: tc.corner, Body: "hello", Media: upload.MediaClaim(userID, nil)}).Return(&model.PostRow{ID: postID}, nil)
 			m.activity.EXPECT().BumpSidebarActivity(tc.wantBump).Return().Once()
 			expectBackgroundSocial(m)
 
 			// when
-			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: tc.corner, Body: "hello"}, nil)
+			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: tc.corner, Body: "hello"})
 
 			// then
 			require.NoError(t, err)
@@ -406,8 +406,8 @@ func TestCreatePost_MentionNotifiesTheNamedUserOutsideSuggestions(t *testing.T) 
 
 			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
 			m.postRepo.EXPECT().
-				CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: string(tt.corner), Body: "look at this @alice"}).
-				Return(&model.PostRow{ID: postID}, nil, nil)
+				CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: string(tt.corner), Body: "look at this @alice", Media: upload.MediaClaim(userID, nil)}).
+				Return(&model.PostRow{ID: postID}, nil)
 			m.activity.EXPECT().BumpSidebarActivity(sidebar.GameBoardKey(tt.corner)).Return().Once()
 
 			var wg sync.WaitGroup
@@ -430,7 +430,7 @@ func TestCreatePost_MentionNotifiesTheNamedUserOutsideSuggestions(t *testing.T) 
 			}
 
 			// when
-			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: string(tt.corner), Body: "look at this @alice"}, nil)
+			id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: string(tt.corner), Body: "look at this @alice"})
 
 			// then
 			require.NoError(t, err)
@@ -928,8 +928,8 @@ func TestAuthorGuards(t *testing.T) {
 			guards: []authorGuard{lookupFailureSurfaced, vanishedIsNotFound},
 		},
 		{
-			name:   "UploadPostMedia",
-			call:   uploadPostMedia,
+			name:   "AttachPostMedia",
+			call:   attachPostMedia,
 			guards: []authorGuard{vanishedIsNotFound, notPostAuthor},
 		},
 		{
@@ -983,57 +983,42 @@ func TestAuthorGuards(t *testing.T) {
 	}
 }
 
-func TestUploadPostMedia_SaveFailureIsSurfaced(t *testing.T) {
-	// given
+func TestAttachPostMedia_AnUnavailableUploadIsSurfaced(t *testing.T) {
+	// given an upload that is still processing
 	svc, m := newTestService(t)
 	postID := uuid.New()
 	userID := uuid.New()
-	saveErr := errors.New("upload fail")
+	ref := dto.UploadRef{ID: uuid.New()}
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(userID, nil)
-	m.uploadSvc.EXPECT().StoreMedia(mock.Anything, "posts", uploadtest.Files("photo.png")).Return(nil, saveErr)
+	m.postRepo.EXPECT().
+		AttachMedia(mock.Anything, spec.MediaAttachment{TargetID: postID, Uploads: upload.MediaClaim(userID, []dto.UploadRef{ref})}).
+		Return(nil, daoerr.ErrUploadUnavailable)
 
 	// when
-	err := uploadPostMedia(svc, context.Background(), postID, userID)
+	resp, err := svc.AttachPostMedia(context.Background(), postID, userID, ref)
 
 	// then
-	require.ErrorIs(t, err, saveErr)
+	require.ErrorIs(t, err, daoerr.ErrUploadUnavailable)
+	assert.Nil(t, resp)
 }
 
-func TestUploadPostMedia_ARefusedRowDiscardsTheStoredFile(t *testing.T) {
-	// given
+func TestAttachPostMedia_ReturnsTheAttachedMedia(t *testing.T) {
+	// given a finished upload marked as a spoiler
 	svc, m := newTestService(t)
 	postID := uuid.New()
 	userID := uuid.New()
-	stored := []upload.StoredMedia{{URL: "/uploads/posts/photo.webp", MediaType: upload.MediaTypeImage, Filename: "photo.png"}}
+	ref := dto.UploadRef{ID: uuid.New(), IsSpoiler: true}
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(userID, nil)
-	m.uploadSvc.EXPECT().StoreMedia(mock.Anything, "posts", uploadtest.Files("photo.png")).Return(stored, nil)
-	m.postRepo.EXPECT().AddMedia(mock.Anything, stored[0].NewMedia(postID)).Return(0, errStoreFailed)
-	m.uploadSvc.EXPECT().DiscardMedia(stored).Return().Once()
+	m.postRepo.EXPECT().
+		AttachMedia(mock.Anything, spec.MediaAttachment{TargetID: postID, Uploads: upload.MediaClaim(userID, []dto.UploadRef{ref})}).
+		Return(&model.PostMediaRow{ID: 9, PostID: postID, MediaURL: "/uploads/media/photo.webp", MediaType: upload.MediaTypeImage, Filename: "photo.png", IsSpoiler: true}, nil)
 
 	// when
-	err := uploadPostMedia(svc, context.Background(), postID, userID)
-
-	// then
-	require.ErrorIs(t, err, errStoreFailed)
-}
-
-func TestUploadPostMedia_RecordsTheStoredFileAndHandsItOn(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	postID := uuid.New()
-	userID := uuid.New()
-	stored := []upload.StoredMedia{{URL: "/uploads/posts/photo.webp", MediaType: upload.MediaTypeImage, Filename: "photo.png", Width: 2, Height: 2}}
-	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(userID, nil)
-	m.uploadSvc.EXPECT().StoreMedia(mock.Anything, "posts", uploadtest.Files("photo.png")).Return(stored, nil)
-	m.postRepo.EXPECT().AddMedia(mock.Anything, stored[0].NewMedia(postID)).Return(9, nil)
-	m.uploadSvc.EXPECT().TranscodeMedia(mock.Anything, "posts", stored, []int64{9}, mock.Anything, mock.Anything).Return().Once()
-
-	// when
-	resp, err := svc.UploadPostMedia(context.Background(), postID, userID, uploadtest.PNGUpload(t, "photo.png", false))
+	resp, err := svc.AttachPostMedia(context.Background(), postID, userID, ref)
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, dto.PostMediaResponse{ID: 9, MediaURL: "/uploads/posts/photo.webp", MediaType: upload.MediaTypeImage, Filename: "photo.png", Width: 2, Height: 2}, *resp)
+	assert.Equal(t, dto.PostMediaResponse{ID: 9, MediaURL: "/uploads/media/photo.webp", MediaType: upload.MediaTypeImage, Filename: "photo.png", IsSpoiler: true}, *resp)
 }
 
 func TestDeletePostMedia(t *testing.T) {
@@ -1143,10 +1128,10 @@ func TestCreateComment(t *testing.T) {
 			if tc.createErr != nil {
 				returned = uuid.Nil
 			}
-			m.commentSvc.EXPECT().Create(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindPost, ID: postID}, userID, req, []upload.FileUpload(nil)).Return(returned, tc.createErr).Once()
+			m.commentSvc.EXPECT().Create(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindPost, ID: postID}, userID, req).Return(returned, tc.createErr).Once()
 
 			// when
-			id, err := svc.CreateComment(context.Background(), postID, userID, req, nil)
+			id, err := svc.CreateComment(context.Background(), postID, userID, req)
 
 			// then
 			require.ErrorIs(t, err, tc.createErr)
@@ -1392,34 +1377,19 @@ func TestUnresolveSuggestion(t *testing.T) {
 	}
 }
 
-func storedPostFile(filename string, sortOrder int, isSpoiler bool) upload.StoredMedia {
-	return upload.StoredMedia{URL: "/uploads/posts/" + filename, MediaType: upload.MediaTypeImage, Filename: filename, SortOrder: sortOrder, IsSpoiler: isSpoiler}
-}
-
-func TestCreatePost_StoresEveryFileThenWritesThePostAndItsMediaTogetherBeforeAnySideEffect(t *testing.T) {
-	// given a post carrying two images, the second marked as a spoiler
+func TestCreatePost_WritesThePostWithTheClaimOnItsUploadsBeforeAnySideEffect(t *testing.T) {
+	// given a post carrying two finished uploads, the second marked as a spoiler
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	postID := uuid.New()
-	files := []upload.FileUpload{uploadtest.PNGUpload(t, "one.png", false), uploadtest.PNGUpload(t, "two.png", true)}
-	stored := []upload.StoredMedia{storedPostFile("one.png", 0, false), storedPostFile("two.png", 1, true)}
+	refs := []dto.UploadRef{{ID: uuid.New()}, {ID: uuid.New(), IsSpoiler: true}}
 
 	var order []string
 
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-	m.uploadSvc.EXPECT().StoreMedia(mock.Anything, "posts", uploadtest.Files("one.png", "two.png")).
-		Run(func(context.Context, string, []upload.FileUpload) { order = append(order, "store") }).
-		Return(stored, nil).
-		Once()
-	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: "general", Body: "hello", Media: upload.MediaRows(stored)}).
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: "general", Body: "hello", Media: upload.MediaClaim(userID, refs)}).
 		Run(func(context.Context, spec.NewPost, ...*sql.Tx) { order = append(order, "write") }).
-		Return(&model.PostRow{ID: postID}, []int64{1, 2}, nil).
-		Once()
-	m.uploadSvc.EXPECT().TranscodeMedia(mock.Anything, "posts", stored, []int64{1, 2}, mock.Anything, mock.Anything).
-		Run(func(context.Context, string, []upload.StoredMedia, []int64, upload.UpdateURLFn, upload.UpdateURLFn) {
-			order = append(order, "transcode")
-		}).
-		Return().
+		Return(&model.PostRow{ID: postID}, nil).
 		Once()
 	m.activity.EXPECT().
 		BumpSidebarActivity(sidebar.GameBoardKey(corner.GameBoardGeneral)).
@@ -1429,31 +1399,28 @@ func TestCreatePost_StoresEveryFileThenWritesThePostAndItsMediaTogetherBeforeAny
 	expectBackgroundSocial(m)
 
 	// when
-	id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: "general", Body: "hello"}, files)
+	id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: "general", Body: "hello", Media: refs})
 
-	// then every file is stored before the post exists, the post and its media rows land in one write, and only then is the board bumped
+	// then the post and the claim on its uploads land in one write, and only then is the board bumped
 	require.NoError(t, err)
 	assert.Equal(t, postID, id)
-	assert.Equal(t, []string{"store", "write", "transcode", "bump"}, order)
+	assert.Equal(t, []string{"write", "bump"}, order)
 }
 
-func TestCreatePost_FilesWithoutText(t *testing.T) {
+func TestCreatePost_UploadsWithoutText(t *testing.T) {
 	// given a post with no words but one picture
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	postID := uuid.New()
-	files := []upload.FileUpload{uploadtest.PNGUpload(t, "one.png", false)}
-	stored := []upload.StoredMedia{storedPostFile("one.png", 0, false)}
+	refs := []dto.UploadRef{{ID: uuid.New()}}
 
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-	m.uploadSvc.EXPECT().StoreMedia(mock.Anything, "posts", uploadtest.Files("one.png")).Return(stored, nil).Once()
-	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: "general", Media: upload.MediaRows(stored)}).Return(&model.PostRow{ID: postID}, []int64{1}, nil)
-	m.uploadSvc.EXPECT().TranscodeMedia(mock.Anything, "posts", stored, []int64{1}, mock.Anything, mock.Anything).Return().Once()
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: "general", Media: upload.MediaClaim(userID, refs)}).Return(&model.PostRow{ID: postID}, nil)
 	m.activity.EXPECT().BumpSidebarActivity(sidebar.GameBoardKey(corner.GameBoardGeneral)).Return().Once()
 	expectBackgroundSocial(m)
 
 	// when
-	id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: "general", Body: "   "}, files)
+	id, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: "general", Body: "   ", Media: refs})
 
 	// then
 	require.NoError(t, err)
@@ -1465,52 +1432,31 @@ func TestCreatePost_NoTextAndNoFilesIsEmpty(t *testing.T) {
 	svc, _ := newTestService(t)
 
 	// when
-	id, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{Corner: "general", Body: "   "}, nil)
+	id, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{Corner: "general", Body: "   "})
 
 	// then
 	require.ErrorIs(t, err, ErrEmptyBody)
 	assert.Equal(t, uuid.Nil, id)
 }
 
-func TestCreatePost_AFailedWriteDiscardsTheStoredFilesAndFiresNothing(t *testing.T) {
-	// given a shared post that mentions someone, whose files are stored but whose write is refused
+func TestCreatePost_AFailedWriteFiresNothing(t *testing.T) {
+	// given a shared post that mentions someone, whose uploads cannot be claimed
 	svc, m := newTestService(t)
 	obs := newCaptureObserver()
 	svc.SetCommentObserver(obs)
 	userID := uuid.New()
-	files := []upload.FileUpload{uploadtest.PNGUpload(t, "one.png", false), uploadtest.PNGUpload(t, "two.png", false)}
-	stored := []upload.StoredMedia{storedPostFile("one.png", 0, false), storedPostFile("two.png", 1, false)}
-	req := dto.CreatePostRequest{Corner: "general", Body: "look at this @alice", SharedContentID: uuid.NewString(), SharedContentType: "theory"}
+	req := dto.CreatePostRequest{Corner: "general", Body: "look at this @alice", SharedContentID: uuid.NewString(), SharedContentType: "theory", Media: []dto.UploadRef{{ID: uuid.New()}}}
 
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-	m.uploadSvc.EXPECT().StoreMedia(mock.Anything, "posts", uploadtest.Files("one.png", "two.png")).Return(stored, nil).Once()
-	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, mock.Anything).Return(nil, nil, errStoreFailed).Once()
-	m.uploadSvc.EXPECT().DiscardMedia(stored).Return().Once()
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, mock.Anything).Return(nil, daoerr.ErrUploadUnavailable).Once()
 
 	// when
-	id, err := svc.CreatePost(context.Background(), userID, req, files)
+	id, err := svc.CreatePost(context.Background(), userID, req)
 
-	// then no post exists, the stored files are gone, and the strict mocks prove no share count, mention, notification or board bump fired
-	require.ErrorIs(t, err, errStoreFailed)
+	// then no post exists, and the strict mocks prove no share count, mention, notification or board bump fired
+	require.ErrorIs(t, err, daoerr.ErrUploadUnavailable)
 	assert.Equal(t, uuid.Nil, id)
 	assert.Empty(t, obs.captured())
-}
-
-func TestCreatePost_ARefusedFileWritesNothing(t *testing.T) {
-	// given an upload service that refuses the batch, and a strict repo that expects no write at all
-	svc, m := newTestService(t)
-	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-	m.uploadSvc.EXPECT().StoreMedia(mock.Anything, "posts", uploadtest.Files("fine.png", "fake.png")).Return(nil, upload.ErrInvalidFileType).Once()
-
-	// when
-	id, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{Corner: "general", Body: "hello"}, []upload.FileUpload{
-		uploadtest.PNGUpload(t, "fine.png", false),
-		uploadtest.MemoryUpload("image/png", "fake.png", []byte("not an image at all"), false),
-	})
-
-	// then
-	require.ErrorIs(t, err, upload.ErrInvalidFileType)
-	assert.Equal(t, uuid.Nil, id)
 }
 
 func TestGetShareCount(t *testing.T) {

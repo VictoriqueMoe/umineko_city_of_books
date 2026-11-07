@@ -70,9 +70,10 @@ type (
 	}
 
 	CreateJournalEntryRequest struct {
-		Title   string `json:"title"`
-		Body    string `json:"body"`
-		IsDraft bool   `json:"is_draft"`
+		Title   string      `json:"title"`
+		Body    string      `json:"body"`
+		IsDraft bool        `json:"is_draft"`
+		Media   []UploadRef `json:"media,omitempty"`
 	}
 
 	UpdateJournalEntryRequest struct {
@@ -82,8 +83,9 @@ type (
 	}
 
 	CreateJournalCommentRequest struct {
-		Body     string     `json:"body"`
-		ParentID *uuid.UUID `json:"parent_id,omitempty"`
-		EntryID  *uuid.UUID `json:"entry_id,omitempty"`
+		Body     string      `json:"body"`
+		ParentID *uuid.UUID  `json:"parent_id,omitempty"`
+		EntryID  *uuid.UUID  `json:"entry_id,omitempty"`
+		Media    []UploadRef `json:"media,omitempty"`
 	}
 )

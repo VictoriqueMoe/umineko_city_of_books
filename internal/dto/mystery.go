@@ -108,6 +108,8 @@ type (
 		KeepOpenAfterSolve bool                `json:"keep_open_after_solve"`
 		KnoxContract       *KnoxContract       `json:"knox_contract,omitempty"`
 		Clues              []CreateClueRequest `json:"clues"`
+		Media              []UploadRef         `json:"media,omitempty"`
+		Attachments        []UploadRef         `json:"attachments,omitempty"`
 	}
 
 	CreateClueRequest struct {

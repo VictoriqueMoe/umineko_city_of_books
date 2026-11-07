@@ -5,19 +5,17 @@ import { useCreatePost } from "../../../hooks/mutations/post";
 import { useStagedMedia } from "../../../hooks/useStagedMedia";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { useWarnBeforeLeaving } from "../../../hooks/useWarnBeforeLeaving";
-import { uploadPercent } from "../../../domain/uploadProgress";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { Button } from "../../Button/Button";
 import { GifPicker } from "../../chat/GifPicker/GifPicker";
 import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
-import { UploadProgressBar } from "../../UploadProgressBar/UploadProgressBar";
 import { PollCreator } from "../PollCreator/PollCreator";
 import styles from "./PostComposer.module.css";
 
-interface PostComposerProps {
+type PostComposerProps = {
     corner?: string;
-}
+};
 
 export function PostComposer({ corner = "general" }: PostComposerProps) {
     const navigate = useNavigate();
@@ -26,14 +24,14 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
     const media = useStagedMedia();
     const addMedia = media.add;
     const [submitting, setSubmitting] = useState(false);
-    const [uploadedPercent, setUploadedPercent] = useState<number | null>(null);
     const [error, setError] = useState("");
     const [showPoll, setShowPoll] = useState(false);
     const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
     const [pollDuration, setPollDuration] = useState(86400);
     const [gifPickerOpen, setGifPickerOpen] = useState(false);
     const createPostMutation = useCreatePost();
-    useWarnBeforeLeaving(uploadedPercent !== null);
+    useWarnBeforeLeaving(media.busy);
+    const canPost = !submitting && media.ready && (body.trim() !== "" || media.files.length > 0);
 
     async function handleGifPick(gif: { url: string }) {
         setGifPickerOpen(false);
@@ -53,7 +51,7 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
     }
 
     async function handleSubmit() {
-        if (submitting || (!body.trim() && media.files.length === 0)) {
+        if (!canPost) {
             return;
         }
         if (showPoll) {
@@ -65,9 +63,6 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
         }
         setSubmitting(true);
         setError("");
-        if (media.files.length > 0) {
-            setUploadedPercent(0);
-        }
 
         try {
             let pollPayload: CreatePollPayload | undefined;
@@ -81,8 +76,7 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
                 body: body.trim(),
                 corner,
                 poll: pollPayload,
-                media: media.staged,
-                onProgress: (sent, total) => setUploadedPercent(uploadPercent(sent, total)),
+                media: media.refs,
             });
 
             setBody("");
@@ -95,7 +89,6 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
             setError(err instanceof Error ? err.message : "Failed to create post");
         } finally {
             setSubmitting(false);
-            setUploadedPercent(null);
         }
     }
 
@@ -145,6 +138,7 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
                 onReorder={media.reorder}
                 spoilers={media.spoilers}
                 onToggleSpoiler={media.toggleSpoiler}
+                progress={media.progress}
             />
 
             {showPoll && (
@@ -160,8 +154,6 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
                     }}
                 />
             )}
-
-            {uploadedPercent !== null && <UploadProgressBar percent={uploadedPercent} />}
 
             <div className={styles.bar}>
                 <div className={styles.barLeft}>
@@ -183,12 +175,7 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
                         </Button>
                     )}
                 </div>
-                <Button
-                    variant="primary"
-                    size="small"
-                    onClick={handleSubmit}
-                    disabled={submitting || (!body.trim() && media.files.length === 0)}
-                >
+                <Button variant="primary" size="small" onClick={handleSubmit} disabled={!canPost}>
                     {submitting ? "Posting..." : "Post"}
                 </Button>
             </div>

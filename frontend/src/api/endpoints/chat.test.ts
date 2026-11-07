@@ -75,47 +75,41 @@ describe("direct messages and group chat rooms", () => {
     runRequestCases(cases);
 });
 
-describe("direct message uploads", () => {
-    it("sendFirstDMMessage attaches the body and every media file", async () => {
-        // given
-        const first = new File(["a"], "a.png", { type: "image/png" });
-        const second = new File(["b"], "b.png", { type: "image/png" });
+describe("sending messages", () => {
+    const media = [
+        { upload_id: "upload-1", is_spoiler: false },
+        { upload_id: "upload-2", is_spoiler: true },
+    ];
+    const nonce = "0f1e2d3c4b5a69788796a5b4c3d2e1f0";
 
-        // when
-        await api.sendFirstDMMessage("u-1", { body: "good evening", files: [first, second] });
+    const cases: RequestCase[] = [
+        {
+            name: "sendFirstDMMessage posts the body, the finished uploads and the nonce as JSON",
+            call: () => api.sendFirstDMMessage("u-1", { body: "good evening", media, client_nonce: nonce }),
+            transport: postMock,
+            request: ["/chat/dm/u-1/messages", { body: "good evening", media, client_nonce: nonce }],
+        },
+        {
+            name: "sendFirstDMMessage sends only the body when nothing else is given",
+            call: () => api.sendFirstDMMessage("u-1", { body: "good evening" }),
+            transport: postMock,
+            request: ["/chat/dm/u-1/messages", { body: "good evening" }],
+        },
+        {
+            name: "sendChatMessage posts the body, the reply target and the finished uploads as JSON",
+            call: () => api.sendChatMessage("r-1", { body: "a reply", reply_to_id: "m-1", media }),
+            transport: postMock,
+            request: ["/chat/rooms/r-1/messages", { body: "a reply", reply_to_id: "m-1", media }],
+        },
+        {
+            name: "sendChatMessage carries the client nonce the server reconciles and deduplicates by",
+            call: () => api.sendChatMessage("r-1", { body: "hello", client_nonce: nonce }),
+            transport: postMock,
+            request: ["/chat/rooms/r-1/messages", { body: "hello", client_nonce: nonce }],
+        },
+    ];
 
-        // then
-        const formData = postFormDataMock.mock.calls[0][1];
-        expect(postFormDataMock.mock.calls[0][0]).toBe("/chat/dm/u-1/messages");
-        expect(formData.get("body")).toBe("good evening");
-        expect(formData.getAll("media")).toEqual([first, second]);
-    });
-
-    it("sendFirstDMMessage omits the media and the nonce when none are given", async () => {
-        // given
-        const recipientId = "u-1";
-
-        // when
-        await api.sendFirstDMMessage(recipientId, { body: "good evening" });
-
-        // then
-        const formData = postFormDataMock.mock.calls[0][1];
-        expect(formData.get("body")).toBe("good evening");
-        expect(formData.has("media")).toBe(false);
-        expect(formData.has("client_nonce")).toBe(false);
-    });
-
-    it("sendFirstDMMessage carries the client nonce the server deduplicates a retried first message by", async () => {
-        // given
-        const nonce = "0f1e2d3c4b5a69788796a5b4c3d2e1f0";
-
-        // when
-        await api.sendFirstDMMessage("u-1", { body: "good evening", client_nonce: nonce });
-
-        // then
-        const formData = postFormDataMock.mock.calls[0][1];
-        expect(formData.get("client_nonce")).toBe(nonce);
-    });
+    runRequestCases(cases);
 });
 
 describe("chat room membership and bans", () => {

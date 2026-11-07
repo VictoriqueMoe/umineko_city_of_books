@@ -9,12 +9,6 @@ SELECT media_url FROM journal_entry_media WHERE id = $1 AND entry_id = $2;
 -- name: DeleteJournalEntryMediaRow :exec
 DELETE FROM journal_entry_media WHERE id = $1 AND entry_id = $2;
 
--- name: UpdateJournalEntryMediaURL :execrows
-UPDATE journal_entry_media SET media_url = $1 WHERE id = $2;
-
--- name: UpdateJournalEntryMediaThumbnail :execrows
-UPDATE journal_entry_media SET thumbnail_url = $1 WHERE id = $2;
-
 -- name: GetJournalEntryMedia :many
 SELECT id, entry_id AS target_id, media_url, media_type, thumbnail_url, COALESCE(filename, '')::text AS filename, sort_order, is_spoiler
 FROM journal_entry_media

@@ -8,6 +8,7 @@ import (
 	"context"
 	"io"
 	"time"
+	"umineko_city_of_books/internal/dto"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -47,6 +48,154 @@ type MockService_Expecter struct {
 
 func (_m *MockService) EXPECT() *MockService_Expecter {
 	return &MockService_Expecter{mock: &_m.Mock}
+}
+
+// BeginFileUpload provides a mock function for the type MockService
+func (_mock *MockService) BeginFileUpload(ctx context.Context, userID uuid.UUID, file FileUpload) (*dto.PendingUploadResponse, error) {
+	ret := _mock.Called(ctx, userID, file)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BeginFileUpload")
+	}
+
+	var r0 *dto.PendingUploadResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, FileUpload) (*dto.PendingUploadResponse, error)); ok {
+		return returnFunc(ctx, userID, file)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, FileUpload) *dto.PendingUploadResponse); ok {
+		r0 = returnFunc(ctx, userID, file)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.PendingUploadResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, FileUpload) error); ok {
+		r1 = returnFunc(ctx, userID, file)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_BeginFileUpload_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BeginFileUpload'
+type MockService_BeginFileUpload_Call struct {
+	*mock.Call
+}
+
+// BeginFileUpload is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - file FileUpload
+func (_e *MockService_Expecter) BeginFileUpload(ctx any, userID any, file any) *MockService_BeginFileUpload_Call {
+	return &MockService_BeginFileUpload_Call{Call: _e.mock.On("BeginFileUpload", ctx, userID, file)}
+}
+
+func (_c *MockService_BeginFileUpload_Call) Run(run func(ctx context.Context, userID uuid.UUID, file FileUpload)) *MockService_BeginFileUpload_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 FileUpload
+		if args[2] != nil {
+			arg2 = args[2].(FileUpload)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_BeginFileUpload_Call) Return(pendingUploadResponse *dto.PendingUploadResponse, err error) *MockService_BeginFileUpload_Call {
+	_c.Call.Return(pendingUploadResponse, err)
+	return _c
+}
+
+func (_c *MockService_BeginFileUpload_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, file FileUpload) (*dto.PendingUploadResponse, error)) *MockService_BeginFileUpload_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// BeginMediaUpload provides a mock function for the type MockService
+func (_mock *MockService) BeginMediaUpload(ctx context.Context, userID uuid.UUID, file FileUpload) (*dto.PendingUploadResponse, error) {
+	ret := _mock.Called(ctx, userID, file)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BeginMediaUpload")
+	}
+
+	var r0 *dto.PendingUploadResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, FileUpload) (*dto.PendingUploadResponse, error)); ok {
+		return returnFunc(ctx, userID, file)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, FileUpload) *dto.PendingUploadResponse); ok {
+		r0 = returnFunc(ctx, userID, file)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.PendingUploadResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, FileUpload) error); ok {
+		r1 = returnFunc(ctx, userID, file)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_BeginMediaUpload_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BeginMediaUpload'
+type MockService_BeginMediaUpload_Call struct {
+	*mock.Call
+}
+
+// BeginMediaUpload is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - file FileUpload
+func (_e *MockService_Expecter) BeginMediaUpload(ctx any, userID any, file any) *MockService_BeginMediaUpload_Call {
+	return &MockService_BeginMediaUpload_Call{Call: _e.mock.On("BeginMediaUpload", ctx, userID, file)}
+}
+
+func (_c *MockService_BeginMediaUpload_Call) Run(run func(ctx context.Context, userID uuid.UUID, file FileUpload)) *MockService_BeginMediaUpload_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 FileUpload
+		if args[2] != nil {
+			arg2 = args[2].(FileUpload)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_BeginMediaUpload_Call) Return(pendingUploadResponse *dto.PendingUploadResponse, err error) *MockService_BeginMediaUpload_Call {
+	_c.Call.Return(pendingUploadResponse, err)
+	return _c
+}
+
+func (_c *MockService_BeginMediaUpload_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, file FileUpload) (*dto.PendingUploadResponse, error)) *MockService_BeginMediaUpload_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // CleanStaging provides a mock function for the type MockService
@@ -260,134 +409,176 @@ func (_c *MockService_Discard_Call) RunAndReturn(run func(localPath string)) *Mo
 	return _c
 }
 
-// DiscardMedia provides a mock function for the type MockService
-func (_mock *MockService) DiscardMedia(stored ...StoredMedia) {
-	if len(stored) > 0 {
-		_mock.Called(stored)
-	} else {
-		_mock.Called()
-	}
-
-	return
-}
-
-// MockService_DiscardMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DiscardMedia'
-type MockService_DiscardMedia_Call struct {
-	*mock.Call
-}
-
-// DiscardMedia is a helper method to define mock.On call
-//   - stored ...StoredMedia
-func (_e *MockService_Expecter) DiscardMedia(stored ...any) *MockService_DiscardMedia_Call {
-	return &MockService_DiscardMedia_Call{Call: _e.mock.On("DiscardMedia",
-		append([]any{}, stored...)...)}
-}
-
-func (_c *MockService_DiscardMedia_Call) Run(run func(stored ...StoredMedia)) *MockService_DiscardMedia_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 []StoredMedia
-		var variadicArgs []StoredMedia
-		if len(args) > 0 {
-			variadicArgs = args[0].([]StoredMedia)
-		}
-		arg0 = variadicArgs
-		run(
-			arg0...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockService_DiscardMedia_Call) Return() *MockService_DiscardMedia_Call {
-	_c.Call.Return()
-	return _c
-}
-
-func (_c *MockService_DiscardMedia_Call) RunAndReturn(run func(stored ...StoredMedia)) *MockService_DiscardMedia_Call {
-	_c.Run(run)
-	return _c
-}
-
-// SaveAttachment provides a mock function for the type MockService
-func (_mock *MockService) SaveAttachment(ctx context.Context, subDir string, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
-	ret := _mock.Called(ctx, subDir, fileSize, maxSize, reader)
+// ExpireUploads provides a mock function for the type MockService
+func (_mock *MockService) ExpireUploads(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for SaveAttachment")
+		panic("no return value specified for ExpireUploads")
 	}
 
-	var r0 string
+	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int64, int64, io.Reader) (string, error)); ok {
-		return returnFunc(ctx, subDir, fileSize, maxSize, reader)
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int64, int64, io.Reader) string); ok {
-		r0 = returnFunc(ctx, subDir, fileSize, maxSize, reader)
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
 	} else {
-		r0 = ret.Get(0).(string)
+		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int64, int64, io.Reader) error); ok {
-		r1 = returnFunc(ctx, subDir, fileSize, maxSize, reader)
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// MockService_SaveAttachment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveAttachment'
-type MockService_SaveAttachment_Call struct {
+// MockService_ExpireUploads_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ExpireUploads'
+type MockService_ExpireUploads_Call struct {
 	*mock.Call
 }
 
-// SaveAttachment is a helper method to define mock.On call
+// ExpireUploads is a helper method to define mock.On call
 //   - ctx context.Context
-//   - subDir string
-//   - fileSize int64
-//   - maxSize int64
-//   - reader io.Reader
-func (_e *MockService_Expecter) SaveAttachment(ctx any, subDir any, fileSize any, maxSize any, reader any) *MockService_SaveAttachment_Call {
-	return &MockService_SaveAttachment_Call{Call: _e.mock.On("SaveAttachment", ctx, subDir, fileSize, maxSize, reader)}
+func (_e *MockService_Expecter) ExpireUploads(ctx any) *MockService_ExpireUploads_Call {
+	return &MockService_ExpireUploads_Call{Call: _e.mock.On("ExpireUploads", ctx)}
 }
 
-func (_c *MockService_SaveAttachment_Call) Run(run func(ctx context.Context, subDir string, fileSize int64, maxSize int64, reader io.Reader)) *MockService_SaveAttachment_Call {
+func (_c *MockService_ExpireUploads_Call) Run(run func(ctx context.Context)) *MockService_ExpireUploads_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 int64
-		if args[2] != nil {
-			arg2 = args[2].(int64)
-		}
-		var arg3 int64
-		if args[3] != nil {
-			arg3 = args[3].(int64)
-		}
-		var arg4 io.Reader
-		if args[4] != nil {
-			arg4 = args[4].(io.Reader)
-		}
 		run(
 			arg0,
-			arg1,
-			arg2,
-			arg3,
-			arg4,
 		)
 	})
 	return _c
 }
 
-func (_c *MockService_SaveAttachment_Call) Return(s string, err error) *MockService_SaveAttachment_Call {
-	_c.Call.Return(s, err)
+func (_c *MockService_ExpireUploads_Call) Return(n int, err error) *MockService_ExpireUploads_Call {
+	_c.Call.Return(n, err)
 	return _c
 }
 
-func (_c *MockService_SaveAttachment_Call) RunAndReturn(run func(ctx context.Context, subDir string, fileSize int64, maxSize int64, reader io.Reader) (string, error)) *MockService_SaveAttachment_Call {
+func (_c *MockService_ExpireUploads_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *MockService_ExpireUploads_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FailInterruptedUploads provides a mock function for the type MockService
+func (_mock *MockService) FailInterruptedUploads(ctx context.Context) error {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FailInterruptedUploads")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_FailInterruptedUploads_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FailInterruptedUploads'
+type MockService_FailInterruptedUploads_Call struct {
+	*mock.Call
+}
+
+// FailInterruptedUploads is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockService_Expecter) FailInterruptedUploads(ctx any) *MockService_FailInterruptedUploads_Call {
+	return &MockService_FailInterruptedUploads_Call{Call: _e.mock.On("FailInterruptedUploads", ctx)}
+}
+
+func (_c *MockService_FailInterruptedUploads_Call) Run(run func(ctx context.Context)) *MockService_FailInterruptedUploads_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_FailInterruptedUploads_Call) Return(err error) *MockService_FailInterruptedUploads_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_FailInterruptedUploads_Call) RunAndReturn(run func(ctx context.Context) error) *MockService_FailInterruptedUploads_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RemoveUpload provides a mock function for the type MockService
+func (_mock *MockService) RemoveUpload(ctx context.Context, userID uuid.UUID, id uuid.UUID) error {
+	ret := _mock.Called(ctx, userID, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveUpload")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, userID, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_RemoveUpload_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveUpload'
+type MockService_RemoveUpload_Call struct {
+	*mock.Call
+}
+
+// RemoveUpload is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - id uuid.UUID
+func (_e *MockService_Expecter) RemoveUpload(ctx any, userID any, id any) *MockService_RemoveUpload_Call {
+	return &MockService_RemoveUpload_Call{Call: _e.mock.On("RemoveUpload", ctx, userID, id)}
+}
+
+func (_c *MockService_RemoveUpload_Call) Run(run func(ctx context.Context, userID uuid.UUID, id uuid.UUID)) *MockService_RemoveUpload_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_RemoveUpload_Call) Return(err error) *MockService_RemoveUpload_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_RemoveUpload_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, id uuid.UUID) error) *MockService_RemoveUpload_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -626,60 +817,60 @@ func (_c *MockService_Stage_Call) RunAndReturn(run func(filename string, reader 
 	return _c
 }
 
-// StoreMedia provides a mock function for the type MockService
-func (_mock *MockService) StoreMedia(ctx context.Context, subDir string, files []FileUpload) ([]StoredMedia, error) {
-	ret := _mock.Called(ctx, subDir, files)
+// UploadStatuses provides a mock function for the type MockService
+func (_mock *MockService) UploadStatuses(ctx context.Context, userID uuid.UUID, ids []uuid.UUID) ([]dto.PendingUploadResponse, error) {
+	ret := _mock.Called(ctx, userID, ids)
 
 	if len(ret) == 0 {
-		panic("no return value specified for StoreMedia")
+		panic("no return value specified for UploadStatuses")
 	}
 
-	var r0 []StoredMedia
+	var r0 []dto.PendingUploadResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []FileUpload) ([]StoredMedia, error)); ok {
-		return returnFunc(ctx, subDir, files)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []uuid.UUID) ([]dto.PendingUploadResponse, error)); ok {
+		return returnFunc(ctx, userID, ids)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []FileUpload) []StoredMedia); ok {
-		r0 = returnFunc(ctx, subDir, files)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []uuid.UUID) []dto.PendingUploadResponse); ok {
+		r0 = returnFunc(ctx, userID, ids)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]StoredMedia)
+			r0 = ret.Get(0).([]dto.PendingUploadResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, []FileUpload) error); ok {
-		r1 = returnFunc(ctx, subDir, files)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, []uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, userID, ids)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// MockService_StoreMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StoreMedia'
-type MockService_StoreMedia_Call struct {
+// MockService_UploadStatuses_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UploadStatuses'
+type MockService_UploadStatuses_Call struct {
 	*mock.Call
 }
 
-// StoreMedia is a helper method to define mock.On call
+// UploadStatuses is a helper method to define mock.On call
 //   - ctx context.Context
-//   - subDir string
-//   - files []FileUpload
-func (_e *MockService_Expecter) StoreMedia(ctx any, subDir any, files any) *MockService_StoreMedia_Call {
-	return &MockService_StoreMedia_Call{Call: _e.mock.On("StoreMedia", ctx, subDir, files)}
+//   - userID uuid.UUID
+//   - ids []uuid.UUID
+func (_e *MockService_Expecter) UploadStatuses(ctx any, userID any, ids any) *MockService_UploadStatuses_Call {
+	return &MockService_UploadStatuses_Call{Call: _e.mock.On("UploadStatuses", ctx, userID, ids)}
 }
 
-func (_c *MockService_StoreMedia_Call) Run(run func(ctx context.Context, subDir string, files []FileUpload)) *MockService_StoreMedia_Call {
+func (_c *MockService_UploadStatuses_Call) Run(run func(ctx context.Context, userID uuid.UUID, ids []uuid.UUID)) *MockService_UploadStatuses_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 []FileUpload
+		var arg2 []uuid.UUID
 		if args[2] != nil {
-			arg2 = args[2].([]FileUpload)
+			arg2 = args[2].([]uuid.UUID)
 		}
 		run(
 			arg0,
@@ -690,82 +881,12 @@ func (_c *MockService_StoreMedia_Call) Run(run func(ctx context.Context, subDir 
 	return _c
 }
 
-func (_c *MockService_StoreMedia_Call) Return(storedMedias []StoredMedia, err error) *MockService_StoreMedia_Call {
-	_c.Call.Return(storedMedias, err)
+func (_c *MockService_UploadStatuses_Call) Return(pendingUploadResponses []dto.PendingUploadResponse, err error) *MockService_UploadStatuses_Call {
+	_c.Call.Return(pendingUploadResponses, err)
 	return _c
 }
 
-func (_c *MockService_StoreMedia_Call) RunAndReturn(run func(ctx context.Context, subDir string, files []FileUpload) ([]StoredMedia, error)) *MockService_StoreMedia_Call {
+func (_c *MockService_UploadStatuses_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, ids []uuid.UUID) ([]dto.PendingUploadResponse, error)) *MockService_UploadStatuses_Call {
 	_c.Call.Return(run)
-	return _c
-}
-
-// TranscodeMedia provides a mock function for the type MockService
-func (_mock *MockService) TranscodeMedia(ctx context.Context, subDir string, stored []StoredMedia, rowIDs []int64, updateURL UpdateURLFn, updateThumb UpdateURLFn) {
-	_mock.Called(ctx, subDir, stored, rowIDs, updateURL, updateThumb)
-	return
-}
-
-// MockService_TranscodeMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TranscodeMedia'
-type MockService_TranscodeMedia_Call struct {
-	*mock.Call
-}
-
-// TranscodeMedia is a helper method to define mock.On call
-//   - ctx context.Context
-//   - subDir string
-//   - stored []StoredMedia
-//   - rowIDs []int64
-//   - updateURL UpdateURLFn
-//   - updateThumb UpdateURLFn
-func (_e *MockService_Expecter) TranscodeMedia(ctx any, subDir any, stored any, rowIDs any, updateURL any, updateThumb any) *MockService_TranscodeMedia_Call {
-	return &MockService_TranscodeMedia_Call{Call: _e.mock.On("TranscodeMedia", ctx, subDir, stored, rowIDs, updateURL, updateThumb)}
-}
-
-func (_c *MockService_TranscodeMedia_Call) Run(run func(ctx context.Context, subDir string, stored []StoredMedia, rowIDs []int64, updateURL UpdateURLFn, updateThumb UpdateURLFn)) *MockService_TranscodeMedia_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 []StoredMedia
-		if args[2] != nil {
-			arg2 = args[2].([]StoredMedia)
-		}
-		var arg3 []int64
-		if args[3] != nil {
-			arg3 = args[3].([]int64)
-		}
-		var arg4 UpdateURLFn
-		if args[4] != nil {
-			arg4 = args[4].(UpdateURLFn)
-		}
-		var arg5 UpdateURLFn
-		if args[5] != nil {
-			arg5 = args[5].(UpdateURLFn)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-		)
-	})
-	return _c
-}
-
-func (_c *MockService_TranscodeMedia_Call) Return() *MockService_TranscodeMedia_Call {
-	_c.Call.Return()
-	return _c
-}
-
-func (_c *MockService_TranscodeMedia_Call) RunAndReturn(run func(ctx context.Context, subDir string, stored []StoredMedia, rowIDs []int64, updateURL UpdateURLFn, updateThumb UpdateURLFn)) *MockService_TranscodeMedia_Call {
-	_c.Run(run)
 	return _c
 }

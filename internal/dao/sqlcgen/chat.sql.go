@@ -2485,34 +2485,6 @@ func (q *Queries) UnpinChatMessage(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const updateChatMessageMediaThumbnail = `-- name: UpdateChatMessageMediaThumbnail :exec
-UPDATE chat_message_media SET thumbnail_url = $1 WHERE id = $2
-`
-
-type UpdateChatMessageMediaThumbnailParams struct {
-	ThumbnailUrl string
-	ID           int64
-}
-
-func (q *Queries) UpdateChatMessageMediaThumbnail(ctx context.Context, arg UpdateChatMessageMediaThumbnailParams) error {
-	_, err := q.db.ExecContext(ctx, updateChatMessageMediaThumbnail, arg.ThumbnailUrl, arg.ID)
-	return err
-}
-
-const updateChatMessageMediaURL = `-- name: UpdateChatMessageMediaURL :exec
-UPDATE chat_message_media SET media_url = $1 WHERE id = $2
-`
-
-type UpdateChatMessageMediaURLParams struct {
-	MediaUrl string
-	ID       int64
-}
-
-func (q *Queries) UpdateChatMessageMediaURL(ctx context.Context, arg UpdateChatMessageMediaURLParams) error {
-	_, err := q.db.ExecContext(ctx, updateChatMessageMediaURL, arg.MediaUrl, arg.ID)
-	return err
-}
-
 const updateChatRoom = `-- name: UpdateChatRoom :execrows
 UPDATE chat_rooms SET name = $1, description = $2, is_public = $3, is_rp = $4
 WHERE id = $5 AND type = 'group' AND is_system = FALSE

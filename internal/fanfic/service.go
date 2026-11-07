@@ -67,7 +67,7 @@ type (
 		GetSeries(ctx context.Context) ([]string, error)
 		SearchOCCharacters(ctx context.Context, query string) ([]string, error)
 
-		CreateComment(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error)
+		CreateComment(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)
 	}
 
 	fanficFields struct {
@@ -909,7 +909,7 @@ func (s *service) SearchOCCharacters(ctx context.Context, query string) ([]strin
 	return s.fanficRepo.SearchOCCharacters(ctx, strings.TrimSpace(query))
 }
 
-func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateCommentRequest, files []upload.FileUpload) (uuid.UUID, error) {
+func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
 	fanfic, err := s.fanficRepo.GetByID(ctx, spec.FanficLookup{ID: fanficID, ViewerID: userID})
 	if err != nil {
 		return uuid.Nil, err
@@ -918,5 +918,5 @@ func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID,
 		return uuid.Nil, ErrNotFound
 	}
 
-	return s.commentSvc.Create(ctx, spec.CommentTarget{Kind: spec.CommentKindFanfic, ID: fanficID}, userID, req, files)
+	return s.commentSvc.Create(ctx, spec.CommentTarget{Kind: spec.CommentKindFanfic, ID: fanficID}, userID, req)
 }

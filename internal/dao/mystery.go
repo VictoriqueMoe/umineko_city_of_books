@@ -67,8 +67,6 @@ type (
 		GetAttachments(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]dto.MysteryAttachment, error)
 
 		AddMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)
-		UpdateMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
-		UpdateMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
 		GetMedia(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error)
 		DeleteMedia(ctx context.Context, s spec.MediaDeletion, tx ...*sql.Tx) (string, error)
 

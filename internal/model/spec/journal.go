@@ -66,7 +66,7 @@ type (
 		Body        string
 		WordCount   int
 		IsDraft     bool
-		Media       []NewMedia
+		Media       ClaimedUploads
 	}
 
 	JournalEntryUpdate struct {
