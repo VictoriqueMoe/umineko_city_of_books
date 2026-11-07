@@ -145,58 +145,6 @@ func countWords(html string) int {
 	return len(strings.Fields(text))
 }
 
-func sameOptional(a, b *string) bool {
-	if a == nil || b == nil {
-		return a == b
-	}
-
-	return *a == *b
-}
-
-func changedDetails(changed []string) string {
-	if len(changed) == 0 {
-		return "changed=none"
-	}
-
-	return "changed=" + strings.Join(changed, ",")
-}
-
-func journalUpdateDetails(before *dto.JournalResponse, req dto.CreateJournalRequest) string {
-	if before == nil {
-		return ""
-	}
-
-	var changed []string
-
-	if before.Title != req.Title {
-		changed = append(changed, "title")
-	}
-
-	if before.Work != req.Work {
-		changed = append(changed, "work")
-	}
-
-	return changedDetails(changed)
-}
-
-func journalEntryUpdateDetails(before *model.JournalEntryRow, title *string, body string, isDraft bool) string {
-	var changed []string
-
-	if !sameOptional(before.Title, title) {
-		changed = append(changed, "title")
-	}
-
-	if before.Body != body {
-		changed = append(changed, "body")
-	}
-
-	if before.IsDraft != isDraft {
-		changed = append(changed, "is_draft")
-	}
-
-	return changedDetails(changed)
-}
-
 func (s *service) CreateJournal(ctx context.Context, userID uuid.UUID, req dto.CreateJournalRequest) (uuid.UUID, error) {
 	if strings.TrimSpace(req.Title) == "" {
 		return uuid.Nil, ErrEmptyTitle
@@ -353,38 +301,16 @@ func (s *service) UpdateJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 		return err
 	}
 
-	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermEditAnyJournal)
-
-	var before *dto.JournalResponse
-	if asAdmin {
-		before, err = s.repo.GetByID(ctx, spec.JournalLookup{ID: id, ViewerID: userID})
-		if err != nil {
-			return fmt.Errorf("journal before admin edit: %w", err)
-		}
+	if authorID != userID {
+		return ErrNotAuthor
 	}
 
-	if err := s.repo.Update(ctx, spec.JournalUpdate{
-		ID:      id,
-		UserID:  userID,
-		Title:   req.Title,
-		Work:    req.Work,
-		AsAdmin: asAdmin,
-	}); err != nil {
-		return err
-	}
-
-	if asAdmin {
-		s.writeAudit(ctx, audit.NewEntry{
-			ActorID:    userID,
-			Action:     audit.ActionJournalUpdateAdmin,
-			TargetType: audit.TargetJournal,
-			TargetID:   id.String(),
-			Details:    journalUpdateDetails(before, req),
-			SubjectID:  authorID,
-		})
-	}
-
-	return nil
+	return s.repo.Update(ctx, spec.JournalUpdate{
+		ID:     id,
+		UserID: userID,
+		Title:  req.Title,
+		Work:   req.Work,
+	})
 }
 
 func (s *service) DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
@@ -487,8 +413,7 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 		return uuid.Nil, 0, err
 	}
 
-	asAdmin := authorID != userID
-	if asAdmin && !s.authz.Can(ctx, userID, authz.PermEditAnyJournal) {
+	if authorID != userID {
 		return uuid.Nil, 0, ErrNotAuthor
 	}
 
@@ -526,17 +451,6 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 		if err := s.attachEntryMedia(ctx, validated, journalID, created.ID); err != nil {
 			return uuid.Nil, 0, err
 		}
-	}
-
-	if asAdmin {
-		s.writeAudit(ctx, audit.NewEntry{
-			ActorID:    userID,
-			Action:     audit.ActionJournalEntryCreateAdmin,
-			TargetType: audit.TargetJournalEntry,
-			TargetID:   created.ID.String(),
-			Details:    fmt.Sprintf("journal_id=%s,entry_number=%d,is_draft=%t", journalID, nextNumber, req.IsDraft),
-			SubjectID:  authorID,
-		})
 	}
 
 	if !req.IsDraft {
@@ -707,8 +621,7 @@ func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uui
 		return err
 	}
 
-	asAdmin := authorID != userID
-	if asAdmin && !s.authz.Can(ctx, userID, authz.PermEditAnyJournal) {
+	if authorID != userID {
 		return ErrNotAuthor
 	}
 
@@ -730,17 +643,6 @@ func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uui
 	})
 	if err != nil {
 		return err
-	}
-
-	if asAdmin {
-		s.writeAudit(ctx, audit.NewEntry{
-			ActorID:    userID,
-			Action:     audit.ActionJournalEntryUpdateAdmin,
-			TargetType: audit.TargetJournalEntry,
-			TargetID:   entryID.String(),
-			Details:    journalEntryUpdateDetails(existing, titlePtr, body, req.IsDraft),
-			SubjectID:  authorID,
-		})
 	}
 
 	if firstPublished {

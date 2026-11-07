@@ -138,11 +138,11 @@ SELECT id, body, truth_type, sort_order, player_id FROM mystery_clues WHERE myst
 -- name: DeleteMysteryClues :exec
 DELETE FROM mystery_clues WHERE mystery_id = $1 AND player_id IS NULL;
 
--- name: DeleteMysteryClue :exec
-DELETE FROM mystery_clues WHERE id = $1;
+-- name: DeleteMysteryClue :execrows
+DELETE FROM mystery_clues WHERE id = $1 AND mystery_id = $2;
 
--- name: UpdateMysteryClue :exec
-UPDATE mystery_clues SET body = $1 WHERE id = $2;
+-- name: UpdateMysteryClue :execrows
+UPDATE mystery_clues SET body = $1 WHERE id = $2 AND mystery_id = $3;
 
 -- name: CountMysteryClues :one
 SELECT COUNT(*) FROM mystery_clues WHERE mystery_id = $1;

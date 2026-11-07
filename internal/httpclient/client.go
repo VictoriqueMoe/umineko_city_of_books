@@ -21,14 +21,13 @@ type (
 	Option func(*http.Client)
 
 	Request struct {
-		Method       string
-		URL          string
-		Query        url.Values
-		Header       http.Header
-		Bearer       string
-		JSON         any
-		Form         url.Values
-		MaxBodyBytes int64
+		Method string
+		URL    string
+		Query  url.Values
+		Header http.Header
+		Bearer string
+		JSON   any
+		Form   url.Values
 	}
 
 	StatusError struct {
@@ -39,13 +38,7 @@ type (
 )
 
 const (
-	defaultMaxBodyBytes = 10 << 20
-	maxErrorBodyBytes   = 4 << 10
-	maxDrainBytes       = 64 << 10
-)
-
-var (
-	ErrBodyConflict = errors.New("httpclient: a request carries either a JSON body or a form body, not both")
+	maxErrorBodyBytes = 4 << 10
 )
 
 func New(timeout time.Duration, opts ...Option) *Client {
@@ -108,12 +101,7 @@ func (c *Client) JSON(ctx context.Context, req Request, out any) error {
 		return nil
 	}
 
-	limit := req.MaxBodyBytes
-	if limit <= 0 {
-		limit = defaultMaxBodyBytes
-	}
-
-	if err := json.NewDecoder(io.LimitReader(resp.Body, limit)).Decode(out); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
 		return fmt.Errorf("decode response: %w", err)
 	}
 
@@ -194,7 +182,7 @@ func newStatusError(resp *http.Response) *StatusError {
 }
 
 func drainAndClose(body io.ReadCloser) {
-	_, _ = io.Copy(io.Discard, io.LimitReader(body, maxDrainBytes))
+	_, _ = io.Copy(io.Discard, body)
 	_ = body.Close()
 }
 

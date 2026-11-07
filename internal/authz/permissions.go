@@ -31,19 +31,15 @@ const (
 	PermViewAuditLog      Permission = "view_audit_log"
 	PermManageSettings    Permission = "manage_settings"
 	PermManageRoles       Permission = "manage_roles"
-	PermDeleteAnyTheory   Permission = "delete_any_theory"
-	PermDeleteAnyResponse Permission = "delete_any_response"
+	PermDeleteAnyWork     Permission = "delete_any_work"
 	PermDeleteAnyUser     Permission = "delete_any_user"
 	PermBanUser           Permission = "ban_user"
 	PermViewUsers         Permission = "view_users"
 	PermDeleteAnyPost     Permission = "delete_any_post"
-	PermDeleteAnyComment  Permission = "delete_any_comment"
-	PermEditAnyTheory     Permission = "edit_any_theory"
+	PermEditAnyWork       Permission = "edit_any_work"
 	PermEditAnyPost       Permission = "edit_any_post"
-	PermEditAnyComment    Permission = "edit_any_comment"
 	PermResolveSuggestion Permission = "resolve_suggestion"
 	PermEditMysteryScore  Permission = "edit_mystery_score"
-	PermEditAnyJournal    Permission = "edit_any_journal"
 	PermDeleteAnyJournal  Permission = "delete_any_journal"
 	PermManageVanityRoles Permission = "manage_vanity_roles"
 	PermManageBannedWords Permission = "manage_banned_words"
@@ -61,19 +57,15 @@ var (
 		{PermViewAuditLog, "View audit log", ScopeStaff},
 		{PermManageSettings, "Manage site settings", ScopeRestricted},
 		{PermManageRoles, "Manage roles and permissions", ScopeRestricted},
-		{PermDeleteAnyTheory, "Delete any theory", ScopeStaff},
-		{PermDeleteAnyResponse, "Delete any response", ScopeStaff},
+		{PermDeleteAnyWork, "Delete any work (theories, mysteries, fanfics, art, ships, OCs)", ScopeStaff},
 		{PermDeleteAnyUser, "Delete any user", ScopeStaff},
 		{PermBanUser, "Ban and lock users", ScopeStaff},
 		{PermViewUsers, "View user records", ScopeStaff},
-		{PermDeleteAnyPost, "Delete any post", ScopeStaff},
-		{PermDeleteAnyComment, "Delete any comment", ScopeStaff},
-		{PermEditAnyTheory, "Edit any theory", ScopeStaff},
-		{PermEditAnyPost, "Edit any post", ScopeStaff},
-		{PermEditAnyComment, "Edit any comment", ScopeStaff},
+		{PermDeleteAnyPost, "Delete any post (feed posts, comments, theory responses, mystery attempts)", ScopeStaff},
+		{PermEditAnyWork, "Edit any work (theories, mysteries, fanfics, art, ships, OCs)", ScopeStaff},
+		{PermEditAnyPost, "Edit any post (feed posts, comments)", ScopeStaff},
 		{PermResolveSuggestion, "Resolve suggestions", ScopeStaff},
 		{PermEditMysteryScore, "Edit mystery scores", ScopeStaff},
-		{PermEditAnyJournal, "Edit any journal", ScopeStaff},
 		{PermDeleteAnyJournal, "Delete any journal", ScopeStaff},
 		{PermManageVanityRoles, "Manage vanity roles", ScopeStaff},
 		{PermManageBannedWords, "Manage banned words", ScopeStaff},
@@ -90,16 +82,12 @@ var (
 		PermViewAdminPanel,
 		PermViewStats,
 		PermViewUsers,
-		PermDeleteAnyTheory,
-		PermDeleteAnyResponse,
+		PermDeleteAnyWork,
 		PermDeleteAnyPost,
-		PermDeleteAnyComment,
-		PermEditAnyTheory,
+		PermEditAnyWork,
 		PermEditAnyPost,
-		PermEditAnyComment,
 		PermBanUser,
 		PermEditMysteryScore,
-		PermEditAnyJournal,
 		PermDeleteAnyJournal,
 		PermManageUserAccount,
 		PermUseChatbot,

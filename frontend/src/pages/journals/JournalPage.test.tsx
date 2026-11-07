@@ -325,7 +325,7 @@ describe("JournalPage", () => {
         expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
     });
 
-    it("lets a moderator edit and delete somebody else's journal", () => {
+    it("lets a moderator delete somebody else's journal but never edit it", () => {
         // given
         stubJournal();
 
@@ -333,7 +333,7 @@ describe("JournalPage", () => {
         renderPage(moderator);
 
         // then
-        expect(screen.getByRole("link", { name: "Edit" })).toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: "Edit" })).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
     });
 

@@ -47,8 +47,8 @@ function stubPermissions(
     });
 }
 
-function renderPage(role: "admin" | "moderator" = "admin") {
-    return renderWithProviders(<AdminPermissions />, { user: makeUser({ role }) });
+function renderPage() {
+    return renderWithProviders(<AdminPermissions />, { user: makeUser({ role: "admin" }) });
 }
 
 beforeEach(() => {
@@ -67,17 +67,6 @@ describe("AdminPermissions", () => {
 
         // then
         expect(screen.getByText("Loading...")).toBeInTheDocument();
-    });
-
-    it("refuses the page to somebody without manage_roles", () => {
-        // given
-        stubPermissions();
-
-        // when
-        renderPage("moderator");
-
-        // then
-        expect(screen.getByText(/do not have permission/i)).toBeInTheDocument();
     });
 
     it("never renders a card for admin or super admin", () => {

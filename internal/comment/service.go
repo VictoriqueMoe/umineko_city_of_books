@@ -170,7 +170,7 @@ func (s *service) Update(ctx context.Context, ref spec.CommentRef, actorID uuid.
 		return s.repo.UpdateComment(ctx, update)
 	}
 
-	if !s.authz.Can(ctx, actorID, authz.PermEditAnyComment) {
+	if !s.authz.Can(ctx, actorID, authz.PermEditAnyPost) {
 		return ErrForbidden
 	}
 
@@ -194,7 +194,7 @@ func (s *service) Delete(ctx context.Context, ref spec.CommentRef, actorID uuid.
 	deletion := spec.CommentDeletion{CommentRef: ref, UserID: actorID}
 	action := "delete"
 	if authorID != actorID {
-		if !s.authz.Can(ctx, actorID, authz.PermDeleteAnyComment) {
+		if !s.authz.Can(ctx, actorID, authz.PermDeleteAnyPost) {
 			return ErrForbidden
 		}
 

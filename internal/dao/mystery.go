@@ -29,7 +29,7 @@ type (
 		ListByUser(ctx context.Context, s spec.MysteryUserListFilter, tx ...*sql.Tx) ([]model.MysteryRow, int, error)
 		GetClues(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]dto.MysteryClue, error)
 		DeleteClues(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) error
-		DeleteClue(ctx context.Context, clueID int, tx ...*sql.Tx) error
+		DeleteClue(ctx context.Context, s spec.MysteryClueDeletion, tx ...*sql.Tx) error
 		UpdateClue(ctx context.Context, s spec.MysteryClueUpdate, tx ...*sql.Tx) error
 		GetAuthorID(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
 
@@ -345,21 +345,34 @@ func (r *mysteryDAO) DeleteClues(ctx context.Context, mysteryID uuid.UUID, tx ..
 	return nil
 }
 
-func (r *mysteryDAO) DeleteClue(ctx context.Context, clueID int, tx ...*sql.Tx) error {
-	if err := genQueries(r.db, tx).DeleteMysteryClue(ctx, int64(clueID)); err != nil {
+func (r *mysteryDAO) DeleteClue(ctx context.Context, s spec.MysteryClueDeletion, tx ...*sql.Tx) error {
+	n, err := genQueries(r.db, tx).DeleteMysteryClue(ctx, sqlcgen.DeleteMysteryClueParams{
+		ID:        int64(s.ClueID),
+		MysteryID: s.MysteryID,
+	})
+	if err != nil {
 		return fmt.Errorf("delete clue: %w", err)
+	}
+
+	if n == 0 {
+		return fmt.Errorf("clue not found in this mystery: %w", daoerr.ErrNotFound)
 	}
 
 	return nil
 }
 
 func (r *mysteryDAO) UpdateClue(ctx context.Context, s spec.MysteryClueUpdate, tx ...*sql.Tx) error {
-	err := genQueries(r.db, tx).UpdateMysteryClue(ctx, sqlcgen.UpdateMysteryClueParams{
-		Body: s.Body,
-		ID:   int64(s.ClueID),
+	n, err := genQueries(r.db, tx).UpdateMysteryClue(ctx, sqlcgen.UpdateMysteryClueParams{
+		Body:      s.Body,
+		ID:        int64(s.ClueID),
+		MysteryID: s.MysteryID,
 	})
 	if err != nil {
 		return fmt.Errorf("update clue: %w", err)
+	}
+
+	if n == 0 {
+		return fmt.Errorf("clue not found in this mystery: %w", daoerr.ErrNotFound)
 	}
 
 	return nil

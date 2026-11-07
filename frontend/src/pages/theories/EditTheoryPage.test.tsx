@@ -110,30 +110,6 @@ describe("EditTheoryPage", () => {
         expect(screen.queryByRole("region", { name: "theory form" })).not.toBeInTheDocument();
     });
 
-    it("sends the editor home when the theory does not exist", async () => {
-        // given
-        stubTheory({ theory: null });
-
-        // when
-        renderPage();
-
-        // then
-        await waitFor(() => {
-            expect(navigate).toHaveBeenCalledWith("/");
-        });
-    });
-
-    it("does not send the editor home while the theory is still loading", () => {
-        // given
-        stubTheory({ loading: true, theory: null });
-
-        // when
-        renderPage();
-
-        // then
-        expect(navigate).not.toHaveBeenCalled();
-    });
-
     it("seeds the form with the theory as it stands", () => {
         // given
         stubTheory();

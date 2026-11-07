@@ -2,7 +2,6 @@ package media
 
 import (
 	"context"
-	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -43,8 +42,6 @@ type (
 var (
 	urlRegex = regexp.MustCompile(`https?://[^\s<>"]+`)
 	ytRegex  = regexp.MustCompile(`^https?://(?:[a-z0-9-]+\.)*(?:youtube\.com/(?:watch\?v=|embed/|shorts/)|youtu\.be/)([a-zA-Z0-9_-]{11})`)
-
-	errBlockedAddress = errors.New("media: refusing to dial non-public address")
 
 	previewTransport = &http.Transport{
 		DialContext: (&net.Dialer{

@@ -20,8 +20,6 @@ vi.mock("react-router", async importOriginal => {
 });
 
 const author = makeUser({ id: "author-1", username: "beatrice", display_name: "Beatrice" });
-const stranger = makeUser({ id: "stranger-1", username: "battler", display_name: "Battler" });
-const moderator = makeUser({ id: "mod-1", username: "ronove", display_name: "Ronove", role: "moderator" });
 
 function makeJournal(overrides: Partial<JournalDetail> = {}): JournalDetail {
     return {
@@ -88,29 +86,6 @@ describe("EditJournalPage", () => {
 
         // then
         expect(screen.getByText("Journal not found.")).toBeInTheDocument();
-    });
-
-    it("turns away a reader who does not own the journal", () => {
-        // given
-        stubEdit();
-
-        // when
-        renderPage(stranger);
-
-        // then
-        expect(screen.getByText("You can't edit this journal.")).toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
-    });
-
-    it("lets a moderator edit somebody else's journal", () => {
-        // given
-        stubEdit();
-
-        // when
-        renderPage(moderator);
-
-        // then
-        expect(screen.getByRole("heading", { name: "Edit Journal" })).toBeInTheDocument();
     });
 
     it("asks for the journal named in the route", () => {

@@ -145,7 +145,7 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 }
 
 func (s *service) DeleteAttempt(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	if !s.authz.Can(ctx, userID, authz.PermDeleteAnyComment) {
+	if !s.authz.Can(ctx, userID, authz.PermDeleteAnyPost) {
 		return s.mysteryRepo.DeleteAttempt(ctx, spec.MysteryAttemptDeletion{ID: id, UserID: userID})
 	}
 

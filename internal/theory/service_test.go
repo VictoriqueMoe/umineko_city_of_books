@@ -418,7 +418,7 @@ func TestUpdateTheory(t *testing.T) {
 				adminEdit := tc.canEditAny && tc.updateErr == nil
 
 				m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, id).Return(authorID, nil).Once()
-				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(tc.canEditAny)
+				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyWork).Return(tc.canEditAny)
 				m.repo.EXPECT().Update(mock.Anything, spec.TheoryUpdate{
 					ID:       id,
 					UserID:   userID,
@@ -506,7 +506,7 @@ func TestDeleteTheory(t *testing.T) {
 			m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, id).Return(authorID, tc.lookupErr)
 			if tc.lookupErr == nil {
 				m.repo.EXPECT().GetTheoryTitle(mock.Anything, id).Return("a wild theory", nil)
-				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyTheory).Return(tc.canDeleteAny)
+				m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyWork).Return(tc.canDeleteAny)
 			}
 			if tc.lookupErr == nil && tc.canDeleteAny {
 				m.repo.EXPECT().DeleteAsAdmin(mock.Anything, id).Return(tc.deleteErr)
@@ -695,7 +695,7 @@ func TestDeleteResponse(t *testing.T) {
 
 				m.repo.EXPECT().GetResponseInfo(mock.Anything, id).Return(responseAuthorID, theoryID, tc.infoErr)
 				if tc.infoErr == nil {
-					m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyResponse).Return(tc.canDeleteAny)
+					m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(tc.canDeleteAny)
 				}
 				if tc.infoErr == nil && tc.canDeleteAny {
 					m.repo.EXPECT().DeleteResponseAsAdmin(mock.Anything, id).Return(tc.deleteErr)
@@ -966,7 +966,7 @@ func TestRefuteTheory_Guards(t *testing.T) {
 					Author: dto.UserResponse{ID: authorID},
 					Status: tc.status,
 				}, nil)
-				m.authz.EXPECT().Can(mock.Anything, tc.actorID, authz.PermEditAnyTheory).Return(tc.isAdmin).Maybe()
+				m.authz.EXPECT().Can(mock.Anything, tc.actorID, authz.PermEditAnyWork).Return(tc.isAdmin).Maybe()
 				m.repo.EXPECT().GetResponseMeta(mock.Anything, responseID).Return(tc.meta, nil).Maybe()
 				if tc.wantErr == nil {
 					m.repo.EXPECT().MarkRefuted(mock.Anything, spec.TheoryRefutation{TheoryID: theoryID, ResponseID: responseID}).Return(nil)

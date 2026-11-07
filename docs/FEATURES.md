@@ -13,7 +13,7 @@ The original heart of the site. Submit a fan theory as a **blue truth**, attach 
 - Threaded replies on responses with flat rendering and @username attribution
 - Upvotes and downvotes on both theories and responses, separate from the credibility score
 - Per-series feeds at `/theories` (Umineko), `/theories/higurashi`, and `/theories/ciconia`, each with its own sidebar entry
-- **Lifecycle status** on every theory, stored as a native `theory_status` enum: **Open** while nobody has responded, **Contested** once a top-level response exists, and **Refuted** once the theory's own author (or a holder of `edit_any_theory`) accepts one opposing top-level response as the refutation. Refuted is terminal and stamps the theory permanently with who struck it down and a link to the killing response, mirroring how a mystery Game Master marks the winning attempt. A composite foreign key on `(id, refuted_by_response_id)` makes "the refutation belongs to this theory" a schema fact rather than a service check
+- **Lifecycle status** on every theory, stored as a native `theory_status` enum: **Open** while nobody has responded, **Contested** once a top-level response exists, and **Refuted** once the theory's own author (or a holder of `edit_any_work`) accepts one opposing top-level response as the refutation. Refuted is terminal and stamps the theory permanently with who struck it down and a link to the killing response, mirroring how a mystery Game Master marks the winning attempt. A composite foreign key on `(id, refuted_by_response_id)` makes "the refutation belongs to this theory" a schema fact rather than a service check
 - @mentions in theory bodies and responses notify the mentioned member, with response mentions deep-linking to `#response-<id>`
 
 ## Mysteries

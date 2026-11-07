@@ -19,7 +19,7 @@ func (s *service) UploadAttachment(ctx context.Context, mysteryID uuid.UUID, use
 	if err != nil {
 		return nil, err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return nil, ErrNotAuthor
 	}
 
@@ -131,7 +131,7 @@ func (s *service) UploadMedia(
 	if err != nil {
 		return nil, err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return nil, ErrNotAuthor
 	}
 
@@ -167,7 +167,7 @@ func (s *service) DeleteMedia(ctx context.Context, mediaID int64, mysteryID uuid
 	if err != nil {
 		return err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return ErrNotAuthor
 	}
 
@@ -185,7 +185,7 @@ func (s *service) DeleteAttachment(ctx context.Context, attachmentID int64, myst
 	if err != nil {
 		return err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return ErrNotAuthor
 	}
 

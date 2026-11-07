@@ -494,7 +494,6 @@ func TestUpdateJournal(t *testing.T) {
 		title   string
 		given   func(m *testMocks, f fixture)
 		wantErr error
-		audited bool
 	}{
 		{
 			name:    "a blank title is rejected before any lookup",
@@ -519,14 +518,12 @@ func TestUpdateJournal(t *testing.T) {
 			wantErr: errBoom,
 		},
 		{
-			name:  "an admin edit is refused when the before-snapshot for the audit cannot be read",
+			name:  "somebody else's journal is refused, staff included",
 			title: "Title",
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyJournal).Return(true)
-				m.repo.EXPECT().GetByID(mock.Anything, spec.JournalLookup{ID: f.journalID, ViewerID: f.userID}).Return(nil, errBoom)
 			},
-			wantErr: errBoom,
+			wantErr: ErrNotAuthor,
 		},
 		{
 			name:  "the owner's edit is not audited",
@@ -545,25 +542,6 @@ func TestUpdateJournal(t *testing.T) {
 			},
 			wantErr: errBoom,
 		},
-		{
-			name:  "an admin edit is audited with the changed fields",
-			title: "Title",
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyJournal).Return(true)
-				m.repo.EXPECT().GetByID(mock.Anything, spec.JournalLookup{ID: f.journalID, ViewerID: f.userID}).Return(&dto.JournalResponse{ID: f.journalID, Title: "Old", Work: "umineko"}, nil)
-				m.repo.EXPECT().Update(mock.Anything, spec.JournalUpdate{ID: f.journalID, UserID: f.userID, Title: "Title", Work: "umineko", AsAdmin: true}).Return(nil)
-				m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
-					ActorID:    f.userID,
-					Action:     audit.ActionJournalUpdateAdmin,
-					TargetType: audit.TargetJournal,
-					TargetID:   f.journalID.String(),
-					Details:    "changed=title",
-					SubjectID:  f.authorID,
-				}).Return(nil)
-			},
-			audited: true,
-		},
 	}
 
 	for _, tc := range tests {
@@ -578,10 +556,7 @@ func TestUpdateJournal(t *testing.T) {
 
 			// then
 			require.ErrorIs(t, err, tc.wantErr)
-
-			if !tc.audited {
-				m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
-			}
+			m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -1098,11 +1073,10 @@ func TestCreateEntry(t *testing.T) {
 			wantErr: ErrEmptyBody,
 		},
 		{
-			name: "someone else without the permission is refused",
+			name: "somebody else is refused, staff included",
 			req:  dto.CreateJournalEntryRequest{Body: "body"},
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyJournal).Return(false)
 			},
 			wantErr: ErrNotAuthor,
 		},
@@ -1159,33 +1133,6 @@ func TestCreateEntry(t *testing.T) {
 				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
 			},
 			wantNumber: 2,
-		},
-		{
-			name: "an admin's entry is audited against the author",
-			req:  dto.CreateJournalEntryRequest{Body: "an entry"},
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyJournal).Return(true)
-				m.repo.EXPECT().GetNextEntryNumber(mock.Anything, f.journalID).Return(4, nil)
-				m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
-					JournalID:            f.journalID,
-					EntryNumber:          4,
-					Body:                 "an entry",
-					WordCount:            2,
-					RecordAuthorActivity: true,
-				}).Return(&model.JournalEntryRow{ID: f.entryID}, nil)
-				m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
-					ActorID:    f.userID,
-					Action:     audit.ActionJournalEntryCreateAdmin,
-					TargetType: audit.TargetJournalEntry,
-					TargetID:   f.entryID.String(),
-					Details:    "journal_id=" + f.journalID.String() + ",entry_number=4,is_draft=false",
-					SubjectID:  f.authorID,
-				}).Return(nil)
-				allowBackgroundFanOut(m, f.journalID, f.authorID)
-				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
-			},
-			wantNumber: 4,
 		},
 	}
 
@@ -1362,7 +1309,6 @@ func TestJournalEntryPublish_NotifiesMentionsAndFollowersOnlyOnTheFirstPublish(t
 		name           string
 		create         bool
 		draft          bool
-		asAdmin        bool
 		firstPublished bool
 		wantNotified   bool
 	}{
@@ -1377,24 +1323,12 @@ func TestJournalEntryPublish_NotifiesMentionsAndFollowersOnlyOnTheFirstPublish(t
 			draft:  true,
 		},
 		{
-			name:         "an admin creating a published entry notifies in the author's name",
-			create:       true,
-			asAdmin:      true,
-			wantNotified: true,
-		},
-		{
 			name:           "publishing a draft for the first time notifies the named user and the followers",
 			firstPublished: true,
 			wantNotified:   true,
 		},
 		{
 			name: "republishing an entry that was unpublished notifies nobody again",
-		},
-		{
-			name:           "an admin publishing a draft for the first time notifies in the author's name",
-			asAdmin:        true,
-			firstPublished: true,
-			wantNotified:   true,
 		},
 	}
 
@@ -1408,12 +1342,6 @@ func TestJournalEntryPublish_NotifiesMentionsAndFollowersOnlyOnTheFirstPublish(t
 			body := "thoughts for @alice"
 
 			authorID := f.userID
-			if tc.asAdmin {
-				authorID = f.authorID
-				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyJournal).Return(true)
-				m.auditRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-			}
-
 			m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(authorID, nil)
 
 			if tc.create {
@@ -1524,12 +1452,11 @@ func TestUpdateEntry(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "someone else without the permission is refused",
+			name: "somebody else is refused, staff included",
 			req:  dto.UpdateJournalEntryRequest{Body: "x"},
 			given: func(m *testMocks, f fixture) {
 				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID}, nil)
 				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyJournal).Return(false)
 			},
 			wantErr: ErrNotAuthor,
 		},
@@ -1610,32 +1537,6 @@ func TestUpdateEntry(t *testing.T) {
 				}).Return(false, errBoom)
 			},
 			wantErr: errBoom,
-		},
-		{
-			name: "an admin edit is audited with the changed fields",
-			req:  dto.UpdateJournalEntryRequest{Body: "new body"},
-			given: func(m *testMocks, f fixture) {
-				m.repo.EXPECT().GetEntryByID(mock.Anything, f.entryID).Return(&model.JournalEntryRow{ID: f.entryID, JournalID: f.journalID, EntryNumber: 2, Body: "old body", IsDraft: true}, nil)
-				m.repo.EXPECT().GetAuthorID(mock.Anything, f.journalID).Return(f.authorID, nil)
-				m.authz.EXPECT().Can(mock.Anything, f.userID, authz.PermEditAnyJournal).Return(true)
-				m.repo.EXPECT().UpdateEntry(mock.Anything, spec.JournalEntryUpdate{
-					ID:                   f.entryID,
-					JournalID:            f.journalID,
-					Body:                 "new body",
-					WordCount:            2,
-					RecordAuthorActivity: true,
-				}).Return(true, nil)
-				m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
-					ActorID:    f.userID,
-					Action:     audit.ActionJournalEntryUpdateAdmin,
-					TargetType: audit.TargetJournalEntry,
-					TargetID:   f.entryID.String(),
-					Details:    "changed=body,is_draft",
-					SubjectID:  f.authorID,
-				}).Return(nil)
-				allowBackgroundFanOut(m, f.journalID, f.authorID)
-				m.activity.EXPECT().BumpSidebarActivity(sidebar.KeyJournals).Return().Once()
-			},
 		},
 	}
 

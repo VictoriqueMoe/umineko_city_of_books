@@ -4,18 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/secrets"
 
 	"github.com/google/uuid"
-)
-
-var (
-	ErrInvalidRequest    = errors.New("invalid request")
-	ErrHuntAlreadySolved = errors.New("hunt already solved")
 )
 
 type (

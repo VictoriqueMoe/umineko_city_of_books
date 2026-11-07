@@ -331,7 +331,7 @@ func TestDeleteAttempt_Admin(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	attemptAuthor := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(true)
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, id).Return(attemptAuthor, nil)
 	m.repo.EXPECT().DeleteAttemptAsAdmin(mock.Anything, id).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
@@ -354,7 +354,7 @@ func TestDeleteAttempt_ModeratorDeletingOwnAttempt_WritesNoAuditRow(t *testing.T
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(true)
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, id).Return(userID, nil)
 	m.repo.EXPECT().DeleteAttemptAsAdmin(mock.Anything, id).Return(nil)
 
@@ -383,7 +383,7 @@ func TestDeleteAttempt_AdminLookupFailures(t *testing.T) {
 			svc, m := newTestService(t)
 			id := uuid.New()
 			userID := uuid.New()
-			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
+			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(true)
 			m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, id).Return(uuid.Nil, tc.lookupErr)
 
 			// when
@@ -400,7 +400,7 @@ func TestDeleteAttempt_NonAdmin(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
 	m.repo.EXPECT().DeleteAttempt(mock.Anything, spec.MysteryAttemptDeletion{ID: id, UserID: userID}).Return(nil)
 
 	// when

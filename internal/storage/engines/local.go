@@ -19,10 +19,6 @@ import (
 	"github.com/google/uuid"
 )
 
-var (
-	errStopListing = errors.New("storage: listing stopped")
-)
-
 type (
 	Local struct {
 		settingsSvc settings.Service

@@ -3,8 +3,7 @@ import type { SiteRole } from "../types/api";
 import { can, canAccessAdmin, isSiteStaff, ROLE_GROUPS, type Permission } from "./permissions";
 
 const ALL_PERMISSIONS: Permission[] = [
-    "delete_any_theory",
-    "delete_any_response",
+    "delete_any_work",
     "ban_user",
     "manage_roles",
     "view_admin_panel",
@@ -14,13 +13,10 @@ const ALL_PERMISSIONS: Permission[] = [
     "view_users",
     "delete_any_user",
     "delete_any_post",
-    "delete_any_comment",
-    "edit_any_theory",
+    "edit_any_work",
     "edit_any_post",
-    "edit_any_comment",
     "resolve_suggestion",
     "edit_mystery_score",
-    "edit_any_journal",
     "delete_any_journal",
     "manage_vanity_roles",
     "manage_banned_words",
@@ -33,15 +29,11 @@ const ALL_PERMISSIONS: Permission[] = [
 
 const MODERATOR_ALLOWED: Permission[] = [
     "ban_user",
-    "delete_any_comment",
     "delete_any_journal",
     "delete_any_post",
-    "delete_any_response",
-    "delete_any_theory",
-    "edit_any_comment",
-    "edit_any_journal",
+    "delete_any_work",
     "edit_any_post",
-    "edit_any_theory",
+    "edit_any_work",
     "edit_mystery_score",
     "manage_user_account",
     "view_admin_panel",

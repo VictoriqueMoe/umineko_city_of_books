@@ -566,27 +566,63 @@ func TestMysteryDAO_DeleteClues_SkipsPrivate(t *testing.T) {
 }
 
 func TestMysteryDAO_DeleteClue(t *testing.T) {
-	// given
-	fx := mysteryWithClues(t)
+	cases := []struct {
+		name        string
+		viaOther    bool
+		wantErr     error
+		wantRemains []string
+	}{
+		{name: "the clue's own mystery removes it", wantRemains: []string{"other", "private"}},
+		{name: "another mystery's id cannot reach it", viaOther: true, wantErr: daoerr.ErrNotFound, wantRemains: []string{"old", "other", "private"}},
+	}
 
-	// when
-	err := fx.repos.Mystery.DeleteClue(context.Background(), fx.oldClueID)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			fx := mysteryWithClues(t)
+			mysteryID := fx.mysteryID
+			if tc.viaOther {
+				mysteryID = createMystery(t, fx.repos, daotest.CreateUser(t, fx.repos).ID, "Other", "easy", false)
+			}
 
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, []string{"other", "private"}, mysteryClueBodies(t, fx.repos, fx.mysteryID))
+			// when
+			err := fx.repos.Mystery.DeleteClue(context.Background(), spec.MysteryClueDeletion{MysteryID: mysteryID, ClueID: fx.oldClueID})
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+			assert.Equal(t, tc.wantRemains, mysteryClueBodies(t, fx.repos, fx.mysteryID))
+		})
+	}
 }
 
 func TestMysteryDAO_UpdateClue(t *testing.T) {
-	// given
-	fx := mysteryWithClues(t)
+	cases := []struct {
+		name       string
+		viaOther   bool
+		wantErr    error
+		wantBodies []string
+	}{
+		{name: "the clue's own mystery rewrites it", wantBodies: []string{"new", "other", "private"}},
+		{name: "another mystery's id cannot reach it", viaOther: true, wantErr: daoerr.ErrNotFound, wantBodies: []string{"old", "other", "private"}},
+	}
 
-	// when
-	err := fx.repos.Mystery.UpdateClue(context.Background(), spec.MysteryClueUpdate{ClueID: fx.oldClueID, Body: "new"})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			fx := mysteryWithClues(t)
+			mysteryID := fx.mysteryID
+			if tc.viaOther {
+				mysteryID = createMystery(t, fx.repos, daotest.CreateUser(t, fx.repos).ID, "Other", "easy", false)
+			}
 
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, []string{"new", "other", "private"}, mysteryClueBodies(t, fx.repos, fx.mysteryID))
+			// when
+			err := fx.repos.Mystery.UpdateClue(context.Background(), spec.MysteryClueUpdate{MysteryID: mysteryID, ClueID: fx.oldClueID, Body: "new"})
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+			assert.Equal(t, tc.wantBodies, mysteryClueBodies(t, fx.repos, fx.mysteryID))
+		})
+	}
 }
 
 func TestMysteryDAO_CreateAttempt(t *testing.T) {

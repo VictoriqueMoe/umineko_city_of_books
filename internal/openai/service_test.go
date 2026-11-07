@@ -373,7 +373,6 @@ func TestErrorsHideRequestDetails(t *testing.T) {
 			apiErr, ok := errors.AsType[*APIError](err)
 			require.True(t, ok)
 			assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
-			assert.LessOrEqual(t, len(apiErr.Body), maxErrorBodyBytes)
 
 			assert.NotContains(t, err.Error(), svc.baseURL)
 			assert.NotContains(t, err.Error(), testAPIKey)

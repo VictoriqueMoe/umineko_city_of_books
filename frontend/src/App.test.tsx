@@ -338,6 +338,18 @@ describe("App", () => {
         expect(screen.queryByTestId("page-SettingsPage")).not.toBeInTheDocument();
     });
 
+    it("sends a signed out visitor from the add email page to the login page", () => {
+        // given
+        const visitor = null;
+
+        // when
+        renderApp("/set-email", { user: visitor });
+
+        // then
+        expect(screen.getByTestId("page-LoginPage")).toBeInTheDocument();
+        expect(screen.queryByTestId("page-SetEmailPage")).not.toBeInTheDocument();
+    });
+
     it("opens a members only route for a signed in member", () => {
         // given
         const route = "/settings";
@@ -395,6 +407,47 @@ describe("App", () => {
         // then
         expect(screen.getByTestId("page-AdminUserDetail")).toBeInTheDocument();
     });
+
+    const adminRouteCases = [
+        { route: "/admin/users", page: "AdminUsers", permission: "view_users" },
+        { route: "/admin/reports", page: "AdminReports", permission: "view_users" },
+        { route: "/admin/invites", page: "AdminInvites", permission: "manage_roles" },
+        { route: "/admin/permissions", page: "AdminPermissions", permission: "manage_roles" },
+        { route: "/admin/settings", page: "AdminSettings", permission: "manage_settings" },
+        { route: "/admin/content-rules", page: "AdminContentRules", permission: "manage_settings" },
+        { route: "/admin/rules", page: "AdminRulesPage", permission: "manage_settings" },
+        { route: "/admin/banned-gifs", page: "AdminBannedGifs", permission: "manage_settings" },
+        { route: "/admin/announcements", page: "AdminAnnouncementsPage", permission: "manage_settings" },
+        { route: "/admin/chatbots", page: "AdminChatbots", permission: "manage_settings" },
+        { route: "/admin/banned-words", page: "AdminBannedWords", permission: "manage_banned_words" },
+        { route: "/admin/vanity-roles", page: "AdminVanityRoles", permission: "manage_vanity_roles" },
+        { route: "/admin/audit-log", page: "AdminAuditLog", permission: "view_audit_log" },
+    ];
+
+    for (const tc of adminRouteCases) {
+        it(`sends staff without ${tc.permission} home from ${tc.route}`, () => {
+            // given
+            const staff = makeUser({ id: "user-5", permissions: ["view_admin_panel"] });
+
+            // when
+            renderApp(tc.route, { user: staff });
+
+            // then
+            expect(screen.getByTestId("page-LandingPage")).toBeInTheDocument();
+            expect(screen.queryByTestId(`page-${tc.page}`)).not.toBeInTheDocument();
+        });
+
+        it(`opens ${tc.route} for staff holding ${tc.permission}`, () => {
+            // given
+            const staff = makeUser({ id: "user-6", permissions: ["view_admin_panel", tc.permission] });
+
+            // when
+            renderApp(tc.route, { user: staff });
+
+            // then
+            expect(screen.getByTestId(`page-${tc.page}`)).toBeInTheDocument();
+        });
+    }
 
     it("renders nothing at all while the session is still being resolved", () => {
         // given

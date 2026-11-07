@@ -293,7 +293,6 @@ func TestJournalDAO_Update(t *testing.T) {
 	cases := []struct {
 		name         string
 		byOwner      bool
-		asAdmin      bool
 		wantErr      bool
 		wantTitle    string
 		wantWork     string
@@ -301,7 +300,6 @@ func TestJournalDAO_Update(t *testing.T) {
 	}{
 		{name: "the owner retitles it and moves it to another work, which also unarchives it", byOwner: true, wantTitle: "New", wantWork: "higurashi", wantArchived: false},
 		{name: "a stranger is refused and nothing changes", wantErr: true, wantTitle: "Old", wantWork: "general", wantArchived: true},
-		{name: "an admin retitles someone else's journal without reviving it", asAdmin: true, wantTitle: "New", wantWork: "higurashi", wantArchived: true},
 	}
 
 	for _, tc := range cases {
@@ -322,7 +320,7 @@ func TestJournalDAO_Update(t *testing.T) {
 			}
 
 			// when
-			err = repos.Journal.Update(ctx, spec.JournalUpdate{ID: id, UserID: actor, Title: "New", Work: "higurashi", AsAdmin: tc.asAdmin})
+			err = repos.Journal.Update(ctx, spec.JournalUpdate{ID: id, UserID: actor, Title: "New", Work: "higurashi"})
 
 			// then
 			if tc.wantErr {

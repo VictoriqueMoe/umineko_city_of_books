@@ -16,6 +16,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type (
+	clueEditCase struct {
+		name      string
+		asAuthor  bool
+		canEdit   bool
+		authorErr error
+		writeErr  error
+		wantErr   error
+		wantAudit bool
+	}
+)
+
 func TestMarkSolved_MysteryNotFound(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -39,7 +51,7 @@ func TestMarkSolved_NotAuthor(t *testing.T) {
 	authorID := uuid.New()
 	aid := uuid.New()
 	stubAuthor(m, mid, authorID)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyWork).Return(false)
 
 	// when
 	err := svc.MarkSolved(context.Background(), mid, userID, aid)
@@ -190,7 +202,7 @@ func TestMarkSolved_Admin_CanSolve(t *testing.T) {
 	aid := uuid.New()
 	attemptAuthor := uuid.New()
 	stubAuthor(m, mid, author)
-	m.authz.EXPECT().Can(mock.Anything, admin, authz.PermEditAnyTheory).Return(true)
+	m.authz.EXPECT().Can(mock.Anything, admin, authz.PermEditAnyWork).Return(true)
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, aid).Return(attemptAuthor, nil)
 	m.repo.EXPECT().GetAttemptMysteryID(mock.Anything, aid).Return(mid, nil)
 	m.repo.EXPECT().GetByID(mock.Anything, mid).Return(&model.MysteryRow{ID: mid, UserID: author}, nil)
@@ -236,7 +248,7 @@ func TestMarkPermanentlySolved_AuditsTheClose(t *testing.T) {
 			actorID := authorID
 			if !tt.actorIsGM {
 				actorID = uuid.New()
-				m.authz.EXPECT().Can(mock.Anything, actorID, authz.PermEditAnyTheory).Return(true)
+				m.authz.EXPECT().Can(mock.Anything, actorID, authz.PermEditAnyWork).Return(true)
 			}
 			stubAuthor(m, mid, authorID)
 			m.repo.EXPECT().MarkPermanentlySolved(mock.Anything, mid).Return(nil)
@@ -371,39 +383,64 @@ func TestAddClue_Private_NotifiesPlayer(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestDeleteClue_RepoError(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	mid := uuid.New()
-	userID := uuid.New()
-	m.repo.EXPECT().DeleteClue(mock.Anything, 7).Return(errors.New("boom"))
+func clueEditCases() []clueEditCase {
+	boom := errors.New("boom")
 
-	// when
-	err := svc.DeleteClue(context.Background(), mid, 7, userID)
-
-	// then
-	require.Error(t, err)
+	return []clueEditCase{
+		{name: "the game master changes their own clue without an audit entry", asAuthor: true},
+		{name: "staff holding the work permission change it and are audited against the author", canEdit: true, wantAudit: true},
+		{name: "anyone else is refused before anything is written", wantErr: ErrNotAuthor},
+		{name: "a missing mystery is not found", authorErr: errMissingRow, wantErr: ErrNotFound},
+		{name: "a clue that belongs to another mystery is not found", asAuthor: true, writeErr: errMissingRow, wantErr: ErrNotFound},
+		{name: "a failed write is surfaced", asAuthor: true, writeErr: boom, wantErr: boom},
+	}
 }
 
-func TestDeleteClue_OK(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	mid := uuid.New()
-	userID := uuid.New()
-	m.repo.EXPECT().DeleteClue(mock.Anything, 7).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
-		ActorID:    userID,
-		Action:     audit.ActionMysteryClueDelete,
-		TargetType: audit.TargetMystery,
-		TargetID:   mid.String(),
-		Details:    "clue=7",
-	}).Return(nil)
+func expectClueAccess(m *testMocks, tc clueEditCase, mysteryID, userID, authorID uuid.UUID) bool {
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mysteryID).Return(authorID, tc.authorErr)
+	if tc.authorErr != nil {
+		return false
+	}
 
-	// when
-	err := svc.DeleteClue(context.Background(), mid, 7, userID)
+	if !tc.asAuthor {
+		m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyWork).Return(tc.canEdit)
+	}
 
-	// then
-	require.NoError(t, err)
+	return tc.asAuthor || tc.canEdit
+}
+
+func TestDeleteClue(t *testing.T) {
+	for _, tc := range clueEditCases() {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			mid := uuid.New()
+			userID := uuid.New()
+			authorID := uuid.New()
+			if tc.asAuthor {
+				authorID = userID
+			}
+			if expectClueAccess(m, tc, mid, userID, authorID) {
+				m.repo.EXPECT().DeleteClue(mock.Anything, spec.MysteryClueDeletion{MysteryID: mid, ClueID: 7}).Return(tc.writeErr)
+			}
+			if tc.wantAudit {
+				m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
+					ActorID:    userID,
+					Action:     audit.ActionMysteryClueDelete,
+					TargetType: audit.TargetMystery,
+					TargetID:   mid.String(),
+					Details:    "clue=7",
+					SubjectID:  authorID,
+				}).Return(nil)
+			}
+
+			// when
+			err := svc.DeleteClue(context.Background(), mid, 7, userID)
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+		})
+	}
 }
 
 func TestUpdateClue_EmptyBody(t *testing.T) {
@@ -417,35 +454,36 @@ func TestUpdateClue_EmptyBody(t *testing.T) {
 	require.ErrorIs(t, err, ErrEmptyBody)
 }
 
-func TestUpdateClue_RepoError(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	m.repo.EXPECT().UpdateClue(mock.Anything, spec.MysteryClueUpdate{ClueID: 3, Body: "new"}).Return(errors.New("boom"))
+func TestUpdateClue(t *testing.T) {
+	for _, tc := range clueEditCases() {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			mid := uuid.New()
+			userID := uuid.New()
+			authorID := uuid.New()
+			if tc.asAuthor {
+				authorID = userID
+			}
+			if expectClueAccess(m, tc, mid, userID, authorID) {
+				m.repo.EXPECT().UpdateClue(mock.Anything, spec.MysteryClueUpdate{MysteryID: mid, ClueID: 3, Body: "new"}).Return(tc.writeErr)
+			}
+			if tc.wantAudit {
+				m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
+					ActorID:    userID,
+					Action:     audit.ActionMysteryClueUpdate,
+					TargetType: audit.TargetMystery,
+					TargetID:   mid.String(),
+					Details:    "clue=3",
+					SubjectID:  authorID,
+				}).Return(nil)
+			}
 
-	// when
-	err := svc.UpdateClue(context.Background(), uuid.New(), 3, uuid.New(), "new")
+			// when
+			err := svc.UpdateClue(context.Background(), mid, 3, userID, "  new  ")
 
-	// then
-	require.Error(t, err)
-}
-
-func TestUpdateClue_OK_Trims(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	mid := uuid.New()
-	userID := uuid.New()
-	m.repo.EXPECT().UpdateClue(mock.Anything, spec.MysteryClueUpdate{ClueID: 3, Body: "new"}).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
-		ActorID:    userID,
-		Action:     audit.ActionMysteryClueUpdate,
-		TargetType: audit.TargetMystery,
-		TargetID:   mid.String(),
-		Details:    "clue=3",
-	}).Return(nil)
-
-	// when
-	err := svc.UpdateClue(context.Background(), mid, 3, userID, "  new  ")
-
-	// then
-	require.NoError(t, err)
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+		})
+	}
 }

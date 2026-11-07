@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"net/url"
 	"strings"
 	"time"
@@ -19,10 +18,6 @@ import (
 const (
 	maxURLLength = 2048
 	missTTL      = time.Hour
-)
-
-var (
-	ErrInvalidURL = errors.New("linkpreview: url must be an absolute http or https url")
 )
 
 type (

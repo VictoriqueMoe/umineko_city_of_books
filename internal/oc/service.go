@@ -328,7 +328,7 @@ func (s *service) UpdateOC(ctx context.Context, id uuid.UUID, userID uuid.UUID, 
 	}
 
 	description := strings.TrimSpace(req.Description)
-	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
+	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyWork)
 	if err := s.ocRepo.Update(ctx, spec.OCUpdate{
 		ID:               id,
 		UserID:           userID,
@@ -359,7 +359,7 @@ func (s *service) DeleteOC(ctx context.Context, id uuid.UUID, userID uuid.UUID) 
 		return err
 	}
 
-	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
+	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyWork)
 
 	paths, err := s.ocRepo.DeleteOC(ctx, spec.OCDeletion{
 		ID:      id,
@@ -486,7 +486,7 @@ func (s *service) UploadOCImage(ctx context.Context, ocID uuid.UUID, userID uuid
 	if err != nil {
 		return "", err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return "", ErrNotOwner
 	}
 
@@ -519,7 +519,7 @@ func (s *service) AddGalleryImage(
 	if err != nil {
 		return nil, err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return nil, ErrNotOwner
 	}
 
@@ -564,7 +564,7 @@ func (s *service) UpdateGalleryImage(ctx context.Context, ocID uuid.UUID, imageI
 	if err != nil {
 		return err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return ErrNotOwner
 	}
 	if req.Caption != nil {
@@ -592,7 +592,7 @@ func (s *service) DeleteGalleryImage(ctx context.Context, ocID uuid.UUID, imageI
 	if err != nil {
 		return err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return ErrNotOwner
 	}
 	return s.ocRepo.DeleteGalleryImage(ctx, spec.MediaDeletion{ID: imageID, TargetID: ocID})

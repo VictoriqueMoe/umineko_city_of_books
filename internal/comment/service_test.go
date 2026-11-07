@@ -495,7 +495,7 @@ func TestUpdate(t *testing.T) {
 				f.repo.EXPECT().GetCommentAuthorID(mock.Anything, ref).Return(authorID, tc.lookupErr)
 			}
 			if reachesLookup && tc.lookupErr == nil && tc.actorID != authorID {
-				f.authz.EXPECT().Can(mock.Anything, tc.actorID, authz.PermEditAnyComment).Return(tc.canEdit)
+				f.authz.EXPECT().Can(mock.Anything, tc.actorID, authz.PermEditAnyPost).Return(tc.canEdit)
 			}
 			if reachesLookup && tc.lookupErr == nil && tc.actorID == authorID {
 				f.repo.EXPECT().UpdateComment(mock.Anything, spec.CommentUpdate{CommentRef: ref, UserID: authorID, Body: "hi"}).Return(tc.writeErr)
@@ -563,7 +563,7 @@ func TestDelete(t *testing.T) {
 			ref := spec.CommentRef{Kind: spec.CommentKindShip, CommentID: commentID}
 			f.repo.EXPECT().GetCommentAuthorID(mock.Anything, ref).Return(authorID, tc.lookupErr)
 			if tc.lookupErr == nil && tc.actorID != authorID {
-				f.authz.EXPECT().Can(mock.Anything, tc.actorID, authz.PermDeleteAnyComment).Return(tc.canDelete)
+				f.authz.EXPECT().Can(mock.Anything, tc.actorID, authz.PermDeleteAnyPost).Return(tc.canDelete)
 			}
 			if tc.wantAction != "" {
 				f.repo.EXPECT().DeleteCommentWithAudit(mock.Anything, spec.AuditedCommentDeletion{

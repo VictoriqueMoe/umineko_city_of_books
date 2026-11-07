@@ -1068,12 +1068,12 @@ func (_c *MockMysteryDAO_DeleteAttemptAsAdmin_Call) RunAndReturn(run func(ctx co
 }
 
 // DeleteClue provides a mock function for the type MockMysteryDAO
-func (_mock *MockMysteryDAO) DeleteClue(ctx context.Context, clueID int, tx ...*sql.Tx) error {
+func (_mock *MockMysteryDAO) DeleteClue(ctx context.Context, s spec.MysteryClueDeletion, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, clueID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, clueID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1082,8 +1082,8 @@ func (_mock *MockMysteryDAO) DeleteClue(ctx context.Context, clueID int, tx ...*
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, clueID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MysteryClueDeletion, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1097,22 +1097,22 @@ type MockMysteryDAO_DeleteClue_Call struct {
 
 // DeleteClue is a helper method to define mock.On call
 //   - ctx context.Context
-//   - clueID int
+//   - s spec.MysteryClueDeletion
 //   - tx ...*sql.Tx
-func (_e *MockMysteryDAO_Expecter) DeleteClue(ctx any, clueID any, tx ...any) *MockMysteryDAO_DeleteClue_Call {
+func (_e *MockMysteryDAO_Expecter) DeleteClue(ctx any, s any, tx ...any) *MockMysteryDAO_DeleteClue_Call {
 	return &MockMysteryDAO_DeleteClue_Call{Call: _e.mock.On("DeleteClue",
-		append([]any{ctx, clueID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockMysteryDAO_DeleteClue_Call) Run(run func(ctx context.Context, clueID int, tx ...*sql.Tx)) *MockMysteryDAO_DeleteClue_Call {
+func (_c *MockMysteryDAO_DeleteClue_Call) Run(run func(ctx context.Context, s spec.MysteryClueDeletion, tx ...*sql.Tx)) *MockMysteryDAO_DeleteClue_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int
+		var arg1 spec.MysteryClueDeletion
 		if args[1] != nil {
-			arg1 = args[1].(int)
+			arg1 = args[1].(spec.MysteryClueDeletion)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -1134,7 +1134,7 @@ func (_c *MockMysteryDAO_DeleteClue_Call) Return(err error) *MockMysteryDAO_Dele
 	return _c
 }
 
-func (_c *MockMysteryDAO_DeleteClue_Call) RunAndReturn(run func(ctx context.Context, clueID int, tx ...*sql.Tx) error) *MockMysteryDAO_DeleteClue_Call {
+func (_c *MockMysteryDAO_DeleteClue_Call) RunAndReturn(run func(ctx context.Context, s spec.MysteryClueDeletion, tx ...*sql.Tx) error) *MockMysteryDAO_DeleteClue_Call {
 	_c.Call.Return(run)
 	return _c
 }

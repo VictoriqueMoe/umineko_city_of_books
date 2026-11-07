@@ -53,8 +53,6 @@ vi.mock("../../components/chat/GifPicker/GifPicker", () => ({
 }));
 
 const author = makeUser({ id: "author-1", username: "beatrice", display_name: "Beatrice" });
-const stranger = makeUser({ id: "stranger-1", username: "battler", display_name: "Battler" });
-const moderator = makeUser({ id: "mod-1", username: "ronove", display_name: "Ronove", role: "moderator" });
 
 function makeMedia(overrides: Partial<PostMedia> = {}): PostMedia {
     return {
@@ -188,28 +186,6 @@ describe("JournalEntryEditorPage", () => {
 
         // then
         expect(screen.getByText("Entry not found.")).toBeInTheDocument();
-    });
-
-    it("turns away a writer who does not own the journal", () => {
-        // given
-        stubEditor();
-
-        // when
-        renderNew(stranger);
-
-        // then
-        expect(screen.getByText("You can't edit this journal.")).toBeInTheDocument();
-    });
-
-    it("lets a moderator write in somebody else's journal", () => {
-        // given
-        stubEditor();
-
-        // when
-        renderNew(moderator);
-
-        // then
-        expect(screen.getByRole("heading", { name: "New entry" })).toBeInTheDocument();
     });
 
     it("does not fetch an entry when starting a new one", () => {

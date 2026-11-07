@@ -29,11 +29,10 @@ type (
 	}
 
 	JournalUpdate struct {
-		ID      uuid.UUID
-		UserID  uuid.UUID
-		Title   string
-		Work    string
-		AsAdmin bool
+		ID     uuid.UUID
+		UserID uuid.UUID
+		Title  string
+		Work   string
 	}
 
 	JournalDeletion struct {

@@ -33,7 +33,7 @@ func stubAuthor(m *testMocks, id, authorID uuid.UUID) {
 
 func stubNotAuthor(m *testMocks, id, actorID uuid.UUID) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(uuid.New(), nil)
-	m.authz.EXPECT().Can(mock.Anything, actorID, authz.PermEditAnyTheory).Return(false)
+	m.authz.EXPECT().Can(mock.Anything, actorID, authz.PermEditAnyWork).Return(false)
 }
 
 func stubActor(m *testMocks, userID uuid.UUID, displayName string) {

@@ -229,7 +229,7 @@ func (s *service) UpdateShip(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	}
 
 	description := strings.TrimSpace(req.Description)
-	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
+	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyWork)
 
 	if err := s.shipRepo.UpdateWithCharacters(ctx, spec.ShipUpdate{
 		ID:          id,
@@ -265,7 +265,7 @@ func (s *service) DeleteShip(ctx context.Context, id uuid.UUID, userID uuid.UUID
 		return ErrNotFound
 	}
 
-	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
+	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyWork)
 
 	paths, err := s.shipRepo.DeleteShip(ctx, spec.ShipDeletion{
 		ID:      id,
@@ -381,7 +381,7 @@ func (s *service) UploadShipImage(ctx context.Context, shipID uuid.UUID, userID 
 	if err != nil {
 		return "", err
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
 		return "", fmt.Errorf("not the ship author")
 	}
 

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strconv"
 
-	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
@@ -615,7 +614,7 @@ func (s *Service) toggleMysteryGmAway(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupDeleteMysteryClue(r fiber.Router) {
-	r.Delete("/mysteries/:id/clues/:clueId", s.requirePerm(authz.PermEditAnyTheory), s.deleteMysteryClue)
+	r.Delete("/mysteries/:id/clues/:clueId", s.requireAuth(), s.deleteMysteryClue)
 }
 
 func (s *Service) deleteMysteryClue(ctx fiber.Ctx) error {
@@ -636,7 +635,7 @@ func (s *Service) deleteMysteryClue(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupUpdateMysteryClue(r fiber.Router) {
-	r.Put("/mysteries/:id/clues/:clueId", s.requirePerm(authz.PermEditAnyTheory), s.updateMysteryClue)
+	r.Put("/mysteries/:id/clues/:clueId", s.requireAuth(), s.updateMysteryClue)
 }
 
 func (s *Service) updateMysteryClue(ctx fiber.Ctx) error {

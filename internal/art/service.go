@@ -296,7 +296,7 @@ func (s *service) UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 		tags = tags[:10]
 	}
 
-	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
+	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyWork)
 
 	update := spec.ArtUpdateWithTags{
 		ID:          id,
@@ -342,7 +342,7 @@ func (s *service) DeleteArt(ctx context.Context, id uuid.UUID, userID uuid.UUID)
 		action = audit.ActionArtDeleteAdmin
 	}
 
-	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
+	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyWork)
 
 	paths, err := s.artRepo.DeleteWithImage(ctx, spec.ArtDelete{
 		ID:      id,

@@ -385,7 +385,7 @@ describe("JournalEntryPage", () => {
         expect(navigate).toHaveBeenCalledWith("/journals/journal-1/entry/2/edit");
     });
 
-    it("lets a moderator edit and delete somebody else's entry", () => {
+    it("lets a moderator delete somebody else's entry but never edit it", () => {
         // given
         stubEntry();
 
@@ -393,7 +393,7 @@ describe("JournalEntryPage", () => {
         renderPage(moderator);
 
         // then
-        expect(screen.getByRole("button", { name: "Edit entry" })).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Edit entry" })).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Delete entry" })).toBeInTheDocument();
     });
 

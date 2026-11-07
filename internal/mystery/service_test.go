@@ -704,7 +704,8 @@ func TestUpdateMystery_NotAuthorised(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
+	m.repo.EXPECT().GetByID(mock.Anything, id).Return(&model.MysteryRow{ID: id, UserID: uuid.New()}, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyWork).Return(false)
 
 	// when
 	err := svc.UpdateMystery(context.Background(), id, userID, validCreateReq())
@@ -718,7 +719,6 @@ func TestUpdateMystery_NotFound(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(nil, nil)
 
 	// when
@@ -806,7 +806,6 @@ func TestUpdateMystery_KnoxContract(t *testing.T) {
 			userID := uuid.New()
 			req := validCreateReq()
 			req.KnoxContract = tt.requested
-			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
 			m.repo.EXPECT().GetByID(mock.Anything, id).Return(&model.MysteryRow{
 				ID: id, UserID: userID, Knox: tt.stored, KnoxPublished: tt.published, AttemptCount: tt.attemptCount,
 			}, nil)
@@ -852,8 +851,7 @@ func TestUpdateMystery_AFailedReadIsSurfacedNotReportedAsNotFound(t *testing.T) 
 			svc, m := newTestService(t)
 			id := uuid.New()
 			userID := uuid.New()
-			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
-			m.repo.EXPECT().GetByID(mock.Anything, id).Return(&model.MysteryRow{ID: id, UserID: uuid.New()}, tc.rowErr)
+			m.repo.EXPECT().GetByID(mock.Anything, id).Return(&model.MysteryRow{ID: id, UserID: userID}, tc.rowErr)
 			if tc.rowErr == nil {
 				m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, tc.cluesErr)
 			}
@@ -910,7 +908,6 @@ func TestUpdateMystery_UpdateWithCluesError(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	old := &model.MysteryRow{ID: id, UserID: userID, Title: "Title", Body: "Body", Difficulty: "medium"}
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(old, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
 	m.repo.EXPECT().UpdateWithClues(mock.Anything, validUpdateSpec(id, old.Knox)).Return(errors.New("boom"))
@@ -928,7 +925,6 @@ func TestUpdateMystery_OwnerNoChanges_NoNotification(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	old := &model.MysteryRow{ID: id, UserID: userID, Title: "Title", Body: "Body", Difficulty: "medium"}
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(old, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
 	m.repo.EXPECT().UpdateWithClues(mock.Anything, validUpdateSpec(id, old.Knox)).Return(nil)
@@ -951,7 +947,7 @@ func testUpdateMysteryAdminChangeSendsNotification(t *testing.T) {
 	admin := uuid.New()
 	author := uuid.New()
 	old := &model.MysteryRow{ID: id, UserID: author, Title: "Old Title", Body: "Body", Difficulty: "medium"}
-	m.authz.EXPECT().Can(mock.Anything, admin, authz.PermEditAnyTheory).Return(true)
+	m.authz.EXPECT().Can(mock.Anything, admin, authz.PermEditAnyWork).Return(true)
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(old, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
 	m.repo.EXPECT().UpdateWithClues(mock.Anything, validUpdateSpec(id, old.Knox)).Return(nil)
@@ -987,7 +983,6 @@ func TestUpdateMystery_WithClues_Replaces(t *testing.T) {
 	old := &model.MysteryRow{ID: id, UserID: userID, Title: "Title", Body: "Body", Difficulty: "medium"}
 	req := validCreateReq()
 	req.Clues = []dto.CreateClueRequest{{Body: "new1"}, {Body: "  "}, {Body: "new2", TruthType: "blue"}}
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(old, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
 	m.repo.EXPECT().UpdateWithClues(mock.Anything, validUpdateSpec(id, old.Knox,
@@ -1007,7 +1002,7 @@ func TestDeleteMystery_Admin(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyTheory).Return(true)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyWork).Return(true)
 	m.repo.EXPECT().DeleteWithFiles(mock.Anything, spec.MysteryDelete{ID: id, UserID: userID, AsAdmin: true}).Return([]string{"/uploads/mystery/a.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/mystery/a.png"})
 
@@ -1023,7 +1018,7 @@ func TestDeleteMystery_NonAdmin(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyTheory).Return(false)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyWork).Return(false)
 	m.repo.EXPECT().DeleteWithFiles(mock.Anything, spec.MysteryDelete{ID: id, UserID: userID}).Return([]string{"/uploads/mystery/a.png", "/uploads/mystery/a_thumb.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/mystery/a.png", "/uploads/mystery/a_thumb.png"})
 
@@ -1039,7 +1034,7 @@ func TestDeleteMystery_NonAdmin_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyTheory).Return(false)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyWork).Return(false)
 	m.repo.EXPECT().DeleteWithFiles(mock.Anything, spec.MysteryDelete{ID: id, UserID: userID}).Return(nil, errors.New("boom"))
 
 	// when

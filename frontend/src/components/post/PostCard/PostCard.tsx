@@ -12,7 +12,7 @@ import {
 import { useAuth } from "../../../hooks/useAuth";
 import { useResetOnChange } from "../../../hooks/useResetOnChange";
 import { usePostLikeEvents } from "../../../hooks/usePostEvents";
-import { can } from "../../../domain/permissions";
+import { contentPermissions } from "../../../domain/contentPermissions";
 import { extractGif } from "../../../utils/gif";
 import { renderRich } from "../../richText/richText";
 import { GifEmbed } from "../../GifEmbed/GifEmbed";
@@ -152,8 +152,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
     }
 
     const isOwner = user?.id === post.author.id;
-    const canEdit = isOwner || can(user, "edit_any_post");
-    const canDelete = isOwner || can(user, "delete_any_post");
+    const { canEdit, canDelete } = contentPermissions(user, { family: "post", authorId: post.author.id });
 
     return (
         <div className={styles.card}>

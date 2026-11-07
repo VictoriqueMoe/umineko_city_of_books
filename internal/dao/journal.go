@@ -25,7 +25,6 @@ type (
 		GetByID(ctx context.Context, s spec.JournalLookup, tx ...*sql.Tx) (*dto.JournalResponse, error)
 		List(ctx context.Context, q spec.JournalQuery, tx ...*sql.Tx) ([]dto.JournalResponse, int, error)
 		Update(ctx context.Context, s spec.JournalUpdate, tx ...*sql.Tx) error
-		UpdateAsAdmin(ctx context.Context, s spec.JournalUpdate, tx ...*sql.Tx) error
 		Delete(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error
 		CollectMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)
@@ -325,19 +324,6 @@ func (r *journalDAO) Update(ctx context.Context, s spec.JournalUpdate, tx ...*sq
 
 	if n == 0 {
 		return fmt.Errorf("journal not found or not owned: %w", daoerr.ErrNotFound)
-	}
-
-	return nil
-}
-
-func (r *journalDAO) UpdateAsAdmin(ctx context.Context, s spec.JournalUpdate, tx ...*sql.Tx) error {
-	err := genQueries(r.db, tx).UpdateJournalAsAdmin(ctx, sqlcgen.UpdateJournalAsAdminParams{
-		Title: s.Title,
-		Work:  s.Work,
-		ID:    s.ID,
-	})
-	if err != nil {
-		return fmt.Errorf("admin update journal: %w", err)
 	}
 
 	return nil

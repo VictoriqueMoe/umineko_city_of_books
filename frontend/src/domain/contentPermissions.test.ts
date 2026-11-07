@@ -86,11 +86,11 @@ describe("contentPermissions", () => {
         { family: "theory", canEdit: true, canDelete: true },
         { family: "mystery", canEdit: true, canDelete: true },
         { family: "mystery_attempt", canEdit: false, canDelete: true },
-        { family: "journal", canEdit: true, canDelete: true },
-        { family: "journal_entry", canEdit: true, canDelete: true },
+        { family: "journal", canEdit: false, canDelete: true },
+        { family: "journal_entry", canEdit: false, canDelete: true },
         { family: "comment", canEdit: true, canDelete: true },
         { family: "response", canEdit: false, canDelete: true },
-        { family: "oc", canEdit: false, canDelete: false },
+        { family: "oc", canEdit: true, canDelete: false },
         { family: "gallery", canEdit: false, canDelete: false },
     ];
 
@@ -107,7 +107,7 @@ describe("contentPermissions", () => {
         });
     }
 
-    it("does not let an admin edit or delete someone else's original character", () => {
+    it("lets an admin edit someone else's original character as a work, with no delete button", () => {
         // given
         const item = subject("oc");
 
@@ -115,8 +115,55 @@ describe("contentPermissions", () => {
         const permissions = contentPermissions(admin, item);
 
         // then
-        expect(permissions).toEqual({ canEdit: false, canDelete: false });
+        expect(permissions).toEqual({ canEdit: true, canDelete: false });
     });
+
+    it("never lets an admin edit someone else's journal", () => {
+        // given
+        const families: ContentFamily[] = ["journal", "journal_entry"];
+
+        // when
+        const results = families.map(family => contentPermissions(admin, subject(family)).canEdit);
+
+        // then
+        expect(results).toEqual([false, false]);
+    });
+
+    const workFamilies: ContentFamily[] = ["theory", "mystery", "fanfic", "art", "ship", "oc"];
+
+    for (const family of workFamilies) {
+        it(`gates editing a ${family} on the work permission alone`, () => {
+            // given
+            const workOnly: ContentViewer = { id: "staff", permissions: ["edit_any_work"] };
+            const postOnly: ContentViewer = { id: "staff", permissions: ["edit_any_post"] };
+
+            // when
+            const withWork = contentPermissions(workOnly, subject(family)).canEdit;
+            const withPost = contentPermissions(postOnly, subject(family)).canEdit;
+
+            // then
+            expect(withWork).toBe(true);
+            expect(withPost).toBe(false);
+        });
+    }
+
+    const postFamilies: ContentFamily[] = ["post", "comment"];
+
+    for (const family of postFamilies) {
+        it(`gates editing a ${family} on the post permission alone`, () => {
+            // given
+            const postOnly: ContentViewer = { id: "staff", permissions: ["edit_any_post"] };
+            const workOnly: ContentViewer = { id: "staff", permissions: ["edit_any_work"] };
+
+            // when
+            const withPost = contentPermissions(postOnly, subject(family)).canEdit;
+            const withWork = contentPermissions(workOnly, subject(family)).canEdit;
+
+            // then
+            expect(withPost).toBe(true);
+            expect(withWork).toBe(false);
+        });
+    }
 
     it("does not let an admin edit or delete someone else's gallery", () => {
         // given
@@ -129,12 +176,12 @@ describe("contentPermissions", () => {
         expect(permissions).toEqual({ canEdit: false, canDelete: false });
     });
 
-    it("gates a mystery attempt on the comment permission rather than a theory one", () => {
+    it("gates a mystery attempt on the post permission rather than the work one", () => {
         // given
-        const commentOnly: ContentViewer = { id: "staff", permissions: ["delete_any_comment"] };
+        const postOnly: ContentViewer = { id: "staff", permissions: ["delete_any_post"] };
 
         // when
-        const permissions = contentPermissions(commentOnly, subject("mystery_attempt"));
+        const permissions = contentPermissions(postOnly, subject("mystery_attempt"));
 
         // then
         expect(permissions).toEqual({ canEdit: false, canDelete: true });

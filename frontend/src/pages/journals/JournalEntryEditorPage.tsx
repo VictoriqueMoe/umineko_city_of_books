@@ -1,10 +1,8 @@
 import { type SubmitEvent, useCallback, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useJournal, useJournalEntry } from "../../hooks/queries/journal";
-import { useAuthedUser } from "../../hooks/useAuthedUser";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
-import { contentPermissions } from "../../domain/contentPermissions";
 import { validateFileSize } from "../../utils/fileValidation";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -26,7 +24,6 @@ export function JournalEntryEditorPage() {
     const isEdit = numberParam !== undefined && numberParam !== "new";
     const entryNumber = isEdit ? Number(numberParam) : 0;
     const navigate = useNavigate();
-    const user = useAuthedUser();
     const siteInfo = useSiteInfo();
     const { journal, loading: jLoading } = useJournal(journalId ?? "");
     const { entry, loading: eLoading } = useJournalEntry(journalId ?? "", isEdit ? entryNumber : 0);
@@ -82,11 +79,6 @@ export function JournalEntryEditorPage() {
     }
     if (isEdit && !entry) {
         return <div className="empty-state">Entry not found.</div>;
-    }
-
-    const { canEdit } = contentPermissions(user, { family: "journal_entry", authorId: journal.author.id });
-    if (!canEdit) {
-        return <div className="empty-state">You can't edit this journal.</div>;
     }
 
     async function uploadAllTo(entryId: string): Promise<boolean> {

@@ -32,14 +32,6 @@ func NewJournalRepo(database *sql.DB, journalDAO dao.JournalDAO, comments dao.Co
 	return &journalRepository{db: database, JournalDAO: journalDAO, comments: comments}
 }
 
-func (r *journalRepository) Update(ctx context.Context, s spec.JournalUpdate, tx ...*sql.Tx) error {
-	if s.AsAdmin {
-		return r.JournalDAO.UpdateAsAdmin(ctx, s, tx...)
-	}
-
-	return r.JournalDAO.Update(ctx, s, tx...)
-}
-
 func (r *journalRepository) DeleteWithMedia(ctx context.Context, s spec.JournalDeletion, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 

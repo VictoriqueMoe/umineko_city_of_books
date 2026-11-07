@@ -441,19 +441,19 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 }
 
 func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateMysteryRequest) error {
-	if !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
-		return ErrNotAuthor
-	}
-	if err := s.contentFilter.Check(ctx, append([]string{req.Title, req.Body}, clueBodies(req.Clues)...)...); err != nil {
-		return err
-	}
-
 	old, err := s.mysteryRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	if old == nil {
 		return ErrNotFound
+	}
+
+	if old.UserID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyWork) {
+		return ErrNotAuthor
+	}
+	if err := s.contentFilter.Check(ctx, append([]string{req.Title, req.Body}, clueBodies(req.Clues)...)...); err != nil {
+		return err
 	}
 
 	oldClues, err := s.mysteryRepo.GetClues(ctx, id)
@@ -555,7 +555,7 @@ func cluesChanged(old []dto.MysteryClue, new []dto.CreateClueRequest) bool {
 }
 
 func (s *service) DeleteMystery(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyTheory)
+	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyWork)
 
 	paths, err := s.mysteryRepo.DeleteWithFiles(ctx, spec.MysteryDelete{ID: id, UserID: userID, AsAdmin: asAdmin})
 	if err != nil {
