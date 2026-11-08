@@ -24,20 +24,20 @@ import (
 type (
 	postWriterCase struct {
 		name   string
-		expect func(postDAO *dao.MockPostDAO, comments *dao.MockCommentDAO, audit *MockAuditLogRepository, err error)
+		expect func(postDAO *dao.MockPostDAO, comments *MockCommentRepository, audit *MockAuditLogRepository, err error)
 		call   func(repo PostRepository) error
 	}
 )
 
-func newCachedPostRepo(t *testing.T) (PostRepository, *dao.MockPostDAO, *dao.MockCommentDAO, *MockAuditLogRepository, *valkeymock.Client) {
+func newCachedPostRepo(t *testing.T) (PostRepository, *dao.MockPostDAO, *MockCommentRepository, *MockAuditLogRepository, *valkeymock.Client) {
 	t.Helper()
 
 	client := valkeymock.NewClient(gomock.NewController(t))
 	postDAO := dao.NewMockPostDAO(t)
-	comments := dao.NewMockCommentDAO(t)
+	comments := NewMockCommentRepository(t)
 	audit := NewMockAuditLogRepository(t)
 
-	return NewPostRepo(nil, postDAO, comments, dao.NewMockPendingUploadDAO(t), audit, cache.NewManager(engines.NewValkeyWithClient(client))), postDAO, comments, audit, client
+	return NewPostRepo(nil, postDAO, comments, NewMockPendingUploadRepository(t), audit, cache.NewManager(engines.NewValkeyWithClient(client))), postDAO, comments, audit, client
 }
 
 func cachedCornerCounts(payload string) func(cmd valkey.Completed) valkey.ValkeyResult {
@@ -83,7 +83,7 @@ func postCornerCountWriters(postID, userID uuid.UUID) []postWriterCase {
 	return []postWriterCase{
 		{
 			name: "create",
-			expect: func(postDAO *dao.MockPostDAO, _ *dao.MockCommentDAO, _ *MockAuditLogRepository, err error) {
+			expect: func(postDAO *dao.MockPostDAO, _ *MockCommentRepository, _ *MockAuditLogRepository, err error) {
 				var created *model.PostRow
 				if err == nil {
 					created = &model.PostRow{ID: postID}
@@ -99,7 +99,7 @@ func postCornerCountWriters(postID, userID uuid.UUID) []postWriterCase {
 		},
 		{
 			name: "delete",
-			expect: func(postDAO *dao.MockPostDAO, comments *dao.MockCommentDAO, audit *MockAuditLogRepository, err error) {
+			expect: func(postDAO *dao.MockPostDAO, comments *MockCommentRepository, audit *MockAuditLogRepository, err error) {
 				postDAO.EXPECT().GetSharedContentFields(mock.Anything, postID, mock.Anything).Return(nil, nil, nil)
 				postDAO.EXPECT().CollectMediaPaths(mock.Anything, postID, mock.Anything).Return(nil, nil)
 				comments.EXPECT().CollectCommentMediaPaths(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindPost, ID: postID}, mock.Anything).Return(nil, nil)
@@ -114,40 +114,7 @@ func postCornerCountWriters(postID, userID uuid.UUID) []postWriterCase {
 				return err
 			},
 		},
-		{
-			name: "delete with media",
-			expect: func(postDAO *dao.MockPostDAO, comments *dao.MockCommentDAO, _ *MockAuditLogRepository, err error) {
-				postDAO.EXPECT().CollectMediaPaths(mock.Anything, postID, mock.Anything).Return(nil, nil)
-				comments.EXPECT().CollectCommentMediaPaths(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindPost, ID: postID}, mock.Anything).Return(nil, nil)
-				postDAO.EXPECT().Delete(mock.Anything, spec.OwnedDeletion{ID: postID, UserID: userID}, mock.Anything).Return(err)
-			},
-			call: func(repo PostRepository) error {
-				_, err := repo.DeleteWithMedia(context.Background(), spec.OwnedDeletion{ID: postID, UserID: userID}, new(sql.Tx))
-
-				return err
-			},
-		},
 	}
-}
-
-func TestPostRepository_DeleteWithMediaReturnsEveryStoredFileWithoutAuditing(t *testing.T) {
-	// given a post carrying its own media and a comment's media, with one path shared by both
-	repo, postDAO, comments, _, client := newCachedPostRepo(t)
-	postID, userID := uuid.New(), uuid.New()
-	postDAO.EXPECT().CollectMediaPaths(mock.Anything, postID, mock.Anything).Return([]string{"/uploads/posts/a.webp", "/uploads/posts/a_thumb.webp"}, nil)
-	comments.EXPECT().CollectCommentMediaPaths(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindPost, ID: postID}, mock.Anything).Return([]string{"/uploads/posts/c.webp", "/uploads/posts/a.webp"}, nil)
-	postDAO.EXPECT().Delete(mock.Anything, spec.OwnedDeletion{ID: postID, UserID: userID}, mock.Anything).Return(nil)
-
-	var commands []string
-	captureDel(client, &commands)
-
-	// when
-	paths, err := repo.DeleteWithMedia(context.Background(), spec.OwnedDeletion{ID: postID, UserID: userID}, new(sql.Tx))
-
-	// then every stored file is handed back once, the count is invalidated, and the strict audit mock records no row for a rollback
-	require.NoError(t, err)
-	assert.Equal(t, []string{"/uploads/posts/a.webp", "/uploads/posts/a_thumb.webp", "/uploads/posts/c.webp"}, paths)
-	assert.Equal(t, []string{"DEL", cache.PostCornerCounts.Key().String()}, commands)
 }
 
 func TestPostRepository_CornerCountWritersInvalidateTheCount(t *testing.T) {

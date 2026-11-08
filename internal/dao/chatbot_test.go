@@ -125,7 +125,7 @@ func TestChatbotDAO_CreateBotWithAccount_RollsBackEveryTableWhenTheBotInsertFail
 	require.NoError(t, err)
 	assert.Nil(t, user, "the users row must not survive a failed bot creation")
 
-	assignments, err := repos.VanityRole.GetAllAssignments(context.Background())
+	assignments, err := repos.Permission.GetAllVanityRoleAssignments(context.Background())
 	require.NoError(t, err)
 	assert.Empty(t, assignments, "the user_vanity_roles row must not survive a failed bot creation")
 

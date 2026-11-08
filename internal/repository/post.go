@@ -22,21 +22,21 @@ type (
 		AttachMedia(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx) (*model.PostMediaRow, error)
 		UpdateWithDetails(ctx context.Context, update spec.PostUpdate, tx ...*sql.Tx) error
 		DeleteWithSharedContent(ctx context.Context, deletion spec.PostDelete, tx ...*sql.Tx) (*model.SharedContentRef, []string, error)
-		DeleteWithMedia(ctx context.Context, deletion spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error)
 		CreatePollWithOptions(ctx context.Context, poll spec.NewPoll, tx ...*sql.Tx) (*model.PollRow, error)
+		InvalidateCornerCounts(ctx context.Context)
 	}
 
 	postRepository struct {
 		db *sql.DB
 		dao.PostDAO
-		comments dao.CommentDAO
-		pending  dao.PendingUploadDAO
+		comments CommentRepository
+		pending  PendingUploadRepository
 		audit    AuditLogRepository
 		cache    *cache.Manager
 	}
 )
 
-func NewPostRepo(database *sql.DB, postDAO dao.PostDAO, comments dao.CommentDAO, pending dao.PendingUploadDAO, auditLog AuditLogRepository, c *cache.Manager) PostRepository {
+func NewPostRepo(database *sql.DB, postDAO dao.PostDAO, comments CommentRepository, pending PendingUploadRepository, auditLog AuditLogRepository, c *cache.Manager) PostRepository {
 	return &postRepository{db: database, PostDAO: postDAO, comments: comments, pending: pending, audit: auditLog, cache: c}
 }
 
@@ -64,7 +64,7 @@ func (r *postRepository) GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (ma
 	return r.cache.Load(ctx, cache.PostCornerCounts.Key(), load)
 }
 
-func (r *postRepository) invalidateCornerCounts(ctx context.Context) {
+func (r *postRepository) InvalidateCornerCounts(ctx context.Context) {
 	if err := r.cache.Del(ctx, cache.PostCornerCounts.Key()); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate post corner counts after write")
 	}
@@ -133,7 +133,7 @@ func (r *postRepository) CreateWithDetails(ctx context.Context, post spec.NewPos
 		return nil, err
 	}
 
-	r.invalidateCornerCounts(ctx)
+	r.InvalidateCornerCounts(ctx)
 
 	return created, nil
 }
@@ -191,40 +191,9 @@ func (r *postRepository) DeleteWithSharedContent(ctx context.Context, deletion s
 		return nil, nil, err
 	}
 
-	r.invalidateCornerCounts(ctx)
+	r.InvalidateCornerCounts(ctx)
 
 	return shared, paths, nil
-}
-
-func (r *postRepository) DeleteWithMedia(ctx context.Context, deletion spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error) {
-	var paths []string
-
-	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
-		mediaPaths, err := r.PostDAO.CollectMediaPaths(ctx, deletion.ID, tx)
-		if err != nil {
-			return fmt.Errorf("collect post media paths: %w", err)
-		}
-
-		commentPaths, err := r.comments.CollectCommentMediaPaths(ctx, spec.CommentTarget{Kind: spec.CommentKindPost, ID: deletion.ID}, tx)
-		if err != nil {
-			return fmt.Errorf("collect post comment media paths: %w", err)
-		}
-
-		paths = dedupePaths(append(mediaPaths, commentPaths...))
-
-		if err := r.PostDAO.Delete(ctx, deletion, tx); err != nil {
-			return fmt.Errorf("delete post: %w", err)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	r.invalidateCornerCounts(ctx)
-
-	return paths, nil
 }
 
 func (r *postRepository) CreatePollWithOptions(ctx context.Context, poll spec.NewPoll, tx ...*sql.Tx) (*model.PollRow, error) {

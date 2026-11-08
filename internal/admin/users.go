@@ -96,6 +96,7 @@ func (s *service) BanUser(ctx context.Context, actorID uuid.UUID, targetID uuid.
 		if err := s.userRepo.BanUser(ctx, spec.UserBan{UserID: targetID, BannedBy: actorID, Reason: reason}); err != nil {
 			return fmt.Errorf("ban user: %w", err)
 		}
+		s.clearEchoCache(ctx)
 		if err := s.sessionMgr.DeleteAllForUser(ctx, targetID); err != nil {
 			logger.Ctx(ctx).Error().Err(err).Str("user_id", targetID.String()).Msg("failed to invalidate sessions after ban")
 		}
@@ -110,6 +111,7 @@ func (s *service) UnbanUser(ctx context.Context, actorID uuid.UUID, targetID uui
 		if err := s.userRepo.UnbanUser(ctx, targetID); err != nil {
 			return fmt.Errorf("unban user: %w", err)
 		}
+		s.clearEchoCache(ctx)
 		s.auditUser(ctx, actorID, audit.ActionUnbanUser, targetID)
 		s.broadcastBanChange(targetID, false, "")
 		return nil
@@ -202,6 +204,7 @@ func (s *service) DeleteUser(ctx context.Context, actorID uuid.UUID, targetID uu
 		if err := s.userRepo.AdminDeleteAccount(ctx, targetID); err != nil {
 			return fmt.Errorf("delete user: %w", err)
 		}
+		s.clearEchoCache(ctx)
 		details := ""
 		if user != nil {
 			s.uploadSvc.Delete(user.AvatarURL)
@@ -314,12 +317,17 @@ func (s *service) SetUserDisplayName(ctx context.Context, actorID uuid.UUID, tar
 			return ErrEmptyDisplayName
 		}
 
+		if err := s.rejectBotTarget(ctx, targetID); err != nil {
+			return err
+		}
+
 		previous := s.currentDisplayName(ctx, targetID)
 
 		if err := s.userRepo.SetDisplayName(ctx, spec.UserDisplayNameUpdate{UserID: targetID, DisplayName: clamped}); err != nil {
 			return fmt.Errorf("set display name: %w", err)
 		}
 
+		s.clearEchoCache(ctx)
 		s.auditUserDetails(ctx, actorID, audit.ActionSetDisplayName, targetID, changeDetails(previous, clamped))
 		s.broadcastDisplayNameChange(targetID, clamped)
 		return nil

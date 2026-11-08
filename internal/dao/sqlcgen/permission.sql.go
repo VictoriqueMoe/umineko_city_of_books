@@ -11,6 +11,20 @@ import (
 	"github.com/google/uuid"
 )
 
+const assignVanityRoleToUser = `-- name: AssignVanityRoleToUser :exec
+INSERT INTO user_vanity_roles (user_id, vanity_role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING
+`
+
+type AssignVanityRoleToUserParams struct {
+	UserID       uuid.UUID
+	VanityRoleID string
+}
+
+func (q *Queries) AssignVanityRoleToUser(ctx context.Context, arg AssignVanityRoleToUserParams) error {
+	_, err := q.db.ExecContext(ctx, assignVanityRoleToUser, arg.UserID, arg.VanityRoleID)
+	return err
+}
+
 const deleteRolePermissions = `-- name: DeleteRolePermissions :exec
 DELETE FROM role_permissions WHERE role = $1
 `
@@ -27,6 +41,33 @@ DELETE FROM vanity_role_permissions WHERE vanity_role_id = $1
 func (q *Queries) DeleteVanityRolePermissions(ctx context.Context, vanityRoleID string) error {
 	_, err := q.db.ExecContext(ctx, deleteVanityRolePermissions, vanityRoleID)
 	return err
+}
+
+const getAllVanityRoleAssignments = `-- name: GetAllVanityRoleAssignments :many
+SELECT user_id, vanity_role_id FROM user_vanity_roles ORDER BY user_id
+`
+
+func (q *Queries) GetAllVanityRoleAssignments(ctx context.Context) ([]UserVanityRole, error) {
+	rows, err := q.db.QueryContext(ctx, getAllVanityRoleAssignments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []UserVanityRole{}
+	for rows.Next() {
+		var i UserVanityRole
+		if err := rows.Scan(&i.UserID, &i.VanityRoleID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const insertRolePermission = `-- name: InsertRolePermission :exec
@@ -140,4 +181,18 @@ func (q *Queries) ListVanityRolePermissions(ctx context.Context) ([]VanityRolePe
 		return nil, err
 	}
 	return items, nil
+}
+
+const unassignVanityRoleFromUser = `-- name: UnassignVanityRoleFromUser :exec
+DELETE FROM user_vanity_roles WHERE user_id = $1 AND vanity_role_id = $2
+`
+
+type UnassignVanityRoleFromUserParams struct {
+	UserID       uuid.UUID
+	VanityRoleID string
+}
+
+func (q *Queries) UnassignVanityRoleFromUser(ctx context.Context, arg UnassignVanityRoleFromUserParams) error {
+	_, err := q.db.ExecContext(ctx, unassignVanityRoleFromUser, arg.UserID, arg.VanityRoleID)
+	return err
 }

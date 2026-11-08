@@ -1624,89 +1624,6 @@ func (_c *MockMysteryRepository_DeleteWithFiles_Call) RunAndReturn(run func(ctx 
 	return _c
 }
 
-// DeleteWithMedia provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) DeleteWithMedia(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error) {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, s, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, s)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteWithMedia")
-	}
-
-	var r0 []string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.OwnedDeletion, ...*sql.Tx) ([]string, error)); ok {
-		return returnFunc(ctx, s, tx...)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.OwnedDeletion, ...*sql.Tx) []string); ok {
-		r0 = returnFunc(ctx, s, tx...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.OwnedDeletion, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, s, tx...)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_DeleteWithMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteWithMedia'
-type MockMysteryRepository_DeleteWithMedia_Call struct {
-	*mock.Call
-}
-
-// DeleteWithMedia is a helper method to define mock.On call
-//   - ctx context.Context
-//   - s spec.OwnedDeletion
-//   - tx ...*sql.Tx
-func (_e *MockMysteryRepository_Expecter) DeleteWithMedia(ctx any, s any, tx ...any) *MockMysteryRepository_DeleteWithMedia_Call {
-	return &MockMysteryRepository_DeleteWithMedia_Call{Call: _e.mock.On("DeleteWithMedia",
-		append([]any{ctx, s}, tx...)...)}
-}
-
-func (_c *MockMysteryRepository_DeleteWithMedia_Call) Run(run func(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx)) *MockMysteryRepository_DeleteWithMedia_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.OwnedDeletion
-		if args[1] != nil {
-			arg1 = args[1].(spec.OwnedDeletion)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteWithMedia_Call) Return(strings []string, err error) *MockMysteryRepository_DeleteWithMedia_Call {
-	_c.Call.Return(strings, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteWithMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error)) *MockMysteryRepository_DeleteWithMedia_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetAttachmentPaths provides a mock function for the type MockMysteryRepository
 func (_mock *MockMysteryRepository) GetAttachmentPaths(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
 	var tmpRet mock.Arguments
@@ -3028,6 +2945,46 @@ func (_c *MockMysteryRepository_GetTopGMIDs_Call) Return(strings []string, err e
 
 func (_c *MockMysteryRepository_GetTopGMIDs_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]string, error)) *MockMysteryRepository_GetTopGMIDs_Call {
 	_c.Call.Return(run)
+	return _c
+}
+
+// InvalidateLeaderboards provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) InvalidateLeaderboards(ctx context.Context) {
+	_mock.Called(ctx)
+	return
+}
+
+// MockMysteryRepository_InvalidateLeaderboards_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InvalidateLeaderboards'
+type MockMysteryRepository_InvalidateLeaderboards_Call struct {
+	*mock.Call
+}
+
+// InvalidateLeaderboards is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockMysteryRepository_Expecter) InvalidateLeaderboards(ctx any) *MockMysteryRepository_InvalidateLeaderboards_Call {
+	return &MockMysteryRepository_InvalidateLeaderboards_Call{Call: _e.mock.On("InvalidateLeaderboards", ctx)}
+}
+
+func (_c *MockMysteryRepository_InvalidateLeaderboards_Call) Run(run func(ctx context.Context)) *MockMysteryRepository_InvalidateLeaderboards_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_InvalidateLeaderboards_Call) Return() *MockMysteryRepository_InvalidateLeaderboards_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockMysteryRepository_InvalidateLeaderboards_Call) RunAndReturn(run func(ctx context.Context)) *MockMysteryRepository_InvalidateLeaderboards_Call {
+	_c.Run(run)
 	return _c
 }
 

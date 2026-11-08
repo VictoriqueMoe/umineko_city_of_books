@@ -47,7 +47,7 @@ func newTestStreamService(t *testing.T) (Service, *streamMocks) {
 	uploadSvc := upload.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
 
-	svc := NewService(repo, creds, followRepo, lk, settingsSvc, uploadSvc, notifSvc, ws.NewHub(), nil, cacheMgr)
+	svc := NewService(repo, creds, followRepo, lk, settingsSvc, uploadSvc, notifSvc, ws.NewHub(), cacheMgr)
 
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingStreamHLSOutputDir).Return("").Maybe()
 	followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
@@ -647,7 +647,7 @@ func newFanoutStreamService(t *testing.T) (Service, *streamMocks) {
 	notifSvc := notification.NewMockService(t)
 	cacheMgr := cache.NewManager(engines.NewInMemory(0))
 
-	svc := NewService(repo, creds, followRepo, lk, settingsSvc, uploadSvc, notifSvc, ws.NewHub(), nil, cacheMgr)
+	svc := NewService(repo, creds, followRepo, lk, settingsSvc, uploadSvc, notifSvc, ws.NewHub(), cacheMgr)
 
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingStreamHLSOutputDir).Return("").Maybe()
 

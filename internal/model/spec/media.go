@@ -15,11 +15,6 @@ type (
 		IsSpoiler    bool
 	}
 
-	MediaURLUpdate struct {
-		ID  int64
-		URL string
-	}
-
 	MediaDeletion struct {
 		ID       int64
 		TargetID uuid.UUID

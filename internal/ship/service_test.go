@@ -73,7 +73,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	}
 
 	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifSvc)
-	svc := NewService(m.shipRepo, m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.commentSvc, m.uploadSvc, m.settingsSvc, quotefinder.NewClient(nil), contentfilter.New(), nil, m.activity).(*service)
+	svc := NewService(m.shipRepo, m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.commentSvc, m.uploadSvc, m.settingsSvc, quotefinder.NewClient(nil), contentfilter.New(), m.activity).(*service)
 
 	return svc, m
 }

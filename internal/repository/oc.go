@@ -19,11 +19,11 @@ type (
 	ocRepository struct {
 		db *sql.DB
 		dao.OCDAO
-		comments dao.CommentDAO
+		comments CommentRepository
 	}
 )
 
-func NewOCRepo(database *sql.DB, ocs dao.OCDAO, comments dao.CommentDAO) OCRepository {
+func NewOCRepo(database *sql.DB, ocs dao.OCDAO, comments CommentRepository) OCRepository {
 	return &ocRepository{db: database, OCDAO: ocs, comments: comments}
 }
 

@@ -17,6 +17,7 @@ import (
 	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -71,7 +72,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 
 	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifSvc)
 
-	svc := NewService(m.artRepo, repository.NewMockPostRepository(t), m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.commentSvc, m.uploadSvc, m.settingsSvc, contentfilter.New(), nil, nil, m.activity).(*service)
+	svc := NewService(m.artRepo, repository.NewMockPostRepository(t), m.userRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.commentSvc, m.uploadSvc, m.settingsSvc, contentfilter.New(), nil, m.activity).(*service)
 
 	return svc, m
 }
@@ -509,11 +510,16 @@ func TestUpdateArt(t *testing.T) {
 			// given
 			svc, m := newTestService(t)
 			tc.given(m)
+			echoes := homefeed.NewMockService(t)
+			svc.echoCache = echoes
+			if tc.wantErr == nil {
+				echoes.EXPECT().ClearEchoCache(mock.Anything).Return(nil).Once()
+			}
 
 			// when
 			err := svc.UpdateArt(context.Background(), id, userID, tc.req)
 
-			// then
+			// then a committed edit clears the cached echoes, a rejected one leaves them
 			require.ErrorIs(t, err, tc.wantErr)
 		})
 	}

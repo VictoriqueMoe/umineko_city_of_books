@@ -287,6 +287,60 @@ func (_c *MockUserSecretRepository_GetUserIDsWithSecret_Call) RunAndReturn(run f
 	return _c
 }
 
+// InvalidateSecrets provides a mock function for the type MockUserSecretRepository
+func (_mock *MockUserSecretRepository) InvalidateSecrets(ctx context.Context, secretIDs ...string) {
+	if len(secretIDs) > 0 {
+		_mock.Called(ctx, secretIDs)
+	} else {
+		_mock.Called(ctx)
+	}
+
+	return
+}
+
+// MockUserSecretRepository_InvalidateSecrets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InvalidateSecrets'
+type MockUserSecretRepository_InvalidateSecrets_Call struct {
+	*mock.Call
+}
+
+// InvalidateSecrets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - secretIDs ...string
+func (_e *MockUserSecretRepository_Expecter) InvalidateSecrets(ctx any, secretIDs ...any) *MockUserSecretRepository_InvalidateSecrets_Call {
+	return &MockUserSecretRepository_InvalidateSecrets_Call{Call: _e.mock.On("InvalidateSecrets",
+		append([]any{ctx}, secretIDs...)...)}
+}
+
+func (_c *MockUserSecretRepository_InvalidateSecrets_Call) Run(run func(ctx context.Context, secretIDs ...string)) *MockUserSecretRepository_InvalidateSecrets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []string
+		var variadicArgs []string
+		if len(args) > 1 {
+			variadicArgs = args[1].([]string)
+		}
+		arg1 = variadicArgs
+		run(
+			arg0,
+			arg1...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserSecretRepository_InvalidateSecrets_Call) Return() *MockUserSecretRepository_InvalidateSecrets_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockUserSecretRepository_InvalidateSecrets_Call) RunAndReturn(run func(ctx context.Context, secretIDs ...string)) *MockUserSecretRepository_InvalidateSecrets_Call {
+	_c.Run(run)
+	return _c
+}
+
 // IsSolvedByAnyone provides a mock function for the type MockUserSecretRepository
 func (_mock *MockUserSecretRepository) IsSolvedByAnyone(ctx context.Context, secretID string, tx ...*sql.Tx) (bool, error) {
 	var tmpRet mock.Arguments

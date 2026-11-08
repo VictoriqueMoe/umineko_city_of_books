@@ -92,7 +92,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	}
 
 	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifSvc)
-	svc := NewService(m.fanficRepo, m.userRepo, m.followRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.commentSvc, m.uploadSvc, m.settingsSvc, contentfilter.New(), nil, m.activity).(*service)
+	svc := NewService(m.fanficRepo, m.userRepo, m.followRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.commentSvc, m.uploadSvc, m.settingsSvc, contentfilter.New(), m.activity).(*service)
 
 	m.followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Return([]uuid.UUID{m.followerID}, nil).Maybe()
 	m.notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Run(func(_ context.Context, params []dto.NotifyParams) {

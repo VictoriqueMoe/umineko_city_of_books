@@ -28,7 +28,6 @@ type (
 		CreateDMRoom(ctx context.Context, s spec.ChatDMPair, tx ...*sql.Tx) (*model.ChatRoomRow, error)
 		AddDMMembers(ctx context.Context, s spec.ChatDMMembers, tx ...*sql.Tx) error
 		RejoinDMMembers(ctx context.Context, s spec.ChatDMMembers, tx ...*sql.Tx) error
-		AddMember(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) error
 		AddMemberWithRole(ctx context.Context, s spec.NewChatRoomMember, tx ...*sql.Tx) error
 		IsGhostMember(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error)
 		HasGhostMembers(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (bool, error)
@@ -609,18 +608,6 @@ func (r *chatDAO) ListRoomMemberAvatarURLs(ctx context.Context, roomID uuid.UUID
 	}
 
 	return urls, nil
-}
-
-func (r *chatDAO) AddMember(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) error {
-	err := genQueries(r.db, tx).AddChatRoomMember(ctx, sqlcgen.AddChatRoomMemberParams{
-		RoomID: s.RoomID,
-		UserID: s.UserID,
-	})
-	if err != nil {
-		return fmt.Errorf("add member: %w", err)
-	}
-
-	return nil
 }
 
 func (r *chatDAO) RemoveMember(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) error {

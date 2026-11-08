@@ -2,12 +2,12 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/cache/engines"
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
@@ -25,7 +25,7 @@ func newCachedPermissionRepo(t *testing.T) (PermissionRepository, *MockPermissio
 	client := valkeymock.NewClient(gomock.NewController(t))
 	permissionDAO := NewMockPermissionRepository(t)
 
-	return NewPermissionRepo(permissionDAO, cache.NewManager(engines.NewValkeyWithClient(client))), permissionDAO, client
+	return NewPermissionRepo(nil, permissionDAO, cache.NewManager(engines.NewValkeyWithClient(client))), permissionDAO, client
 }
 
 func expectDel(t *testing.T, client *valkeymock.Client, key cache.Key) *gomock.Call {
@@ -80,56 +80,93 @@ func TestSetVanityRolePermissions_InvalidatesVanityPermissionCache(t *testing.T)
 	require.NoError(t, err)
 }
 
-func TestAssignToUser_InvalidatesVanityAssignmentAndUserKeys(t *testing.T) {
-	// given
-	client := valkeymock.NewClient(gomock.NewController(t))
-	vanityDAO := dao.NewMockVanityRoleDAO(t)
-	repo := NewVanityRoleRepo(nil, vanityDAO, cache.NewManager(engines.NewValkeyWithClient(client)))
+func TestPermissionRepository_VanityAssignmentWritesInvalidateAssignmentAndUserKeys(t *testing.T) {
 	userID := uuid.New()
-	vanityDAO.EXPECT().AssignToUser(mock.Anything, spec.VanityRoleAssignment{UserID: userID, RoleID: "vanity-a"}).Return(nil)
+	assignment := spec.VanityRoleAssignment{UserID: userID, RoleID: "vanity-a"}
+	tx := new(sql.Tx)
 
-	var commands []string
-	client.EXPECT().
-		Do(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, cmd valkey.Completed) valkey.ValkeyResult {
-			commands = cmd.Commands()
+	tests := []struct {
+		name  string
+		write func(repo PermissionRepository, permissionDAO *MockPermissionRepository) error
+	}{
+		{
+			name: "assigning a vanity role",
+			write: func(repo PermissionRepository, permissionDAO *MockPermissionRepository) error {
+				permissionDAO.EXPECT().AssignVanityRoleToUser(mock.Anything, assignment).Return(nil).Once()
 
-			return valkeymock.Result(valkeymock.ValkeyInt64(2))
-		}).
-		Times(1)
+				return repo.AssignVanityRoleToUser(context.Background(), assignment)
+			},
+		},
+		{
+			name: "unassigning a vanity role",
+			write: func(repo PermissionRepository, permissionDAO *MockPermissionRepository) error {
+				permissionDAO.EXPECT().UnassignVanityRoleFromUser(mock.Anything, assignment).Return(nil).Once()
 
-	// when
-	err := repo.AssignToUser(context.Background(), spec.VanityRoleAssignment{UserID: userID, RoleID: "vanity-a"})
+				return repo.UnassignVanityRoleFromUser(context.Background(), assignment)
+			},
+		},
+		{
+			name: "moving a user between vanity roles",
+			write: func(repo PermissionRepository, permissionDAO *MockPermissionRepository) error {
+				permissionDAO.EXPECT().AssignVanityRoleToUser(mock.Anything, spec.VanityRoleAssignment{UserID: userID, RoleID: "vanity-b"}, []*sql.Tx{tx}).Return(nil).Once()
+				permissionDAO.EXPECT().UnassignVanityRoleFromUser(mock.Anything, assignment, []*sql.Tx{tx}).Return(nil).Once()
 
-	// then
-	require.NoError(t, err)
-	assert.Equal(t, []string{"DEL", cache.VanityAssignments.Key().String(), cache.UserVanityRoleIDs.Key(userID.String()).String()}, commands)
+				return repo.MoveUserVanityRole(context.Background(), spec.VanityRoleMove{UserID: userID, FromRoleID: "vanity-a", ToRoleID: "vanity-b"}, tx)
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repo, permissionDAO, client := newCachedPermissionRepo(t)
+
+			var commands []string
+			client.EXPECT().
+				Do(gomock.Any(), gomock.Any()).
+				DoAndReturn(func(ctx context.Context, cmd valkey.Completed) valkey.ValkeyResult {
+					commands = cmd.Commands()
+
+					return valkeymock.Result(valkeymock.ValkeyInt64(2))
+				}).
+				Times(1)
+
+			// when
+			err := tc.write(repo, permissionDAO)
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, []string{"DEL", cache.VanityAssignments.Key().String(), cache.UserVanityRoleIDs.Key(userID.String()).String()}, commands)
+		})
+	}
 }
 
-func TestUnassignFromUser_InvalidatesVanityAssignmentAndUserKeys(t *testing.T) {
+func TestPermissionRepository_FailedVanityAssignmentKeepsTheCache(t *testing.T) {
 	// given
-	client := valkeymock.NewClient(gomock.NewController(t))
-	vanityDAO := dao.NewMockVanityRoleDAO(t)
-	repo := NewVanityRoleRepo(nil, vanityDAO, cache.NewManager(engines.NewValkeyWithClient(client)))
-	userID := uuid.New()
-	vanityDAO.EXPECT().UnassignFromUser(mock.Anything, spec.VanityRoleAssignment{UserID: userID, RoleID: "vanity-a"}).Return(nil)
-
-	var commands []string
-	client.EXPECT().
-		Do(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, cmd valkey.Completed) valkey.ValkeyResult {
-			commands = cmd.Commands()
-
-			return valkeymock.Result(valkeymock.ValkeyInt64(2))
-		}).
-		Times(1)
+	repo, permissionDAO, client := newCachedPermissionRepo(t)
+	assignment := spec.VanityRoleAssignment{UserID: uuid.New(), RoleID: "vanity-a"}
+	permissionDAO.EXPECT().AssignVanityRoleToUser(mock.Anything, assignment).Return(errors.New("db down")).Once()
+	client.EXPECT().Do(gomock.Any(), gomock.Any()).Times(0)
 
 	// when
-	err := repo.UnassignFromUser(context.Background(), spec.VanityRoleAssignment{UserID: userID, RoleID: "vanity-a"})
+	err := repo.AssignVanityRoleToUser(context.Background(), assignment)
 
 	// then
+	require.Error(t, err)
+}
+
+func TestPermissionRepository_FailedCacheDeleteDoesNotFailACommittedAssignment(t *testing.T) {
+	// given an assignment that commits while the cache is unreachable
+	repo, permissionDAO, client := newCachedPermissionRepo(t)
+	assignment := spec.VanityRoleAssignment{UserID: uuid.New(), RoleID: "vanity-a"}
+	permissionDAO.EXPECT().AssignVanityRoleToUser(mock.Anything, assignment).Return(nil).Once()
+	client.EXPECT().Do(gomock.Any(), gomock.Any()).Return(valkeymock.ErrorResult(errors.New("valkey down"))).Times(1)
+
+	// when
+	err := repo.AssignVanityRoleToUser(context.Background(), assignment)
+
+	// then the committed assignment is not reported as failed
 	require.NoError(t, err)
-	assert.Equal(t, []string{"DEL", cache.VanityAssignments.Key().String(), cache.UserVanityRoleIDs.Key(userID.String()).String()}, commands)
 }
 
 func TestPermissionCacheKeys_DoNotCollide(t *testing.T) {

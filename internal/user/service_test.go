@@ -34,7 +34,7 @@ func newTestService(t *testing.T) (
 	*repository.MockRoleRepository,
 	*authz.MockService,
 ) {
-	svc, userRepo, roleRepo, authzSvc, _, _, _ := newFullTestService(t)
+	svc, userRepo, roleRepo, authzSvc, _, _, _, _ := newFullTestService(t)
 	return svc, userRepo, roleRepo, authzSvc
 }
 
@@ -46,15 +46,17 @@ func newFullTestService(t *testing.T) (
 	*repository.MockVanityRoleRepository,
 	*settings.MockService,
 	*repository.MockAuditLogRepository,
+	*repository.MockPermissionRepository,
 ) {
 	userRepo := repository.NewMockUserRepository(t)
 	roleRepo := repository.NewMockRoleRepository(t)
 	vanityRepo := repository.NewMockVanityRoleRepository(t)
+	permRepo := repository.NewMockPermissionRepository(t)
 	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
-	svc := NewService(userRepo, roleRepo, vanityRepo, auditRepo, authzSvc, settingsSvc).(*service)
-	return svc, userRepo, roleRepo, authzSvc, vanityRepo, settingsSvc, auditRepo
+	svc := NewService(userRepo, roleRepo, vanityRepo, permRepo, auditRepo, authzSvc, settingsSvc).(*service)
+	return svc, userRepo, roleRepo, authzSvc, vanityRepo, settingsSvc, auditRepo, permRepo
 }
 
 func TestNewAccountSpec_FirstUserCarriesSuperAdmin(t *testing.T) {
@@ -417,7 +419,7 @@ func TestIsChatbotOptedIn(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			svc, _, _, _, vanityRepo, settingsSvc, _ := newFullTestService(t)
+			svc, _, _, _, vanityRepo, settingsSvc, _, _ := newFullTestService(t)
 			userID := uuid.New()
 			settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return(tc.configured)
 			if tc.configured != "" {
@@ -453,7 +455,7 @@ func TestSetChatbotOptIn_Unavailable(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			svc, _, _, _, _, settingsSvc, _ := newFullTestService(t)
+			svc, _, _, _, _, settingsSvc, _, _ := newFullTestService(t)
 			settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotEnabled).Return(tc.enabled).Maybe()
 			settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotRequirePermission).Return(tc.restricted).Maybe()
 			settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return(tc.configured).Maybe()
@@ -485,7 +487,7 @@ func TestSetChatbotOptIn_GrantsAndRevokesThroughRepository(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			svc, _, _, _, vanityRepo, settingsSvc, auditRepo := newFullTestService(t)
+			svc, _, _, _, vanityRepo, settingsSvc, auditRepo, permRepo := newFullTestService(t)
 			userID := uuid.New()
 			settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return(roleID)
 			action := audit.ActionUnassignVanityRole
@@ -495,9 +497,9 @@ func TestSetChatbotOptIn_GrantsAndRevokesThroughRepository(t *testing.T) {
 				settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotRequirePermission).Return(true)
 				vanityRepo.EXPECT().GetByID(mock.Anything, roleID).
 					Return(&model.VanityRoleRow{ID: roleID}, nil)
-				vanityRepo.EXPECT().AssignToUser(mock.Anything, spec.VanityRoleAssignment{UserID: userID, RoleID: roleID}).Return(tc.repoErr)
+				permRepo.EXPECT().AssignVanityRoleToUser(mock.Anything, spec.VanityRoleAssignment{UserID: userID, RoleID: roleID}).Return(tc.repoErr)
 			} else {
-				vanityRepo.EXPECT().UnassignFromUser(mock.Anything, spec.VanityRoleAssignment{UserID: userID, RoleID: roleID}).Return(tc.repoErr)
+				permRepo.EXPECT().UnassignVanityRoleFromUser(mock.Anything, spec.VanityRoleAssignment{UserID: userID, RoleID: roleID}).Return(tc.repoErr)
 			}
 			if tc.repoErr == nil {
 				auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
@@ -538,10 +540,10 @@ func TestSetChatbotOptIn_OptOutWorksEvenWhenOptInIsNoLongerOffered(t *testing.T)
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			svc, _, _, _, vanityRepo, settingsSvc, auditRepo := newFullTestService(t)
+			svc, _, _, _, _, settingsSvc, auditRepo, permRepo := newFullTestService(t)
 			userID := uuid.New()
 			settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return(roleID)
-			vanityRepo.EXPECT().UnassignFromUser(mock.Anything, spec.VanityRoleAssignment{UserID: userID, RoleID: roleID}).Return(nil)
+			permRepo.EXPECT().UnassignVanityRoleFromUser(mock.Anything, spec.VanityRoleAssignment{UserID: userID, RoleID: roleID}).Return(nil)
 			auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 				ActorID:    userID,
 				Action:     audit.ActionUnassignVanityRole,
@@ -561,7 +563,7 @@ func TestSetChatbotOptIn_OptOutWorksEvenWhenOptInIsNoLongerOffered(t *testing.T)
 
 func TestSetChatbotOptIn_RefusesToGrantASystemRole(t *testing.T) {
 	// given
-	svc, _, _, _, vanityRepo, settingsSvc, _ := newFullTestService(t)
+	svc, _, _, _, vanityRepo, settingsSvc, _, _ := newFullTestService(t)
 	userID := uuid.New()
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return("bot")
 	settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotEnabled).Return(true)
@@ -574,7 +576,6 @@ func TestSetChatbotOptIn_RefusesToGrantASystemRole(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrChatbotOptInUnavailable)
-	vanityRepo.AssertNotCalled(t, "AssignToUser", mock.Anything, mock.Anything)
 }
 
 func TestScoreAdjustment_AuditsPreviousAndNextValue(t *testing.T) {
@@ -592,7 +593,7 @@ func TestScoreAdjustment_AuditsPreviousAndNextValue(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			svc, userRepo, _, _, _, _, auditRepo := newFullTestService(t)
+			svc, userRepo, _, _, _, _, auditRepo, _ := newFullTestService(t)
 			actor := uuid.New()
 			target := uuid.New()
 			current := tc.current

@@ -17,6 +17,7 @@ import (
 	"umineko_city_of_books/internal/credibility"
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -66,7 +67,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	}
 	followRepo := repository.NewMockFollowRepository(t)
 	mentionSvc := mention.NewService(m.userRepo, m.blockSvc, m.notifSvc)
-	svc := NewService(m.repo, m.userRepo, followRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.settingsSvc, credibility.NewService(m.repo), quotefinder.NewClient(nil), contentfilter.New(), nil, nil, m.activity).(*service)
+	svc := NewService(m.repo, m.userRepo, followRepo, m.auditRepo, m.authz, m.blockSvc, m.notifSvc, mentionSvc, m.settingsSvc, credibility.NewService(m.repo), quotefinder.NewClient(nil), contentfilter.New(), nil, m.activity).(*service)
 
 	followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Run(func(_ context.Context, userID uuid.UUID, _ ...*sql.Tx) {
 		m.fanout <- userID
@@ -428,6 +429,12 @@ func TestUpdateTheory(t *testing.T) {
 					AsAdmin:  tc.canEditAny,
 					Evidence: req.Evidence,
 				}).Return(tc.updateErr)
+
+				echoes := homefeed.NewMockService(t)
+				svc.echoCache = echoes
+				if tc.updateErr == nil {
+					echoes.EXPECT().ClearEchoCache(mock.Anything).Return(nil).Once()
+				}
 
 				var notifierDone <-chan struct{}
 				if adminEdit {

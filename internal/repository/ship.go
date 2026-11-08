@@ -22,11 +22,11 @@ type (
 	shipRepository struct {
 		db *sql.DB
 		dao.ShipDAO
-		comments dao.CommentDAO
+		comments CommentRepository
 	}
 )
 
-func NewShipRepo(database *sql.DB, ships dao.ShipDAO, comments dao.CommentDAO) ShipRepository {
+func NewShipRepo(database *sql.DB, ships dao.ShipDAO, comments CommentRepository) ShipRepository {
 	return &shipRepository{db: database, ShipDAO: ships, comments: comments}
 }
 

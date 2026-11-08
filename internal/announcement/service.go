@@ -12,7 +12,6 @@ import (
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
-	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/upload"
@@ -41,7 +40,6 @@ type (
 		commentSvc comment.Service
 		hub        *ws.Hub
 		uploadSvc  upload.Service
-		ogCache    *og.Resolver
 	}
 )
 
@@ -52,7 +50,6 @@ func NewService(
 	commentSvc comment.Service,
 	hub *ws.Hub,
 	uploadSvc upload.Service,
-	ogCache *og.Resolver,
 ) Service {
 	return &service{
 		repo:       repo,
@@ -61,7 +58,6 @@ func NewService(
 		commentSvc: commentSvc,
 		hub:        hub,
 		uploadSvc:  uploadSvc,
-		ogCache:    ogCache,
 	}
 }
 
@@ -217,10 +213,6 @@ func (s *service) Delete(ctx context.Context, actorID uuid.UUID, id uuid.UUID) e
 	s.uploadSvc.Delete(paths...)
 
 	s.audit(ctx, actorID, audit.ActionAnnouncementDelete, id, doomed.AuthorID, fmt.Sprintf("title=%s", doomed.Title))
-
-	if err := s.ogCache.ClearMetaCache(ctx, og.KindAnnouncement, id.String()); err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Str("announcement_id", id.String()).Msg("clear og meta cache failed")
-	}
 
 	return nil
 }

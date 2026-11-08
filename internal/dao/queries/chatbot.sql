@@ -50,9 +50,14 @@ FROM c
 JOIN users u ON u.id = c.user_id
 LEFT JOIN chatbot_base_prompts b ON b.id = c.base_prompt_id;
 
--- name: DeleteChatbot :execrows
-DELETE FROM users u
-WHERE u.is_bot AND u.id = (SELECT c.user_id FROM chatbots c WHERE c.id = $1);
+-- name: GetChatbotByID :one
+SELECT c.id, c.user_id, u.username, u.display_name, u.avatar_url,
+       c.system_prompt, c.base_prompt_id, COALESCE(b.prompt, '')::text AS base_prompt,
+       c.model, c.reasoning_effort, c.verbosity, c.max_output_tokens, c.enabled
+FROM chatbots c
+JOIN users u ON u.id = c.user_id
+LEFT JOIN chatbot_base_prompts b ON b.id = c.base_prompt_id
+WHERE c.id = $1;
 
 -- name: CreateChatbotInvocation :one
 INSERT INTO chatbot_invocations (bot_user_id, user_id, room_id, message_id, channel, model, status)

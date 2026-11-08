@@ -443,6 +443,52 @@ func (_c *MockChatBannedWordRepository_GetByID_Call) RunAndReturn(run func(ctx c
 	return _c
 }
 
+// InvalidateApplicable provides a mock function for the type MockChatBannedWordRepository
+func (_mock *MockChatBannedWordRepository) InvalidateApplicable(ctx context.Context, roomID *uuid.UUID) {
+	_mock.Called(ctx, roomID)
+	return
+}
+
+// MockChatBannedWordRepository_InvalidateApplicable_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InvalidateApplicable'
+type MockChatBannedWordRepository_InvalidateApplicable_Call struct {
+	*mock.Call
+}
+
+// InvalidateApplicable is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID *uuid.UUID
+func (_e *MockChatBannedWordRepository_Expecter) InvalidateApplicable(ctx any, roomID any) *MockChatBannedWordRepository_InvalidateApplicable_Call {
+	return &MockChatBannedWordRepository_InvalidateApplicable_Call{Call: _e.mock.On("InvalidateApplicable", ctx, roomID)}
+}
+
+func (_c *MockChatBannedWordRepository_InvalidateApplicable_Call) Run(run func(ctx context.Context, roomID *uuid.UUID)) *MockChatBannedWordRepository_InvalidateApplicable_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(*uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatBannedWordRepository_InvalidateApplicable_Call) Return() *MockChatBannedWordRepository_InvalidateApplicable_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockChatBannedWordRepository_InvalidateApplicable_Call) RunAndReturn(run func(ctx context.Context, roomID *uuid.UUID)) *MockChatBannedWordRepository_InvalidateApplicable_Call {
+	_c.Run(run)
+	return _c
+}
+
 // ListApplicable provides a mock function for the type MockChatBannedWordRepository
 func (_mock *MockChatBannedWordRepository) ListApplicable(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]model.ChatBannedWordRow, error) {
 	var tmpRet mock.Arguments

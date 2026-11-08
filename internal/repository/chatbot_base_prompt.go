@@ -16,10 +16,8 @@ import (
 type (
 	ChatbotBasePromptRepository interface {
 		dao.ChatbotBasePromptDAO
-	}
 
-	BasePromptInvalidator interface {
-		InvalidateList(ctx context.Context)
+		Invalidate(ctx context.Context, ids ...uuid.UUID)
 	}
 )
 
@@ -28,7 +26,7 @@ type chatbotBasePromptRepository struct {
 	cache *cache.Manager
 }
 
-func NewChatbotBasePromptRepo(prompts dao.ChatbotBasePromptDAO, c *cache.Manager) *chatbotBasePromptRepository {
+func NewChatbotBasePromptRepo(prompts dao.ChatbotBasePromptDAO, c *cache.Manager) ChatbotBasePromptRepository {
 	return &chatbotBasePromptRepository{ChatbotBasePromptDAO: prompts, cache: c}
 }
 
@@ -64,7 +62,7 @@ func (r *chatbotBasePromptRepository) Create(ctx context.Context, s spec.NewChat
 		return nil, err
 	}
 
-	r.invalidate(ctx, created.ID)
+	r.Invalidate(ctx, created.ID)
 
 	return created, nil
 }
@@ -75,7 +73,7 @@ func (r *chatbotBasePromptRepository) Update(ctx context.Context, s spec.Chatbot
 		return nil, err
 	}
 
-	r.invalidate(ctx, s.ID)
+	r.Invalidate(ctx, s.ID)
 
 	return updated, nil
 }
@@ -85,19 +83,17 @@ func (r *chatbotBasePromptRepository) Delete(ctx context.Context, id uuid.UUID, 
 		return err
 	}
 
-	r.invalidate(ctx, id)
+	r.Invalidate(ctx, id)
 
 	return nil
 }
 
-func (r *chatbotBasePromptRepository) InvalidateList(ctx context.Context) {
-	if err := r.cache.Del(ctx, cache.ChatbotBasePrompts.Key()); err != nil {
-		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate the chatbot base prompt list cache")
+func (r *chatbotBasePromptRepository) Invalidate(ctx context.Context, ids ...uuid.UUID) {
+	keys := make([]cache.Key, 0, len(ids)+1)
+	keys = append(keys, cache.ChatbotBasePrompts.Key())
+	for _, id := range ids {
+		keys = append(keys, cache.ChatbotBasePromptByID.Key(id.String()))
 	}
-}
-
-func (r *chatbotBasePromptRepository) invalidate(ctx context.Context, id uuid.UUID) {
-	keys := []cache.Key{cache.ChatbotBasePrompts.Key(), cache.ChatbotBasePromptByID.Key(id.String())}
 
 	if err := r.cache.Del(ctx, keys...); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate chatbot base prompt caches")

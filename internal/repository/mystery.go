@@ -28,20 +28,20 @@ type (
 		AttachFile(ctx context.Context, s spec.MediaAttachment, tx ...*sql.Tx) (*dto.MysteryAttachment, error)
 		UpdateWithClues(ctx context.Context, s spec.MysteryUpdateWithClues, tx ...*sql.Tx) error
 		DeleteWithFiles(ctx context.Context, s spec.MysteryDelete, tx ...*sql.Tx) ([]string, error)
-		DeleteWithMedia(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error)
+		InvalidateLeaderboards(ctx context.Context)
 	}
 )
 
 type mysteryRepository struct {
 	db *sql.DB
 	dao.MysteryDAO
-	comments dao.CommentDAO
-	pending  dao.PendingUploadDAO
+	comments CommentRepository
+	pending  PendingUploadRepository
 	audit    AuditLogRepository
 	cache    *cache.Manager
 }
 
-func NewMysteryRepo(database *sql.DB, mysteryDAO dao.MysteryDAO, comments dao.CommentDAO, pending dao.PendingUploadDAO, auditRepo AuditLogRepository, c *cache.Manager) MysteryRepository {
+func NewMysteryRepo(database *sql.DB, mysteryDAO dao.MysteryDAO, comments CommentRepository, pending PendingUploadRepository, auditRepo AuditLogRepository, c *cache.Manager) MysteryRepository {
 	return &mysteryRepository{db: database, MysteryDAO: mysteryDAO, comments: comments, pending: pending, audit: auditRepo, cache: c}
 }
 
@@ -168,7 +168,7 @@ func (r *mysteryRepository) UpdateWithClues(ctx context.Context, s spec.MysteryU
 		return err
 	}
 
-	r.invalidateLeaderboards(ctx)
+	r.InvalidateLeaderboards(ctx)
 
 	return nil
 }
@@ -188,7 +188,7 @@ func (r *mysteryRepository) Update(ctx context.Context, s spec.MysteryOwnerUpdat
 		return err
 	}
 
-	r.invalidateLeaderboards(ctx)
+	r.InvalidateLeaderboards(ctx)
 
 	return nil
 }
@@ -198,7 +198,7 @@ func (r *mysteryRepository) UpdateAsAdmin(ctx context.Context, s spec.MysteryUpd
 		return err
 	}
 
-	r.invalidateLeaderboards(ctx)
+	r.InvalidateLeaderboards(ctx)
 
 	return nil
 }
@@ -208,7 +208,7 @@ func (r *mysteryRepository) Delete(ctx context.Context, s spec.OwnedDeletion, tx
 		return err
 	}
 
-	r.invalidateLeaderboards(ctx)
+	r.InvalidateLeaderboards(ctx)
 
 	return nil
 }
@@ -218,7 +218,7 @@ func (r *mysteryRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx 
 		return err
 	}
 
-	r.invalidateLeaderboards(ctx)
+	r.InvalidateLeaderboards(ctx)
 
 	return nil
 }
@@ -275,33 +275,7 @@ func (r *mysteryRepository) DeleteWithFiles(ctx context.Context, s spec.MysteryD
 		return nil, err
 	}
 
-	r.invalidateLeaderboards(ctx)
-
-	return paths, nil
-}
-
-func (r *mysteryRepository) DeleteWithMedia(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error) {
-	var paths []string
-
-	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
-		collected, err := r.collectFilePaths(ctx, s.ID, tx)
-		if err != nil {
-			return fmt.Errorf("collect mystery file paths: %w", err)
-		}
-
-		paths = collected
-
-		if err := r.MysteryDAO.Delete(ctx, s, tx); err != nil {
-			return fmt.Errorf("delete mystery: %w", err)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	r.invalidateLeaderboards(ctx)
+	r.InvalidateLeaderboards(ctx)
 
 	return paths, nil
 }
@@ -330,10 +304,21 @@ func (r *mysteryRepository) collectFilePaths(ctx context.Context, mysteryID uuid
 	return dedupePaths(paths), nil
 }
 
-func (r *mysteryRepository) invalidateLeaderboards(ctx context.Context) {
+func (r *mysteryRepository) InvalidateLeaderboards(ctx context.Context) {
 	if err := r.cache.Del(ctx, cache.MysteryTopDetectives.Key(), cache.MysteryTopGMs.Key()); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate mystery leaderboard caches after write")
 	}
+}
+
+func (r *mysteryRepository) CreateAttempt(ctx context.Context, s spec.NewMysteryAttempt, tx ...*sql.Tx) (*model.MysteryAttemptRow, error) {
+	created, err := r.MysteryDAO.CreateAttempt(ctx, s, tx...)
+	if err != nil {
+		return nil, err
+	}
+
+	r.InvalidateLeaderboards(ctx)
+
+	return created, nil
 }
 
 func (r *mysteryRepository) DeleteAttempt(ctx context.Context, s spec.MysteryAttemptDeletion, tx ...*sql.Tx) error {
@@ -341,7 +326,7 @@ func (r *mysteryRepository) DeleteAttempt(ctx context.Context, s spec.MysteryAtt
 		return err
 	}
 
-	r.invalidateLeaderboards(ctx)
+	r.InvalidateLeaderboards(ctx)
 
 	return nil
 }
@@ -351,7 +336,7 @@ func (r *mysteryRepository) DeleteAttemptAsAdmin(ctx context.Context, id uuid.UU
 		return err
 	}
 
-	r.invalidateLeaderboards(ctx)
+	r.InvalidateLeaderboards(ctx)
 
 	return nil
 }
@@ -379,7 +364,7 @@ func (r *mysteryRepository) MarkSolved(ctx context.Context, s spec.MysterySolve,
 		return err
 	}
 
-	r.invalidateLeaderboards(ctx)
+	r.InvalidateLeaderboards(ctx)
 
 	return nil
 }
@@ -389,7 +374,7 @@ func (r *mysteryRepository) MarkPermanentlySolved(ctx context.Context, mysteryID
 		return err
 	}
 
-	r.invalidateLeaderboards(ctx)
+	r.InvalidateLeaderboards(ctx)
 
 	return nil
 }

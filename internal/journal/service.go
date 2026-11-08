@@ -24,7 +24,6 @@ import (
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
-	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/sidebar"
@@ -75,7 +74,6 @@ type (
 		settingsSvc   settings.Service
 		uploadSvc     upload.Service
 		contentFilter *contentfilter.Manager
-		ogCache       *og.Resolver
 		echoCache     homefeed.Service
 		activity      sidebar.ActivityBumper
 	}
@@ -93,7 +91,6 @@ func NewService(
 	uploadSvc upload.Service,
 	settingsSvc settings.Service,
 	contentFilter *contentfilter.Manager,
-	ogCache *og.Resolver,
 	echoCache homefeed.Service,
 	activity sidebar.ActivityBumper,
 ) Service {
@@ -109,7 +106,6 @@ func NewService(
 		settingsSvc:   settingsSvc,
 		uploadSvc:     uploadSvc,
 		contentFilter: contentFilter,
-		ogCache:       ogCache,
 		echoCache:     echoCache,
 		activity:      activity,
 	}
@@ -300,12 +296,19 @@ func (s *service) UpdateJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 		return ErrNotAuthor
 	}
 
-	return s.repo.Update(ctx, spec.JournalUpdate{
+	err = s.repo.Update(ctx, spec.JournalUpdate{
 		ID:     id,
 		UserID: userID,
 		Title:  req.Title,
 		Work:   req.Work,
 	})
+	if err != nil {
+		return err
+	}
+
+	s.clearEchoCache(ctx)
+
+	return nil
 }
 
 func (s *service) DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
@@ -353,18 +356,12 @@ func (s *service) DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 
 	s.uploadSvc.Delete(paths...)
 
-	s.clearPageCache(ctx, id.String())
+	s.clearEchoCache(ctx)
 
 	return nil
 }
 
-func (s *service) clearPageCache(ctx context.Context, id string) {
-	if s.ogCache != nil {
-		if err := s.ogCache.ClearMetaCache(ctx, og.KindJournal, id); err != nil {
-			logger.Ctx(ctx).Warn().Err(err).Str("journal_id", id).Msg("clear og meta cache failed")
-		}
-	}
-
+func (s *service) clearEchoCache(ctx context.Context) {
 	if s.echoCache == nil {
 		return
 	}
@@ -442,6 +439,8 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 
 		s.activity.BumpSidebarActivity(sidebar.KeyJournals)
 	}
+
+	s.clearEchoCache(ctx)
 
 	return created.ID, nextNumber, nil
 }
@@ -604,6 +603,8 @@ func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uui
 		return err
 	}
 
+	s.clearEchoCache(ctx)
+
 	if firstPublished {
 		s.notifyEntryMentions(ctx, existing.JournalID, existing.EntryNumber, authorID, body)
 
@@ -630,6 +631,8 @@ func (s *service) DeleteEntry(ctx context.Context, entryID uuid.UUID, userID uui
 	if err != nil {
 		return err
 	}
+
+	s.clearEchoCache(ctx)
 
 	action := audit.ActionJournalEntryDelete
 	if asAdmin {
@@ -846,6 +849,8 @@ func (s *service) ArchiveStale(ctx context.Context) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
+
+	s.clearEchoCache(ctx)
 
 	for _, id := range ids {
 		authorID, err := s.repo.GetAuthorID(ctx, id)

@@ -20,12 +20,9 @@ type (
 		Create(ctx context.Context, s spec.NewVanityRole, tx ...*sql.Tx) error
 		Update(ctx context.Context, s spec.VanityRoleUpdate, tx ...*sql.Tx) error
 		Delete(ctx context.Context, id string, tx ...*sql.Tx) error
-		AssignToUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error
-		UnassignFromUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error
 		GetUsersForRole(ctx context.Context, q spec.VanityRoleUserQuery, tx ...*sql.Tx) ([]model.VanityRoleUserRow, int, error)
 		GetRolesForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.VanityRoleRow, error)
 		GetRolesForUsersBatch(ctx context.Context, userIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.VanityRoleRow, error)
-		GetAllAssignments(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error)
 	}
 
 	vanityRoleDAO struct {
@@ -107,30 +104,6 @@ func (r *vanityRoleDAO) Delete(ctx context.Context, id string, tx ...*sql.Tx) er
 	return nil
 }
 
-func (r *vanityRoleDAO) AssignToUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error {
-	err := genQueries(r.db, tx).AssignVanityRoleToUser(ctx, sqlcgen.AssignVanityRoleToUserParams{
-		UserID:       s.UserID,
-		VanityRoleID: s.RoleID,
-	})
-	if err != nil {
-		return fmt.Errorf("assign vanity role: %w", err)
-	}
-
-	return nil
-}
-
-func (r *vanityRoleDAO) UnassignFromUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error {
-	err := genQueries(r.db, tx).UnassignVanityRoleFromUser(ctx, sqlcgen.UnassignVanityRoleFromUserParams{
-		UserID:       s.UserID,
-		VanityRoleID: s.RoleID,
-	})
-	if err != nil {
-		return fmt.Errorf("unassign vanity role: %w", err)
-	}
-
-	return nil
-}
-
 func (r *vanityRoleDAO) GetUsersForRole(ctx context.Context, q spec.VanityRoleUserQuery, tx ...*sql.Tx) ([]model.VanityRoleUserRow, int, error) {
 	queries := genQueries(r.db, tx)
 
@@ -198,21 +171,6 @@ func (r *vanityRoleDAO) GetRolesForUsersBatch(ctx context.Context, userIDs []uui
 			IsSystem:  row.IsSystem,
 			SortOrder: row.SortOrder,
 		}))
-	}
-
-	return result, nil
-}
-
-func (r *vanityRoleDAO) GetAllAssignments(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error) {
-	rows, err := genQueries(r.db, tx).GetAllVanityRoleAssignments(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get all vanity role assignments: %w", err)
-	}
-
-	result := make(map[string][]string)
-	for _, row := range rows {
-		userID := row.UserID.String()
-		result[userID] = append(result[userID], row.VanityRoleID)
 	}
 
 	return result, nil

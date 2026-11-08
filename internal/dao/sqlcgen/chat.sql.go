@@ -81,21 +81,6 @@ func (q *Queries) AddChatMessageReaction(ctx context.Context, arg AddChatMessage
 	return result.RowsAffected()
 }
 
-const addChatRoomMember = `-- name: AddChatRoomMember :exec
-INSERT INTO chat_room_members (room_id, user_id) VALUES ($1, $2)
-ON CONFLICT (room_id, user_id) DO UPDATE SET left_at = NULL, joined_at = NOW()
-`
-
-type AddChatRoomMemberParams struct {
-	RoomID uuid.UUID
-	UserID uuid.UUID
-}
-
-func (q *Queries) AddChatRoomMember(ctx context.Context, arg AddChatRoomMemberParams) error {
-	_, err := q.db.ExecContext(ctx, addChatRoomMember, arg.RoomID, arg.UserID)
-	return err
-}
-
 const addChatRoomMemberWithRole = `-- name: AddChatRoomMemberWithRole :exec
 INSERT INTO chat_room_members (room_id, user_id, role, ghost) VALUES ($1, $2, $3, $4)
 ON CONFLICT (room_id, user_id) DO UPDATE SET left_at = NULL, role = excluded.role, ghost = excluded.ghost, joined_at = NOW()

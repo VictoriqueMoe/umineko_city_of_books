@@ -34,13 +34,14 @@ type (
 	chatRepository struct {
 		db *sql.DB
 		dao.ChatDAO
-		pending dao.PendingUploadDAO
-		audit   AuditLogRepository
+		pending     PendingUploadRepository
+		audit       AuditLogRepository
+		bannedWords ChatBannedWordRepository
 	}
 )
 
-func NewChatRepo(database *sql.DB, chatDAO dao.ChatDAO, pending dao.PendingUploadDAO, auditLog AuditLogRepository) ChatRepository {
-	return &chatRepository{db: database, ChatDAO: chatDAO, pending: pending, audit: auditLog}
+func NewChatRepo(database *sql.DB, chatDAO dao.ChatDAO, pending PendingUploadRepository, auditLog AuditLogRepository, bannedWords ChatBannedWordRepository) ChatRepository {
+	return &chatRepository{db: database, ChatDAO: chatDAO, pending: pending, audit: auditLog, bannedWords: bannedWords}
 }
 
 func (r *chatRepository) CreateGroupRoom(ctx context.Context, s spec.NewChatGroupRoom, tx ...*sql.Tx) (*model.ChatRoomRow, error) {
@@ -249,6 +250,8 @@ func (r *chatRepository) DeleteRoomWithMessages(ctx context.Context, roomID uuid
 	if err != nil {
 		return nil, err
 	}
+
+	r.bannedWords.InvalidateApplicable(ctx, &roomID)
 
 	return paths, nil
 }

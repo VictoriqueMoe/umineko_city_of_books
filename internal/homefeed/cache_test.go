@@ -2,6 +2,7 @@ package homefeed_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"umineko_city_of_books/internal/cache"
@@ -48,6 +49,31 @@ func TestService_ClearEchoCache(t *testing.T) {
 		third, err := svc.HomeActivity(ctx)
 		require.NoError(t, err)
 		assert.Empty(t, third.Echoes)
+	})
+
+	t.Run("a database error is reported and never cached as an empty day", func(t *testing.T) {
+		// given an echo query that fails once and then recovers
+		ctx := context.Background()
+		repo := repository.NewMockHomeFeedRepository(t)
+		svc := homefeed.NewService(repo, ws.NewHub(), cache.New())
+
+		repo.EXPECT().ListRecentActivity(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		repo.EXPECT().ListRecentMembers(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		repo.EXPECT().ListPublicRooms(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		repo.EXPECT().ListCornerActivity24h(mock.Anything).Return(nil, nil).Maybe()
+
+		recovered := []model.HomeEchoRow{{Kind: "post", ID: uuid.New(), AuthorID: uuid.New()}}
+		repo.EXPECT().ListEchoes(mock.Anything, mock.Anything).Return(nil, errors.New("db down")).Once()
+		repo.EXPECT().ListEchoes(mock.Anything, mock.Anything).Return(recovered, nil).Once()
+
+		// when the homepage is read during the outage and again after it
+		_, duringErr := svc.HomeActivity(ctx)
+		after, afterErr := svc.HomeActivity(ctx)
+
+		// then the outage surfaces as an error and the next read rebuilds instead of serving nothing all day
+		require.Error(t, duringErr)
+		require.NoError(t, afterErr)
+		assert.Len(t, after.Echoes, 1)
 	})
 
 	t.Run("a nil cache is tolerated", func(t *testing.T) {

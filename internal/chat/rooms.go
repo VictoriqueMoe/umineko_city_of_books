@@ -15,7 +15,6 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
-	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/ws"
@@ -662,10 +661,6 @@ func (r *roomsService) destroyRoom(ctx context.Context, roomID uuid.UUID, row *m
 			TargetID:   roomID.String(),
 			Details:    fmt.Sprintf("name=%s members=%d", row.Name, len(members)),
 		})
-	}
-
-	if err := r.ogCache.ClearMetaCache(ctx, og.KindRoom, roomID.String()); err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("clear og meta cache failed")
 	}
 
 	return nil

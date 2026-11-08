@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -30,7 +29,7 @@ func addMediaRows(ctx context.Context, add func(ctx context.Context, s spec.NewM
 	return ids, nil
 }
 
-func claimUploads(ctx context.Context, pending dao.PendingUploadDAO, s spec.ClaimedUploads, tx *sql.Tx) ([]model.PendingUploadRow, error) {
+func claimUploads(ctx context.Context, pending PendingUploadRepository, s spec.ClaimedUploads, tx *sql.Tx) ([]model.PendingUploadRow, error) {
 	if len(s.Uploads) == 0 {
 		return nil, nil
 	}
@@ -68,7 +67,7 @@ func claimUploads(ctx context.Context, pending dao.PendingUploadDAO, s spec.Clai
 	return ordered, nil
 }
 
-func claimMediaRows(ctx context.Context, pending dao.PendingUploadDAO, s spec.ClaimedUploads, tx *sql.Tx) ([]spec.NewMedia, error) {
+func claimMediaRows(ctx context.Context, pending PendingUploadRepository, s spec.ClaimedUploads, tx *sql.Tx) ([]spec.NewMedia, error) {
 	claimed, err := claimUploads(ctx, pending, s, tx)
 	if err != nil {
 		return nil, err
@@ -89,7 +88,7 @@ func claimMediaRows(ctx context.Context, pending dao.PendingUploadDAO, s spec.Cl
 	return rows, nil
 }
 
-func attachMedia(ctx context.Context, pending dao.PendingUploadDAO, add func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error), s spec.MediaAttachment, tx *sql.Tx) (*model.PostMediaRow, error) {
+func attachMedia(ctx context.Context, pending PendingUploadRepository, add func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error), s spec.MediaAttachment, tx *sql.Tx) (*model.PostMediaRow, error) {
 	rows, err := claimMediaRows(ctx, pending, s.Uploads, tx)
 	if err != nil {
 		return nil, err

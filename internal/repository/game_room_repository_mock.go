@@ -8,6 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"time"
+	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 
@@ -916,6 +917,60 @@ func (_c *MockGameRoomRepository_GetTopWinnerIDs_Call) Return(strings []string, 
 
 func (_c *MockGameRoomRepository_GetTopWinnerIDs_Call) RunAndReturn(run func(ctx context.Context, gameType string, tx ...*sql.Tx) ([]string, error)) *MockGameRoomRepository_GetTopWinnerIDs_Call {
 	_c.Call.Return(run)
+	return _c
+}
+
+// InvalidateTopWinners provides a mock function for the type MockGameRoomRepository
+func (_mock *MockGameRoomRepository) InvalidateTopWinners(ctx context.Context, gameTypes ...dto.GameType) {
+	if len(gameTypes) > 0 {
+		_mock.Called(ctx, gameTypes)
+	} else {
+		_mock.Called(ctx)
+	}
+
+	return
+}
+
+// MockGameRoomRepository_InvalidateTopWinners_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InvalidateTopWinners'
+type MockGameRoomRepository_InvalidateTopWinners_Call struct {
+	*mock.Call
+}
+
+// InvalidateTopWinners is a helper method to define mock.On call
+//   - ctx context.Context
+//   - gameTypes ...dto.GameType
+func (_e *MockGameRoomRepository_Expecter) InvalidateTopWinners(ctx any, gameTypes ...any) *MockGameRoomRepository_InvalidateTopWinners_Call {
+	return &MockGameRoomRepository_InvalidateTopWinners_Call{Call: _e.mock.On("InvalidateTopWinners",
+		append([]any{ctx}, gameTypes...)...)}
+}
+
+func (_c *MockGameRoomRepository_InvalidateTopWinners_Call) Run(run func(ctx context.Context, gameTypes ...dto.GameType)) *MockGameRoomRepository_InvalidateTopWinners_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []dto.GameType
+		var variadicArgs []dto.GameType
+		if len(args) > 1 {
+			variadicArgs = args[1].([]dto.GameType)
+		}
+		arg1 = variadicArgs
+		run(
+			arg0,
+			arg1...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockGameRoomRepository_InvalidateTopWinners_Call) Return() *MockGameRoomRepository_InvalidateTopWinners_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockGameRoomRepository_InvalidateTopWinners_Call) RunAndReturn(run func(ctx context.Context, gameTypes ...dto.GameType)) *MockGameRoomRepository_InvalidateTopWinners_Call {
+	_c.Run(run)
 	return _c
 }
 

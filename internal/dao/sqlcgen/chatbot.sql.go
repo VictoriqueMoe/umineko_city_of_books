@@ -251,17 +251,51 @@ func (q *Queries) CreateChatbotInvocation(ctx context.Context, arg CreateChatbot
 	return i, err
 }
 
-const deleteChatbot = `-- name: DeleteChatbot :execrows
-DELETE FROM users u
-WHERE u.is_bot AND u.id = (SELECT c.user_id FROM chatbots c WHERE c.id = $1)
+const getChatbotByID = `-- name: GetChatbotByID :one
+SELECT c.id, c.user_id, u.username, u.display_name, u.avatar_url,
+       c.system_prompt, c.base_prompt_id, COALESCE(b.prompt, '')::text AS base_prompt,
+       c.model, c.reasoning_effort, c.verbosity, c.max_output_tokens, c.enabled
+FROM chatbots c
+JOIN users u ON u.id = c.user_id
+LEFT JOIN chatbot_base_prompts b ON b.id = c.base_prompt_id
+WHERE c.id = $1
 `
 
-func (q *Queries) DeleteChatbot(ctx context.Context, id uuid.UUID) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteChatbot, id)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
+type GetChatbotByIDRow struct {
+	ID              uuid.UUID
+	UserID          uuid.UUID
+	Username        string
+	DisplayName     string
+	AvatarUrl       string
+	SystemPrompt    string
+	BasePromptID    *uuid.UUID
+	BasePrompt      string
+	Model           string
+	ReasoningEffort string
+	Verbosity       string
+	MaxOutputTokens int32
+	Enabled         bool
+}
+
+func (q *Queries) GetChatbotByID(ctx context.Context, id uuid.UUID) (GetChatbotByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getChatbotByID, id)
+	var i GetChatbotByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Username,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.SystemPrompt,
+		&i.BasePromptID,
+		&i.BasePrompt,
+		&i.Model,
+		&i.ReasoningEffort,
+		&i.Verbosity,
+		&i.MaxOutputTokens,
+		&i.Enabled,
+	)
+	return i, err
 }
 
 const getChatbotByUserID = `-- name: GetChatbotByUserID :one

@@ -14,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/giphy/banlist"
+	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
@@ -100,6 +101,7 @@ type (
 		chatSync       SystemRoomSync
 		emailSvc       email.Service
 		authSvc        auth.Service
+		echoCache      homefeed.Service
 	}
 )
 
@@ -131,6 +133,7 @@ func NewService(
 	chatSync SystemRoomSync,
 	emailSvc email.Service,
 	authSvc auth.Service,
+	echoCache homefeed.Service,
 ) Service {
 	return &service{
 		userRepo:       userRepo,
@@ -149,6 +152,17 @@ func NewService(
 		chatSync:       chatSync,
 		emailSvc:       emailSvc,
 		authSvc:        authSvc,
+		echoCache:      echoCache,
+	}
+}
+
+func (s *service) clearEchoCache(ctx context.Context) {
+	if s.echoCache == nil {
+		return
+	}
+
+	if err := s.echoCache.ClearEchoCache(ctx); err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Msg("clear echo cache failed")
 	}
 }
 

@@ -20,6 +20,7 @@ import (
 	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -88,7 +89,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	commentSvc := comment.NewMockService(t)
 	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc)
 
-	svc := NewService(postRepo, commentRepo, userRepo, roleRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc, uploadSvc, settingsSvc, hub, contentfilter.New(), nil, nil, activity).(*service)
+	svc := NewService(postRepo, commentRepo, userRepo, roleRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc, uploadSvc, settingsSvc, hub, contentfilter.New(), nil, activity).(*service)
 
 	return svc, &testMocks{
 		postRepo:    postRepo,
@@ -646,18 +647,21 @@ func TestUpdatePost(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			svc, m := newTestService(t)
+			echoes := homefeed.NewMockService(t)
+			svc.echoCache = echoes
 			id := uuid.New()
 			userID := uuid.New()
 			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(tc.asAdmin)
 			m.postRepo.EXPECT().UpdateWithDetails(mock.Anything, spec.PostUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: tc.asAdmin}).Return(tc.updateErr)
 			if tc.updateErr == nil {
 				expectBackgroundSocial(m)
+				echoes.EXPECT().ClearEchoCache(mock.Anything).Return(nil).Once()
 			}
 
 			// when
 			err := svc.UpdatePost(context.Background(), id, userID, dto.UpdatePostRequest{Body: " body "})
 
-			// then
+			// then a committed edit clears the cached echoes, a failed one leaves them
 			require.ErrorIs(t, err, tc.updateErr)
 		})
 	}

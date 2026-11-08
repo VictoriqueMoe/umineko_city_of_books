@@ -22,3 +22,12 @@ INSERT INTO vanity_role_permissions (vanity_role_id, permission) VALUES ($1, $2)
 
 -- name: ListUserVanityRoleIDs :many
 SELECT vanity_role_id FROM user_vanity_roles WHERE user_id = $1 ORDER BY vanity_role_id;
+
+-- name: AssignVanityRoleToUser :exec
+INSERT INTO user_vanity_roles (user_id, vanity_role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING;
+
+-- name: UnassignVanityRoleFromUser :exec
+DELETE FROM user_vanity_roles WHERE user_id = $1 AND vanity_role_id = $2;
+
+-- name: GetAllVanityRoleAssignments :many
+SELECT user_id, vanity_role_id FROM user_vanity_roles ORDER BY user_id;

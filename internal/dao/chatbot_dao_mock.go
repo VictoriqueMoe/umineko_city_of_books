@@ -445,8 +445,8 @@ func (_c *MockChatbotDAO_CreateInvocation_Call) RunAndReturn(run func(ctx contex
 	return _c
 }
 
-// DeleteBot provides a mock function for the type MockChatbotDAO
-func (_mock *MockChatbotDAO) DeleteBot(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+// GetBot provides a mock function for the type MockChatbotDAO
+func (_mock *MockChatbotDAO) GetBot(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.Chatbot, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, id, tx)
@@ -456,33 +456,44 @@ func (_mock *MockChatbotDAO) DeleteBot(ctx context.Context, id uuid.UUID, tx ...
 	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for DeleteBot")
+		panic("no return value specified for GetBot")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+	var r0 *model.Chatbot
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*model.Chatbot, error)); ok {
+		return returnFunc(ctx, id, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *model.Chatbot); ok {
 		r0 = returnFunc(ctx, id, tx...)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.Chatbot)
+		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, id, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// MockChatbotDAO_DeleteBot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteBot'
-type MockChatbotDAO_DeleteBot_Call struct {
+// MockChatbotDAO_GetBot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBot'
+type MockChatbotDAO_GetBot_Call struct {
 	*mock.Call
 }
 
-// DeleteBot is a helper method to define mock.On call
+// GetBot is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - tx ...*sql.Tx
-func (_e *MockChatbotDAO_Expecter) DeleteBot(ctx any, id any, tx ...any) *MockChatbotDAO_DeleteBot_Call {
-	return &MockChatbotDAO_DeleteBot_Call{Call: _e.mock.On("DeleteBot",
+func (_e *MockChatbotDAO_Expecter) GetBot(ctx any, id any, tx ...any) *MockChatbotDAO_GetBot_Call {
+	return &MockChatbotDAO_GetBot_Call{Call: _e.mock.On("GetBot",
 		append([]any{ctx, id}, tx...)...)}
 }
 
-func (_c *MockChatbotDAO_DeleteBot_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockChatbotDAO_DeleteBot_Call {
+func (_c *MockChatbotDAO_GetBot_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockChatbotDAO_GetBot_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -507,12 +518,12 @@ func (_c *MockChatbotDAO_DeleteBot_Call) Run(run func(ctx context.Context, id uu
 	return _c
 }
 
-func (_c *MockChatbotDAO_DeleteBot_Call) Return(err error) *MockChatbotDAO_DeleteBot_Call {
-	_c.Call.Return(err)
+func (_c *MockChatbotDAO_GetBot_Call) Return(chatbot *model.Chatbot, err error) *MockChatbotDAO_GetBot_Call {
+	_c.Call.Return(chatbot, err)
 	return _c
 }
 
-func (_c *MockChatbotDAO_DeleteBot_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockChatbotDAO_DeleteBot_Call {
+func (_c *MockChatbotDAO_GetBot_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.Chatbot, error)) *MockChatbotDAO_GetBot_Call {
 	_c.Call.Return(run)
 	return _c
 }

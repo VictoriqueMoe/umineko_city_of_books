@@ -19,6 +19,9 @@ type (
 		GetVanityRolePermissions(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error)
 		SetVanityRolePermissions(ctx context.Context, s spec.VanityRolePermissionsUpdate, tx ...*sql.Tx) error
 		GetVanityRoleIDsForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+		AssignVanityRoleToUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error
+		UnassignVanityRoleFromUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error
+		GetAllVanityRoleAssignments(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error)
 	}
 
 	permissionDAO struct {
@@ -102,6 +105,45 @@ func (r *permissionDAO) GetVanityRoleIDsForUser(ctx context.Context, userID uuid
 	result, err := genQueries(r.db, tx).ListUserVanityRoleIDs(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get vanity role ids for user: %w", err)
+	}
+
+	return result, nil
+}
+
+func (r *permissionDAO) AssignVanityRoleToUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error {
+	err := genQueries(r.db, tx).AssignVanityRoleToUser(ctx, sqlcgen.AssignVanityRoleToUserParams{
+		UserID:       s.UserID,
+		VanityRoleID: s.RoleID,
+	})
+	if err != nil {
+		return fmt.Errorf("assign vanity role: %w", err)
+	}
+
+	return nil
+}
+
+func (r *permissionDAO) UnassignVanityRoleFromUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error {
+	err := genQueries(r.db, tx).UnassignVanityRoleFromUser(ctx, sqlcgen.UnassignVanityRoleFromUserParams{
+		UserID:       s.UserID,
+		VanityRoleID: s.RoleID,
+	})
+	if err != nil {
+		return fmt.Errorf("unassign vanity role: %w", err)
+	}
+
+	return nil
+}
+
+func (r *permissionDAO) GetAllVanityRoleAssignments(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error) {
+	rows, err := genQueries(r.db, tx).GetAllVanityRoleAssignments(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get all vanity role assignments: %w", err)
+	}
+
+	result := make(map[string][]string)
+	for _, row := range rows {
+		userID := row.UserID.String()
+		result[userID] = append(result[userID], row.VanityRoleID)
 	}
 
 	return result, nil

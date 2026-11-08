@@ -22,20 +22,20 @@ type (
 		DeleteWithImage(ctx context.Context, s spec.ArtDelete, tx ...*sql.Tx) ([]string, error)
 		DeleteGallery(ctx context.Context, s spec.GalleryRef, tx ...*sql.Tx) ([]string, error)
 		RecordView(ctx context.Context, s spec.ViewRecord, tx ...*sql.Tx) (bool, error)
+		InvalidateCornerCounts(ctx context.Context)
 	}
 
 	artRepository struct {
 		db *sql.DB
 		dao.ArtDAO
-		comments dao.CommentDAO
-		posts    PostRepository
+		comments CommentRepository
 		audit    AuditLogRepository
 		cache    *cache.Manager
 	}
 )
 
-func NewArtRepo(database *sql.DB, artDAO dao.ArtDAO, comments dao.CommentDAO, posts PostRepository, auditRepo AuditLogRepository, c *cache.Manager) ArtRepository {
-	return &artRepository{db: database, ArtDAO: artDAO, comments: comments, posts: posts, audit: auditRepo, cache: c}
+func NewArtRepo(database *sql.DB, artDAO dao.ArtDAO, comments CommentRepository, auditRepo AuditLogRepository, c *cache.Manager) ArtRepository {
+	return &artRepository{db: database, ArtDAO: artDAO, comments: comments, audit: auditRepo, cache: c}
 }
 
 func (r *artRepository) GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (map[string]int, error) {
@@ -46,7 +46,7 @@ func (r *artRepository) GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (map
 	return r.cache.Load(ctx, cache.ArtCornerCounts.Key(), load)
 }
 
-func (r *artRepository) invalidateCornerCounts(ctx context.Context) {
+func (r *artRepository) InvalidateCornerCounts(ctx context.Context) {
 	if err := r.cache.Del(ctx, cache.ArtCornerCounts.Key()); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate art corner counts after write")
 	}
@@ -69,7 +69,7 @@ func (r *artRepository) CreateWithTags(ctx context.Context, s spec.NewArtWithTag
 		return nil, err
 	}
 
-	r.invalidateCornerCounts(ctx)
+	r.InvalidateCornerCounts(ctx)
 
 	return created, nil
 }
@@ -123,7 +123,7 @@ func (r *artRepository) DeleteWithImage(ctx context.Context, s spec.ArtDelete, t
 		return nil, err
 	}
 
-	r.invalidateCornerCounts(ctx)
+	r.InvalidateCornerCounts(ctx)
 
 	return paths, nil
 }
@@ -168,7 +168,7 @@ func (r *artRepository) DeleteGallery(ctx context.Context, s spec.GalleryRef, tx
 		return nil, err
 	}
 
-	r.invalidateCornerCounts(ctx)
+	r.InvalidateCornerCounts(ctx)
 
 	return paths, nil
 }

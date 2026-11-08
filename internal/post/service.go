@@ -23,7 +23,6 @@ import (
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
-	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
@@ -70,7 +69,6 @@ type (
 		hub           *ws.Hub
 		contentFilter *contentfilter.Manager
 		botObserver   CommentObserver
-		ogCache       *og.Resolver
 		echoCache     homefeed.Service
 		activity      sidebar.ActivityBumper
 	}
@@ -95,7 +93,6 @@ func NewService(
 	settingsSvc settings.Service,
 	hub *ws.Hub,
 	contentFilter *contentfilter.Manager,
-	ogCache *og.Resolver,
 	echoCache homefeed.Service,
 	activity sidebar.ActivityBumper,
 ) Service {
@@ -113,7 +110,6 @@ func NewService(
 		settingsSvc:   settingsSvc,
 		hub:           hub,
 		contentFilter: contentFilter,
-		ogCache:       ogCache,
 		echoCache:     echoCache,
 		activity:      activity,
 	}
@@ -319,6 +315,8 @@ func (s *service) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 		return err
 	}
 
+	s.clearEchoCache(ctx)
+
 	if asAdmin {
 		go s.notifyContentEdited(ctx, id, "post", userID)
 	}
@@ -370,18 +368,12 @@ func (s *service) DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 		go s.postRepo.DecrementShareCount(context.Background(), *shared)
 	}
 
-	s.clearPageCache(ctx, id.String())
+	s.clearEchoCache(ctx)
 
 	return nil
 }
 
-func (s *service) clearPageCache(ctx context.Context, id string) {
-	if s.ogCache != nil {
-		if err := s.ogCache.ClearMetaCache(ctx, og.KindPost, id); err != nil {
-			logger.Ctx(ctx).Warn().Err(err).Str("post_id", id).Msg("clear og meta cache failed")
-		}
-	}
-
+func (s *service) clearEchoCache(ctx context.Context) {
 	if s.echoCache == nil {
 		return
 	}

@@ -23,20 +23,20 @@ import (
 type (
 	artWriterCase struct {
 		name   string
-		expect func(artDAO *dao.MockArtDAO, comments *dao.MockCommentDAO, audit *MockAuditLogRepository, err error)
+		expect func(artDAO *dao.MockArtDAO, comments *MockCommentRepository, audit *MockAuditLogRepository, err error)
 		call   func(repo ArtRepository) error
 	}
 )
 
-func newCachedArtRepo(t *testing.T) (ArtRepository, *dao.MockArtDAO, *dao.MockCommentDAO, *MockAuditLogRepository, *valkeymock.Client) {
+func newCachedArtRepo(t *testing.T) (ArtRepository, *dao.MockArtDAO, *MockCommentRepository, *MockAuditLogRepository, *valkeymock.Client) {
 	t.Helper()
 
 	client := valkeymock.NewClient(gomock.NewController(t))
 	artDAO := dao.NewMockArtDAO(t)
-	comments := dao.NewMockCommentDAO(t)
+	comments := NewMockCommentRepository(t)
 	audit := NewMockAuditLogRepository(t)
 
-	return NewArtRepo(nil, artDAO, comments, nil, audit, cache.NewManager(engines.NewValkeyWithClient(client))), artDAO, comments, audit, client
+	return NewArtRepo(nil, artDAO, comments, audit, cache.NewManager(engines.NewValkeyWithClient(client))), artDAO, comments, audit, client
 }
 
 func TestArtRepository_GetCornerCountsIsCached(t *testing.T) {
@@ -76,7 +76,7 @@ func artCornerCountWriters(artID, userID, galleryID uuid.UUID) []artWriterCase {
 	return []artWriterCase{
 		{
 			name: "create",
-			expect: func(artDAO *dao.MockArtDAO, _ *dao.MockCommentDAO, _ *MockAuditLogRepository, err error) {
+			expect: func(artDAO *dao.MockArtDAO, _ *MockCommentRepository, _ *MockAuditLogRepository, err error) {
 				var created *model.ArtRow
 				if err == nil {
 					created = &model.ArtRow{ID: artID}
@@ -95,7 +95,7 @@ func artCornerCountWriters(artID, userID, galleryID uuid.UUID) []artWriterCase {
 		},
 		{
 			name: "delete",
-			expect: func(artDAO *dao.MockArtDAO, comments *dao.MockCommentDAO, audit *MockAuditLogRepository, err error) {
+			expect: func(artDAO *dao.MockArtDAO, comments *MockCommentRepository, audit *MockAuditLogRepository, err error) {
 				artDAO.EXPECT().GetArtImagePaths(mock.Anything, artID, mock.Anything).Return(nil, nil)
 				comments.EXPECT().CollectCommentMediaPaths(mock.Anything, spec.CommentTarget{Kind: spec.CommentKindArt, ID: artID}, mock.Anything).Return(nil, nil)
 				artDAO.EXPECT().Delete(mock.Anything, spec.OwnedDeletion{ID: artID, UserID: userID}, mock.Anything).Return(err)
@@ -111,7 +111,7 @@ func artCornerCountWriters(artID, userID, galleryID uuid.UUID) []artWriterCase {
 		},
 		{
 			name: "delete gallery",
-			expect: func(artDAO *dao.MockArtDAO, _ *dao.MockCommentDAO, _ *MockAuditLogRepository, err error) {
+			expect: func(artDAO *dao.MockArtDAO, _ *MockCommentRepository, _ *MockAuditLogRepository, err error) {
 				ref := spec.GalleryRef{GalleryID: galleryID, UserID: userID}
 				artDAO.EXPECT().ListGalleryArtImages(mock.Anything, ref, mock.Anything).Return(nil, nil)
 				artDAO.EXPECT().DeleteArtInGallery(mock.Anything, ref, mock.Anything).Return(err)

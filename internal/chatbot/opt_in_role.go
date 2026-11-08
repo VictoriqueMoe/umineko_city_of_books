@@ -27,6 +27,7 @@ const (
 type (
 	OptInRoleMigrator struct {
 		vanityRepo repository.VanityRoleRepository
+		permRepo   repository.PermissionRepository
 		auditRepo  repository.AuditLogRepository
 		mu         sync.Mutex
 		current    string
@@ -68,10 +69,10 @@ func validateOptInRole(ctx context.Context, vanityRepo repository.VanityRoleRepo
 	return nil
 }
 
-func NewOptInRoleMigrator(vanityRepo repository.VanityRoleRepository, auditRepo repository.AuditLogRepository, settingsSvc settings.Service) *OptInRoleMigrator {
+func NewOptInRoleMigrator(vanityRepo repository.VanityRoleRepository, permRepo repository.PermissionRepository, auditRepo repository.AuditLogRepository, settingsSvc settings.Service) *OptInRoleMigrator {
 	current := strings.TrimSpace(settingsSvc.Get(context.Background(), config.SettingChatbotOptInRole))
 
-	return &OptInRoleMigrator{vanityRepo: vanityRepo, auditRepo: auditRepo, current: current}
+	return &OptInRoleMigrator{vanityRepo: vanityRepo, permRepo: permRepo, auditRepo: auditRepo, current: current}
 }
 
 func (m *OptInRoleMigrator) OnSettingChanged(key config.SiteSettingKey, value string) {
@@ -125,7 +126,7 @@ func (m *OptInRoleMigrator) Migrate(parent context.Context, from, to string) {
 	for _, userID := range holders {
 		move := spec.VanityRoleMove{UserID: userID, FromRoleID: from, ToRoleID: to}
 
-		if err := m.vanityRepo.MoveUserRole(ctx, move); err != nil {
+		if err := m.permRepo.MoveUserVanityRole(ctx, move); err != nil {
 			failed++
 			logger.Ctx(parent).Error().Err(err).Str("user_id", userID.String()).Str("from", from).Str("to", to).Msg("chatbot opt-in role migration could not move the member")
 

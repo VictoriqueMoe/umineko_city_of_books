@@ -7,8 +7,20 @@ import (
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/db"
+	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
+)
+
+var (
+	leaderboardGameTypes = []dto.GameType{
+		dto.GameTypeChess,
+		dto.GameTypeCheckers,
+		dto.GameTypeOthello,
+		dto.GameTypeMinesweeper,
+		dto.GameTypeSnakesLadders,
+	}
 )
 
 type (
@@ -17,6 +29,7 @@ type (
 
 		CreateInvite(ctx context.Context, invite spec.NewGameRoomInvite, tx ...*sql.Tx) (*model.GameRoomRow, error)
 		Start(ctx context.Context, start spec.GameRoomStart, tx ...*sql.Tx) error
+		InvalidateTopWinners(ctx context.Context, gameTypes ...dto.GameType)
 	}
 
 	gameRoomRepository struct {
@@ -98,15 +111,31 @@ func (r *gameRoomRepository) Start(ctx context.Context, start spec.GameRoomStart
 }
 
 func (r *gameRoomRepository) FinishRoom(ctx context.Context, s spec.GameRoomFinish, tx ...*sql.Tx) error {
+	room, err := r.GameRoomDAO.GetRoom(ctx, s.RoomID, tx...)
+	if err != nil {
+		return err
+	}
+
 	if err := r.GameRoomDAO.FinishRoom(ctx, s, tx...); err != nil {
 		return err
 	}
 
-	if room, err := r.GameRoomDAO.GetRoom(ctx, s.RoomID, tx...); err == nil && room != nil {
-		_ = r.cache.Del(ctx, cache.GameTopWinners.Key(room.GameType))
+	if room != nil {
+		r.InvalidateTopWinners(ctx, dto.GameType(room.GameType))
 	}
 
 	return nil
+}
+
+func (r *gameRoomRepository) InvalidateTopWinners(ctx context.Context, gameTypes ...dto.GameType) {
+	keys := make([]cache.Key, 0, len(gameTypes))
+	for _, gameType := range gameTypes {
+		keys = append(keys, cache.GameTopWinners.Key(string(gameType)))
+	}
+
+	if err := r.cache.Del(ctx, keys...); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate game top winner caches after write")
+	}
 }
 
 func (r *gameRoomRepository) GetTopWinnerIDs(ctx context.Context, gameType string, tx ...*sql.Tx) ([]string, error) {

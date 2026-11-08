@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -59,6 +60,7 @@ type (
 		authService    auth.Service
 		session        *session.Manager
 		userSvc        userpkg.Service
+		echoCache      homefeed.Service
 	}
 )
 
@@ -100,6 +102,7 @@ func NewService(
 	authService auth.Service,
 	sessionMgr *session.Manager,
 	userSvc userpkg.Service,
+	echoCache homefeed.Service,
 ) Service {
 	return &service{
 		userRepo:       userRepo,
@@ -115,6 +118,17 @@ func NewService(
 		authService:    authService,
 		userSvc:        userSvc,
 		session:        sessionMgr,
+		echoCache:      echoCache,
+	}
+}
+
+func (s *service) clearEchoCache(ctx context.Context) {
+	if s.echoCache == nil {
+		return
+	}
+
+	if err := s.echoCache.ClearEchoCache(ctx); err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Msg("clear echo cache failed")
 	}
 }
 
@@ -214,6 +228,8 @@ func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.U
 		return err
 	}
 
+	s.clearEchoCache(ctx)
+
 	s.broadcastProfileChange(userID, map[string]any{
 		"display_name": req.DisplayName,
 	})
@@ -263,6 +279,8 @@ func (s *service) UploadAvatar(ctx context.Context, userID uuid.UUID, contentTyp
 	if err := s.userRepo.UpdateAvatarURL(ctx, spec.UserAvatarUpdate{UserID: userID, AvatarURL: avatarURL}); err != nil {
 		return "", fmt.Errorf("update avatar url: %w", err)
 	}
+
+	s.clearEchoCache(ctx)
 
 	s.broadcastProfileChange(userID, map[string]any{
 		"avatar_url": avatarURL,
@@ -356,6 +374,8 @@ func (s *service) DeleteAccount(ctx context.Context, userID uuid.UUID, req dto.D
 	if err := s.userRepo.DeleteAccount(ctx, userID); err != nil {
 		return err
 	}
+
+	s.clearEchoCache(ctx)
 
 	s.uploadSvc.Delete(user.AvatarURL)
 	s.uploadSvc.Delete(user.BannerURL)

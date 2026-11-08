@@ -11,23 +11,12 @@ import (
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/db"
-	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/secrets"
 
 	"github.com/google/uuid"
-)
-
-var (
-	leaderboardGameTypes = []dto.GameType{
-		dto.GameTypeChess,
-		dto.GameTypeCheckers,
-		dto.GameTypeOthello,
-		dto.GameTypeMinesweeper,
-		dto.GameTypeSnakesLadders,
-	}
 )
 
 type (
@@ -51,10 +40,34 @@ type (
 		invites       InviteRepository
 		sessions      SessionRepository
 		resets        PasswordResetRepository
+		blocks        BlockRepository
+		permissions   PermissionRepository
+		mysteries     MysteryRepository
+		posts         PostRepository
+		art           ArtRepository
+		gameRooms     GameRoomRepository
+		userSecrets   UserSecretRepository
 	}
 )
 
-func NewUserRepo(database *sql.DB, d dao.UserDAO, c *cache.Manager, roles RoleRepository, auditLogs AuditLogRepository, verifications EmailVerificationRepository, invites InviteRepository, sessions SessionRepository, resets PasswordResetRepository) UserRepository {
+func NewUserRepo(
+	database *sql.DB,
+	d dao.UserDAO,
+	c *cache.Manager,
+	roles RoleRepository,
+	auditLogs AuditLogRepository,
+	verifications EmailVerificationRepository,
+	invites InviteRepository,
+	sessions SessionRepository,
+	resets PasswordResetRepository,
+	blocks BlockRepository,
+	permissions PermissionRepository,
+	mysteries MysteryRepository,
+	posts PostRepository,
+	art ArtRepository,
+	gameRooms GameRoomRepository,
+	userSecrets UserSecretRepository,
+) UserRepository {
 	return &userRepository{
 		UserDAO:       d,
 		db:            database,
@@ -65,6 +78,13 @@ func NewUserRepo(database *sql.DB, d dao.UserDAO, c *cache.Manager, roles RoleRe
 		invites:       invites,
 		sessions:      sessions,
 		resets:        resets,
+		blocks:        blocks,
+		permissions:   permissions,
+		mysteries:     mysteries,
+		posts:         posts,
+		art:           art,
+		gameRooms:     gameRooms,
+		userSecrets:   userSecrets,
 	}
 }
 
@@ -222,8 +242,8 @@ func (r *userRepository) UpdateIP(ctx context.Context, s spec.UserIPUpdate, tx .
 		return err
 	}
 
-	if err := r.cache.Set(ctx, cache.UserIP.Key(s.UserID.String()), s.IP); err != nil {
-		logger.Ctx(ctx).Error().Err(err).Str("user_id", s.UserID.String()).Msg("failed to cache the user's ip after updating it")
+	if err := r.cache.Del(ctx, cache.UserIP.Key(s.UserID.String())); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", s.UserID.String()).Msg("failed to invalidate the cached ip after updating it")
 	}
 
 	return nil
@@ -234,9 +254,7 @@ func (r *userRepository) UpdateMysteryScoreAdjustment(ctx context.Context, s spe
 		return err
 	}
 
-	if err := r.cache.Del(ctx, cache.MysteryTopDetectives.Key()); err != nil {
-		logger.Ctx(ctx).Error().Err(err).Str("user_id", s.UserID.String()).Msg("failed to invalidate the detective leaderboard after a score adjustment")
-	}
+	r.mysteries.InvalidateLeaderboards(ctx)
 
 	return nil
 }
@@ -246,55 +264,57 @@ func (r *userRepository) UpdateGMScoreAdjustment(ctx context.Context, s spec.Use
 		return err
 	}
 
-	if err := r.cache.Del(ctx, cache.MysteryTopGMs.Key()); err != nil {
-		logger.Ctx(ctx).Error().Err(err).Str("user_id", s.UserID.String()).Msg("failed to invalidate the game master leaderboard after a score adjustment")
-	}
+	r.mysteries.InvalidateLeaderboards(ctx)
 
 	return nil
 }
 
 func (r *userRepository) DeleteAccount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	blockCounterparts, err := r.blocks.GetBlockedIDs(ctx, userID, tx...)
+	if err != nil {
+		return err
+	}
+
 	if err := r.UserDAO.DeleteAccount(ctx, userID, tx...); err != nil {
 		return err
 	}
 
-	r.invalidateAfterUserDelete(ctx, userID)
+	r.invalidateAfterUserDelete(ctx, userID, blockCounterparts)
 
 	return nil
 }
 
 func (r *userRepository) AdminDeleteAccount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	blockCounterparts, err := r.blocks.GetBlockedIDs(ctx, userID, tx...)
+	if err != nil {
+		return err
+	}
+
 	if err := r.UserDAO.AdminDeleteAccount(ctx, userID, tx...); err != nil {
 		return err
 	}
 
-	r.invalidateAfterUserDelete(ctx, userID)
+	r.invalidateAfterUserDelete(ctx, userID, blockCounterparts)
 
 	return nil
 }
 
-func (r *userRepository) invalidateAfterUserDelete(ctx context.Context, userID uuid.UUID) {
-	keys := []cache.Key{
-		cache.MysteryTopDetectives.Key(),
-		cache.MysteryTopGMs.Key(),
-		cache.VanityAssignments.Key(),
-		cache.UserVanityRoleIDs.Key(userID.String()),
-		cache.UserRole.Key(userID.String()),
-		cache.UserIP.Key(userID.String()),
-		cache.UserBlockedIDs.Key(userID.String()),
-		cache.PostCornerCounts.Key(),
-		cache.ArtCornerCounts.Key(),
-	}
+func (r *userRepository) invalidateAfterUserDelete(ctx context.Context, userID uuid.UUID, blockCounterparts []uuid.UUID) {
+	r.blocks.InvalidateBlockedIDs(ctx, append([]uuid.UUID{userID}, blockCounterparts...)...)
+	r.roles.InvalidateRole(ctx, userID)
+	r.permissions.InvalidateVanityAssignments(ctx, userID.String())
+	r.mysteries.InvalidateLeaderboards(ctx)
+	r.posts.InvalidateCornerCounts(ctx)
+	r.art.InvalidateCornerCounts(ctx)
+	r.gameRooms.InvalidateTopWinners(ctx, leaderboardGameTypes...)
 
-	for _, gameType := range leaderboardGameTypes {
-		keys = append(keys, cache.GameTopWinners.Key(string(gameType)))
-	}
-
+	secretIDs := make([]string, 0, len(secrets.All()))
 	for _, secret := range secrets.All() {
-		keys = append(keys, cache.SecretHolders.Key(string(secret.ID)), cache.SecretSolved.Key(string(secret.ID)))
+		secretIDs = append(secretIDs, string(secret.ID))
 	}
+	r.userSecrets.InvalidateSecrets(ctx, secretIDs...)
 
-	if err := r.cache.Del(ctx, keys...); err != nil {
-		logger.Ctx(ctx).Error().Err(err).Str("user_id", userID.String()).Msg("failed to invalidate caches after deleting a user")
+	if err := r.cache.Del(ctx, cache.UserIP.Key(userID.String())); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", userID.String()).Msg("failed to invalidate the cached ip after deleting a user")
 	}
 }

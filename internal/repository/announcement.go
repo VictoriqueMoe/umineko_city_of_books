@@ -21,11 +21,11 @@ type (
 	announcementRepository struct {
 		db *sql.DB
 		dao.AnnouncementDAO
-		comments dao.CommentDAO
+		comments CommentRepository
 	}
 )
 
-func NewAnnouncementRepo(database *sql.DB, announcements dao.AnnouncementDAO, comments dao.CommentDAO) AnnouncementRepository {
+func NewAnnouncementRepo(database *sql.DB, announcements dao.AnnouncementDAO, comments CommentRepository) AnnouncementRepository {
 	return &announcementRepository{db: database, AnnouncementDAO: announcements, comments: comments}
 }
 

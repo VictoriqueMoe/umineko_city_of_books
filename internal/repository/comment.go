@@ -24,12 +24,12 @@ type (
 	commentRepository struct {
 		db *sql.DB
 		dao.CommentDAO
-		pending dao.PendingUploadDAO
+		pending PendingUploadRepository
 		audit   AuditLogRepository
 	}
 )
 
-func NewCommentRepo(database *sql.DB, comments dao.CommentDAO, pending dao.PendingUploadDAO, auditLog AuditLogRepository) CommentRepository {
+func NewCommentRepo(database *sql.DB, comments dao.CommentDAO, pending PendingUploadRepository, auditLog AuditLogRepository) CommentRepository {
 	return &commentRepository{db: database, CommentDAO: comments, pending: pending, audit: auditLog}
 }
 

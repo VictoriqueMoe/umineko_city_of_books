@@ -17,7 +17,7 @@ import (
 func TestService_List_Delegates(t *testing.T) {
 	// given
 	repo := repository.NewMockVanityRoleRepository(t)
-	svc := vanityrole.NewService(repo)
+	svc := vanityrole.NewService(repo, repository.NewMockPermissionRepository(t))
 	rows := []model.VanityRoleRow{{ID: "r1", Label: "VIP"}}
 	repo.EXPECT().List(mock.Anything).Return(rows, nil)
 
@@ -32,7 +32,7 @@ func TestService_List_Delegates(t *testing.T) {
 func TestService_List_PropagatesError(t *testing.T) {
 	// given
 	repo := repository.NewMockVanityRoleRepository(t)
-	svc := vanityrole.NewService(repo)
+	svc := vanityrole.NewService(repo, repository.NewMockPermissionRepository(t))
 	repo.EXPECT().List(mock.Anything).Return(nil, errors.New("boom"))
 
 	// when
@@ -44,10 +44,10 @@ func TestService_List_PropagatesError(t *testing.T) {
 
 func TestService_GetAllAssignments_Delegates(t *testing.T) {
 	// given
-	repo := repository.NewMockVanityRoleRepository(t)
-	svc := vanityrole.NewService(repo)
+	permissions := repository.NewMockPermissionRepository(t)
+	svc := vanityrole.NewService(repository.NewMockVanityRoleRepository(t), permissions)
 	assignments := map[string][]string{"u1": {"r1"}}
-	repo.EXPECT().GetAllAssignments(mock.Anything).Return(assignments, nil)
+	permissions.EXPECT().GetAllVanityRoleAssignments(mock.Anything).Return(assignments, nil)
 
 	// when
 	got, err := svc.GetAllAssignments(context.Background())

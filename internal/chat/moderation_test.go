@@ -351,6 +351,28 @@ func TestDeleteRoomBannedWord_RejectsMismatchedScope(t *testing.T) {
 	require.ErrorIs(t, err, ErrBannedWordRuleMismatch)
 }
 
+func TestListRoomBannedWords_ReadsFreshRowsSoCreatorNamesAreCurrent(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	room := uuid.New()
+	globalRule := model.ChatBannedWordRow{ID: uuid.New(), Scope: "global", Pattern: "witch", CreatedByName: "Renamed Admin"}
+	roomRule := model.ChatBannedWordRow{ID: uuid.New(), Scope: "room", RoomID: &room, Pattern: "cat", CreatedByName: "Renamed Host"}
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: room, ViewerID: actor}).Return(stubRoom(room), nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: actor}).Return("host", nil)
+	m.bannedWordRepo.EXPECT().ListGlobal(mock.Anything).Return([]model.ChatBannedWordRow{globalRule}, nil).Once()
+	m.bannedWordRepo.EXPECT().ListForRoom(mock.Anything, room).Return([]model.ChatBannedWordRow{roomRule}, nil).Once()
+
+	// when
+	rules, err := svc.ListRoomBannedWords(context.Background(), actor, room)
+
+	// then the listing never comes from the moderation cache, whose joined creator names no user write clears
+	require.NoError(t, err)
+	require.Len(t, rules, 2)
+	assert.Equal(t, "Renamed Admin", rules[0].CreatedByName)
+	assert.Equal(t, "Renamed Host", rules[1].CreatedByName)
+}
+
 func TestCreateRoomBannedWord_RejectsSystemRoom(t *testing.T) {
 	svc, m := newTestService(t)
 	actor := uuid.New()

@@ -22,33 +22,31 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 	repos.Invite = repository.NewInviteRepo(dao.NewInvite(db))
 	repos.PasswordReset = repository.NewPasswordResetRepo(db, dao.NewPasswordReset(db))
 	repos.EmailVerification = repository.NewEmailVerificationRepo(db, dao.NewEmailVerification(db))
-	repos.User = repository.NewUserRepo(db, dao.NewUser(db), c, repos.Role, repos.AuditLog, repos.EmailVerification, repos.Invite, repos.Session, repos.PasswordReset)
-	pendingUploads := dao.NewPendingUpload(db)
-	repos.PendingUpload = repository.NewPendingUploadRepo(pendingUploads)
+	repos.Block = repository.NewBlockRepo(dao.NewBlock(db), c)
+	repos.PendingUpload = repository.NewPendingUploadRepo(dao.NewPendingUpload(db))
 
-	repos.Chat = repository.NewChatRepo(db, dao.NewChat(db), pendingUploads, repos.AuditLog)
+	repos.ChatBannedWord = repository.NewChatBannedWordRepo(db, dao.NewChatBannedWord(db), repos.AuditLog, c)
+	repos.Chat = repository.NewChatRepo(db, dao.NewChat(db), repos.PendingUpload, repos.AuditLog, repos.ChatBannedWord)
 	repos.Report = repository.NewReportRepo(dao.NewReport(db))
 
-	comments := dao.NewComments(db)
-	repos.Comment = repository.NewCommentRepo(db, comments, pendingUploads, repos.AuditLog)
-	repos.Post = repository.NewPostRepo(db, dao.NewPost(db), comments, pendingUploads, repos.AuditLog, c)
+	repos.Comment = repository.NewCommentRepo(db, dao.NewComments(db), repos.PendingUpload, repos.AuditLog)
+	repos.Post = repository.NewPostRepo(db, dao.NewPost(db), repos.Comment, repos.PendingUpload, repos.AuditLog, c)
 
 	repos.Follow = repository.NewFollowRepo(dao.NewFollow(db))
 
-	repos.Art = repository.NewArtRepo(db, dao.NewArt(db), comments, repos.Post, repos.AuditLog, c)
+	repos.Art = repository.NewArtRepo(db, dao.NewArt(db), repos.Comment, repos.AuditLog, c)
 
 	repos.Upload = repository.NewUploadRepo(dynamicsql.NewUpload(db))
-	repos.Block = repository.NewBlockRepo(dao.NewBlock(db), c)
 
-	repos.Announcement = repository.NewAnnouncementRepo(db, dao.NewAnnouncement(db), comments)
-	repos.Mystery = repository.NewMysteryRepo(db, dao.NewMystery(db), comments, pendingUploads, repos.AuditLog, c)
-	repos.Ship = repository.NewShipRepo(db, dao.NewShip(db), comments)
-	repos.OC = repository.NewOCRepo(db, dao.NewOC(db), comments)
-	repos.Fanfic = repository.NewFanficRepo(db, dao.NewFanfic(db), comments, repos.AuditLog)
-	repos.Journal = repository.NewJournalRepo(db, dao.NewJournal(db), comments, pendingUploads)
+	repos.Announcement = repository.NewAnnouncementRepo(db, dao.NewAnnouncement(db), repos.Comment)
+	repos.Mystery = repository.NewMysteryRepo(db, dao.NewMystery(db), repos.Comment, repos.PendingUpload, repos.AuditLog, c)
+	repos.Ship = repository.NewShipRepo(db, dao.NewShip(db), repos.Comment)
+	repos.OC = repository.NewOCRepo(db, dao.NewOC(db), repos.Comment)
+	repos.Fanfic = repository.NewFanficRepo(db, dao.NewFanfic(db), repos.Comment, repos.AuditLog)
+	repos.Journal = repository.NewJournalRepo(db, dao.NewJournal(db), repos.Comment, repos.PendingUpload)
 
-	repos.VanityRole = repository.NewVanityRoleRepo(db, dao.NewVanityRole(db), c)
-	repos.Permission = repository.NewPermissionRepo(dao.NewPermission(db), c)
+	repos.Permission = repository.NewPermissionRepo(db, dao.NewPermission(db), c)
+	repos.VanityRole = repository.NewVanityRoleRepo(dao.NewVanityRole(db), repos.Permission)
 	repos.GiphyFavourite = repository.NewGiphyFavouriteRepo(dao.NewGiphyFavourite(db))
 	repos.BannedGiphy = repository.NewBannedGiphyRepo(dao.NewBannedGiphy(db))
 	repos.StoredFile = repository.NewStoredFileRepo(dao.NewStoredFile(db))
@@ -56,20 +54,36 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 	repos.Secret = repository.NewSecretRepo(dao.NewSecret(db))
 
 	repos.ChatRoomBan = repository.NewChatRoomBanRepo(db, dao.NewChatRoomBan(db), repos.AuditLog)
-	repos.ChatBannedWord = repository.NewChatBannedWordRepo(db, dao.NewChatBannedWord(db), repos.AuditLog, c)
 	repos.ChatWatchParty = repository.NewChatWatchPartyRepo(db, dao.NewChatWatchParty(db), repos.Chat, repos.AuditLog)
 	repos.LiveStream = repository.NewLiveStreamRepo(db, dao.NewLiveStream(db))
 	repos.StreamCredentials = repository.NewStreamCredentialsRepo(dao.NewStreamCredentials(db))
 	repos.GameRoom = repository.NewGameRoomRepo(db, dao.NewGameRoom(db), c)
+	repos.User = repository.NewUserRepo(
+		db,
+		dao.NewUser(db),
+		c,
+		repos.Role,
+		repos.AuditLog,
+		repos.EmailVerification,
+		repos.Invite,
+		repos.Session,
+		repos.PasswordReset,
+		repos.Block,
+		repos.Permission,
+		repos.Mystery,
+		repos.Post,
+		repos.Art,
+		repos.GameRoom,
+		repos.UserSecret,
+	)
 	repos.HomeFeed = repository.NewHomeFeedRepo(dao.NewHomeFeed(db))
 	repos.SidebarVisited = repository.NewSidebarLastVisitedRepo(dao.NewSidebarVisited(db))
 	repos.Search = repository.NewSearchRepo(dynamicsql.NewSearch(db))
 	repos.Sitemap = repository.NewSitemapRepo(dao.NewSitemap(db))
 	repos.DeviceToken = repository.NewDeviceTokenRepo(dao.NewDeviceToken(db))
 	repos.OverlayToken = repository.NewOverlayTokenRepo(dao.NewOverlayToken(db))
-	basePrompts := repository.NewChatbotBasePromptRepo(dao.NewChatbotBasePrompt(db), c)
-	repos.ChatbotBasePrompt = basePrompts
-	repos.Chatbot = repository.NewChatbotRepo(db, dao.NewChatbot(db), repos.User, repos.VanityRole, basePrompts, c)
+	repos.ChatbotBasePrompt = repository.NewChatbotBasePromptRepo(dao.NewChatbotBasePrompt(db), c)
+	repos.Chatbot = repository.NewChatbotRepo(db, dao.NewChatbot(db), repos.User, repos.Permission, repos.ChatbotBasePrompt)
 
 	return repos
 }

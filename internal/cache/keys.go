@@ -29,7 +29,7 @@ var (
 	OGMeta  = Namespace{Prefix: "og:meta:", TTL: 5 * minute}
 	OGImage = Namespace{Prefix: "og:image:", TTL: day}
 
-	HomeEchoes = Namespace{Prefix: "home:echoes:", TTL: day}
+	HomeEchoes = Namespace{Prefix: "home:echoes:", TTL: noExpiry}
 
 	LinkPreview = Namespace{Prefix: "linkpreview:", TTL: day}
 
@@ -94,6 +94,41 @@ var (
 	RateLimitStreamThumbnail        = Namespace{Prefix: "ratelimit:stream-thumbnail:", TTL: minute}
 	RateLimitStreamCredentialsReset = Namespace{Prefix: "ratelimit:stream-credentials-reset:", TTL: minute}
 )
+
+var (
+	invalidatedByWrites = []Namespace{
+		HomeEchoes,
+		UserRole,
+		UserIP,
+		Setting,
+		MysteryTopDetectives,
+		MysteryTopGMs,
+		GameTopWinners,
+		VanityAssignments,
+		SiteInfo,
+		PostCornerCounts,
+		ArtCornerCounts,
+		RolePermissions,
+		VanityRolePermissions,
+		UserVanityRoleIDs,
+		UserBlockedIDs,
+		ChatBannedWordsGlobal,
+		ChatBannedWordsRoom,
+		ChatbotBasePrompts,
+		ChatbotBasePromptByID,
+		SecretHolders,
+		SecretSolved,
+	}
+)
+
+func invalidatedPrefixes() []string {
+	prefixes := make([]string, 0, len(invalidatedByWrites))
+	for _, namespace := range invalidatedByWrites {
+		prefixes = append(prefixes, namespace.Prefix)
+	}
+
+	return prefixes
+}
 
 func (n Namespace) Key(parts ...string) Key {
 	return Key{name: n.Prefix + strings.Join(parts, ":"), ttl: n.TTL}

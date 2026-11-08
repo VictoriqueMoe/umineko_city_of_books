@@ -471,8 +471,8 @@ func TestHomeFeedDAO_ListPublicRooms_IncludesMemberCount(t *testing.T) {
 	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: owner.ID}))
-	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID}))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: owner.ID, Role: "member", Ghost: false}))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: joiner.ID, Role: "member", Ghost: false}))
 
 	rows, err := repos.HomeFeed.ListPublicRooms(ctx, 10)
 	require.NoError(t, err)

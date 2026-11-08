@@ -18,10 +18,10 @@ import (
 type (
 	ChatbotDAO interface {
 		ListBots(ctx context.Context, tx ...*sql.Tx) ([]model.Chatbot, error)
+		GetBot(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.Chatbot, error)
 		GetBotByUserID(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*model.Chatbot, error)
 		CreateBot(ctx context.Context, bot model.Chatbot, tx ...*sql.Tx) (*model.Chatbot, error)
 		UpdateBot(ctx context.Context, bot model.Chatbot, tx ...*sql.Tx) (*model.Chatbot, error)
-		DeleteBot(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error
 
 		CreateInvocation(ctx context.Context, s spec.NewInvocation, tx ...*sql.Tx) (*model.ChatbotInvocation, error)
 		CompleteInvocation(ctx context.Context, s spec.InvocationCompletion, tx ...*sql.Tx) error
@@ -122,17 +122,16 @@ func (r *chatbotDAO) UpdateBot(ctx context.Context, bot model.Chatbot, tx ...*sq
 	return new(toChatbot(chatbotRow(updated))), nil
 }
 
-func (r *chatbotDAO) DeleteBot(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	affected, err := genQueries(r.db, tx).DeleteChatbot(ctx, id)
+func (r *chatbotDAO) GetBot(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.Chatbot, error) {
+	row, err := genQueries(r.db, tx).GetChatbotByID(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
 	if err != nil {
-		return fmt.Errorf("delete chatbot: %w", err)
+		return nil, fmt.Errorf("get chatbot: %w", err)
 	}
 
-	if affected == 0 {
-		return daoerr.ErrBotNotFound
-	}
-
-	return nil
+	return new(toChatbot(chatbotRow(row))), nil
 }
 
 func (r *chatbotDAO) CreateInvocation(ctx context.Context, s spec.NewInvocation, tx ...*sql.Tx) (*model.ChatbotInvocation, error) {

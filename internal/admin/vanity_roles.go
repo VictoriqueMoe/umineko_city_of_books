@@ -176,7 +176,7 @@ func (s *service) AssignVanityRole(ctx context.Context, actorID uuid.UUID, roleI
 		return err
 	}
 
-	if err := s.vanityRoleRepo.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: userID, RoleID: roleID}); err != nil {
+	if err := s.permissionRepo.AssignVanityRoleToUser(ctx, spec.VanityRoleAssignment{UserID: userID, RoleID: roleID}); err != nil {
 		return fmt.Errorf("assign vanity role: %w", err)
 	}
 	s.auditSubject(ctx, actorID, audit.ActionAssignVanityRole, audit.TargetVanityRole, roleID, userID)
@@ -213,7 +213,7 @@ func (s *service) UnassignVanityRole(ctx context.Context, actorID uuid.UUID, rol
 		return err
 	}
 
-	if err := s.vanityRoleRepo.UnassignFromUser(ctx, spec.VanityRoleAssignment{UserID: userID, RoleID: roleID}); err != nil {
+	if err := s.permissionRepo.UnassignVanityRoleFromUser(ctx, spec.VanityRoleAssignment{UserID: userID, RoleID: roleID}); err != nil {
 		return fmt.Errorf("unassign vanity role: %w", err)
 	}
 	s.auditSubject(ctx, actorID, audit.ActionUnassignVanityRole, audit.TargetVanityRole, roleID, userID)

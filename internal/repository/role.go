@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
 
@@ -15,6 +16,8 @@ import (
 type (
 	RoleRepository interface {
 		dao.RoleDAO
+
+		InvalidateRole(ctx context.Context, userID uuid.UUID)
 	}
 
 	roleRepository struct {
@@ -48,7 +51,9 @@ func (r *roleRepository) SetRole(ctx context.Context, s spec.UserRoleSpec, tx ..
 		return err
 	}
 
-	return r.cache.Del(ctx, cache.UserRole.Key(s.UserID.String()))
+	r.InvalidateRole(ctx, s.UserID)
+
+	return nil
 }
 
 func (r *roleRepository) RemoveRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) error {
@@ -56,5 +61,13 @@ func (r *roleRepository) RemoveRole(ctx context.Context, s spec.UserRoleSpec, tx
 		return err
 	}
 
-	return r.cache.Del(ctx, cache.UserRole.Key(s.UserID.String()))
+	r.InvalidateRole(ctx, s.UserID)
+
+	return nil
+}
+
+func (r *roleRepository) InvalidateRole(ctx context.Context, userID uuid.UUID) {
+	if err := r.cache.Del(ctx, cache.UserRole.Key(userID.String())); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", userID.String()).Msg("failed to invalidate the cached role after write")
+	}
 }

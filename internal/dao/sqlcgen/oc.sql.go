@@ -1423,34 +1423,6 @@ func (q *Queries) UpdateOCGalleryImageSortOrder(ctx context.Context, arg UpdateO
 	return result.RowsAffected()
 }
 
-const updateOCGalleryImageThumbnail = `-- name: UpdateOCGalleryImageThumbnail :exec
-UPDATE oc_images SET thumbnail_url = $1 WHERE id = $2
-`
-
-type UpdateOCGalleryImageThumbnailParams struct {
-	ThumbnailUrl string
-	ID           int64
-}
-
-func (q *Queries) UpdateOCGalleryImageThumbnail(ctx context.Context, arg UpdateOCGalleryImageThumbnailParams) error {
-	_, err := q.db.ExecContext(ctx, updateOCGalleryImageThumbnail, arg.ThumbnailUrl, arg.ID)
-	return err
-}
-
-const updateOCGalleryImageURL = `-- name: UpdateOCGalleryImageURL :exec
-UPDATE oc_images SET image_url = $1 WHERE id = $2
-`
-
-type UpdateOCGalleryImageURLParams struct {
-	ImageUrl string
-	ID       int64
-}
-
-func (q *Queries) UpdateOCGalleryImageURL(ctx context.Context, arg UpdateOCGalleryImageURLParams) error {
-	_, err := q.db.ExecContext(ctx, updateOCGalleryImageURL, arg.ImageUrl, arg.ID)
-	return err
-}
-
 const updateOCImage = `-- name: UpdateOCImage :exec
 UPDATE ocs SET image_url = $1, thumbnail_url = $2 WHERE id = $3
 `

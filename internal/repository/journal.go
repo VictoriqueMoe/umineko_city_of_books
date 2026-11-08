@@ -27,11 +27,11 @@ type (
 type journalRepository struct {
 	db *sql.DB
 	dao.JournalDAO
-	comments dao.CommentDAO
-	pending  dao.PendingUploadDAO
+	comments CommentRepository
+	pending  PendingUploadRepository
 }
 
-func NewJournalRepo(database *sql.DB, journalDAO dao.JournalDAO, comments dao.CommentDAO, pending dao.PendingUploadDAO) JournalRepository {
+func NewJournalRepo(database *sql.DB, journalDAO dao.JournalDAO, comments CommentRepository, pending PendingUploadRepository) JournalRepository {
 	return &journalRepository{db: database, JournalDAO: journalDAO, comments: comments, pending: pending}
 }
 

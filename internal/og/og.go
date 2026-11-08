@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/corner"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
@@ -49,24 +50,6 @@ type (
 		Image       string
 		URL         string
 	}
-
-	Kind string
-)
-
-const (
-	KindTheory       Kind = "theory"
-	KindPost         Kind = "post"
-	KindArt          Kind = "art"
-	KindGallery      Kind = "gallery"
-	KindMystery      Kind = "mystery"
-	KindShip         Kind = "ship"
-	KindOC           Kind = "oc"
-	KindAnnouncement Kind = "announcement"
-	KindFanfic       Kind = "fanfic"
-	KindJournal      Kind = "journal"
-	KindRoom         Kind = "room"
-	KindLiveStream   Kind = "livestream"
-	KindUser         Kind = "user"
 )
 
 const (
@@ -134,25 +117,17 @@ func (r *Resolver) Resolve(ctx context.Context, path, partyID string) string {
 
 func (r *Resolver) resolveMeta(ctx context.Context, path, partyID string) *Meta {
 	load := func(ctx context.Context) (*Meta, error) {
-		return r.metaForPath(ctx, path, partyID), nil
+		return r.metaForPath(ctx, path, partyID)
 	}
 
-	meta, _ := r.cache.Load(ctx, cache.OGMeta.Key(metaKeyParts(path, partyID)...), load)
+	meta, err := r.cache.Load(ctx, cache.OGMeta.Key(metaKeyParts(path, partyID)...), load)
+	if err != nil {
+		logger.Ctx(ctx).Error().Err(err).Str("path", path).Msg("failed to build page metadata, serving the default")
+
+		return nil
+	}
 
 	return meta
-}
-
-func (r *Resolver) ClearMetaCache(ctx context.Context, kind Kind, id string) error {
-	if r == nil {
-		return nil
-	}
-
-	path := entityPath(kind, id)
-	if path == "" {
-		return nil
-	}
-
-	return r.cache.Del(ctx, cache.OGMeta.Key(metaKeyParts(path, "")...))
 }
 
 func metaKeyParts(path, partyID string) []string {
@@ -197,40 +172,7 @@ func (r *Resolver) withDefaultImage(ctx context.Context) (string, string) {
 	return html, img
 }
 
-func entityPath(kind Kind, id string) string {
-	switch kind {
-	case KindTheory:
-		return "/theory/" + id
-	case KindPost:
-		return "/game-board/" + id
-	case KindArt:
-		return "/gallery/art/" + id
-	case KindGallery:
-		return "/gallery/view/" + id
-	case KindMystery:
-		return "/mystery/" + id
-	case KindShip:
-		return "/ships/" + id
-	case KindOC:
-		return "/oc/" + id
-	case KindAnnouncement:
-		return "/announcements/" + id
-	case KindFanfic:
-		return "/fanfiction/" + id
-	case KindJournal:
-		return "/journals/" + id
-	case KindRoom:
-		return "/rooms/" + id
-	case KindLiveStream:
-		return "/" + id + "/live"
-	case KindUser:
-		return "/user/" + id
-	}
-
-	return ""
-}
-
-func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta {
+func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) (*Meta, error) {
 
 	parts := strings.Split(strings.Trim(path, "/"), "/")
 	siteName, siteDescription := r.getSiteMeta(ctx)
@@ -249,7 +191,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       siteName,
 			Description: siteDescription,
 			URL:         url,
-		}
+		}, nil
 	}
 
 	if len(parts) == 2 && parts[0] == "theory" {
@@ -284,7 +226,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("Mysteries"),
 			Description: "Browse and solve fan-created mysteries inspired by Umineko no Naku Koro ni.",
 			URL:         r.baseURL + "/mysteries",
-		}
+		}, nil
 	}
 
 	if len(parts) == 2 && parts[0] == "mystery" {
@@ -298,7 +240,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("Ships"),
 			Description: "Declare your favourite Umineko and Higurashi pairings. Vote on crackships and debate the merits of your OTPs.",
 			URL:         r.baseURL + "/ships",
-		}
+		}, nil
 	}
 
 	if len(parts) == 2 && parts[0] == "ships" {
@@ -312,7 +254,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("Original Characters"),
 			Description: "Browse Original Characters created by the community. Tag them as Umineko, Higurashi, Ciconia, or a custom series.",
 			URL:         r.baseURL + "/oc",
-		}
+		}, nil
 	}
 
 	if len(parts) == 2 && parts[0] == "oc" {
@@ -326,7 +268,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("Announcements"),
 			Description: fmt.Sprintf("Latest announcements from the %s moderation team.", siteName),
 			URL:         r.baseURL + "/announcements",
-		}
+		}, nil
 	}
 
 	if len(parts) == 1 && parts[0] == "rules" {
@@ -334,7 +276,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("Rules"),
 			Description: fmt.Sprintf("Community rules and posting guidelines for the %s.", siteName),
 			URL:         r.baseURL + "/rules",
-		}
+		}, nil
 	}
 
 	if len(parts) == 1 && parts[0] == "about" {
@@ -343,7 +285,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Description: fmt.Sprintf("Who made %s, why, and how.", siteName),
 			URL:         r.baseURL + "/about",
 			Image:       "/about-creator.jpg",
-		}
+		}, nil
 	}
 
 	if len(parts) == 2 && parts[0] == "announcements" {
@@ -357,7 +299,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("Fanfiction"),
 			Description: "Browse and share fan-created stories inspired by When They Cry.",
 			URL:         r.baseURL + "/fanfiction",
-		}
+		}, nil
 	}
 	if len(parts) >= 2 && parts[0] == "fanfiction" {
 		if _, err := uuid.Parse(parts[1]); err == nil {
@@ -370,7 +312,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("Site Improvements"),
 			Description: "Suggest improvements, report issues, and share ideas for the site.",
 			URL:         r.baseURL + "/suggestions",
-		}
+		}, nil
 	}
 
 	if len(parts) == 1 && parts[0] == "gallery" {
@@ -378,7 +320,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("Gallery"),
 			Description: "Browse fan art galleries from the Umineko community.",
 			URL:         r.baseURL + "/gallery",
-		}
+		}, nil
 	}
 
 	if len(parts) == 1 && parts[0] == "journals" {
@@ -386,7 +328,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("Reading Journals"),
 			Description: "Live-blog your read-throughs of Ryukishi07's works. Post reactions, theories, and predictions as you go.",
 			URL:         r.baseURL + "/journals",
-		}
+		}, nil
 	}
 
 	if len(parts) == 2 && parts[0] == "journals" {
@@ -406,14 +348,19 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("Chat Rooms"),
 			Description: "Live group chats for roleplay, book clubs, episode reactions, and more.",
 			URL:         r.baseURL + "/rooms",
-		}
+		}, nil
 	}
 
 	if len(parts) == 2 && parts[0] == "rooms" {
 		if _, err := uuid.Parse(parts[1]); err == nil {
 			if partyID != "" {
-				if meta := r.watchPartyMeta(ctx, parts[1], partyID); meta != nil {
-					return meta
+				meta, err := r.watchPartyMeta(ctx, parts[1], partyID)
+				if err != nil {
+					return nil, err
+				}
+
+				if meta != nil {
+					return meta, nil
 				}
 			}
 
@@ -426,7 +373,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("Secrets"),
 			Description: "Quiet things scattered across the site. Open hunts, live progress leaderboards, and the people who spoke the answer first.",
 			URL:         r.baseURL + "/secrets",
-		}
+		}, nil
 	}
 
 	if len(parts) == 2 && parts[0] == "secrets" {
@@ -438,20 +385,20 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("Live Streams"),
 			Description: "Watch live streams from the community. Reading parties, playthroughs, and real-time discussion about When They Cry.",
 			URL:         r.baseURL + "/live",
-		}
+		}, nil
 	}
 
 	if len(parts) == 2 && parts[0] == "gallery" {
 		gallery, ok := corner.GalleryAtPath("/gallery/" + parts[1])
 		if !ok {
-			return nil
+			return nil, nil
 		}
 
 		return &Meta{
 			Title:       formatSiteName(gallery.Name() + " Gallery"),
 			Description: fmt.Sprintf("Browse %s fan art from the Umineko community.", gallery),
 			URL:         r.baseURL + gallery.Path(),
-		}
+		}, nil
 	}
 
 	if len(parts) == 1 && parts[0] == "games" {
@@ -459,7 +406,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("Games"),
 			Description: "Play multiplayer games with other players. Chess first, with more to come.",
 			URL:         r.baseURL + "/games",
-		}
+		}, nil
 	}
 
 	if len(parts) == 1 && parts[0] == "search" {
@@ -467,7 +414,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("Search"),
 			Description: "Search posts, comments, theories, mysteries, art, fanfiction, journals, ships, and users across the site.",
 			URL:         r.baseURL + "/search",
-		}
+		}, nil
 	}
 
 	if len(parts) == 2 && parts[0] == "games" && parts[1] == "live" {
@@ -475,7 +422,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("Live Games"),
 			Description: "Watch chess matches in progress. Spectate live and chat with other viewers.",
 			URL:         r.baseURL + "/games/live",
-		}
+		}, nil
 	}
 
 	if len(parts) == 2 && parts[0] == "games" && parts[1] == "past" {
@@ -483,7 +430,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("Past Games"),
 			Description: "Every finished match on the site. Review final positions, move histories and per-game stats.",
 			URL:         r.baseURL + "/games/past",
-		}
+		}, nil
 	}
 
 	if len(parts) == 2 && parts[0] == "games" {
@@ -493,7 +440,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName(name),
 			Description: "Play " + name + " with other players. See the scoreboard, start a new game, or spectate live matches.",
 			URL:         fmt.Sprintf("%s/games/%s", r.baseURL, game),
-		}
+		}, nil
 	}
 
 	if len(parts) == 3 && parts[0] == "games" && parts[1] != "" && parts[2] == "scoreboard" {
@@ -501,7 +448,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName(strings.ToUpper(parts[1][:1]) + parts[1][1:] + " Scoreboard"),
 			Description: fmt.Sprintf("See the top %s players across the community.", parts[1]),
 			URL:         fmt.Sprintf("%s/games/%s/scoreboard", r.baseURL, parts[1]),
-		}
+		}, nil
 	}
 
 	if len(parts) == 3 && parts[0] == "games" && parts[1] != "" && parts[2] == "new" {
@@ -510,7 +457,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 			Title:       formatSiteName("New " + name + " Game"),
 			Description: "Invite another player to a game of " + parts[1] + ".",
 			URL:         r.baseURL + "/games/" + parts[1] + "/new",
-		}
+		}, nil
 	}
 
 	if len(parts) == 3 && parts[0] == "games" && parts[1] != "" {
@@ -520,7 +467,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 				Title:       formatSiteName(name + " Game"),
 				Description: "A " + parts[1] + " match between two players.",
 				URL:         fmt.Sprintf("%s/games/%s/%s", r.baseURL, parts[1], parts[2]),
-			}
+			}, nil
 		}
 	}
 
@@ -528,18 +475,22 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 		return r.liveStreamMetaByUsername(ctx, parts[0])
 	}
 
-	return nil
+	return nil, nil
 }
 
-func (r *Resolver) theoryMeta(ctx context.Context, idStr string) *Meta {
+func (r *Resolver) theoryMeta(ctx context.Context, idStr string) (*Meta, error) {
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	theory, err := r.theoryRepo.GetByID(ctx, id)
-	if err != nil || theory == nil {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+
+	if theory == nil {
+		return nil, nil
 	}
 
 	desc := theory.Body
@@ -559,13 +510,17 @@ func (r *Resolver) theoryMeta(ctx context.Context, idStr string) *Meta {
 		Title:       title,
 		Description: desc,
 		URL:         fmt.Sprintf("%s/theory/%s", r.baseURL, idStr),
-	}
+	}, nil
 }
 
-func (r *Resolver) profileMeta(ctx context.Context, username string) *Meta {
+func (r *Resolver) profileMeta(ctx context.Context, username string) (*Meta, error) {
 	u, _, err := r.userRepo.GetProfileByUsername(ctx, username)
-	if err != nil || u == nil {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+
+	if u == nil {
+		return nil, nil
 	}
 
 	desc := u.Bio
@@ -580,13 +535,13 @@ func (r *Resolver) profileMeta(ctx context.Context, username string) *Meta {
 		Description: desc,
 		Image:       u.BannerURL,
 		URL:         fmt.Sprintf("%s/user/%s", r.baseURL, username),
-	}
+	}, nil
 }
 
-func (r *Resolver) gameBoardCornerMeta(ctx context.Context, slug string) *Meta {
+func (r *Resolver) gameBoardCornerMeta(ctx context.Context, slug string) (*Meta, error) {
 	board, ok := corner.GameBoardAtPath("/game-board/" + slug)
 	if !ok {
-		return nil
+		return nil, nil
 	}
 
 	siteName, _ := r.getSiteMeta(ctx)
@@ -594,18 +549,22 @@ func (r *Resolver) gameBoardCornerMeta(ctx context.Context, slug string) *Meta {
 		Title:       fmt.Sprintf("%s Game Board - %s", board.Name(), siteName),
 		Description: fmt.Sprintf("Discuss %s with fellow players on the game board.", board.Name()),
 		URL:         r.baseURL + board.Path(),
-	}
+	}, nil
 }
 
-func (r *Resolver) postMeta(ctx context.Context, idStr string) *Meta {
+func (r *Resolver) postMeta(ctx context.Context, idStr string) (*Meta, error) {
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	post, err := r.postRepo.GetByID(ctx, spec.PostLookup{ID: id, ViewerID: uuid.Nil})
-	if err != nil || post == nil {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+
+	if post == nil {
+		return nil, nil
 	}
 
 	desc := post.Body
@@ -619,11 +578,15 @@ func (r *Resolver) postMeta(ctx context.Context, idStr string) *Meta {
 		URL:         fmt.Sprintf("%s/game-board/%s", r.baseURL, idStr),
 	}
 
-	media, _ := r.postRepo.GetMedia(ctx, id)
+	media, err := r.postRepo.GetMedia(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(media) > 0 {
 		first := media[0]
 		if first.IsSpoiler {
-			return meta
+			return meta, nil
 		}
 
 		if first.MediaType == "video" && first.ThumbnailURL != "" {
@@ -633,18 +596,22 @@ func (r *Resolver) postMeta(ctx context.Context, idStr string) *Meta {
 		}
 	}
 
-	return meta
+	return meta, nil
 }
 
-func (r *Resolver) artMeta(ctx context.Context, idStr string) *Meta {
+func (r *Resolver) artMeta(ctx context.Context, idStr string) (*Meta, error) {
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	art, err := r.artRepo.GetByID(ctx, spec.ArtLookup{ID: id, ViewerID: uuid.Nil})
-	if err != nil || art == nil {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+
+	if art == nil {
+		return nil, nil
 	}
 
 	desc := art.Description
@@ -659,18 +626,22 @@ func (r *Resolver) artMeta(ctx context.Context, idStr string) *Meta {
 		Description: desc,
 		Image:       art.ImageURL,
 		URL:         fmt.Sprintf("%s/gallery/art/%s", r.baseURL, idStr),
-	}
+	}, nil
 }
 
-func (r *Resolver) galleryMeta(ctx context.Context, idStr string) *Meta {
+func (r *Resolver) galleryMeta(ctx context.Context, idStr string) (*Meta, error) {
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	gallery, err := r.artRepo.GetGalleryByID(ctx, id)
-	if err != nil || gallery == nil {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+
+	if gallery == nil {
+		return nil, nil
 	}
 
 	desc := gallery.Description
@@ -689,24 +660,32 @@ func (r *Resolver) galleryMeta(ctx context.Context, idStr string) *Meta {
 	if gallery.CoverImageURL != "" {
 		meta.Image = gallery.CoverImageURL
 	} else {
-		previews, _ := r.artRepo.GetGalleryPreviewImages(ctx, spec.GalleryPreviewFilter{GalleryID: id, Limit: 1})
+		previews, err := r.artRepo.GetGalleryPreviewImages(ctx, spec.GalleryPreviewFilter{GalleryID: id, Limit: 1})
+		if err != nil {
+			return nil, err
+		}
+
 		if len(previews) > 0 {
 			meta.Image = previews[0].ImageURL
 		}
 	}
 
-	return meta
+	return meta, nil
 }
 
-func (r *Resolver) mysteryMeta(ctx context.Context, idStr string) *Meta {
+func (r *Resolver) mysteryMeta(ctx context.Context, idStr string) (*Meta, error) {
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	mystery, err := r.mysteryRepo.GetByID(ctx, id)
-	if err != nil || mystery == nil {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+
+	if mystery == nil {
+		return nil, nil
 	}
 
 	desc := mystery.Body
@@ -723,18 +702,22 @@ func (r *Resolver) mysteryMeta(ctx context.Context, idStr string) *Meta {
 		Title:       title,
 		Description: desc,
 		URL:         fmt.Sprintf("%s/mystery/%s", r.baseURL, idStr),
-	}
+	}, nil
 }
 
-func (r *Resolver) announcementMeta(ctx context.Context, idStr string) *Meta {
+func (r *Resolver) announcementMeta(ctx context.Context, idStr string) (*Meta, error) {
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	ann, err := r.announcementRepo.GetByID(ctx, id)
-	if err != nil || ann == nil {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+
+	if ann == nil {
+		return nil, nil
 	}
 
 	desc := ann.Body
@@ -746,21 +729,29 @@ func (r *Resolver) announcementMeta(ctx context.Context, idStr string) *Meta {
 		Title:       title,
 		Description: desc,
 		URL:         fmt.Sprintf("%s/announcements/%s", r.baseURL, idStr),
-	}
+	}, nil
 }
 
-func (r *Resolver) shipMeta(ctx context.Context, idStr string) *Meta {
+func (r *Resolver) shipMeta(ctx context.Context, idStr string) (*Meta, error) {
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	ship, err := r.shipRepo.GetByID(ctx, spec.ShipLookup{ID: id, ViewerID: uuid.Nil})
-	if err != nil || ship == nil {
-		return nil
+	if err != nil {
+		return nil, err
 	}
 
-	characters, _ := r.shipRepo.GetCharacters(ctx, id)
+	if ship == nil {
+		return nil, nil
+	}
+
+	characters, err := r.shipRepo.GetCharacters(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
 	charNames := make([]string, len(characters))
 	for i, c := range characters {
 		charNames[i] = c.CharacterName
@@ -785,18 +776,22 @@ func (r *Resolver) shipMeta(ctx context.Context, idStr string) *Meta {
 	} else {
 		meta.Image = ship.AuthorAvatarURL
 	}
-	return meta
+	return meta, nil
 }
 
-func (r *Resolver) ocMeta(ctx context.Context, idStr string) *Meta {
+func (r *Resolver) ocMeta(ctx context.Context, idStr string) (*Meta, error) {
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	row, err := r.ocRepo.GetByID(ctx, spec.OCByID{ID: id, ViewerID: uuid.Nil})
-	if err != nil || row == nil {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+
+	if row == nil {
+		return nil, nil
 	}
 
 	desc := row.Description
@@ -819,18 +814,22 @@ func (r *Resolver) ocMeta(ctx context.Context, idStr string) *Meta {
 	} else {
 		meta.Image = row.AuthorAvatarURL
 	}
-	return meta
+	return meta, nil
 }
 
-func (r *Resolver) fanficMeta(ctx context.Context, idStr string) *Meta {
+func (r *Resolver) fanficMeta(ctx context.Context, idStr string) (*Meta, error) {
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	fanfic, err := r.fanficRepo.GetByID(ctx, spec.FanficLookup{ID: id, ViewerID: uuid.Nil})
-	if err != nil || fanfic == nil || fanfic.Status == "draft" {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+
+	if fanfic == nil || fanfic.Status == "draft" {
+		return nil, nil
 	}
 
 	desc := fanfic.Summary
@@ -847,18 +846,22 @@ func (r *Resolver) fanficMeta(ctx context.Context, idStr string) *Meta {
 	if fanfic.CoverImageURL != "" {
 		meta.Image = fanfic.CoverImageURL
 	}
-	return meta
+	return meta, nil
 }
 
-func (r *Resolver) journalMeta(ctx context.Context, idStr string) *Meta {
+func (r *Resolver) journalMeta(ctx context.Context, idStr string) (*Meta, error) {
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	journal, err := r.journalRepo.GetByID(ctx, spec.JournalLookup{ID: id, ViewerID: uuid.Nil})
-	if err != nil || journal == nil {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+
+	if journal == nil {
+		return nil, nil
 	}
 
 	desc := journal.LatestEntryExcerpt
@@ -873,27 +876,35 @@ func (r *Resolver) journalMeta(ctx context.Context, idStr string) *Meta {
 		Title:       title,
 		Description: desc,
 		URL:         fmt.Sprintf("%s/journals/%s", r.baseURL, idStr),
-	}
+	}, nil
 }
 
-func (r *Resolver) journalEntryMeta(ctx context.Context, journalIDStr, numberStr string) *Meta {
+func (r *Resolver) journalEntryMeta(ctx context.Context, journalIDStr, numberStr string) (*Meta, error) {
 	journalID, err := uuid.Parse(journalIDStr)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 	number, err := strconv.Atoi(numberStr)
 	if err != nil || number < 1 {
-		return nil
+		return nil, nil
 	}
 
 	journal, err := r.journalRepo.GetByID(ctx, spec.JournalLookup{ID: journalID, ViewerID: uuid.Nil})
-	if err != nil || journal == nil {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+
+	if journal == nil {
+		return nil, nil
 	}
 
 	entry, err := r.journalRepo.GetEntry(ctx, spec.JournalEntryLookup{JournalID: journalID, EntryNumber: number})
-	if err != nil || entry == nil || entry.IsDraft {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+
+	if entry == nil || entry.IsDraft {
+		return nil, nil
 	}
 
 	desc := entry.Body
@@ -913,13 +924,13 @@ func (r *Resolver) journalEntryMeta(ctx context.Context, journalIDStr, numberStr
 		Title:       title,
 		Description: desc,
 		URL:         fmt.Sprintf("%s/journals/%s/entry/%d", r.baseURL, journalIDStr, number),
-	}
+	}, nil
 }
 
-func (r *Resolver) secretMeta(ctx context.Context, id string) *Meta {
+func (r *Resolver) secretMeta(ctx context.Context, id string) (*Meta, error) {
 	secret, ok := secrets.Lookup(id)
 	if !ok || secret.Title == "" {
-		return nil
+		return nil, nil
 	}
 
 	siteName, _ := r.getSiteMeta(ctx)
@@ -932,18 +943,22 @@ func (r *Resolver) secretMeta(ctx context.Context, id string) *Meta {
 		Title:       fmt.Sprintf("%s - %s", secret.Title, siteName),
 		Description: desc,
 		URL:         fmt.Sprintf("%s/secrets/%s", r.baseURL, id),
-	}
+	}, nil
 }
 
-func (r *Resolver) roomMeta(ctx context.Context, idStr string) *Meta {
+func (r *Resolver) roomMeta(ctx context.Context, idStr string) (*Meta, error) {
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	room, err := r.chatRepo.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: id, ViewerID: uuid.Nil})
-	if err != nil || !room.PubliclyVisible() {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+
+	if !room.PubliclyVisible() {
+		return nil, nil
 	}
 
 	desc := room.Description
@@ -957,28 +972,36 @@ func (r *Resolver) roomMeta(ctx context.Context, idStr string) *Meta {
 		Title:       room.Name + " - Chat Room",
 		Description: desc,
 		URL:         fmt.Sprintf("%s/rooms/%s", r.baseURL, idStr),
-	}
+	}, nil
 }
 
-func (r *Resolver) watchPartyMeta(ctx context.Context, roomIDStr, partyIDStr string) *Meta {
+func (r *Resolver) watchPartyMeta(ctx context.Context, roomIDStr, partyIDStr string) (*Meta, error) {
 	roomID, err := uuid.Parse(roomIDStr)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	partyID, err := uuid.Parse(partyIDStr)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	session, err := r.watchPartyRepo.GetByID(ctx, partyID)
-	if err != nil || session == nil || session.RoomID != roomID {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+
+	if session == nil || session.RoomID != roomID {
+		return nil, nil
 	}
 
 	room, err := r.chatRepo.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: uuid.Nil})
-	if err != nil || !room.PubliclyVisible() {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+
+	if !room.PubliclyVisible() {
+		return nil, nil
 	}
 
 	siteName, _ := r.getSiteMeta(ctx)
@@ -999,26 +1022,30 @@ func (r *Resolver) watchPartyMeta(ctx context.Context, roomIDStr, partyIDStr str
 		Title:       title,
 		Description: desc,
 		URL:         fmt.Sprintf("%s/rooms/%s?party=%s", r.baseURL, roomIDStr, partyIDStr),
-	}
+	}, nil
 }
 
-func (r *Resolver) liveStreamMetaByUsername(ctx context.Context, username string) *Meta {
+func (r *Resolver) liveStreamMetaByUsername(ctx context.Context, username string) (*Meta, error) {
 	stream, err := r.liveStreamRepo.GetActiveByUsername(ctx, username)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	if meta := r.liveStreamMeta(ctx, stream); meta != nil {
-		return meta
+		return meta, nil
 	}
 
 	return r.offlineStreamMeta(ctx, username)
 }
 
-func (r *Resolver) offlineStreamMeta(ctx context.Context, username string) *Meta {
+func (r *Resolver) offlineStreamMeta(ctx context.Context, username string) (*Meta, error) {
 	u, _, err := r.userRepo.GetProfileByUsername(ctx, username)
-	if err != nil || u == nil {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+
+	if u == nil {
+		return nil, nil
 	}
 
 	siteName, _ := r.getSiteMeta(ctx)
@@ -1033,7 +1060,7 @@ func (r *Resolver) offlineStreamMeta(ctx context.Context, username string) *Meta
 		meta.Image = r.absoluteURL(u.AvatarURL)
 	}
 
-	return meta
+	return meta, nil
 }
 
 func (r *Resolver) liveStreamMeta(ctx context.Context, stream *model.LiveStreamRow) *Meta {

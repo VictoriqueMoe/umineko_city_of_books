@@ -14,12 +14,13 @@ type (
 	}
 
 	service struct {
-		repo repository.VanityRoleRepository
+		repo        repository.VanityRoleRepository
+		permissions repository.PermissionRepository
 	}
 )
 
-func NewService(repo repository.VanityRoleRepository) Service {
-	return &service{repo: repo}
+func NewService(repo repository.VanityRoleRepository, permissions repository.PermissionRepository) Service {
+	return &service{repo: repo, permissions: permissions}
 }
 
 func (s *service) List(ctx context.Context) ([]model.VanityRoleRow, error) {
@@ -27,5 +28,5 @@ func (s *service) List(ctx context.Context) ([]model.VanityRoleRow, error) {
 }
 
 func (s *service) GetAllAssignments(ctx context.Context) (map[string][]string, error) {
-	return s.repo.GetAllAssignments(ctx)
+	return s.permissions.GetAllVanityRoleAssignments(ctx)
 }
