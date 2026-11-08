@@ -21,7 +21,6 @@ import (
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
-	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/sidebar"
@@ -98,7 +97,6 @@ type (
 		hub           *ws.Hub
 		settingsSvc   settings.Service
 		contentFilter *contentfilter.Manager
-		ogCache       *og.Resolver
 		activity      sidebar.ActivityBumper
 	}
 )
@@ -116,7 +114,6 @@ func NewService(
 	settingsSvc settings.Service,
 	hub *ws.Hub,
 	contentFilter *contentfilter.Manager,
-	ogCache *og.Resolver,
 	activity sidebar.ActivityBumper,
 ) Service {
 	return &service{
@@ -132,7 +129,6 @@ func NewService(
 		hub:           hub,
 		settingsSvc:   settingsSvc,
 		contentFilter: contentFilter,
-		ogCache:       ogCache,
 		activity:      activity,
 	}
 }
@@ -382,10 +378,6 @@ func (s *service) DeleteOC(ctx context.Context, id uuid.UUID, userID uuid.UUID) 
 		TargetID:   id.String(),
 		SubjectID:  ownerID,
 	})
-
-	if err := s.ogCache.ClearMetaCache(ctx, og.KindOC, id.String()); err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Str("oc_id", id.String()).Msg("clear og meta cache failed")
-	}
 
 	return nil
 }

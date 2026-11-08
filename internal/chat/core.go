@@ -22,7 +22,6 @@ import (
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
-	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/sidebar"
@@ -80,7 +79,6 @@ type (
 		bannedWordsRule *contentfilter.ChatBannedWordsRule
 		sideEffectsWG   sync.WaitGroup
 		botObserver     MessageObserver
-		ogCache         *og.Resolver
 		activity        sidebar.ActivityBumper
 	}
 

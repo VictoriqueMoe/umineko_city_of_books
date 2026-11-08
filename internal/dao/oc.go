@@ -32,8 +32,6 @@ type (
 		HasOC(ctx context.Context, s spec.OCNameLookup, tx ...*sql.Tx) (bool, error)
 
 		AddGalleryImage(ctx context.Context, s spec.NewOCGalleryImage, tx ...*sql.Tx) (int64, error)
-		UpdateGalleryImageURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
-		UpdateGalleryImageThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
 		UpdateGalleryImage(ctx context.Context, s spec.OCGalleryImageUpdate, tx ...*sql.Tx) error
 		DeleteGalleryImage(ctx context.Context, s spec.MediaDeletion, tx ...*sql.Tx) error
 		GetGallery(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]model.OCImageRow, error)
@@ -379,30 +377,6 @@ func (r *ocDAO) AddGalleryImage(ctx context.Context, s spec.NewOCGalleryImage, t
 	}
 
 	return id, nil
-}
-
-func (r *ocDAO) UpdateGalleryImageURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	err := genQueries(r.db, tx).UpdateOCGalleryImageURL(ctx, sqlcgen.UpdateOCGalleryImageURLParams{
-		ImageUrl: s.URL,
-		ID:       s.ID,
-	})
-	if err != nil {
-		return fmt.Errorf("update oc gallery image url: %w", err)
-	}
-
-	return nil
-}
-
-func (r *ocDAO) UpdateGalleryImageThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	err := genQueries(r.db, tx).UpdateOCGalleryImageThumbnail(ctx, sqlcgen.UpdateOCGalleryImageThumbnailParams{
-		ThumbnailUrl: s.URL,
-		ID:           s.ID,
-	})
-	if err != nil {
-		return fmt.Errorf("update oc gallery image thumbnail: %w", err)
-	}
-
-	return nil
 }
 
 func (r *ocDAO) UpdateGalleryImage(ctx context.Context, s spec.OCGalleryImageUpdate, tx ...*sql.Tx) error {

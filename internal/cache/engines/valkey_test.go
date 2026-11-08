@@ -143,54 +143,79 @@ func TestValkeyStaysDisabledDuringCooldown(t *testing.T) {
 	assert.False(t, v.Enabled())
 }
 
-func TestValkeyAllowsOneProbeAfterCooldown(t *testing.T) {
-	v, _ := newMockValkey(t)
-
+func TestValkeyRecoversAfterASuccessfulPingOnceTheCooldownEnds(t *testing.T) {
+	// given an engine that went down longer ago than the cooldown
+	v, client := newMockValkey(t)
 	v.observe(errors.New("connection refused"))
 	v.downAt.Store(time.Now().Add(-recoveryInterval - time.Second).UnixNano())
+	client.EXPECT().Do(gomock.Any(), mock.Match("PING")).Return(mock.Result(mock.ValkeyString("PONG"))).Times(1)
 
-	assert.True(t, v.Enabled())
-	assert.False(t, v.Enabled())
+	// when
+	first := v.Enabled()
+	second := v.Enabled()
+
+	// then the probe runs once and the engine serves again
+	assert.True(t, first)
+	assert.True(t, second)
 }
 
-func TestValkeyRecoversAfterSuccessfulProbe(t *testing.T) {
+func TestValkeyPurgesWriteInvalidatedKeysBeforeServingAgain(t *testing.T) {
+	// given an engine that missed deletes while it was down
 	v, client := newMockValkey(t)
-
+	v.purgePrefixes = []string{"role:", "setting:"}
 	v.observe(errors.New("connection refused"))
-	require.False(t, v.Enabled())
-
 	v.downAt.Store(time.Now().Add(-recoveryInterval - time.Second).UnixNano())
-	require.True(t, v.Enabled())
+	client.EXPECT().Do(gomock.Any(), mock.Match("PING")).Return(mock.Result(mock.ValkeyString("PONG"))).Times(1)
+	client.EXPECT().Do(gomock.Any(), mock.Match("SCAN", "0")).Return(mock.Result(mock.ValkeyArray(
+		mock.ValkeyString("7"),
+		mock.ValkeyArray(mock.ValkeyString("role:u1"), mock.ValkeyString("ratelimit:login:u1")),
+	))).Times(1)
+	client.EXPECT().Do(gomock.Any(), mock.Match("DEL", "role:u1")).Return(mock.Result(mock.ValkeyInt64(1))).Times(1)
+	client.EXPECT().Do(gomock.Any(), mock.Match("SCAN", "7")).Return(mock.Result(mock.ValkeyArray(
+		mock.ValkeyString("0"),
+		mock.ValkeyArray(mock.ValkeyString("setting:site_name"), mock.ValkeyString("og:meta:/")),
+	))).Times(1)
+	client.EXPECT().Do(gomock.Any(), mock.Match("DEL", "setting:site_name")).Return(mock.Result(mock.ValkeyInt64(1))).Times(1)
 
-	client.EXPECT().
-		Do(gomock.Any(), mock.Match("GET", "k")).
-		Return(mock.Result(mock.ValkeyString("v"))).
-		Times(1)
+	// when
+	enabled := v.Enabled()
 
-	got, err := v.Get(context.Background(), "k")
-	require.NoError(t, err)
-	assert.Equal(t, []byte("v"), got)
+	// then only write-invalidated keys are dropped, rate limits and TTL-only entries survive
+	assert.True(t, enabled)
+}
 
-	assert.True(t, v.Enabled())
-	assert.True(t, v.Enabled())
+func TestValkeyFailedPurgeKeepsTheEngineDisabled(t *testing.T) {
+	// given
+	v, client := newMockValkey(t)
+	v.purgePrefixes = []string{"role:"}
+	v.observe(errors.New("connection refused"))
+	v.downAt.Store(time.Now().Add(-recoveryInterval - time.Second).UnixNano())
+	client.EXPECT().Do(gomock.Any(), mock.Match("PING")).Return(mock.Result(mock.ValkeyString("PONG"))).Times(1)
+	client.EXPECT().Do(gomock.Any(), mock.Match("SCAN", "0")).Return(mock.ErrorResult(errors.New("still flaky"))).Times(1)
+
+	// when
+	first := v.Enabled()
+	second := v.Enabled()
+
+	// then nothing is served from a keyspace that may still hold missed deletes, and the cooldown restarts
+	assert.False(t, first)
+	assert.False(t, second)
 }
 
 func TestValkeyFailedProbeRestartsCooldown(t *testing.T) {
+	// given
 	v, client := newMockValkey(t)
-
 	v.observe(errors.New("connection refused"))
 	v.downAt.Store(time.Now().Add(-recoveryInterval - time.Second).UnixNano())
-	require.True(t, v.Enabled())
+	client.EXPECT().Do(gomock.Any(), mock.Match("PING")).Return(mock.ErrorResult(errors.New("still refused"))).Times(1)
 
-	client.EXPECT().
-		Do(gomock.Any(), mock.Match("GET", "k")).
-		Return(mock.ErrorResult(errors.New("still refused"))).
-		Times(1)
+	// when
+	first := v.Enabled()
+	second := v.Enabled()
 
-	_, err := v.Get(context.Background(), "k")
-	require.Error(t, err)
-
-	assert.False(t, v.Enabled())
+	// then
+	assert.False(t, first)
+	assert.False(t, second)
 }
 
 func TestValkeySetAttachesTTLAsMilliseconds(t *testing.T) {

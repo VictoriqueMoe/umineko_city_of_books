@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestChatDAO_AddMember_IsIdempotentAndSeenByEveryMemberLookup(t *testing.T) {
+func TestChatDAO_AddMemberWithRole_IsIdempotentAndSeenByEveryMemberLookup(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
@@ -24,9 +24,9 @@ func TestChatDAO_AddMember_IsIdempotentAndSeenByEveryMemberLookup(t *testing.T) 
 	roomID := daotest.CreateChatRoom(t, repos, owner.ID)
 
 	// when
-	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: a.ID}))
-	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: b.ID}))
-	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: a.ID}))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: a.ID, Role: "member", Ghost: false}))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: b.ID, Role: "member", Ghost: false}))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: a.ID, Role: "member", Ghost: false}))
 
 	// then
 	count, err := repos.Chat.CountRoomMembers(ctx, roomID)

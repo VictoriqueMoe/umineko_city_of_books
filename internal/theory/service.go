@@ -18,7 +18,6 @@ import (
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
-	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
@@ -55,7 +54,6 @@ type (
 		credibilitySvc *credibility.Service
 		quoteClient    *quotefinder.Client
 		contentFilter  *contentfilter.Manager
-		ogCache        *og.Resolver
 		echoCache      homefeed.Service
 		activity       sidebar.ActivityBumper
 	}
@@ -74,7 +72,6 @@ func NewService(
 	credibilitySvc *credibility.Service,
 	quoteClient *quotefinder.Client,
 	contentFilter *contentfilter.Manager,
-	ogCache *og.Resolver,
 	echoCache homefeed.Service,
 	activity sidebar.ActivityBumper,
 ) Service {
@@ -91,19 +88,12 @@ func NewService(
 		credibilitySvc: credibilitySvc,
 		quoteClient:    quoteClient,
 		contentFilter:  contentFilter,
-		ogCache:        ogCache,
 		echoCache:      echoCache,
 		activity:       activity,
 	}
 }
 
-func (s *service) clearPageCache(ctx context.Context, id string) {
-	if s.ogCache != nil {
-		if err := s.ogCache.ClearMetaCache(ctx, og.KindTheory, id); err != nil {
-			logger.Ctx(ctx).Warn().Err(err).Str("theory_id", id).Msg("clear og meta cache failed")
-		}
-	}
-
+func (s *service) clearEchoCache(ctx context.Context) {
 	if s.echoCache == nil {
 		return
 	}
@@ -297,6 +287,8 @@ func (s *service) UpdateTheory(ctx context.Context, id uuid.UUID, userID uuid.UU
 		return err
 	}
 
+	s.clearEchoCache(ctx)
+
 	if asAdmin {
 		go s.notifyContentEdited(ctx, id, "theory", id, userID)
 
@@ -364,7 +356,7 @@ func (s *service) DeleteTheory(ctx context.Context, id uuid.UUID, userID uuid.UU
 		SubjectID:  authorID,
 	})
 
-	s.clearPageCache(ctx, id.String())
+	s.clearEchoCache(ctx)
 
 	return nil
 }

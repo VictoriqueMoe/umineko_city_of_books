@@ -15,6 +15,8 @@ import (
 type (
 	UserSecretRepository interface {
 		dao.UserSecretDAO
+
+		InvalidateSecrets(ctx context.Context, secretIDs ...string)
 	}
 )
 
@@ -32,9 +34,7 @@ func (r *userSecretRepository) Unlock(ctx context.Context, s spec.SecretUnlock, 
 		return err
 	}
 
-	if err := r.cache.Del(ctx, cache.SecretHolders.Key(s.SecretID), cache.SecretSolved.Key(s.SecretID)); err != nil {
-		logger.Ctx(ctx).Error().Err(err).Str("secret_id", s.SecretID).Msg("failed to invalidate secret caches after an unlock")
-	}
+	r.InvalidateSecrets(ctx, s.SecretID)
 
 	return nil
 }
@@ -60,8 +60,14 @@ func (r *userSecretRepository) DeleteSecrets(ctx context.Context, secretIDs []st
 		return err
 	}
 
+	r.InvalidateSecrets(ctx, secretIDs...)
+
+	return nil
+}
+
+func (r *userSecretRepository) InvalidateSecrets(ctx context.Context, secretIDs ...string) {
 	if len(secretIDs) == 0 {
-		return nil
+		return
 	}
 
 	keys := make([]cache.Key, 0, len(secretIDs)*2)
@@ -70,8 +76,6 @@ func (r *userSecretRepository) DeleteSecrets(ctx context.Context, secretIDs []st
 	}
 
 	if err := r.cache.Del(ctx, keys...); err != nil {
-		logger.Ctx(ctx).Error().Err(err).Strs("secret_ids", secretIDs).Msg("failed to invalidate secret caches after deleting secrets")
+		logger.Ctx(ctx).Error().Err(err).Strs("secret_ids", secretIDs).Msg("failed to invalidate secret caches after write")
 	}
-
-	return nil
 }

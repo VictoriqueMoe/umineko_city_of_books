@@ -288,6 +288,60 @@ func (_c *MockBlockRepository_GetBlockedUsers_Call) RunAndReturn(run func(ctx co
 	return _c
 }
 
+// InvalidateBlockedIDs provides a mock function for the type MockBlockRepository
+func (_mock *MockBlockRepository) InvalidateBlockedIDs(ctx context.Context, userIDs ...uuid.UUID) {
+	if len(userIDs) > 0 {
+		_mock.Called(ctx, userIDs)
+	} else {
+		_mock.Called(ctx)
+	}
+
+	return
+}
+
+// MockBlockRepository_InvalidateBlockedIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InvalidateBlockedIDs'
+type MockBlockRepository_InvalidateBlockedIDs_Call struct {
+	*mock.Call
+}
+
+// InvalidateBlockedIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userIDs ...uuid.UUID
+func (_e *MockBlockRepository_Expecter) InvalidateBlockedIDs(ctx any, userIDs ...any) *MockBlockRepository_InvalidateBlockedIDs_Call {
+	return &MockBlockRepository_InvalidateBlockedIDs_Call{Call: _e.mock.On("InvalidateBlockedIDs",
+		append([]any{ctx}, userIDs...)...)}
+}
+
+func (_c *MockBlockRepository_InvalidateBlockedIDs_Call) Run(run func(ctx context.Context, userIDs ...uuid.UUID)) *MockBlockRepository_InvalidateBlockedIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		var variadicArgs []uuid.UUID
+		if len(args) > 1 {
+			variadicArgs = args[1].([]uuid.UUID)
+		}
+		arg1 = variadicArgs
+		run(
+			arg0,
+			arg1...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBlockRepository_InvalidateBlockedIDs_Call) Return() *MockBlockRepository_InvalidateBlockedIDs_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockBlockRepository_InvalidateBlockedIDs_Call) RunAndReturn(run func(ctx context.Context, userIDs ...uuid.UUID)) *MockBlockRepository_InvalidateBlockedIDs_Call {
+	_c.Run(run)
+	return _c
+}
+
 // IsBlocked provides a mock function for the type MockBlockRepository
 func (_mock *MockBlockRepository) IsBlocked(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx) (bool, error) {
 	var tmpRet mock.Arguments

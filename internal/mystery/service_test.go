@@ -64,7 +64,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	activity := sidebar.NewMockActivityBumper(t)
 	commentSvc := comment.NewMockService(t)
 	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc)
-	svc := NewService(repo, userRepo, followRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc, settingsSvc, uploadSvc, hub, contentfilter.New(), nil, activity).(*service)
+	svc := NewService(repo, userRepo, followRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc, settingsSvc, uploadSvc, hub, contentfilter.New(), activity).(*service)
 	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
 	fanout := make(chan uuid.UUID, 8)
 	followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Run(func(_ context.Context, userID uuid.UUID, _ ...*sql.Tx) {

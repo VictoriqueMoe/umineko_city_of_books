@@ -158,6 +158,8 @@ func (s *service) get(ctx context.Context, path string, params url.Values, ttl t
 	key := cache.GiphyResponse.Key(cacheKeyFor(path, params)).WithTTL(ttl)
 
 	if cached, err := s.cache.Get[Response](ctx, key); err == nil {
+		s.filterBannedGifs(&cached)
+
 		return &cached, nil
 	}
 
@@ -166,9 +168,11 @@ func (s *service) get(ctx context.Context, path string, params url.Values, ttl t
 		return nil, err
 	}
 
-	s.filterBannedGifs(&out)
+	if err := s.cache.Set(ctx, key, out); err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("path", path).Msg("failed to cache the giphy response")
+	}
 
-	_ = s.cache.Set(ctx, key, out)
+	s.filterBannedGifs(&out)
 
 	return &out, nil
 }

@@ -25,7 +25,6 @@ import (
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
-	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
@@ -71,7 +70,6 @@ type (
 		uploadSvc     upload.Service
 		settingsSvc   settings.Service
 		contentFilter *contentfilter.Manager
-		ogCache       *og.Resolver
 		echoCache     homefeed.Service
 		activity      sidebar.ActivityBumper
 	}
@@ -90,7 +88,6 @@ func NewService(
 	uploadSvc upload.Service,
 	settingsSvc settings.Service,
 	contentFilter *contentfilter.Manager,
-	ogCache *og.Resolver,
 	echoCache homefeed.Service,
 	activity sidebar.ActivityBumper,
 ) Service {
@@ -107,20 +104,13 @@ func NewService(
 		uploadSvc:     uploadSvc,
 		settingsSvc:   settingsSvc,
 		contentFilter: contentFilter,
-		ogCache:       ogCache,
 		echoCache:     echoCache,
 		activity:      activity,
 	}
 }
 
-func (s *service) clearPageCache(ctx context.Context, kind og.Kind, id string) {
-	if s.ogCache != nil {
-		if err := s.ogCache.ClearMetaCache(ctx, kind, id); err != nil {
-			logger.Ctx(ctx).Warn().Err(err).Str("id", id).Msg("clear og meta cache failed")
-		}
-	}
-
-	if kind != og.KindArt || s.echoCache == nil {
+func (s *service) clearEchoCache(ctx context.Context) {
+	if s.echoCache == nil {
 		return
 	}
 
@@ -308,6 +298,8 @@ func (s *service) UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 		return err
 	}
 
+	s.clearEchoCache(ctx)
+
 	if asAdmin {
 		go s.notifyArtEdited(ctx, id, userID)
 	}
@@ -358,7 +350,7 @@ func (s *service) DeleteArt(ctx context.Context, id uuid.UUID, userID uuid.UUID)
 
 	s.uploadSvc.Delete(paths...)
 
-	s.clearPageCache(ctx, og.KindArt, id.String())
+	s.clearEchoCache(ctx)
 
 	return nil
 }
@@ -567,7 +559,7 @@ func (s *service) DeleteGallery(ctx context.Context, id uuid.UUID, userID uuid.U
 		SubjectID:  gallery.UserID,
 	})
 
-	s.clearPageCache(ctx, og.KindGallery, id.String())
+	s.clearEchoCache(ctx)
 
 	return nil
 }

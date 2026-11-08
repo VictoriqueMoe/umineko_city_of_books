@@ -114,6 +114,60 @@ func TestBlockRepo_WritesInvalidateBothUsersBlockedIDs(t *testing.T) {
 	}
 }
 
+func TestBlockRepo_InvalidateBlockedIDs(t *testing.T) {
+	first := uuid.New()
+	second := uuid.New()
+	third := uuid.New()
+
+	tests := []struct {
+		name      string
+		userIDs   []uuid.UUID
+		wantCalls int
+		want      []string
+	}{
+		{
+			name:      "every listed user loses their cached list in one delete",
+			userIDs:   []uuid.UUID{first, second, third},
+			wantCalls: 1,
+			want: []string{
+				"DEL",
+				cache.UserBlockedIDs.Key(first.String()).String(),
+				cache.UserBlockedIDs.Key(second.String()).String(),
+				cache.UserBlockedIDs.Key(third.String()).String(),
+			},
+		},
+		{
+			name:      "no users means no cache call",
+			userIDs:   nil,
+			wantCalls: 0,
+			want:      nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repo, _, client := newCachedBlockRepo(t)
+
+			var commands []string
+			client.EXPECT().
+				Do(gomock.Any(), gomock.Any()).
+				DoAndReturn(func(ctx context.Context, cmd valkey.Completed) valkey.ValkeyResult {
+					commands = cmd.Commands()
+
+					return valkeymock.Result(valkeymock.ValkeyInt64(int64(len(tc.userIDs))))
+				}).
+				Times(tc.wantCalls)
+
+			// when
+			repo.InvalidateBlockedIDs(context.Background(), tc.userIDs...)
+
+			// then
+			assert.Equal(t, tc.want, commands)
+		})
+	}
+}
+
 func TestBlockRepo_FailedWriteKeepsTheCache(t *testing.T) {
 	// given
 	repo, blockDAO, client := newCachedBlockRepo(t)

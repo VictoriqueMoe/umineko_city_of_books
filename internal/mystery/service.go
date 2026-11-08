@@ -19,7 +19,6 @@ import (
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
-	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
@@ -75,7 +74,6 @@ type (
 		uploadSvc     upload.Service
 		hub           *ws.Hub
 		contentFilter *contentfilter.Manager
-		ogCache       *og.Resolver
 		activity      sidebar.ActivityBumper
 	}
 )
@@ -94,7 +92,6 @@ func NewService(
 	uploadSvc upload.Service,
 	hub *ws.Hub,
 	contentFilter *contentfilter.Manager,
-	ogCache *og.Resolver,
 	activity sidebar.ActivityBumper,
 ) Service {
 	return &service{
@@ -111,7 +108,6 @@ func NewService(
 		uploadSvc:     uploadSvc,
 		hub:           hub,
 		contentFilter: contentFilter,
-		ogCache:       ogCache,
 		activity:      activity,
 	}
 }
@@ -551,10 +547,6 @@ func (s *service) DeleteMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 
 	s.uploadSvc.Delete(paths...)
-
-	if err := s.ogCache.ClearMetaCache(ctx, og.KindMystery, id.String()); err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Str("mystery_id", id.String()).Msg("clear og meta cache failed")
-	}
 
 	return nil
 }

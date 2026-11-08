@@ -21,6 +21,7 @@ type (
 
 		CreateWithAudit(ctx context.Context, s spec.ChatBannedWordCreation, tx ...*sql.Tx) (*model.ChatBannedWordRow, error)
 		DeleteWithAudit(ctx context.Context, s spec.ChatBannedWordDeletion, tx ...*sql.Tx) error
+		InvalidateApplicable(ctx context.Context, roomID *uuid.UUID)
 	}
 
 	chatBannedWordRepository struct {
@@ -64,7 +65,7 @@ func (r *chatBannedWordRepository) Create(ctx context.Context, s spec.ChatBanned
 		return nil, err
 	}
 
-	r.forgetApplicable(ctx, created.RoomID)
+	r.InvalidateApplicable(ctx, created.RoomID)
 
 	return created, nil
 }
@@ -80,7 +81,7 @@ func (r *chatBannedWordRepository) Update(ctx context.Context, s spec.ChatBanned
 	}
 
 	if existing != nil {
-		r.forgetApplicable(ctx, existing.RoomID)
+		r.InvalidateApplicable(ctx, existing.RoomID)
 	}
 
 	return nil
@@ -97,13 +98,13 @@ func (r *chatBannedWordRepository) Delete(ctx context.Context, id uuid.UUID, tx 
 	}
 
 	if existing != nil {
-		r.forgetApplicable(ctx, existing.RoomID)
+		r.InvalidateApplicable(ctx, existing.RoomID)
 	}
 
 	return nil
 }
 
-func (r *chatBannedWordRepository) forgetApplicable(ctx context.Context, roomID *uuid.UUID) {
+func (r *chatBannedWordRepository) InvalidateApplicable(ctx context.Context, roomID *uuid.UUID) {
 	key := cache.ChatBannedWordsGlobal.Key()
 	if roomID != nil {
 		key = cache.ChatBannedWordsRoom.Key(roomID.String())
@@ -136,7 +137,7 @@ func (r *chatBannedWordRepository) CreateWithAudit(ctx context.Context, s spec.C
 		return nil, err
 	}
 
-	r.forgetApplicable(ctx, created.RoomID)
+	r.InvalidateApplicable(ctx, created.RoomID)
 
 	return created, nil
 }
@@ -159,7 +160,7 @@ func (r *chatBannedWordRepository) DeleteWithAudit(ctx context.Context, s spec.C
 	}
 
 	if existing != nil {
-		r.forgetApplicable(ctx, existing.RoomID)
+		r.InvalidateApplicable(ctx, existing.RoomID)
 	}
 
 	return nil

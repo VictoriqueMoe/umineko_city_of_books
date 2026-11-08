@@ -11,20 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const assignVanityRoleToUser = `-- name: AssignVanityRoleToUser :exec
-INSERT INTO user_vanity_roles (user_id, vanity_role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING
-`
-
-type AssignVanityRoleToUserParams struct {
-	UserID       uuid.UUID
-	VanityRoleID string
-}
-
-func (q *Queries) AssignVanityRoleToUser(ctx context.Context, arg AssignVanityRoleToUserParams) error {
-	_, err := q.db.ExecContext(ctx, assignVanityRoleToUser, arg.UserID, arg.VanityRoleID)
-	return err
-}
-
 const countVanityRoleUsers = `-- name: CountVanityRoleUsers :one
 SELECT COUNT(*)
 FROM user_vanity_roles uvr
@@ -75,33 +61,6 @@ DELETE FROM vanity_roles WHERE id = $1 AND is_system = FALSE
 func (q *Queries) DeleteVanityRole(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, deleteVanityRole, id)
 	return err
-}
-
-const getAllVanityRoleAssignments = `-- name: GetAllVanityRoleAssignments :many
-SELECT user_id, vanity_role_id FROM user_vanity_roles ORDER BY user_id
-`
-
-func (q *Queries) GetAllVanityRoleAssignments(ctx context.Context) ([]UserVanityRole, error) {
-	rows, err := q.db.QueryContext(ctx, getAllVanityRoleAssignments)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []UserVanityRole{}
-	for rows.Next() {
-		var i UserVanityRole
-		if err := rows.Scan(&i.UserID, &i.VanityRoleID); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const getVanityRoleByID = `-- name: GetVanityRoleByID :one
@@ -295,20 +254,6 @@ func (q *Queries) ListVanityRoles(ctx context.Context) ([]VanityRole, error) {
 		return nil, err
 	}
 	return items, nil
-}
-
-const unassignVanityRoleFromUser = `-- name: UnassignVanityRoleFromUser :exec
-DELETE FROM user_vanity_roles WHERE user_id = $1 AND vanity_role_id = $2
-`
-
-type UnassignVanityRoleFromUserParams struct {
-	UserID       uuid.UUID
-	VanityRoleID string
-}
-
-func (q *Queries) UnassignVanityRoleFromUser(ctx context.Context, arg UnassignVanityRoleFromUserParams) error {
-	_, err := q.db.ExecContext(ctx, unassignVanityRoleFromUser, arg.UserID, arg.VanityRoleID)
-	return err
 }
 
 const updateVanityRole = `-- name: UpdateVanityRole :exec

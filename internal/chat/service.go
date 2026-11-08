@@ -11,7 +11,6 @@ import (
 	"umineko_city_of_books/internal/livekit"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/notification"
-	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
@@ -142,7 +141,6 @@ func NewService(
 	hyperbeamSvc hyperbeam.Service,
 	livekitSvc livekit.Service,
 	contentFilter *contentfilter.Manager,
-	ogCache *og.Resolver,
 	activity sidebar.ActivityBumper,
 ) Service {
 	c := &core{
@@ -164,7 +162,6 @@ func NewService(
 		livekitSvc:      livekitSvc,
 		contentFilter:   contentFilter,
 		bannedWordsRule: contentfilter.NewChatBannedWordsRule(bannedWordRepo),
-		ogCache:         ogCache,
 		activity:        activity,
 	}
 

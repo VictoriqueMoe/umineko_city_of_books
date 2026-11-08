@@ -12,7 +12,10 @@ import (
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/cache/engine"
 	"umineko_city_of_books/internal/cache/engines"
+	"umineko_city_of_books/internal/giphy/banlist"
 	"umineko_city_of_books/internal/httpclient"
+	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -189,6 +192,35 @@ func TestService_Search_CachesResultsPerQuery(t *testing.T) {
 	_, err = s.Search(context.Background(), "cats", 25, 24)
 	require.NoError(t, err)
 	assert.Equal(t, 3, calls, "different offset should miss cache")
+}
+
+func TestService_Search_ABanAddedAfterCachingStillFiltersTheCachedResponse(t *testing.T) {
+	// given a search cached before one of its gifs was banned
+	var calls int
+	s := newTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		_, _ = w.Write([]byte(`{"data":[{"id":"keep"},{"id":"banned"}]}`))
+	})
+	bannedRepo := repository.NewMockBannedGiphyRepository(t)
+	bannedRepo.EXPECT().List(mock.Anything).Return(nil, nil).Once()
+	bannedRepo.EXPECT().Add(mock.Anything, spec.NewBannedGiphy{Kind: "gif", Value: "banned"}).Return(nil).Once()
+	banlistSvc, err := banlist.NewService(context.Background(), bannedRepo)
+	require.NoError(t, err)
+	s.banlist = banlistSvc
+
+	first, err := s.Search(context.Background(), "cats", 0, 24)
+	require.NoError(t, err)
+	require.Len(t, first.Data, 2)
+
+	// when the gif is banned and the same search is served from the cache
+	require.NoError(t, banlistSvc.Add(context.Background(), banlist.KindGif, "banned", "", nil))
+	second, err := s.Search(context.Background(), "cats", 0, 24)
+
+	// then the ban applies at once, without waiting for the cached response to expire
+	require.NoError(t, err)
+	assert.Equal(t, 1, calls)
+	require.Len(t, second.Data, 1)
+	assert.Equal(t, "keep", second.Data[0].ID)
 }
 
 func TestService_Trending_CachesAcrossCalls(t *testing.T) {

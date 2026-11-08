@@ -21,7 +21,6 @@ import (
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
-	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
@@ -69,7 +68,6 @@ type (
 		credsMu     sync.Mutex
 		bitrateMu   sync.Mutex
 		bitrates    map[uuid.UUID]int
-		ogCache     *og.Resolver
 		viewers     *coalesce.Keyed[uuid.UUID, int]
 	}
 )
@@ -114,7 +112,6 @@ func NewService(
 	uploadSvc upload.Service,
 	notifSvc notification.Service,
 	hub *ws.Hub,
-	ogCache *og.Resolver,
 	cacheMgr *cache.Manager,
 ) Service {
 	s := &service{
@@ -128,7 +125,6 @@ func NewService(
 		hub:         hub,
 		cache:       cacheMgr,
 		bitrates:    make(map[uuid.UUID]int),
-		ogCache:     ogCache,
 	}
 	s.viewers = coalesce.NewKeyed(defaultViewerFlushInterval, coalesce.Sum[int], s.writeViewers)
 
@@ -604,8 +600,6 @@ func (s *service) StopStream(ctx context.Context, userID, streamID uuid.UUID) er
 
 	s.teardown(ctx, stream)
 
-	s.clearStreamMeta(ctx, stream)
-
 	return nil
 }
 
@@ -636,8 +630,6 @@ func (s *service) UpdateTitle(ctx context.Context, userID, streamID uuid.UUID, t
 	}
 
 	stream.Title = title
-
-	s.clearStreamMeta(ctx, stream)
 
 	s.hub.BroadcastPublic(ws.Message{
 		Type: wsStreamTitle,
@@ -914,18 +906,10 @@ func (s *service) broadcastLive(ctx context.Context, id uuid.UUID) {
 		return
 	}
 
-	s.clearStreamMeta(ctx, stream)
-
 	s.hub.BroadcastPublic(ws.Message{
 		Type: wsStreamLive,
 		Data: toPublic(stream),
 	})
-}
-
-func (s *service) clearStreamMeta(ctx context.Context, stream *model.LiveStreamRow) {
-	if err := s.ogCache.ClearMetaCache(ctx, og.KindLiveStream, stream.Username); err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Str("username", stream.Username).Msg("clear og meta cache failed")
-	}
 }
 
 func toPublic(row *model.LiveStreamRow) dto.LiveStreamResponse {

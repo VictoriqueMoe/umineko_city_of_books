@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"umineko_city_of_books/internal/audit"
@@ -319,10 +320,17 @@ func (s *moderationService) ListRoomBannedWords(ctx context.Context, actorID, ro
 		return nil, err
 	}
 
-	rows, err := s.bannedWordRepo.ListApplicable(ctx, roomID)
+	global, err := s.bannedWordRepo.ListGlobal(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	room, err := s.bannedWordRepo.ListForRoom(ctx, roomID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows := slices.Concat(global, room)
 	out := make([]dto.BannedWordRuleResponse, len(rows))
 	for i, r := range rows {
 		out[i] = bannedWordRowToResponse(r)

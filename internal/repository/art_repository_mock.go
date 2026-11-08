@@ -1955,6 +1955,46 @@ func (_c *MockArtRepository_InsertTags_Call) RunAndReturn(run func(ctx context.C
 	return _c
 }
 
+// InvalidateCornerCounts provides a mock function for the type MockArtRepository
+func (_mock *MockArtRepository) InvalidateCornerCounts(ctx context.Context) {
+	_mock.Called(ctx)
+	return
+}
+
+// MockArtRepository_InvalidateCornerCounts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InvalidateCornerCounts'
+type MockArtRepository_InvalidateCornerCounts_Call struct {
+	*mock.Call
+}
+
+// InvalidateCornerCounts is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockArtRepository_Expecter) InvalidateCornerCounts(ctx any) *MockArtRepository_InvalidateCornerCounts_Call {
+	return &MockArtRepository_InvalidateCornerCounts_Call{Call: _e.mock.On("InvalidateCornerCounts", ctx)}
+}
+
+func (_c *MockArtRepository_InvalidateCornerCounts_Call) Run(run func(ctx context.Context)) *MockArtRepository_InvalidateCornerCounts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockArtRepository_InvalidateCornerCounts_Call) Return() *MockArtRepository_InvalidateCornerCounts_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockArtRepository_InvalidateCornerCounts_Call) RunAndReturn(run func(ctx context.Context)) *MockArtRepository_InvalidateCornerCounts_Call {
+	_c.Run(run)
+	return _c
+}
+
 // Like provides a mock function for the type MockArtRepository
 func (_mock *MockArtRepository) Like(ctx context.Context, s spec.Like, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments

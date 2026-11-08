@@ -3,6 +3,7 @@ package engines
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -35,13 +36,15 @@ type (
 		limiterErr error
 		url        string
 
+		purgePrefixes []string
+
 		healthy atomic.Bool
 		downAt  atomic.Int64
 	}
 )
 
-func NewValkey() *Valkey {
-	v := new(Valkey)
+func NewValkey(purgePrefixes ...string) *Valkey {
+	v := &Valkey{purgePrefixes: purgePrefixes}
 	observability.RegisterStats(v.Client)
 
 	return v
@@ -101,7 +104,75 @@ func (v *Valkey) Enabled() bool {
 		return false
 	}
 
-	return v.downAt.CompareAndSwap(downAt, time.Now().UnixNano())
+	if !v.downAt.CompareAndSwap(downAt, time.Now().UnixNano()) {
+		return false
+	}
+
+	return v.recover()
+}
+
+func (v *Valkey) recover() bool {
+	client := v.current()
+	if client == nil {
+		return false
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
+	defer cancel()
+
+	if err := client.Do(ctx, client.B().Ping().Build()).Error(); err != nil {
+		return false
+	}
+
+	if err := v.purge(context.Background(), client); err != nil {
+		logger.Log.Warn().Err(err).Msg("valkey cache purge failed, staying on the next engine")
+
+		return false
+	}
+
+	v.healthy.Store(true)
+	logger.Log.Info().Msg("valkey cache recovered")
+
+	return true
+}
+
+func (v *Valkey) purge(ctx context.Context, client valkey.Client) error {
+	if len(v.purgePrefixes) == 0 {
+		return nil
+	}
+
+	purged := 0
+	var cursor uint64
+	for {
+		entry, err := client.Do(ctx, client.B().Scan().Cursor(cursor).Build()).AsScanEntry()
+		if err != nil {
+			return fmt.Errorf("cache: scan for purge: %w", err)
+		}
+
+		var doomed []string
+		for _, key := range entry.Elements {
+			if slices.ContainsFunc(v.purgePrefixes, func(prefix string) bool { return strings.HasPrefix(key, prefix) }) {
+				doomed = append(doomed, key)
+			}
+		}
+
+		if len(doomed) > 0 {
+			if err := client.Do(ctx, client.B().Del().Key(doomed...).Build()).Error(); err != nil {
+				return fmt.Errorf("cache: purge: %w", err)
+			}
+
+			purged += len(doomed)
+		}
+
+		cursor = entry.Cursor
+		if cursor == 0 {
+			break
+		}
+	}
+
+	logger.Log.Info().Int("keys", purged).Msg("valkey cache purged write-invalidated keys")
+
+	return nil
 }
 
 func (v *Valkey) observe(err error) error {
@@ -135,6 +206,10 @@ func (v *Valkey) Reconfigure(rawURL string) error {
 	err = client.Do(ctx, client.B().Ping().Build()).Error()
 	if err != nil {
 		return fmt.Errorf("cache: ping failed: %w", err)
+	}
+
+	if err := v.purge(context.Background(), client); err != nil {
+		return err
 	}
 
 	v.healthy.Store(true)
@@ -303,6 +378,8 @@ func (v *Valkey) swapClient(rawURL string) (valkey.Client, error) {
 
 	client = valkeyhook.WithHook(client, observability.NewHook())
 
+	v.healthy.Store(false)
+	v.downAt.Store(time.Now().UnixNano())
 	v.bind(client)
 	if v.limiterErr != nil {
 		err := v.limiterErr

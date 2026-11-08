@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -38,7 +37,7 @@ func TestClaimMediaRows(t *testing.T) {
 	tests := []struct {
 		name    string
 		uploads []spec.UploadRef
-		expect  func(pending *dao.MockPendingUploadDAO, tx *sql.Tx)
+		expect  func(pending *MockPendingUploadRepository, tx *sql.Tx)
 		want    []spec.NewMedia
 		wantErr error
 	}{
@@ -53,7 +52,7 @@ func TestClaimMediaRows(t *testing.T) {
 		{
 			name:    "an upload that is missing, still processing or expired fails the whole claim",
 			uploads: uploads,
-			expect: func(pending *dao.MockPendingUploadDAO, tx *sql.Tx) {
+			expect: func(pending *MockPendingUploadRepository, tx *sql.Tx) {
 				pending.EXPECT().Claim(mock.Anything, claimOf(userID, []uuid.UUID{first, second}, mediaTypes, time.Hour), []*sql.Tx{tx}).
 					Return([]model.PendingUploadRow{{ID: first, MediaURL: "/uploads/media/a.webp", MediaType: "image"}}, nil).Once()
 			},
@@ -62,7 +61,7 @@ func TestClaimMediaRows(t *testing.T) {
 		{
 			name:    "claimed uploads become media rows in the order they were attached, with their spoiler flags",
 			uploads: uploads,
-			expect: func(pending *dao.MockPendingUploadDAO, tx *sql.Tx) {
+			expect: func(pending *MockPendingUploadRepository, tx *sql.Tx) {
 				pending.EXPECT().Claim(mock.Anything, claimOf(userID, []uuid.UUID{first, second}, mediaTypes, time.Hour), []*sql.Tx{tx}).
 					Return([]model.PendingUploadRow{
 						{ID: second, MediaURL: "/uploads/media/b.mp4", ThumbnailURL: "/uploads/media/thumb_b.webp", MediaType: "video", Filename: "b.mp4"},
@@ -78,8 +77,8 @@ func TestClaimMediaRows(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// given a strict pending upload DAO
-			pending := dao.NewMockPendingUploadDAO(t)
+			// given a strict pending upload repository
+			pending := NewMockPendingUploadRepository(t)
 			tx := new(sql.Tx)
 			if tc.expect != nil {
 				tc.expect(pending, tx)

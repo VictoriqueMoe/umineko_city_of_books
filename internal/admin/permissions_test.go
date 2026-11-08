@@ -343,7 +343,7 @@ func TestAssignVanityRole_PermissionCarryingRoleObeysRankGate(t *testing.T) {
 			m.authz.EXPECT().GetRole(mock.Anything, target).Return(role.Role(tc.targetRole), nil)
 
 			if tc.wantErr == nil {
-				m.vanityRepo.EXPECT().AssignToUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(nil)
+				m.permRepo.EXPECT().AssignVanityRoleToUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(nil)
 				m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 					ActorID:    actor,
 					Action:     audit.ActionAssignVanityRole,
@@ -364,7 +364,6 @@ func TestAssignVanityRole_PermissionCarryingRoleObeysRankGate(t *testing.T) {
 			}
 
 			require.ErrorIs(t, err, tc.wantErr)
-			m.vanityRepo.AssertNotCalled(t, "AssignToUser", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -376,7 +375,7 @@ func TestAssignVanityRole_DecorativeRoleSkipsRankGate(t *testing.T) {
 	target := uuid.New()
 	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1"}, nil)
 	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(map[string][]string{}, nil)
-	m.vanityRepo.EXPECT().AssignToUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(nil)
+	m.permRepo.EXPECT().AssignVanityRoleToUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    actor,
 		Action:     audit.ActionAssignVanityRole,

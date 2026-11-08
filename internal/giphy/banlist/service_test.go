@@ -72,14 +72,27 @@ func TestAdd_Gif_UpdatesDBAndCache(t *testing.T) {
 func TestAdd_User_NormalisesCase(t *testing.T) {
 	// given
 	svc, repo := newTestService(t, nil)
-	repo.EXPECT().Add(mock.Anything, spec.NewBannedGiphy{Kind: "user", Value: "Larperine"}).Return(nil)
+	repo.EXPECT().Add(mock.Anything, spec.NewBannedGiphy{Kind: "user", Value: "larperine"}).Return(nil)
 
 	// when
-	err := svc.Add(context.Background(), KindUser, "Larperine", "", nil)
+	err := svc.Add(context.Background(), KindUser, " Larperine ", "", nil)
 
-	// then
+	// then the stored row and the in-memory copy hold the same value, so one ban can never become two rows
 	require.NoError(t, err)
 	assert.True(t, svc.ContainsUser("larperine"))
+}
+
+func TestRemove_User_DeletesTheSameValueTheCopyHolds(t *testing.T) {
+	// given a banned user
+	svc, repo := newTestService(t, []model.BannedGiphyRow{{Kind: "user", Value: "larperine"}})
+	repo.EXPECT().Remove(mock.Anything, spec.BannedGiphyDeletion{Kind: "user", Value: "larperine"}).Return(nil)
+
+	// when the ban is removed with a different spelling
+	err := svc.Remove(context.Background(), KindUser, "Larperine ")
+
+	// then the database row and the in-memory entry are removed together
+	require.NoError(t, err)
+	assert.False(t, svc.ContainsUser("larperine"))
 }
 
 func TestAdd_InvalidKind(t *testing.T) {

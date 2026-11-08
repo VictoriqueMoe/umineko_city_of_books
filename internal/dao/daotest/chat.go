@@ -58,7 +58,7 @@ func CreateChatRoom(t *testing.T, repos *repository.Repositories, ownerID uuid.U
 	require.NoError(t, err)
 
 	for _, userID := range o.members {
-		require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: room.ID, UserID: userID}))
+		require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: room.ID, UserID: userID, Role: "member", Ghost: false}))
 	}
 
 	return room.ID

@@ -14,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
@@ -62,7 +63,7 @@ func newTestService(t *testing.T) (
 	authSvc := auth.NewMockService(t)
 	userSvc := userpkg.NewMockService(t)
 	userSvc.EXPECT().IsChatbotOptedIn(mock.Anything, mock.Anything).Return(false, nil).Maybe()
-	svc := NewService(userRepo, userSecretRepo, theoryRepo, auditRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New(), contentfilter.New(), nil, authSvc, nil, userSvc).(*service)
+	svc := NewService(userRepo, userSecretRepo, theoryRepo, auditRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New(), contentfilter.New(), nil, authSvc, nil, userSvc, nil).(*service)
 	return svc, userRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc
 }
 
@@ -276,11 +277,14 @@ func TestUpdateProfile_OK(t *testing.T) {
 	expected.DefaultProfileTab = "posts"
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil)
 	userRepo.EXPECT().UpdateProfile(mock.Anything, spec.UserProfileUpdate{UserID: userID, Profile: expected}).Return(nil)
+	echoes := homefeed.NewMockService(t)
+	svc.echoCache = echoes
+	echoes.EXPECT().ClearEchoCache(mock.Anything).Return(nil).Once()
 
 	// when
 	err := svc.UpdateProfile(context.Background(), userID, req)
 
-	// then
+	// then a renamed member or an echoes opt-out is reflected in the cached echoes at once
 	require.NoError(t, err)
 }
 

@@ -378,6 +378,52 @@ func (_c *MockRoleRepository_HasRole_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// InvalidateRole provides a mock function for the type MockRoleRepository
+func (_mock *MockRoleRepository) InvalidateRole(ctx context.Context, userID uuid.UUID) {
+	_mock.Called(ctx, userID)
+	return
+}
+
+// MockRoleRepository_InvalidateRole_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InvalidateRole'
+type MockRoleRepository_InvalidateRole_Call struct {
+	*mock.Call
+}
+
+// InvalidateRole is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockRoleRepository_Expecter) InvalidateRole(ctx any, userID any) *MockRoleRepository_InvalidateRole_Call {
+	return &MockRoleRepository_InvalidateRole_Call{Call: _e.mock.On("InvalidateRole", ctx, userID)}
+}
+
+func (_c *MockRoleRepository_InvalidateRole_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockRoleRepository_InvalidateRole_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRoleRepository_InvalidateRole_Call) Return() *MockRoleRepository_InvalidateRole_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockRoleRepository_InvalidateRole_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID)) *MockRoleRepository_InvalidateRole_Call {
+	_c.Run(run)
+	return _c
+}
+
 // RemoveRole provides a mock function for the type MockRoleRepository
 func (_mock *MockRoleRepository) RemoveRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments

@@ -81,6 +81,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		chatSync,
 		emailSvc,
 		authSvc,
+		nil,
 	).(*service)
 
 	return svc, &testMocks{

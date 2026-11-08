@@ -44,14 +44,15 @@ type (
 		repo       repository.UserRepository
 		roleRepo   repository.RoleRepository
 		vanityRepo repository.VanityRoleRepository
+		permRepo   repository.PermissionRepository
 		auditRepo  repository.AuditLogRepository
 		authz      authz.Service
 		settings   settings.Service
 	}
 )
 
-func NewService(repo repository.UserRepository, roleRepo repository.RoleRepository, vanityRepo repository.VanityRoleRepository, auditRepo repository.AuditLogRepository, authzService authz.Service, settingsSvc settings.Service) Service {
-	return &service{repo: repo, roleRepo: roleRepo, vanityRepo: vanityRepo, auditRepo: auditRepo, authz: authzService, settings: settingsSvc}
+func NewService(repo repository.UserRepository, roleRepo repository.RoleRepository, vanityRepo repository.VanityRoleRepository, permRepo repository.PermissionRepository, auditRepo repository.AuditLogRepository, authzService authz.Service, settingsSvc settings.Service) Service {
+	return &service{repo: repo, roleRepo: roleRepo, vanityRepo: vanityRepo, permRepo: permRepo, auditRepo: auditRepo, authz: authzService, settings: settingsSvc}
 }
 
 func (s *service) audit(ctx context.Context, entry audit.NewEntry) {
@@ -214,7 +215,7 @@ func (s *service) SetChatbotOptIn(ctx context.Context, id uuid.UUID, optIn bool)
 	}
 
 	if !optIn {
-		if err := s.vanityRepo.UnassignFromUser(ctx, spec.VanityRoleAssignment{UserID: id, RoleID: roleID}); err != nil {
+		if err := s.permRepo.UnassignVanityRoleFromUser(ctx, spec.VanityRoleAssignment{UserID: id, RoleID: roleID}); err != nil {
 			return fmt.Errorf("revoke chatbot opt-in role: %w", err)
 		}
 
@@ -240,7 +241,7 @@ func (s *service) SetChatbotOptIn(ctx context.Context, id uuid.UUID, optIn bool)
 		return err
 	}
 
-	if err := s.vanityRepo.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: id, RoleID: roleID}); err != nil {
+	if err := s.permRepo.AssignVanityRoleToUser(ctx, spec.VanityRoleAssignment{UserID: id, RoleID: roleID}); err != nil {
 		return fmt.Errorf("grant chatbot opt-in role: %w", err)
 	}
 

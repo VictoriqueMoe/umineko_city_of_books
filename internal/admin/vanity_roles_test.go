@@ -322,7 +322,7 @@ func TestAssignVanityRole_OK(t *testing.T) {
 	target := uuid.New()
 	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1"}, nil)
 	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(nil, nil)
-	m.vanityRepo.EXPECT().AssignToUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(nil)
+	m.permRepo.EXPECT().AssignVanityRoleToUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionAssignVanityRole, TargetType: audit.TargetVanityRole, TargetID: "r1", Details: "", SubjectID: target}).Return(nil)
 
 	// when
@@ -374,7 +374,7 @@ func TestAssignVanityRole_AssignError(t *testing.T) {
 	target := uuid.New()
 	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1"}, nil)
 	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(nil, nil)
-	m.vanityRepo.EXPECT().AssignToUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(errors.New("boom"))
+	m.permRepo.EXPECT().AssignVanityRoleToUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(errors.New("boom"))
 
 	// when
 	err := svc.AssignVanityRole(context.Background(), uuid.New(), "r1", target)
@@ -390,7 +390,7 @@ func TestUnassignVanityRole_OK(t *testing.T) {
 	target := uuid.New()
 	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1"}, nil)
 	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(nil, nil)
-	m.vanityRepo.EXPECT().UnassignFromUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(nil)
+	m.permRepo.EXPECT().UnassignVanityRoleFromUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionUnassignVanityRole, TargetType: audit.TargetVanityRole, TargetID: "r1", Details: "", SubjectID: target}).Return(nil)
 
 	// when
@@ -442,7 +442,7 @@ func TestUnassignVanityRole_UnassignError(t *testing.T) {
 	target := uuid.New()
 	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1"}, nil)
 	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(nil, nil)
-	m.vanityRepo.EXPECT().UnassignFromUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(errors.New("boom"))
+	m.permRepo.EXPECT().UnassignVanityRoleFromUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UnassignVanityRole(context.Background(), uuid.New(), "r1", target)

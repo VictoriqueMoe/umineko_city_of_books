@@ -10,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
@@ -501,6 +502,22 @@ func TestSetUserDisplayName_ClampsAndAudits(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestSetUserDisplayName_RejectsABotSoTheChatbotSnapshotNeverGoesStale(t *testing.T) {
+	// given a bot account, which is renamed only through the chatbot admin that reloads its snapshot
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	target := uuid.New()
+	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleAdmin, nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target, IsBot: true}, nil)
+
+	// when
+	err := svc.SetUserDisplayName(context.Background(), actor, target, "Renamed Witch")
+
+	// then
+	assert.ErrorIs(t, err, ErrBotAccountProtected)
+}
+
 func TestSetUserDisplayName_RejectsEmpty(t *testing.T) {
 	// given
 	tests := []struct {
@@ -638,11 +655,14 @@ func TestBanUser_OK(t *testing.T) {
 	m.userRepo.EXPECT().BanUser(mock.Anything, spec.UserBan{UserID: target, BannedBy: actor, Reason: "reason"}).Return(nil)
 	m.sessionRepo.EXPECT().DeleteAllForUser(mock.Anything, target).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionBanUser, TargetType: audit.TargetUser, TargetID: target.String(), Details: "reason", SubjectID: target}).Return(nil)
+	echoes := homefeed.NewMockService(t)
+	svc.echoCache = echoes
+	echoes.EXPECT().ClearEchoCache(mock.Anything).Return(nil).Once()
 
 	// when
 	err := svc.BanUser(context.Background(), actor, target, "reason")
 
-	// then
+	// then the banned member's posts leave the cached echoes
 	require.NoError(t, err)
 }
 

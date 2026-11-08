@@ -2,99 +2,118 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
-	"umineko_city_of_books/internal/cache"
-	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	valkeymock "github.com/valkey-io/valkey-go/mock"
-	"go.uber.org/mock/gomock"
 )
 
-func newCachedChatbotRepo(t *testing.T) (ChatbotRepository, *dao.MockChatbotDAO, *valkeymock.Client) {
+type (
+	chatbotRepoMocks struct {
+		chatbots    *dao.MockChatbotDAO
+		users       *MockUserRepository
+		permissions *MockPermissionRepository
+		basePrompts *MockChatbotBasePromptRepository
+	}
+)
+
+func newChatbotRepo(t *testing.T) (ChatbotRepository, chatbotRepoMocks) {
 	t.Helper()
 
-	client := valkeymock.NewClient(gomock.NewController(t))
-	chatbotDAO := dao.NewMockChatbotDAO(t)
-	basePrompts := NewMockBasePromptInvalidator(t)
-	basePrompts.EXPECT().InvalidateList(mock.Anything).Return().Maybe()
-
-	return NewChatbotRepo(nil, chatbotDAO, nil, nil, basePrompts, cache.NewManager(engines.NewValkeyWithClient(client))), chatbotDAO, client
-}
-
-func TestDeleteBot_InvalidatesBotUserKeys(t *testing.T) {
-	botID, botUserID, otherID := uuid.New(), uuid.New(), uuid.New()
-
-	tests := []struct {
-		name     string
-		bots     []model.Chatbot
-		listErr  error
-		expected []string
-	}{
-		{
-			name:    "bot user resolved",
-			bots:    []model.Chatbot{{ID: otherID, UserID: uuid.New()}, {ID: botID, UserID: botUserID}},
-			listErr: nil,
-			expected: []string{
-				"DEL",
-				cache.VanityAssignments.Key().String(),
-				cache.UserRole.Key(botUserID.String()).String(),
-				cache.UserVanityRoleIDs.Key(botUserID.String()).String(),
-			},
-		},
-		{
-			name:     "lookup fails so only the site wide key is busted",
-			bots:     nil,
-			listErr:  errors.New("db down"),
-			expected: []string{"DEL", cache.VanityAssignments.Key().String()},
-		},
-		{
-			name:     "bot missing from listing so only the site wide key is busted",
-			bots:     []model.Chatbot{{ID: otherID, UserID: uuid.New()}},
-			listErr:  nil,
-			expected: []string{"DEL", cache.VanityAssignments.Key().String()},
-		},
+	m := chatbotRepoMocks{
+		chatbots:    dao.NewMockChatbotDAO(t),
+		users:       NewMockUserRepository(t),
+		permissions: NewMockPermissionRepository(t),
+		basePrompts: NewMockChatbotBasePromptRepository(t),
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			repo, chatbotDAO, client := newCachedChatbotRepo(t)
-			chatbotDAO.EXPECT().ListBots(mock.Anything).Return(tc.bots, tc.listErr)
-			chatbotDAO.EXPECT().DeleteBot(mock.Anything, botID).Return(nil)
-
-			var commands []string
-			captureDel(client, &commands)
-
-			// when
-			err := repo.DeleteBot(context.Background(), botID)
-
-			// then
-			require.NoError(t, err)
-			assert.Equal(t, tc.expected, commands)
-		})
-	}
+	return NewChatbotRepo(nil, m.chatbots, m.users, m.permissions, m.basePrompts), m
 }
 
-func TestDeleteBot_DaoErrorSkipsInvalidation(t *testing.T) {
+func TestChatbotRepository_DeleteBotDeletesItsAccountThroughTheUserRepository(t *testing.T) {
+	// given a bot whose account deletion cascades its chatbot row
+	repo, m := newChatbotRepo(t)
+	botID, botUserID, promptID := uuid.New(), uuid.New(), uuid.New()
+	m.chatbots.EXPECT().GetBot(mock.Anything, botID).Return(&model.Chatbot{ID: botID, UserID: botUserID, BasePromptID: &promptID}, nil).Once()
+	m.users.EXPECT().AdminDeleteAccount(mock.Anything, botUserID).Return(nil).Once()
+	m.basePrompts.EXPECT().Invalidate(mock.Anything, []uuid.UUID{promptID}).Once()
+
+	// when
+	err := repo.DeleteBot(context.Background(), botID)
+
+	// then the user repository runs every user-delete invalidation, and the prompt's bot count is refreshed
+	require.NoError(t, err)
+}
+
+func TestChatbotRepository_DeleteBotRejectsAnUnknownBot(t *testing.T) {
 	// given
-	repo, chatbotDAO, client := newCachedChatbotRepo(t)
+	repo, m := newChatbotRepo(t)
 	botID := uuid.New()
-	chatbotDAO.EXPECT().ListBots(mock.Anything).Return(nil, nil)
-	chatbotDAO.EXPECT().DeleteBot(mock.Anything, botID).Return(daoerr.ErrBotNotFound)
-	client.EXPECT().Do(gomock.Any(), gomock.Any()).Times(0)
+	m.chatbots.EXPECT().GetBot(mock.Anything, botID).Return(nil, nil).Once()
+
+	// when
+	err := repo.DeleteBot(context.Background(), botID)
+
+	// then no account is touched
+	require.ErrorIs(t, err, daoerr.ErrBotNotFound)
+}
+
+func TestChatbotRepository_FailedAccountDeleteKeepsThePromptCache(t *testing.T) {
+	// given
+	repo, m := newChatbotRepo(t)
+	botID, botUserID := uuid.New(), uuid.New()
+	deleteErr := errors.New("db down")
+	m.chatbots.EXPECT().GetBot(mock.Anything, botID).Return(&model.Chatbot{ID: botID, UserID: botUserID}, nil).Once()
+	m.users.EXPECT().AdminDeleteAccount(mock.Anything, botUserID).Return(deleteErr).Once()
 
 	// when
 	err := repo.DeleteBot(context.Background(), botID)
 
 	// then
-	require.ErrorIs(t, err, daoerr.ErrBotNotFound)
+	require.ErrorIs(t, err, deleteErr)
+}
+
+func TestChatbotRepository_CreateBotWithAccountRefreshesTheBadgeCacheAfterCommit(t *testing.T) {
+	// given a bot created inside a caller's transaction
+	repo, m := newChatbotRepo(t)
+	tx := new(sql.Tx)
+	botUserID, promptID := uuid.New(), uuid.New()
+	s := spec.NewChatbotWithAccount{Account: spec.NewUser{Username: "bot"}, Bot: model.Chatbot{BasePromptID: &promptID}, VanityRoleID: "bot-badge"}
+	m.users.EXPECT().Create(mock.Anything, s.Account, []*sql.Tx{tx}).Return(&model.User{ID: botUserID}, nil).Once()
+	m.permissions.EXPECT().AssignVanityRoleToUser(mock.Anything, spec.VanityRoleAssignment{UserID: botUserID, RoleID: "bot-badge"}, []*sql.Tx{tx}).Return(nil).Once()
+	m.chatbots.EXPECT().CreateBot(mock.Anything, model.Chatbot{UserID: botUserID, BasePromptID: &promptID}, []*sql.Tx{tx}).Return(&model.Chatbot{UserID: botUserID, BasePromptID: &promptID}, nil).Once()
+	m.permissions.EXPECT().InvalidateVanityAssignments(mock.Anything, []string{botUserID.String()}).Once()
+	m.basePrompts.EXPECT().Invalidate(mock.Anything, []uuid.UUID{promptID}).Once()
+
+	// when
+	created, err := repo.CreateBotWithAccount(context.Background(), s, tx)
+
+	// then a read cached between the in-transaction assign and the commit is dropped again
+	require.NoError(t, err)
+	assert.Equal(t, botUserID, created.UserID)
+}
+
+func TestChatbotRepository_UpdateBotRefreshesTheOldAndNewPromptCounts(t *testing.T) {
+	// given a bot moving from one base prompt to another
+	repo, m := newChatbotRepo(t)
+	botID, oldPrompt, newPrompt := uuid.New(), uuid.New(), uuid.New()
+	bot := model.Chatbot{ID: botID, BasePromptID: &newPrompt}
+	m.chatbots.EXPECT().GetBot(mock.Anything, botID).Return(&model.Chatbot{ID: botID, BasePromptID: &oldPrompt}, nil).Once()
+	m.chatbots.EXPECT().UpdateBot(mock.Anything, bot).Return(&bot, nil).Once()
+	m.basePrompts.EXPECT().Invalidate(mock.Anything, []uuid.UUID{oldPrompt, newPrompt}).Once()
+
+	// when
+	_, err := repo.UpdateBot(context.Background(), bot)
+
+	// then
+	require.NoError(t, err)
 }

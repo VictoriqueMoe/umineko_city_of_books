@@ -49,6 +49,155 @@ func (_m *MockPermissionDAO) EXPECT() *MockPermissionDAO_Expecter {
 	return &MockPermissionDAO_Expecter{mock: &_m.Mock}
 }
 
+// AssignVanityRoleToUser provides a mock function for the type MockPermissionDAO
+func (_mock *MockPermissionDAO) AssignVanityRoleToUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for AssignVanityRoleToUser")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.VanityRoleAssignment, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockPermissionDAO_AssignVanityRoleToUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AssignVanityRoleToUser'
+type MockPermissionDAO_AssignVanityRoleToUser_Call struct {
+	*mock.Call
+}
+
+// AssignVanityRoleToUser is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.VanityRoleAssignment
+//   - tx ...*sql.Tx
+func (_e *MockPermissionDAO_Expecter) AssignVanityRoleToUser(ctx any, s any, tx ...any) *MockPermissionDAO_AssignVanityRoleToUser_Call {
+	return &MockPermissionDAO_AssignVanityRoleToUser_Call{Call: _e.mock.On("AssignVanityRoleToUser",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockPermissionDAO_AssignVanityRoleToUser_Call) Run(run func(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx)) *MockPermissionDAO_AssignVanityRoleToUser_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.VanityRoleAssignment
+		if args[1] != nil {
+			arg1 = args[1].(spec.VanityRoleAssignment)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPermissionDAO_AssignVanityRoleToUser_Call) Return(err error) *MockPermissionDAO_AssignVanityRoleToUser_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockPermissionDAO_AssignVanityRoleToUser_Call) RunAndReturn(run func(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error) *MockPermissionDAO_AssignVanityRoleToUser_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAllVanityRoleAssignments provides a mock function for the type MockPermissionDAO
+func (_mock *MockPermissionDAO) GetAllVanityRoleAssignments(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAllVanityRoleAssignments")
+	}
+
+	var r0 map[string][]string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (map[string][]string, error)); ok {
+		return returnFunc(ctx, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) map[string][]string); ok {
+		r0 = returnFunc(ctx, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string][]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockPermissionDAO_GetAllVanityRoleAssignments_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllVanityRoleAssignments'
+type MockPermissionDAO_GetAllVanityRoleAssignments_Call struct {
+	*mock.Call
+}
+
+// GetAllVanityRoleAssignments is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx ...*sql.Tx
+func (_e *MockPermissionDAO_Expecter) GetAllVanityRoleAssignments(ctx any, tx ...any) *MockPermissionDAO_GetAllVanityRoleAssignments_Call {
+	return &MockPermissionDAO_GetAllVanityRoleAssignments_Call{Call: _e.mock.On("GetAllVanityRoleAssignments",
+		append([]any{ctx}, tx...)...)}
+}
+
+func (_c *MockPermissionDAO_GetAllVanityRoleAssignments_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockPermissionDAO_GetAllVanityRoleAssignments_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
+		run(
+			arg0,
+			arg1...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPermissionDAO_GetAllVanityRoleAssignments_Call) Return(stringToStrings map[string][]string, err error) *MockPermissionDAO_GetAllVanityRoleAssignments_Call {
+	_c.Call.Return(stringToStrings, err)
+	return _c
+}
+
+func (_c *MockPermissionDAO_GetAllVanityRoleAssignments_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error)) *MockPermissionDAO_GetAllVanityRoleAssignments_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetRolePermissions provides a mock function for the type MockPermissionDAO
 func (_mock *MockPermissionDAO) GetRolePermissions(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error) {
 	var tmpRet mock.Arguments
@@ -426,6 +575,78 @@ func (_c *MockPermissionDAO_SetVanityRolePermissions_Call) Return(err error) *Mo
 }
 
 func (_c *MockPermissionDAO_SetVanityRolePermissions_Call) RunAndReturn(run func(ctx context.Context, s spec.VanityRolePermissionsUpdate, tx ...*sql.Tx) error) *MockPermissionDAO_SetVanityRolePermissions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UnassignVanityRoleFromUser provides a mock function for the type MockPermissionDAO
+func (_mock *MockPermissionDAO) UnassignVanityRoleFromUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UnassignVanityRoleFromUser")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.VanityRoleAssignment, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockPermissionDAO_UnassignVanityRoleFromUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnassignVanityRoleFromUser'
+type MockPermissionDAO_UnassignVanityRoleFromUser_Call struct {
+	*mock.Call
+}
+
+// UnassignVanityRoleFromUser is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.VanityRoleAssignment
+//   - tx ...*sql.Tx
+func (_e *MockPermissionDAO_Expecter) UnassignVanityRoleFromUser(ctx any, s any, tx ...any) *MockPermissionDAO_UnassignVanityRoleFromUser_Call {
+	return &MockPermissionDAO_UnassignVanityRoleFromUser_Call{Call: _e.mock.On("UnassignVanityRoleFromUser",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockPermissionDAO_UnassignVanityRoleFromUser_Call) Run(run func(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx)) *MockPermissionDAO_UnassignVanityRoleFromUser_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.VanityRoleAssignment
+		if args[1] != nil {
+			arg1 = args[1].(spec.VanityRoleAssignment)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPermissionDAO_UnassignVanityRoleFromUser_Call) Return(err error) *MockPermissionDAO_UnassignVanityRoleFromUser_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockPermissionDAO_UnassignVanityRoleFromUser_Call) RunAndReturn(run func(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error) *MockPermissionDAO_UnassignVanityRoleFromUser_Call {
 	_c.Call.Return(run)
 	return _c
 }

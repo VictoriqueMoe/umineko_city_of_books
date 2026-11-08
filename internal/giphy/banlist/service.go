@@ -105,7 +105,7 @@ func (s *service) Add(ctx context.Context, kind Kind, value, reason string, crea
 	if kind != KindGif && kind != KindUser {
 		return ErrInvalidKind
 	}
-	value = strings.TrimSpace(value)
+	value = normaliseValue(kind, value)
 	if value == "" {
 		return ErrValueRequired
 	}
@@ -118,7 +118,7 @@ func (s *service) Add(ctx context.Context, kind Kind, value, reason string, crea
 	case KindGif:
 		s.gifs[value] = struct{}{}
 	case KindUser:
-		s.users[strings.ToLower(value)] = struct{}{}
+		s.users[value] = struct{}{}
 	}
 	return nil
 }
@@ -127,6 +127,7 @@ func (s *service) Remove(ctx context.Context, kind Kind, value string) error {
 	if kind != KindGif && kind != KindUser {
 		return ErrInvalidKind
 	}
+	value = normaliseValue(kind, value)
 	if err := s.repo.Remove(ctx, spec.BannedGiphyDeletion{Kind: string(kind), Value: value}); err != nil {
 		return err
 	}
@@ -136,7 +137,16 @@ func (s *service) Remove(ctx context.Context, kind Kind, value string) error {
 	case KindGif:
 		delete(s.gifs, value)
 	case KindUser:
-		delete(s.users, strings.ToLower(value))
+		delete(s.users, value)
 	}
 	return nil
+}
+
+func normaliseValue(kind Kind, value string) string {
+	value = strings.TrimSpace(value)
+	if kind == KindUser {
+		return strings.ToLower(value)
+	}
+
+	return value
 }

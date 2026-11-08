@@ -15,6 +15,8 @@ import (
 type (
 	BlockRepository interface {
 		dao.BlockDAO
+
+		InvalidateBlockedIDs(ctx context.Context, userIDs ...uuid.UUID)
 	}
 
 	blockRepository struct {
@@ -41,7 +43,7 @@ func (r *blockRepository) Block(ctx context.Context, s spec.BlockSpec, tx ...*sq
 		return err
 	}
 
-	r.invalidateBlockedIDs(ctx, s)
+	r.InvalidateBlockedIDs(ctx, s.BlockerID, s.BlockedID)
 
 	return nil
 }
@@ -51,18 +53,24 @@ func (r *blockRepository) Unblock(ctx context.Context, s spec.BlockSpec, tx ...*
 		return err
 	}
 
-	r.invalidateBlockedIDs(ctx, s)
+	r.InvalidateBlockedIDs(ctx, s.BlockerID, s.BlockedID)
 
 	return nil
 }
 
-func (r *blockRepository) invalidateBlockedIDs(ctx context.Context, s spec.BlockSpec) {
-	keys := []cache.Key{
-		cache.UserBlockedIDs.Key(s.BlockerID.String()),
-		cache.UserBlockedIDs.Key(s.BlockedID.String()),
+func (r *blockRepository) InvalidateBlockedIDs(ctx context.Context, userIDs ...uuid.UUID) {
+	if len(userIDs) == 0 {
+		return
+	}
+
+	keys := make([]cache.Key, 0, len(userIDs))
+	ids := make([]string, 0, len(userIDs))
+	for _, userID := range userIDs {
+		keys = append(keys, cache.UserBlockedIDs.Key(userID.String()))
+		ids = append(ids, userID.String())
 	}
 
 	if err := r.cache.Del(ctx, keys...); err != nil {
-		logger.Ctx(ctx).Error().Err(err).Str("blocker_id", s.BlockerID.String()).Str("blocked_id", s.BlockedID.String()).Msg("failed to invalidate blocked id cache after write")
+		logger.Ctx(ctx).Error().Err(err).Strs("user_ids", ids).Msg("failed to invalidate blocked id cache after write")
 	}
 }

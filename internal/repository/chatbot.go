@@ -5,10 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 
-	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/daoerr"
 	"umineko_city_of_books/internal/db"
-	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 
@@ -21,6 +20,7 @@ type (
 
 		CreateBotWithAccount(ctx context.Context, s spec.NewChatbotWithAccount, tx ...*sql.Tx) (*model.Chatbot, error)
 		UpdateBotWithAccount(ctx context.Context, s spec.ChatbotAccountUpdate, tx ...*sql.Tx) (*model.Chatbot, error)
+		DeleteBot(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error
 	}
 )
 
@@ -28,13 +28,23 @@ type chatbotRepository struct {
 	db *sql.DB
 	dao.ChatbotDAO
 	users       UserRepository
-	vanity      VanityRoleRepository
-	basePrompts BasePromptInvalidator
-	cache       *cache.Manager
+	permissions PermissionRepository
+	basePrompts ChatbotBasePromptRepository
 }
 
-func NewChatbotRepo(database *sql.DB, chatbots dao.ChatbotDAO, users UserRepository, vanity VanityRoleRepository, basePrompts BasePromptInvalidator, c *cache.Manager) ChatbotRepository {
-	return &chatbotRepository{db: database, ChatbotDAO: chatbots, users: users, vanity: vanity, basePrompts: basePrompts, cache: c}
+func NewChatbotRepo(database *sql.DB, chatbots dao.ChatbotDAO, users UserRepository, permissions PermissionRepository, basePrompts ChatbotBasePromptRepository) ChatbotRepository {
+	return &chatbotRepository{db: database, ChatbotDAO: chatbots, users: users, permissions: permissions, basePrompts: basePrompts}
+}
+
+func basePromptIDs(bots ...*model.Chatbot) []uuid.UUID {
+	ids := make([]uuid.UUID, 0, len(bots))
+	for _, bot := range bots {
+		if bot != nil && bot.BasePromptID != nil {
+			ids = append(ids, *bot.BasePromptID)
+		}
+	}
+
+	return ids
 }
 
 func (r *chatbotRepository) CreateBotWithAccount(ctx context.Context, s spec.NewChatbotWithAccount, tx ...*sql.Tx) (*model.Chatbot, error) {
@@ -46,7 +56,7 @@ func (r *chatbotRepository) CreateBotWithAccount(ctx context.Context, s spec.New
 			return fmt.Errorf("create bot account: %w", err)
 		}
 
-		if err := r.vanity.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: user.ID, RoleID: s.VanityRoleID}, tx); err != nil {
+		if err := r.permissions.AssignVanityRoleToUser(ctx, spec.VanityRoleAssignment{UserID: user.ID, RoleID: s.VanityRoleID}, tx); err != nil {
 			return fmt.Errorf("assign bot badge: %w", err)
 		}
 
@@ -64,15 +74,22 @@ func (r *chatbotRepository) CreateBotWithAccount(ctx context.Context, s spec.New
 		return nil, err
 	}
 
-	r.basePrompts.InvalidateList(ctx)
+	r.permissions.InvalidateVanityAssignments(ctx, created.UserID.String())
+	r.basePrompts.Invalidate(ctx, basePromptIDs(created)...)
 
 	return created, nil
 }
 
 func (r *chatbotRepository) UpdateBotWithAccount(ctx context.Context, s spec.ChatbotAccountUpdate, tx ...*sql.Tx) (*model.Chatbot, error) {
-	var updated *model.Chatbot
+	var previous, updated *model.Chatbot
 
 	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
+		var err error
+		previous, err = r.ChatbotDAO.GetBot(ctx, s.Bot.ID, tx)
+		if err != nil {
+			return fmt.Errorf("read chatbot before update: %w", err)
+		}
+
 		if err := r.users.SetDisplayName(ctx, spec.UserDisplayNameUpdate{UserID: s.Bot.UserID, DisplayName: s.DisplayName}, tx); err != nil {
 			return fmt.Errorf("update bot display name: %w", err)
 		}
@@ -81,7 +98,6 @@ func (r *chatbotRepository) UpdateBotWithAccount(ctx context.Context, s spec.Cha
 			return fmt.Errorf("update bot avatar: %w", err)
 		}
 
-		var err error
 		updated, err = r.ChatbotDAO.UpdateBot(ctx, s.Bot, tx)
 		if err != nil {
 			return fmt.Errorf("update chatbot: %w", err)
@@ -93,7 +109,7 @@ func (r *chatbotRepository) UpdateBotWithAccount(ctx context.Context, s spec.Cha
 		return nil, err
 	}
 
-	r.basePrompts.InvalidateList(ctx)
+	r.basePrompts.Invalidate(ctx, basePromptIDs(previous, updated)...)
 
 	return updated, nil
 }
@@ -104,56 +120,42 @@ func (r *chatbotRepository) CreateBot(ctx context.Context, bot model.Chatbot, tx
 		return nil, err
 	}
 
-	r.basePrompts.InvalidateList(ctx)
+	r.basePrompts.Invalidate(ctx, basePromptIDs(created)...)
 
 	return created, nil
 }
 
 func (r *chatbotRepository) UpdateBot(ctx context.Context, bot model.Chatbot, tx ...*sql.Tx) (*model.Chatbot, error) {
+	previous, err := r.ChatbotDAO.GetBot(ctx, bot.ID, tx...)
+	if err != nil {
+		return nil, err
+	}
+
 	updated, err := r.ChatbotDAO.UpdateBot(ctx, bot, tx...)
 	if err != nil {
 		return nil, err
 	}
 
-	r.basePrompts.InvalidateList(ctx)
+	r.basePrompts.Invalidate(ctx, basePromptIDs(previous, updated)...)
 
 	return updated, nil
 }
 
 func (r *chatbotRepository) DeleteBot(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	botUserID := r.resolveBotUserID(ctx, id, tx...)
-
-	if err := r.ChatbotDAO.DeleteBot(ctx, id, tx...); err != nil {
+	bot, err := r.ChatbotDAO.GetBot(ctx, id, tx...)
+	if err != nil {
 		return err
 	}
 
-	r.basePrompts.InvalidateList(ctx)
-
-	keys := []cache.Key{cache.VanityAssignments.Key()}
-	if botUserID != uuid.Nil {
-		keys = append(keys, cache.UserRole.Key(botUserID.String()), cache.UserVanityRoleIDs.Key(botUserID.String()))
+	if bot == nil {
+		return daoerr.ErrBotNotFound
 	}
 
-	if err := r.cache.Del(ctx, keys...); err != nil {
-		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate caches after deleting a bot")
+	if err := r.users.AdminDeleteAccount(ctx, bot.UserID, tx...); err != nil {
+		return err
 	}
+
+	r.basePrompts.Invalidate(ctx, basePromptIDs(bot)...)
 
 	return nil
-}
-
-func (r *chatbotRepository) resolveBotUserID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) uuid.UUID {
-	bots, err := r.ChatbotDAO.ListBots(ctx, tx...)
-	if err != nil {
-		logger.Ctx(ctx).Error().Err(err).Str("chatbot_id", id.String()).Msg("failed to resolve bot user id before deleting a bot")
-
-		return uuid.Nil
-	}
-
-	for _, bot := range bots {
-		if bot.ID == id {
-			return bot.UserID
-		}
-	}
-
-	return uuid.Nil
 }

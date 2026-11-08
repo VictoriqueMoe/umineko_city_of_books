@@ -44,7 +44,7 @@ func TestRemoveBannedGif_RecordsTheLift(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	actor := uuid.New()
-	m.bannedRepo.EXPECT().Remove(mock.Anything, spec.BannedGiphyDeletion{Kind: "user", Value: "Larperine"}).Return(nil)
+	m.bannedRepo.EXPECT().Remove(mock.Anything, spec.BannedGiphyDeletion{Kind: "user", Value: "larperine"}).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    actor,
 		Action:     audit.ActionBannedGifDelete,

@@ -11,7 +11,7 @@ func New() *Manager {
 
 func newEngines() []engine.Engine {
 	return []engine.Engine{
-		engines.NewValkey(),
+		engines.NewValkey(invalidatedPrefixes()...),
 		engines.NewInMemory(0),
 	}
 }

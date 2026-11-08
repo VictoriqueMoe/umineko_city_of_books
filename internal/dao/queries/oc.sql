@@ -85,12 +85,6 @@ INSERT INTO oc_images (oc_id, image_url, thumbnail_url, caption, sort_order)
 VALUES ($1, $2, $3, $4, $5)
 RETURNING id;
 
--- name: UpdateOCGalleryImageURL :exec
-UPDATE oc_images SET image_url = $1 WHERE id = $2;
-
--- name: UpdateOCGalleryImageThumbnail :exec
-UPDATE oc_images SET thumbnail_url = $1 WHERE id = $2;
-
 -- name: UpdateOCGalleryImageCaption :execrows
 UPDATE oc_images SET caption = $1 WHERE id = $2 AND oc_id = $3;
 

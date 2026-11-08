@@ -48,30 +48,36 @@ func NewService(repo repository.HomeFeedRepository, hub *ws.Hub, cacheMgr *cache
 	return &service{repo: repo, hub: hub, cache: cacheMgr}
 }
 
-func echoDay() string {
-	return time.Now().UTC().Format("2006-01-02")
+func echoDay(t time.Time) string {
+	return t.UTC().Format("2006-01-02")
 }
 
-func (s *service) echoes(ctx context.Context) []dto.HomeEcho {
+func (s *service) echoes(ctx context.Context) ([]dto.HomeEcho, error) {
 	load := func(ctx context.Context) ([]dto.HomeEcho, error) {
-		return s.buildEchoes(ctx), nil
+		echoes, err := s.buildEchoes(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := s.cache.Del(ctx, cache.HomeEchoes.Key(echoDay(time.Now().AddDate(0, 0, -1)))); err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Msg("failed to drop yesterday's cached echoes")
+		}
+
+		return echoes, nil
 	}
 
-	echoes, _ := s.cache.Load(ctx, cache.HomeEchoes.Key(echoDay()), load)
-
-	return echoes
+	return s.cache.Load(ctx, cache.HomeEchoes.Key(echoDay(time.Now())), load)
 }
 
 func (s *service) ClearEchoCache(ctx context.Context) error {
-	return s.cache.Del(ctx, cache.HomeEchoes.Key(echoDay()))
+	return s.cache.Del(ctx, cache.HomeEchoes.Key(echoDay(time.Now())))
 }
 
-func (s *service) buildEchoes(ctx context.Context) []dto.HomeEcho {
+func (s *service) buildEchoes(ctx context.Context) ([]dto.HomeEcho, error) {
 	for _, window := range echoWindows {
 		rows, err := s.repo.ListEchoes(ctx, spec.HomeEchoQuery{Ago: window.ago, Limit: echoCandidateLimit})
 		if err != nil {
-			logger.Ctx(ctx).Warn().Err(err).Str("ago", window.ago).Msg("list echoes failed")
-			return nil
+			return nil, fmt.Errorf("list echoes %s ago: %w", window.ago, err)
 		}
 		if len(rows) == 0 {
 			continue
@@ -98,10 +104,10 @@ func (s *service) buildEchoes(ctx context.Context) []dto.HomeEcho {
 				},
 			}
 		}
-		return out
+		return out, nil
 	}
 
-	return nil
+	return nil, nil
 }
 
 func (s *service) HomeActivity(ctx context.Context) (*dto.HomeActivityResponse, error) {
@@ -122,13 +128,18 @@ func (s *service) HomeActivity(ctx context.Context) (*dto.HomeActivityResponse, 
 		return nil, fmt.Errorf("corners: %w", err)
 	}
 
+	echoes, err := s.echoes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("echoes: %w", err)
+	}
+
 	resp := &dto.HomeActivityResponse{
 		OnlineCount:    s.hub.OnlineCount(),
 		RecentActivity: make([]dto.HomeActivityEntry, len(activity)),
 		RecentMembers:  make([]dto.HomeMember, len(members)),
 		PublicRooms:    make([]dto.HomePublicRoom, len(rooms)),
 		CornerActivity: make([]dto.HomeCornerActivity, len(corners)),
-		Echoes:         s.echoes(ctx),
+		Echoes:         echoes,
 	}
 
 	for i, a := range activity {

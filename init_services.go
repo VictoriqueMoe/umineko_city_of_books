@@ -119,7 +119,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		newaccountlinksrule.New(authzSvc),
 	)
 
-	userSvc := user.NewService(repos.User, repos.Role, repos.VanityRole, repos.AuditLog, authzSvc, settingsSvc)
+	userSvc := user.NewService(repos.User, repos.Role, repos.VanityRole, repos.Permission, repos.AuditLog, authzSvc, settingsSvc)
 
 	sessionMgr.SetDisconnector(hub)
 
@@ -197,7 +197,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		uploadSvc,
 		notifSvc,
 		hub,
-		ogResolver,
 		cacheManager,
 	)
 
@@ -219,7 +218,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		hyperbeamSvc,
 		livekitSvc,
 		contentFilter,
-		ogResolver,
 		hub,
 	)
 
@@ -239,7 +237,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		settingsSvc,
 		hub,
 		contentFilter,
-		ogResolver,
 		homeFeedSvc,
 		hub,
 	)
@@ -288,7 +285,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		uploadSvc,
 		settingsSvc,
 		contentFilter,
-		ogResolver,
 		homeFeedSvc,
 		hub,
 	)
@@ -306,7 +302,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		settingsSvc,
 		quoteClient,
 		contentFilter,
-		ogResolver,
 		hub,
 	)
 
@@ -323,7 +318,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		settingsSvc,
 		hub,
 		contentFilter,
-		ogResolver,
 		hub,
 	)
 
@@ -341,7 +335,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		uploadSvc,
 		hub,
 		contentFilter,
-		ogResolver,
 		hub,
 	)
 
@@ -358,7 +351,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		uploadSvc,
 		settingsSvc,
 		contentFilter,
-		ogResolver,
 		hub,
 	)
 
@@ -374,7 +366,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		uploadSvc,
 		settingsSvc,
 		contentFilter,
-		ogResolver,
 		homeFeedSvc,
 		hub,
 	)
@@ -414,12 +405,11 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		commentSvc,
 		hub,
 		uploadSvc,
-		ogResolver,
 	)
 
 	sidebarSvc := sidebar.NewService(repos.SidebarVisited)
 
-	vanityRoleSvc := vanityrole.NewService(repos.VanityRole)
+	vanityRoleSvc := vanityrole.NewService(repos.VanityRole, repos.Permission)
 
 	userSecretSvc := usersecret.NewService(repos.UserSecret)
 
@@ -471,7 +461,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		credibilitySvc,
 		quoteClient,
 		contentFilter,
-		ogResolver,
 		homeFeedSvc,
 		hub,
 	)
@@ -494,6 +483,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 			authSvc,
 			sessionMgr,
 			userSvc,
+			homeFeedSvc,
 		),
 		theory:       theorySvc,
 		notification: notifSvc,
@@ -514,6 +504,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 			chatSvc,
 			emailSvc,
 			authSvc,
+			homeFeedSvc,
 		),
 		authz:           authzSvc,
 		chat:            chatSvc,

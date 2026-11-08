@@ -49,7 +49,7 @@ func newHarness(t *testing.T) *harness {
 	}
 
 	mentionSvc := mention.NewService(h.userRepo, h.blockSvc, h.notifService)
-	h.svc = announcement.NewService(h.repo, h.auditRepo, mentionSvc, h.commentSvc, ws.NewHub(), h.uploadSvc, nil)
+	h.svc = announcement.NewService(h.repo, h.auditRepo, mentionSvc, h.commentSvc, ws.NewHub(), h.uploadSvc)
 
 	return h
 }

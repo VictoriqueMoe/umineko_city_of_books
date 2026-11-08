@@ -33,11 +33,11 @@ type (
 type fanficRepository struct {
 	db *sql.DB
 	dao.FanficDAO
-	comments dao.CommentDAO
+	comments CommentRepository
 	audit    AuditLogRepository
 }
 
-func NewFanficRepo(database *sql.DB, fanficDAO dao.FanficDAO, comments dao.CommentDAO, auditRepo AuditLogRepository) FanficRepository {
+func NewFanficRepo(database *sql.DB, fanficDAO dao.FanficDAO, comments CommentRepository, auditRepo AuditLogRepository) FanficRepository {
 	return &fanficRepository{db: database, FanficDAO: fanficDAO, comments: comments, audit: auditRepo}
 }
 

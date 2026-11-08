@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
 
@@ -81,21 +82,23 @@ func (r *roleDAO) HasRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.T
 }
 
 func (r *roleDAO) SetRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) error {
-	queries := genQueries(r.db, tx)
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
+		queries := genQueries(r.db, []*sql.Tx{tx})
 
-	if err := queries.ClearUserRoles(ctx, s.UserID); err != nil {
-		return fmt.Errorf("clear existing role: %w", err)
-	}
+		if err := queries.ClearUserRoles(ctx, s.UserID); err != nil {
+			return fmt.Errorf("clear existing role: %w", err)
+		}
 
-	err := queries.InsertUserRole(ctx, sqlcgen.InsertUserRoleParams{
-		UserID: s.UserID,
-		Role:   string(s.Role),
+		err := queries.InsertUserRole(ctx, sqlcgen.InsertUserRoleParams{
+			UserID: s.UserID,
+			Role:   string(s.Role),
+		})
+		if err != nil {
+			return fmt.Errorf("set role: %w", err)
+		}
+
+		return nil
 	})
-	if err != nil {
-		return fmt.Errorf("set role: %w", err)
-	}
-
-	return nil
 }
 
 func (r *roleDAO) RemoveRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) error {

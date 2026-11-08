@@ -23,7 +23,7 @@ func TestChatDAO_GetRoomsByUser(t *testing.T) {
 	sysID := uuid.New()
 	_, err := repos.Chat.CreateSystemRoom(ctx, spec.NewChatSystemRoom{ID: sysID, Name: "Sys", Description: "", SystemKind: "announcements", CreatedBy: user.ID})
 	require.NoError(t, err)
-	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: sysID, UserID: user.ID}))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: sysID, UserID: user.ID, Role: "member", Ghost: false}))
 	_, err = repos.DB().ExecContext(ctx, `UPDATE chat_rooms SET created_at = NOW() - INTERVAL '1 day' WHERE id = $1`, sysID)
 	require.NoError(t, err)
 

@@ -140,7 +140,7 @@ func subscribeToSettingsEvents(settingsSvc settings.Service, app *fiber.App, svc
 	settingsSvc.Subscribe(telemetry.NewProfilingSettingsListener())
 	settingsSvc.Subscribe(middleware.NewBodyLimitListener(app))
 	settingsSvc.Subscribe(svc.push)
-	settingsSvc.Subscribe(chatbot.NewOptInRoleMigrator(repos.VanityRole, repos.AuditLog, settingsSvc))
+	settingsSvc.Subscribe(chatbot.NewOptInRoleMigrator(repos.VanityRole, repos.Permission, repos.AuditLog, settingsSvc))
 	settingsSvc.Subscribe(svc.crawlerFeeds)
 	settingsSvc.SubscribeBatch(svc.email)
 	settingsSvc.SubscribeBatch(svc.chatbot)

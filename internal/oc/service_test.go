@@ -60,7 +60,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	activity := sidebar.NewMockActivityBumper(t)
 	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc)
 
-	svc := NewService(ocRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc, uploadSvc, settingsSvc, nil, contentfilter.New(), nil, activity).(*service)
+	svc := NewService(ocRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, commentSvc, uploadSvc, settingsSvc, nil, contentfilter.New(), activity).(*service)
 	return svc, &testMocks{
 		ocRepo:      ocRepo,
 		commentSvc:  commentSvc,

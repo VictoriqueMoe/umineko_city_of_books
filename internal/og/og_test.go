@@ -2,6 +2,7 @@ package og
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -600,6 +601,31 @@ func TestResolver_Resolve_PostSpoilerImageStaysOffTheCard(t *testing.T) {
 			assert.NotContains(t, html, "ending.png")
 		})
 	}
+}
+
+func TestResolver_Resolve_ADatabaseErrorIsNotCachedAsNoCard(t *testing.T) {
+	// given a post whose first lookup hits a transient database error
+	postID := uuid.New()
+	ss := settings.NewMockService(t)
+	ss.EXPECT().Get(mock.Anything, config.SettingOGDefaultImage).Return("")
+	ss.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("")
+	ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
+
+	postRepo := repository.NewMockPostRepository(t)
+	postRepo.EXPECT().GetByID(mock.Anything, spec.PostLookup{ID: postID, ViewerID: uuid.Nil}).Return(nil, errors.New("db down")).Once()
+	postRepo.EXPECT().GetByID(mock.Anything, spec.PostLookup{ID: postID, ViewerID: uuid.Nil}).
+		Return(&model.PostRow{ID: postID, Body: "look at this", AuthorDisplayName: "Beatrice"}, nil).Once()
+	postRepo.EXPECT().GetMedia(mock.Anything, postID).Return(nil, nil).Once()
+
+	r := &Resolver{settingsSvc: ss, postRepo: postRepo, cache: cache.New(), baseHTML: testBaseHTML, baseURL: "https://example.com"}
+
+	// when a crawler unfurls the post during the outage and again after it
+	during := r.Resolve(context.Background(), "/game-board/"+postID.String(), "")
+	after := r.Resolve(context.Background(), "/game-board/"+postID.String(), "")
+
+	// then the outage serves the site card without caching it, so the next unfurl gets the real card
+	assert.NotContains(t, during, "Beatrice on Game Board")
+	assert.Contains(t, after, "Beatrice on Game Board")
 }
 
 func TestResolver_Resolve_CornerPages(t *testing.T) {

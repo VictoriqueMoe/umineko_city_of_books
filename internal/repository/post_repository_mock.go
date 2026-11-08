@@ -1080,89 +1080,6 @@ func (_c *MockPostRepository_DeleteMedia_Call) RunAndReturn(run func(ctx context
 	return _c
 }
 
-// DeleteWithMedia provides a mock function for the type MockPostRepository
-func (_mock *MockPostRepository) DeleteWithMedia(ctx context.Context, deletion spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error) {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, deletion, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, deletion)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteWithMedia")
-	}
-
-	var r0 []string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.OwnedDeletion, ...*sql.Tx) ([]string, error)); ok {
-		return returnFunc(ctx, deletion, tx...)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.OwnedDeletion, ...*sql.Tx) []string); ok {
-		r0 = returnFunc(ctx, deletion, tx...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.OwnedDeletion, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, deletion, tx...)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockPostRepository_DeleteWithMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteWithMedia'
-type MockPostRepository_DeleteWithMedia_Call struct {
-	*mock.Call
-}
-
-// DeleteWithMedia is a helper method to define mock.On call
-//   - ctx context.Context
-//   - deletion spec.OwnedDeletion
-//   - tx ...*sql.Tx
-func (_e *MockPostRepository_Expecter) DeleteWithMedia(ctx any, deletion any, tx ...any) *MockPostRepository_DeleteWithMedia_Call {
-	return &MockPostRepository_DeleteWithMedia_Call{Call: _e.mock.On("DeleteWithMedia",
-		append([]any{ctx, deletion}, tx...)...)}
-}
-
-func (_c *MockPostRepository_DeleteWithMedia_Call) Run(run func(ctx context.Context, deletion spec.OwnedDeletion, tx ...*sql.Tx)) *MockPostRepository_DeleteWithMedia_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 spec.OwnedDeletion
-		if args[1] != nil {
-			arg1 = args[1].(spec.OwnedDeletion)
-		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
-		}
-		arg2 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockPostRepository_DeleteWithMedia_Call) Return(strings []string, err error) *MockPostRepository_DeleteWithMedia_Call {
-	_c.Call.Return(strings, err)
-	return _c
-}
-
-func (_c *MockPostRepository_DeleteWithMedia_Call) RunAndReturn(run func(ctx context.Context, deletion spec.OwnedDeletion, tx ...*sql.Tx) ([]string, error)) *MockPostRepository_DeleteWithMedia_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // DeleteWithSharedContent provides a mock function for the type MockPostRepository
 func (_mock *MockPostRepository) DeleteWithSharedContent(ctx context.Context, deletion spec.PostDelete, tx ...*sql.Tx) (*model.SharedContentRef, []string, error) {
 	var tmpRet mock.Arguments
@@ -2506,6 +2423,46 @@ func (_c *MockPostRepository_IncrementViewCount_Call) Return(err error) *MockPos
 
 func (_c *MockPostRepository_IncrementViewCount_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockPostRepository_IncrementViewCount_Call {
 	_c.Call.Return(run)
+	return _c
+}
+
+// InvalidateCornerCounts provides a mock function for the type MockPostRepository
+func (_mock *MockPostRepository) InvalidateCornerCounts(ctx context.Context) {
+	_mock.Called(ctx)
+	return
+}
+
+// MockPostRepository_InvalidateCornerCounts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InvalidateCornerCounts'
+type MockPostRepository_InvalidateCornerCounts_Call struct {
+	*mock.Call
+}
+
+// InvalidateCornerCounts is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockPostRepository_Expecter) InvalidateCornerCounts(ctx any) *MockPostRepository_InvalidateCornerCounts_Call {
+	return &MockPostRepository_InvalidateCornerCounts_Call{Call: _e.mock.On("InvalidateCornerCounts", ctx)}
+}
+
+func (_c *MockPostRepository_InvalidateCornerCounts_Call) Run(run func(ctx context.Context)) *MockPostRepository_InvalidateCornerCounts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPostRepository_InvalidateCornerCounts_Call) Return() *MockPostRepository_InvalidateCornerCounts_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockPostRepository_InvalidateCornerCounts_Call) RunAndReturn(run func(ctx context.Context)) *MockPostRepository_InvalidateCornerCounts_Call {
+	_c.Run(run)
 	return _c
 }
 

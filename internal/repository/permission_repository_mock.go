@@ -49,6 +49,155 @@ func (_m *MockPermissionRepository) EXPECT() *MockPermissionRepository_Expecter 
 	return &MockPermissionRepository_Expecter{mock: &_m.Mock}
 }
 
+// AssignVanityRoleToUser provides a mock function for the type MockPermissionRepository
+func (_mock *MockPermissionRepository) AssignVanityRoleToUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for AssignVanityRoleToUser")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.VanityRoleAssignment, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockPermissionRepository_AssignVanityRoleToUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AssignVanityRoleToUser'
+type MockPermissionRepository_AssignVanityRoleToUser_Call struct {
+	*mock.Call
+}
+
+// AssignVanityRoleToUser is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.VanityRoleAssignment
+//   - tx ...*sql.Tx
+func (_e *MockPermissionRepository_Expecter) AssignVanityRoleToUser(ctx any, s any, tx ...any) *MockPermissionRepository_AssignVanityRoleToUser_Call {
+	return &MockPermissionRepository_AssignVanityRoleToUser_Call{Call: _e.mock.On("AssignVanityRoleToUser",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockPermissionRepository_AssignVanityRoleToUser_Call) Run(run func(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx)) *MockPermissionRepository_AssignVanityRoleToUser_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.VanityRoleAssignment
+		if args[1] != nil {
+			arg1 = args[1].(spec.VanityRoleAssignment)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPermissionRepository_AssignVanityRoleToUser_Call) Return(err error) *MockPermissionRepository_AssignVanityRoleToUser_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockPermissionRepository_AssignVanityRoleToUser_Call) RunAndReturn(run func(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error) *MockPermissionRepository_AssignVanityRoleToUser_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAllVanityRoleAssignments provides a mock function for the type MockPermissionRepository
+func (_mock *MockPermissionRepository) GetAllVanityRoleAssignments(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAllVanityRoleAssignments")
+	}
+
+	var r0 map[string][]string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (map[string][]string, error)); ok {
+		return returnFunc(ctx, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) map[string][]string); ok {
+		r0 = returnFunc(ctx, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string][]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockPermissionRepository_GetAllVanityRoleAssignments_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllVanityRoleAssignments'
+type MockPermissionRepository_GetAllVanityRoleAssignments_Call struct {
+	*mock.Call
+}
+
+// GetAllVanityRoleAssignments is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx ...*sql.Tx
+func (_e *MockPermissionRepository_Expecter) GetAllVanityRoleAssignments(ctx any, tx ...any) *MockPermissionRepository_GetAllVanityRoleAssignments_Call {
+	return &MockPermissionRepository_GetAllVanityRoleAssignments_Call{Call: _e.mock.On("GetAllVanityRoleAssignments",
+		append([]any{ctx}, tx...)...)}
+}
+
+func (_c *MockPermissionRepository_GetAllVanityRoleAssignments_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockPermissionRepository_GetAllVanityRoleAssignments_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
+		run(
+			arg0,
+			arg1...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPermissionRepository_GetAllVanityRoleAssignments_Call) Return(stringToStrings map[string][]string, err error) *MockPermissionRepository_GetAllVanityRoleAssignments_Call {
+	_c.Call.Return(stringToStrings, err)
+	return _c
+}
+
+func (_c *MockPermissionRepository_GetAllVanityRoleAssignments_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error)) *MockPermissionRepository_GetAllVanityRoleAssignments_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetRolePermissions provides a mock function for the type MockPermissionRepository
 func (_mock *MockPermissionRepository) GetRolePermissions(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error) {
 	var tmpRet mock.Arguments
@@ -286,6 +435,172 @@ func (_c *MockPermissionRepository_GetVanityRolePermissions_Call) RunAndReturn(r
 	return _c
 }
 
+// InvalidateVanityAssignments provides a mock function for the type MockPermissionRepository
+func (_mock *MockPermissionRepository) InvalidateVanityAssignments(ctx context.Context, userIDs ...string) {
+	if len(userIDs) > 0 {
+		_mock.Called(ctx, userIDs)
+	} else {
+		_mock.Called(ctx)
+	}
+
+	return
+}
+
+// MockPermissionRepository_InvalidateVanityAssignments_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InvalidateVanityAssignments'
+type MockPermissionRepository_InvalidateVanityAssignments_Call struct {
+	*mock.Call
+}
+
+// InvalidateVanityAssignments is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userIDs ...string
+func (_e *MockPermissionRepository_Expecter) InvalidateVanityAssignments(ctx any, userIDs ...any) *MockPermissionRepository_InvalidateVanityAssignments_Call {
+	return &MockPermissionRepository_InvalidateVanityAssignments_Call{Call: _e.mock.On("InvalidateVanityAssignments",
+		append([]any{ctx}, userIDs...)...)}
+}
+
+func (_c *MockPermissionRepository_InvalidateVanityAssignments_Call) Run(run func(ctx context.Context, userIDs ...string)) *MockPermissionRepository_InvalidateVanityAssignments_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []string
+		var variadicArgs []string
+		if len(args) > 1 {
+			variadicArgs = args[1].([]string)
+		}
+		arg1 = variadicArgs
+		run(
+			arg0,
+			arg1...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPermissionRepository_InvalidateVanityAssignments_Call) Return() *MockPermissionRepository_InvalidateVanityAssignments_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockPermissionRepository_InvalidateVanityAssignments_Call) RunAndReturn(run func(ctx context.Context, userIDs ...string)) *MockPermissionRepository_InvalidateVanityAssignments_Call {
+	_c.Run(run)
+	return _c
+}
+
+// InvalidateVanityRolePermissions provides a mock function for the type MockPermissionRepository
+func (_mock *MockPermissionRepository) InvalidateVanityRolePermissions(ctx context.Context) {
+	_mock.Called(ctx)
+	return
+}
+
+// MockPermissionRepository_InvalidateVanityRolePermissions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InvalidateVanityRolePermissions'
+type MockPermissionRepository_InvalidateVanityRolePermissions_Call struct {
+	*mock.Call
+}
+
+// InvalidateVanityRolePermissions is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockPermissionRepository_Expecter) InvalidateVanityRolePermissions(ctx any) *MockPermissionRepository_InvalidateVanityRolePermissions_Call {
+	return &MockPermissionRepository_InvalidateVanityRolePermissions_Call{Call: _e.mock.On("InvalidateVanityRolePermissions", ctx)}
+}
+
+func (_c *MockPermissionRepository_InvalidateVanityRolePermissions_Call) Run(run func(ctx context.Context)) *MockPermissionRepository_InvalidateVanityRolePermissions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPermissionRepository_InvalidateVanityRolePermissions_Call) Return() *MockPermissionRepository_InvalidateVanityRolePermissions_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockPermissionRepository_InvalidateVanityRolePermissions_Call) RunAndReturn(run func(ctx context.Context)) *MockPermissionRepository_InvalidateVanityRolePermissions_Call {
+	_c.Run(run)
+	return _c
+}
+
+// MoveUserVanityRole provides a mock function for the type MockPermissionRepository
+func (_mock *MockPermissionRepository) MoveUserVanityRole(ctx context.Context, move spec.VanityRoleMove, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, move, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, move)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for MoveUserVanityRole")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.VanityRoleMove, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, move, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockPermissionRepository_MoveUserVanityRole_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MoveUserVanityRole'
+type MockPermissionRepository_MoveUserVanityRole_Call struct {
+	*mock.Call
+}
+
+// MoveUserVanityRole is a helper method to define mock.On call
+//   - ctx context.Context
+//   - move spec.VanityRoleMove
+//   - tx ...*sql.Tx
+func (_e *MockPermissionRepository_Expecter) MoveUserVanityRole(ctx any, move any, tx ...any) *MockPermissionRepository_MoveUserVanityRole_Call {
+	return &MockPermissionRepository_MoveUserVanityRole_Call{Call: _e.mock.On("MoveUserVanityRole",
+		append([]any{ctx, move}, tx...)...)}
+}
+
+func (_c *MockPermissionRepository_MoveUserVanityRole_Call) Run(run func(ctx context.Context, move spec.VanityRoleMove, tx ...*sql.Tx)) *MockPermissionRepository_MoveUserVanityRole_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.VanityRoleMove
+		if args[1] != nil {
+			arg1 = args[1].(spec.VanityRoleMove)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPermissionRepository_MoveUserVanityRole_Call) Return(err error) *MockPermissionRepository_MoveUserVanityRole_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockPermissionRepository_MoveUserVanityRole_Call) RunAndReturn(run func(ctx context.Context, move spec.VanityRoleMove, tx ...*sql.Tx) error) *MockPermissionRepository_MoveUserVanityRole_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetRolePermissions provides a mock function for the type MockPermissionRepository
 func (_mock *MockPermissionRepository) SetRolePermissions(ctx context.Context, s spec.RolePermissionsUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
@@ -426,6 +741,78 @@ func (_c *MockPermissionRepository_SetVanityRolePermissions_Call) Return(err err
 }
 
 func (_c *MockPermissionRepository_SetVanityRolePermissions_Call) RunAndReturn(run func(ctx context.Context, s spec.VanityRolePermissionsUpdate, tx ...*sql.Tx) error) *MockPermissionRepository_SetVanityRolePermissions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UnassignVanityRoleFromUser provides a mock function for the type MockPermissionRepository
+func (_mock *MockPermissionRepository) UnassignVanityRoleFromUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UnassignVanityRoleFromUser")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.VanityRoleAssignment, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockPermissionRepository_UnassignVanityRoleFromUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnassignVanityRoleFromUser'
+type MockPermissionRepository_UnassignVanityRoleFromUser_Call struct {
+	*mock.Call
+}
+
+// UnassignVanityRoleFromUser is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.VanityRoleAssignment
+//   - tx ...*sql.Tx
+func (_e *MockPermissionRepository_Expecter) UnassignVanityRoleFromUser(ctx any, s any, tx ...any) *MockPermissionRepository_UnassignVanityRoleFromUser_Call {
+	return &MockPermissionRepository_UnassignVanityRoleFromUser_Call{Call: _e.mock.On("UnassignVanityRoleFromUser",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockPermissionRepository_UnassignVanityRoleFromUser_Call) Run(run func(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx)) *MockPermissionRepository_UnassignVanityRoleFromUser_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.VanityRoleAssignment
+		if args[1] != nil {
+			arg1 = args[1].(spec.VanityRoleAssignment)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPermissionRepository_UnassignVanityRoleFromUser_Call) Return(err error) *MockPermissionRepository_UnassignVanityRoleFromUser_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockPermissionRepository_UnassignVanityRoleFromUser_Call) RunAndReturn(run func(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error) *MockPermissionRepository_UnassignVanityRoleFromUser_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -79,3 +79,85 @@ func TestKey_WithTTLKeepsTheNameAndChangesOnlyTheTTL(t *testing.T) {
 	assert.Equal(t, LinkPreview.TTL, key.ttl)
 	assert.Equal(t, time.Hour, shorter.ttl)
 }
+
+func TestNamespaces_EveryNoExpiryCacheIsPurgedOnValkeyReconnect(t *testing.T) {
+	// given the namespaces that hold state rather than a copy of database rows
+	state := map[string]bool{
+		"CrawlerRanges":          true,
+		"GiphyRateLimitedUntil":  true,
+		"OpenAIRateLimitedUntil": true,
+		"ChatbotSummonCooldown":  true,
+	}
+	file, err := parser.ParseFile(token.NewFileSet(), "keys.go", nil, 0)
+	require.NoError(t, err)
+
+	// when
+	var noExpiry []string
+	ast.Inspect(file, func(node ast.Node) bool {
+		spec, ok := node.(*ast.ValueSpec)
+		if !ok {
+			return true
+		}
+
+		for i, value := range spec.Values {
+			literal, ok := value.(*ast.CompositeLit)
+			if !ok || len(spec.Names) <= i {
+				continue
+			}
+
+			typeName, ok := literal.Type.(*ast.Ident)
+			if !ok || typeName.Name != "Namespace" {
+				continue
+			}
+
+			ttl := "noExpiry"
+			for _, element := range literal.Elts {
+				field, ok := element.(*ast.KeyValueExpr)
+				if !ok {
+					continue
+				}
+
+				key, ok := field.Key.(*ast.Ident)
+				if !ok || key.Name != "TTL" {
+					continue
+				}
+
+				ident, isIdent := field.Value.(*ast.Ident)
+				if !isIdent {
+					ttl = "set"
+					continue
+				}
+
+				ttl = ident.Name
+			}
+
+			if ttl == "noExpiry" && !state[spec.Names[i].Name] {
+				noExpiry = append(noExpiry, spec.Names[i].Name)
+			}
+		}
+
+		return true
+	})
+
+	// then
+	purged := map[string]bool{}
+	for _, namespace := range invalidatedByWrites {
+		purged[namespace.Prefix] = true
+	}
+
+	byName := map[string]Namespace{
+		"HomeEchoes": HomeEchoes, "UserRole": UserRole, "UserIP": UserIP, "Setting": Setting,
+		"MysteryTopDetectives": MysteryTopDetectives, "MysteryTopGMs": MysteryTopGMs, "GameTopWinners": GameTopWinners,
+		"VanityAssignments": VanityAssignments, "PostCornerCounts": PostCornerCounts, "ArtCornerCounts": ArtCornerCounts,
+		"UserBlockedIDs": UserBlockedIDs, "ChatBannedWordsGlobal": ChatBannedWordsGlobal, "ChatBannedWordsRoom": ChatBannedWordsRoom,
+		"ChatbotBasePrompts": ChatbotBasePrompts, "ChatbotBasePromptByID": ChatbotBasePromptByID,
+		"SecretHolders": SecretHolders, "SecretSolved": SecretSolved,
+	}
+
+	require.NotEmpty(t, noExpiry)
+	for _, name := range noExpiry {
+		namespace, known := byName[name]
+		require.True(t, known, "%s has no expiry, so a write clears it: add it to invalidatedByWrites (and this map), or to the state list if it is not a cache", name)
+		assert.True(t, purged[namespace.Prefix], "%s has no expiry but is not purged when Valkey reconnects", name)
+	}
+}
