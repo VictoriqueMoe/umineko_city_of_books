@@ -126,7 +126,7 @@ func NewService(settingsSvc settings.Service, storageSvc storage.Service, stored
 		pending:     pending,
 		hub:         hub,
 		mediaProc:   mediaProc,
-		userQueues:  userQueues{entries: map[uuid.UUID]*userQueue{}},
+		userQueues:  userQueues{entries: map[uuid.UUID]*userQueue{}, admitted: map[uuid.UUID]int{}},
 	}
 }
 
@@ -215,7 +215,26 @@ func (s *service) StageMedia(
 	return s.Stage(filename, wrapped)
 }
 
+func (s *service) admit(ctx context.Context, userID uuid.UUID) (func(), error) {
+	limit := s.settingsSvc.GetInt(ctx, config.SettingMaxQueuedUploadsPerUser) + s.settingsSvc.GetInt(ctx, config.SettingMaxWaitingUploadsPerUser)
+
+	leave, ok := s.userQueues.admit(userID, limit)
+	if !ok {
+		return nil, ErrTooManyUploads
+	}
+
+	return leave, nil
+}
+
 func (s *service) SaveImage(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
+	if userID, ok := authctx.UserID(ctx); ok {
+		leave, err := s.admit(ctx, userID)
+		if err != nil {
+			return "", err
+		}
+		defer leave()
+	}
+
 	staged, err := s.StageMedia(ctx, MediaTypeImage, subDir, id, fileSize, maxSize, reader)
 	if err != nil {
 		return "", err

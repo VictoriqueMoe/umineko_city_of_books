@@ -2,6 +2,7 @@ package upload
 
 import (
 	"context"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
@@ -15,11 +16,29 @@ import (
 )
 
 const (
-	testQueueLimit = 4
+	testQueueLimit   = 4
+	testWaitingLimit = 2
 )
 
 func newTestQueues() *userQueues {
-	return &userQueues{entries: map[uuid.UUID]*userQueue{}}
+	return &userQueues{entries: map[uuid.UUID]*userQueue{}, admitted: map[uuid.UUID]int{}}
+}
+
+func admittedUploads(queues *userQueues, userID uuid.UUID) int {
+	queues.mu.Lock()
+	defer queues.mu.Unlock()
+
+	return queues.admitted[userID]
+}
+
+func fillBacklog(t *testing.T, queues *userQueues, userID uuid.UUID) {
+	t.Helper()
+
+	limit := testQueueLimit + testWaitingLimit
+	for range limit {
+		_, ok := queues.admit(userID, limit)
+		require.True(t, ok)
+	}
 }
 
 func holdSlots(t *testing.T, queues *userQueues, userID uuid.UUID, limit int) []func() {
@@ -135,6 +154,58 @@ func TestUserQueues_ANonsenseLimitStillLetsOneJobThrough(t *testing.T) {
 	// then the upload is not hung forever
 	require.NoError(t, err)
 	leave()
+}
+
+func TestUserQueues_AdmitStopsAtTheLimitAndGivesPlacesBack(t *testing.T) {
+	// given a user with every place taken
+	queues := newTestQueues()
+	userID := uuid.New()
+	first, ok := queues.admit(userID, 2)
+	require.True(t, ok)
+	second, ok := queues.admit(userID, 2)
+	require.True(t, ok)
+
+	// when one more arrives
+	_, ok = queues.admit(userID, 2)
+
+	// then it is refused
+	assert.False(t, ok)
+
+	// and a place freed up can be used again
+	first()
+	third, ok := queues.admit(userID, 2)
+	require.True(t, ok)
+
+	second()
+	third()
+	assert.Empty(t, queues.admitted, "a user with nothing admitted must not stay in memory")
+}
+
+func TestUserQueues_AdmitKeepsUsersApart(t *testing.T) {
+	// given a user with every place taken
+	queues := newTestQueues()
+	fillBacklog(t, queues, uuid.New())
+
+	// when someone else uploads
+	_, ok := queues.admit(uuid.New(), testQueueLimit+testWaitingLimit)
+
+	// then
+	assert.True(t, ok)
+}
+
+func TestSaveImage_RefusesBeforeStagingWhenTheBacklogIsFull(t *testing.T) {
+	// given a signed-in user whose running and waiting places are all taken
+	svc, _, dir := newTestService(t)
+	userID := uuid.New()
+	fillBacklog(t, &svc.userQueues, userID)
+	ctx := authctx.WithUserID(context.Background(), userID)
+
+	// when
+	_, err := svc.SaveImage(ctx, "avatars", uuid.New(), 3, 1024, strings.NewReader("png"))
+
+	// then
+	require.ErrorIs(t, err, ErrTooManyUploads)
+	assertStagingEmpty(t, dir)
 }
 
 func TestRunJob_TakesAUserSlotBeforeEnteringThePool(t *testing.T) {

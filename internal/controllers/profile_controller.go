@@ -127,7 +127,7 @@ func (s *Service) uploadAvatar(ctx fiber.Ctx) error {
 		file,
 	)
 	if err != nil {
-		if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) {
+		if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) || errors.Is(err, upload.ErrTooManyUploads) {
 			return utils.BadRequest(ctx, err.Error())
 		}
 		return utils.InternalError(ctx, "failed to upload avatar")
@@ -153,7 +153,7 @@ func (s *Service) uploadBanner(ctx fiber.Ctx) error {
 		file,
 	)
 	if err != nil {
-		if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) {
+		if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) || errors.Is(err, upload.ErrTooManyUploads) {
 			return utils.BadRequest(ctx, err.Error())
 		}
 		return utils.InternalError(ctx, "failed to upload banner")

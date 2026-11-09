@@ -34,6 +34,8 @@ func TestValidateSettings_TrafficLimits(t *testing.T) {
 		{"a queue can hold one job", SettingMaxQueuedUploadsPerUser, "1", false},
 		{"a queue of zero would hang every upload", SettingMaxQueuedUploadsPerUser, "0", true},
 		{"no preview fetches at all is refused", SettingLinkPreviewMaxFetches, "0", true},
+		{"no waiting uploads at all is allowed", SettingMaxWaitingUploadsPerUser, "0", false},
+		{"a negative waiting limit is refused", SettingMaxWaitingUploadsPerUser, "-1", true},
 	}
 
 	for _, tc := range cases {

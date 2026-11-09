@@ -45,4 +45,6 @@ func PNGUpload(t *testing.T, filename string) upload.FileUpload {
 func ExpectMediaLimits(settingsSvc *settings.MockService, maxImageSize int) {
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(maxImageSize).Maybe()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImagePixels).Return(bounds.FallbackMaxImagePixels).Maybe()
+	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxQueuedUploadsPerUser).Return(1).Maybe()
+	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxWaitingUploadsPerUser).Return(1).Maybe()
 }

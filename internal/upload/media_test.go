@@ -57,6 +57,8 @@ func newPendingService(t *testing.T, maxImageSize int, maxPixels int) (*service,
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxAudioSize).Return(testMediaLimit).Maybe()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxGeneralSize).Return(testMediaLimit).Maybe()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImagePixels).Return(maxPixels).Maybe()
+	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxQueuedUploadsPerUser).Return(testQueueLimit).Maybe()
+	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxWaitingUploadsPerUser).Return(testWaitingLimit).Maybe()
 
 	storageSvc := storage.NewMockService(t)
 	storedFiles := repository.NewMockStoredFileRepository(t)
@@ -132,23 +134,41 @@ func TestBeginMediaUpload_RecordsTheUploadAndFinishesItInTheBackground(t *testin
 		require.Len(t, *objects, 1)
 		assert.Equal(t, spec.ProcessedUpload{ID: recorded.ID, MediaURL: "/uploads/" + (*objects)[0].key, Width: 2, Height: 2}, processed)
 		assert.True(t, strings.HasPrefix((*objects)[0].key, mediaSubDir+"/"))
+		assert.Zero(t, admittedUploads(&svc.userQueues, userID), "a processed upload must give its place back")
 	case <-time.After(finishTimeout):
 		t.Fatal("the upload was never marked ready")
 	}
+}
+
+func TestBeginMediaUpload_RefusesBeforeStagingWhenTheBacklogIsFull(t *testing.T) {
+	// given a user whose running and waiting places are all taken, and strict storage and pending mocks
+	svc, _, _, dir := newPendingService(t, testMediaLimit, bounds.FallbackMaxImagePixels)
+	userID := uuid.New()
+	fillBacklog(t, &svc.userQueues, userID)
+
+	// when
+	got, err := svc.BeginMediaUpload(t.Context(), userID, memoryUpload("image/png", "one.png", mustPNGBytes()))
+
+	// then
+	require.ErrorIs(t, err, ErrTooManyUploads)
+	assert.Nil(t, got)
+	assertStagingEmpty(t, dir)
 }
 
 func TestBeginMediaUpload_AFailedRecordReleasesTheStagedCopy(t *testing.T) {
 	// given a database that refuses the record
 	svc, _, pending, dir := newPendingService(t, testMediaLimit, bounds.FallbackMaxImagePixels)
 	pending.EXPECT().Insert(mock.Anything, mock.Anything).Return(errStoreFailed).Once()
+	userID := uuid.New()
 
 	// when
-	got, err := svc.BeginMediaUpload(t.Context(), uuid.New(), memoryUpload("image/png", "one.png", mustPNGBytes()))
+	got, err := svc.BeginMediaUpload(t.Context(), userID, memoryUpload("image/png", "one.png", mustPNGBytes()))
 
 	// then
 	require.ErrorIs(t, err, errStoreFailed)
 	assert.Nil(t, got)
 	assertStagingEmpty(t, dir)
+	assert.Zero(t, admittedUploads(&svc.userQueues, userID), "a failed upload must give its place back")
 }
 
 func TestBeginFileUpload_Refusals(t *testing.T) {

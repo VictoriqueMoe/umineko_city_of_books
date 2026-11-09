@@ -770,7 +770,7 @@ func (s *Service) setRoomAvatar(ctx fiber.Ctx) error {
 		if errors.Is(err, chat.ErrNicknameLocked) {
 			return utils.Forbidden(ctx, "nickname has been locked by a moderator")
 		}
-		if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) {
+		if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) || errors.Is(err, upload.ErrTooManyUploads) {
 			return utils.BadRequest(ctx, err.Error())
 		}
 		return utils.InternalError(ctx, "failed to upload avatar")
