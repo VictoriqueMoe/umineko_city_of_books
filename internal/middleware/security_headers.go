@@ -1,38 +1,35 @@
 package middleware
 
 import (
+	"crypto/rand"
+	"fmt"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/helmet"
 )
 
-var (
-	cspEnforcedDirectives = []string{
-		"base-uri 'self'",
-		"form-action 'self'",
-		"frame-ancestors 'none'",
-		"object-src 'none'",
-	}
+const (
+	cspScriptSrc = "script-src 'self' blob: https://challenges.cloudflare.com"
+)
 
-	cspReportOnlyDirectives = []string{
+var (
+	cspDirectives = []string{
 		"default-src 'self'",
 		"base-uri 'self'",
 		"form-action 'self'",
 		"frame-ancestors 'none'",
 		"object-src 'none'",
-		"script-src 'self' blob: https://challenges.cloudflare.com",
 		"worker-src 'self' blob:",
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
 		"font-src 'self' https://fonts.gstatic.com",
 		"img-src 'self' data: blob: https:",
-		"media-src 'self' blob: https://quotes.auaurora.moe https://waifuvault.moe https://*.waifuvault.moe",
+		"media-src 'self' blob: https:",
 		"frame-src 'self' https://challenges.cloudflare.com https://www.youtube-nocookie.com https://www.youtube.com https://*.hyperbeam.com",
 		"connect-src 'self' https: wss:",
 	}
 
-	contentSecurityPolicy           = strings.Join(cspEnforcedDirectives, "; ")
-	contentSecurityPolicyReportOnly = strings.Join(cspReportOnlyDirectives, "; ")
+	contentSecurityPolicy = strings.Join(cspDirectives, "; ")
 )
 
 func SecurityHeaders() fiber.Handler {
@@ -40,7 +37,6 @@ func SecurityHeaders() fiber.Handler {
 		XFrameOptions:             "DENY",
 		ContentTypeNosniff:        "nosniff",
 		ReferrerPolicy:            "strict-origin-when-cross-origin",
-		ContentSecurityPolicy:     contentSecurityPolicy,
 		PermissionPolicy:          "geolocation=(), camera=(), microphone=(self), display-capture=(self)",
 		CrossOriginEmbedderPolicy: "unsafe-none",
 		CrossOriginOpenerPolicy:   "same-origin-allow-popups",
@@ -58,7 +54,7 @@ func SecurityHeaders() fiber.Handler {
 		err := h(ctx)
 
 		ctx.Response().Header.Del("Server")
-		ctx.Set(fiber.HeaderContentSecurityPolicyReportOnly, contentSecurityPolicyReportOnly)
+		ctx.Set(fiber.HeaderContentSecurityPolicy, fmt.Sprintf("%s; %s 'nonce-%s'", contentSecurityPolicy, cspScriptSrc, rand.Text()))
 
 		return err
 	}

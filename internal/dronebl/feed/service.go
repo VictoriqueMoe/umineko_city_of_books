@@ -44,7 +44,7 @@ func New(settingsSvc settings.Service, cacheMgr *cache.Manager) *Service {
 	return &Service{
 		settingsSvc: settingsSvc,
 		cache:       cacheMgr,
-		client:      httpclient.New(fetchTimeout),
+		client:      httpclient.New(fetchTimeout, httpclient.WithPublicAddressesOnly()),
 	}
 }
 

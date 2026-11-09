@@ -81,6 +81,37 @@ func TestListCharacters_OnlyMain(t *testing.T) {
 	}
 }
 
+func TestGetByAudioID_KeepsTheIDInOnePathSegment(t *testing.T) {
+	tests := []struct {
+		name     string
+		audioID  string
+		wantPath string
+	}{
+		{name: "numeric id", audioID: "10100001", wantPath: "/umineko/quote/10100001"},
+		{name: "episode id", audioID: "ep3_001", wantPath: "/umineko/quote/ep3_001"},
+		{name: "traversal and query", audioID: "../../admin?x=1", wantPath: "/umineko/quote/..%2F..%2Fadmin%3Fx=1"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotPath string
+			c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				gotPath = r.URL.EscapedPath()
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprint(w, `{}`)
+			})
+
+			if _, err := c.GetByAudioID(t.Context(), SeriesUmineko, tc.audioID); err != nil {
+				t.Fatalf("GetByAudioID: %v", err)
+			}
+
+			if gotPath != tc.wantPath {
+				t.Errorf("path = %q, want %q", gotPath, tc.wantPath)
+			}
+		})
+	}
+}
+
 func TestListCharacters_InvalidSeries(t *testing.T) {
 	c := NewClientWithBaseURL("http://never-called.invalid", nil)
 	if _, err := c.ListCharacters(t.Context(), "roseguns"); err == nil {

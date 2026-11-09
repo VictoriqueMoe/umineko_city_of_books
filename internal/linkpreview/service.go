@@ -6,11 +6,14 @@ import (
 	"encoding/hex"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/settings"
 
 	"golang.org/x/sync/singleflight"
 )
@@ -26,14 +29,16 @@ type (
 	}
 
 	service struct {
-		cache *cache.Manager
-		parse func(ctx context.Context, rawURL string) *media.Embed
-		group singleflight.Group
+		cache       *cache.Manager
+		settingsSvc settings.Service
+		parse       func(ctx context.Context, rawURL string) *media.Embed
+		group       singleflight.Group
+		inFlight    atomic.Int64
 	}
 )
 
-func NewService(cacheMgr *cache.Manager) Service {
-	return &service{cache: cacheMgr, parse: media.ParseEmbed}
+func NewService(cacheMgr *cache.Manager, settingsSvc settings.Service) Service {
+	return &service{cache: cacheMgr, settingsSvc: settingsSvc, parse: media.ParseEmbed}
 }
 
 func (s *service) Resolve(ctx context.Context, rawURL string) (dto.LinkPreviewResponse, error) {
@@ -51,7 +56,14 @@ func (s *service) Resolve(ctx context.Context, rawURL string) (dto.LinkPreviewRe
 
 	storeCtx := context.WithoutCancel(ctx)
 
-	resolved, _, _ := s.group.Do(hash, func() (any, error) {
+	resolved, err, _ := s.group.Do(hash, func() (any, error) {
+		if s.inFlight.Add(1) > int64(s.settingsSvc.GetInt(storeCtx, config.SettingLinkPreviewMaxFetches)) {
+			s.inFlight.Add(-1)
+
+			return nil, ErrBusy
+		}
+		defer s.inFlight.Add(-1)
+
 		preview := toResponse(rawURL, s.parse(storeCtx, rawURL))
 
 		storeKey := key
@@ -63,6 +75,9 @@ func (s *service) Resolve(ctx context.Context, rawURL string) (dto.LinkPreviewRe
 
 		return preview, nil
 	})
+	if err != nil {
+		return dto.LinkPreviewResponse{}, err
+	}
 
 	preview, ok := resolved.(dto.LinkPreviewResponse)
 	if !ok {

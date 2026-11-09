@@ -822,6 +822,35 @@ describe("AdminSettings saving", () => {
     });
 });
 
+describe("AdminSettings rate limits", () => {
+    it("shows the saved limits", () => {
+        // given
+        stubSettings({ ...VALID, rate_limit_credentials: "10", max_queued_uploads_per_user: "4" });
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(numberInput("Login, Register and Password Reset (per minute)")).toHaveValue(10);
+        expect(numberInput("Media Jobs Queued Per Member")).toHaveValue(4);
+    });
+
+    it("saves a changed limit under the key the backend reads", async () => {
+        // given
+        stubSettings({ ...VALID, rate_limit_uploads: "0" });
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+        await user.clear(numberInput("Attachment Uploads (per minute)"));
+        await user.type(numberInput("Attachment Uploads (per minute)"), "12");
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Save Settings" }));
+
+        // then
+        expect(mocks.update).toHaveBeenCalledWith({ ...VALID, rate_limit_uploads: "12" });
+    });
+});
+
 describe("AdminSettings link previews", () => {
     it("only offers to reset the embed image once a custom one is set", () => {
         // given

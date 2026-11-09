@@ -10,16 +10,32 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/cache/engines"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/settings"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+const (
+	testFetchLimit = 4
+)
+
+func fetchLimitSettings(t *testing.T) *settings.MockService {
+	t.Helper()
+
+	settingsSvc := settings.NewMockService(t)
+	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingLinkPreviewMaxFetches).Return(testFetchLimit).Maybe()
+
+	return settingsSvc
+}
 
 func newService(t *testing.T) *service {
 	t.Helper()
 
-	return &service{cache: cache.NewManager(engines.NewInMemory(0)), parse: media.ParseEmbed}
+	return &service{cache: cache.NewManager(engines.NewInMemory(0)), settingsSvc: fetchLimitSettings(t), parse: media.ParseEmbed}
 }
 
 func newCountingService(t *testing.T, embed *media.Embed, delay time.Duration) (*service, *atomic.Int64) {
@@ -40,7 +56,7 @@ func newCountingService(t *testing.T, embed *media.Embed, delay time.Duration) (
 		return &copied
 	}
 
-	return &service{cache: cache.NewManager(engines.NewInMemory(0)), parse: parse}, calls
+	return &service{cache: cache.NewManager(engines.NewInMemory(0)), settingsSvc: fetchLimitSettings(t), parse: parse}, calls
 }
 
 func TestResolve_RejectsAnythingThatIsNotAnAbsoluteHTTPURL(t *testing.T) {
@@ -144,6 +160,28 @@ func testResolveCollapsesConcurrentCallsForTheSameURL(t *testing.T) {
 	for _, title := range results {
 		assert.Equal(t, "Beatrice", title)
 	}
+}
+
+func TestResolve_RefusesWithoutCachingWhenEveryFetchSlotIsTaken(t *testing.T) {
+	// given every slot held by fetches already in flight
+	svc, calls := newCountingService(t, &media.Embed{Type: media.EmbedTypeLink, Title: "Beatrice"}, 0)
+	svc.inFlight.Store(testFetchLimit)
+
+	// when
+	_, err := svc.Resolve(context.Background(), "https://example.com/a")
+
+	// then nothing left the process
+	require.ErrorIs(t, err, ErrBusy)
+	assert.Equal(t, int64(0), calls.Load())
+
+	// and the refusal is not remembered once a slot frees up
+	svc.inFlight.Store(0)
+
+	got, err := svc.Resolve(context.Background(), "https://example.com/a")
+	require.NoError(t, err)
+	assert.Equal(t, "Beatrice", got.Title)
+	assert.Equal(t, int64(1), calls.Load())
+	assert.Equal(t, int64(0), svc.inFlight.Load(), "a finished fetch must give its slot back")
 }
 
 func TestResolve_CachesAMissSoADeadLinkIsNotRefetchedEveryView(t *testing.T) {

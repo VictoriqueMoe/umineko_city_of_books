@@ -9,6 +9,7 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/cache/engines"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
@@ -42,7 +43,7 @@ func newStreamHarness(t *testing.T) (*testutil.Harness, streamDeps) {
 		AuthSession:   h.SessionManager,
 		AuthService:   h.AuthService,
 		AuthzService:  h.AuthzService,
-		RateLimiter:   middleware.NewRateLimiter(cache.NewManager(engines.NewInMemory(0))),
+		RateLimiter:   middleware.NewRateLimiter(cache.NewManager(engines.NewInMemory(0)), h.SettingsService),
 	}
 	for _, setup := range s.getAllStreamRoutes() {
 		setup(h.App)
@@ -223,13 +224,13 @@ func TestStreamRoutes_RateLimitByClientIP(t *testing.T) {
 
 	cases := []struct {
 		name    string
-		budget  int
+		setting *config.SiteSettingDef
 		setup   func(h *testutil.Harness, deps streamDeps, budget int)
 		request func(h *testutil.Harness) *testutil.Request
 	}{
 		{
-			name:   "an anonymous viewer token mint",
-			budget: streamViewerTokenLimit,
+			name:    "an anonymous viewer token mint",
+			setting: config.SettingRateLimitStreamToken,
 			setup: func(_ *testutil.Harness, deps streamDeps, budget int) {
 				deps.stream.EXPECT().MintViewerToken(mock.Anything, streamID, (*dto.StreamViewer)(nil)).
 					Return("token", "wss://livekit.example", nil).
@@ -240,8 +241,8 @@ func TestStreamRoutes_RateLimitByClientIP(t *testing.T) {
 			},
 		},
 		{
-			name:   "a thumbnail upload",
-			budget: streamThumbnailLimit,
+			name:    "a thumbnail upload",
+			setting: config.SettingRateLimitStreamThumbnail,
 			setup: func(h *testutil.Harness, deps streamDeps, budget int) {
 				h.ExpectValidSession("valid-cookie", userID)
 				deps.stream.EXPECT().SaveThumbnail(mock.Anything, userID, streamID, int64(len("payload")), mock.Anything).
@@ -255,8 +256,8 @@ func TestStreamRoutes_RateLimitByClientIP(t *testing.T) {
 			},
 		},
 		{
-			name:   "a stream credentials reset",
-			budget: streamCredentialsResetLimit,
+			name:    "a stream credentials reset",
+			setting: config.SettingRateLimitStreamCredentials,
 			setup: func(h *testutil.Harness, deps streamDeps, budget int) {
 				h.ExpectValidSession("valid-cookie", userID)
 				deps.users.EXPECT().GetByID(mock.Anything, userID).
@@ -277,11 +278,11 @@ func TestStreamRoutes_RateLimitByClientIP(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			h, deps := newStreamHarness(t)
-			tc.setup(h, deps, tc.budget)
+			tc.setup(h, deps, testutil.HarnessIntSetting)
 
 			// when
-			allowedStatuses := make([]int, 0, tc.budget)
-			for range tc.budget {
+			allowedStatuses := make([]int, 0, testutil.HarnessIntSetting)
+			for range testutil.HarnessIntSetting {
 				status, _ := tc.request(h).Do()
 				allowedStatuses = append(allowedStatuses, status)
 			}
@@ -292,6 +293,7 @@ func TestStreamRoutes_RateLimitByClientIP(t *testing.T) {
 				assert.Equal(t, http.StatusOK, status)
 			}
 			require.Equal(t, http.StatusTooManyRequests, overflow.StatusCode)
+			h.SettingsService.AssertCalled(t, "GetInt", mock.Anything, tc.setting)
 
 			retryAfter, err := strconv.Atoi(overflow.Header.Get("Retry-After"))
 			require.NoError(t, err)

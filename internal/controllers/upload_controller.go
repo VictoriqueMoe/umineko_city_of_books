@@ -4,8 +4,11 @@ import (
 	"context"
 	"strings"
 
+	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
@@ -26,11 +29,11 @@ func (s *Service) getAllPendingUploadRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupBeginMediaUpload(r fiber.Router) {
-	r.Post("/uploads/media", s.requireAuth(), s.requireEstablished(), s.beginUpload(s.UploadService.BeginMediaUpload))
+	r.Post("/uploads/media", s.requireAuth(), s.requireEstablished(), s.RateLimiter.Limit(cache.RateLimitUploads, config.SettingRateLimitUploads, middleware.ByUser), s.beginUpload(s.UploadService.BeginMediaUpload))
 }
 
 func (s *Service) setupBeginFileUpload(r fiber.Router) {
-	r.Post("/uploads/files", s.requireAuth(), s.requireEstablished(), s.beginUpload(s.UploadService.BeginFileUpload))
+	r.Post("/uploads/files", s.requireAuth(), s.requireEstablished(), s.RateLimiter.Limit(cache.RateLimitUploads, config.SettingRateLimitUploads, middleware.ByUser), s.beginUpload(s.UploadService.BeginFileUpload))
 }
 
 func (s *Service) setupUploadStatuses(r fiber.Router) {

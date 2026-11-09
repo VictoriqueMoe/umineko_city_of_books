@@ -22,9 +22,6 @@ import (
 
 const (
 	rulesSettingPrefix = "rules_"
-
-	credentialAttemptLimit = 10
-	mailAttemptLimit       = 5
 )
 
 var rulesSettings = withCornerRules(map[string]*config.SiteSettingDef{
@@ -57,14 +54,14 @@ func (s *Service) getAllAuthRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupRegisterRoute(r fiber.Router) {
-	r.Post("/auth/register", s.RateLimiter.Limit(cache.RateLimitRegister, credentialAttemptLimit, middleware.ByClientIP), middleware.RequireTurnstile(s.SettingsService), s.register)
+	r.Post("/auth/register", s.RateLimiter.Limit(cache.RateLimitRegister, config.SettingRateLimitCredentials, middleware.ByClientIP), middleware.RequireTurnstile(s.SettingsService), s.register)
 }
 
 func (s *Service) setupLoginRoute(r fiber.Router) {
 	r.Post(
 		"/auth/login",
-		s.RateLimiter.Limit(cache.RateLimitLogin, credentialAttemptLimit, middleware.ByClientIP),
-		s.RateLimiter.Limit(cache.RateLimitLogin, credentialAttemptLimit, middleware.ByAccount("username")),
+		s.RateLimiter.Limit(cache.RateLimitLogin, config.SettingRateLimitCredentials, middleware.ByClientIP),
+		s.RateLimiter.Limit(cache.RateLimitLogin, config.SettingRateLimitCredentials, middleware.ByAccount("username")),
 		middleware.RequireTurnstile(s.SettingsService),
 		s.login,
 	)
@@ -77,19 +74,19 @@ func (s *Service) setupLogoutRoute(r fiber.Router) {
 func (s *Service) setupForgotPasswordRoute(r fiber.Router) {
 	r.Post(
 		"/auth/forgot-password",
-		s.RateLimiter.Limit(cache.RateLimitForgotPassword, mailAttemptLimit, middleware.ByClientIP),
-		s.RateLimiter.Limit(cache.RateLimitForgotPassword, mailAttemptLimit, middleware.ByAccount("username")),
+		s.RateLimiter.Limit(cache.RateLimitForgotPassword, config.SettingRateLimitMail, middleware.ByClientIP),
+		s.RateLimiter.Limit(cache.RateLimitForgotPassword, config.SettingRateLimitMail, middleware.ByAccount("username")),
 		middleware.RequireTurnstile(s.SettingsService),
 		s.forgotPassword,
 	)
 }
 
 func (s *Service) setupResetPasswordRoute(r fiber.Router) {
-	r.Post("/auth/reset-password", s.RateLimiter.Limit(cache.RateLimitResetPassword, credentialAttemptLimit, middleware.ByClientIP), s.resetPassword)
+	r.Post("/auth/reset-password", s.RateLimiter.Limit(cache.RateLimitResetPassword, config.SettingRateLimitCredentials, middleware.ByClientIP), s.resetPassword)
 }
 
 func (s *Service) setupSetEmailRoute(r fiber.Router) {
-	r.Post("/auth/set-email", s.RateLimiter.Limit(cache.RateLimitSetEmail, mailAttemptLimit, middleware.ByClientIP), s.requireAuth(), s.setEmail)
+	r.Post("/auth/set-email", s.RateLimiter.Limit(cache.RateLimitSetEmail, config.SettingRateLimitMail, middleware.ByClientIP), s.requireAuth(), s.setEmail)
 }
 
 func (s *Service) setupVerifyEmailRoute(r fiber.Router) {
@@ -97,7 +94,7 @@ func (s *Service) setupVerifyEmailRoute(r fiber.Router) {
 }
 
 func (s *Service) setupResendVerificationRoute(r fiber.Router) {
-	r.Post("/auth/resend-verification", s.RateLimiter.Limit(cache.RateLimitResendVerification, mailAttemptLimit, middleware.ByClientIP), s.requireAuth(), s.resendVerification)
+	r.Post("/auth/resend-verification", s.RateLimiter.Limit(cache.RateLimitResendVerification, config.SettingRateLimitMail, middleware.ByClientIP), s.requireAuth(), s.resendVerification)
 }
 
 func (s *Service) setupSessionRoute(r fiber.Router) {

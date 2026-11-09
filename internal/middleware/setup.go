@@ -69,6 +69,7 @@ func Setup(app *fiber.App, settingsSvc settings.Service, authSvc auth.Service, a
 		},
 	}))
 
+	app.Use(RejectForeignOrigins(settingsSvc))
 	app.Use(LimitRequestBodies())
 	app.Use(RejectPlainTextBodies())
 

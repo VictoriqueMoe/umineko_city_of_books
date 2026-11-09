@@ -13,10 +13,12 @@ import (
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/cache/engines"
 	chatsvc "umineko_city_of_books/internal/chat"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
+	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
 
@@ -47,6 +49,7 @@ type (
 const (
 	chatCtlCookie     = "valid-cookie"
 	chatCtlAvatarData = "pngdata"
+	chatCtlSendLimit  = 5
 )
 
 var (
@@ -64,6 +67,8 @@ var (
 func newChatHarness(t *testing.T) (*testutil.Harness, *chatsvc.MockService) {
 	h := testutil.NewHarness(t)
 	chatMock := chatsvc.NewMockService(t)
+	sendLimit := settings.NewMockService(t)
+	sendLimit.EXPECT().GetInt(mock.Anything, config.SettingRateLimitChatSend).Return(chatCtlSendLimit).Maybe()
 
 	s := &Service{
 		UploadService:   testutil.NewStaging(t),
@@ -72,7 +77,7 @@ func newChatHarness(t *testing.T) (*testutil.Harness, *chatsvc.MockService) {
 		AuthSession:     h.SessionManager,
 		AuthService:     h.AuthService,
 		AuthzService:    h.AuthzService,
-		RateLimiter:     middleware.NewRateLimiter(cache.NewManager(engines.NewInMemory(0))),
+		RateLimiter:     middleware.NewRateLimiter(cache.NewManager(engines.NewInMemory(0)), sendLimit),
 		Hub:             ws.NewHub(),
 	}
 

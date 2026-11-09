@@ -2,13 +2,64 @@ package media
 
 import (
 	"context"
+	"math"
+	"runtime"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
 
+	"umineko_city_of_books/internal/bounds"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNewProcessor_SharesTheCoresBetweenItsWorkers(t *testing.T) {
+	tests := []struct {
+		name    string
+		workers int
+		want    int
+	}{
+		{name: "one worker gets every core", workers: 1, want: runtime.GOMAXPROCS(0)},
+		{name: "more workers than cores still get a thread each", workers: runtime.GOMAXPROCS(0) + 1, want: 1},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			p := NewProcessor(tc.workers)
+			t.Cleanup(func() {
+				require.NoError(t, p.Shutdown(context.Background()))
+			})
+
+			// then
+			assert.Equal(t, tc.want, p.threads)
+		})
+	}
+}
+
+func TestDecodeLimits(t *testing.T) {
+	tests := []struct {
+		name      string
+		maxPixels int
+		want      []string
+	}{
+		{name: "the configured limit is passed through", maxPixels: 5000, want: []string{"-threads", "4", "-max_pixels", "5000"}},
+		{name: "an unset limit uses the fallback", maxPixels: 0, want: []string{"-threads", "4", "-max_pixels", strconv.Itoa(bounds.FallbackMaxImagePixels)}},
+		{name: "a limit above what ffmpeg accepts is clamped", maxPixels: math.MaxInt32 + 1, want: []string{"-threads", "4", "-max_pixels", strconv.Itoa(math.MaxInt32)}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			got := decodeLimits(tc.maxPixels, 4)
+
+			// then
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
 
 func TestProcessorShutdown(t *testing.T) {
 	tests := []struct {

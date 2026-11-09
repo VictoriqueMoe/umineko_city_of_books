@@ -33,6 +33,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     stop_grace_period: 30s
+    mem_limit: 29g
     depends_on:
       postgres:
         condition: service_healthy

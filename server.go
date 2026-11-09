@@ -230,7 +230,7 @@ func initApp(svc *services, settingsSvc settings.Service) *fiber.App {
 		VanityRoleService:     svc.vanityRole,
 		UserSecretService:     svc.userSecret,
 		AuthSession:           svc.session,
-		RateLimiter:           middleware.NewRateLimiter(svc.cache),
+		RateLimiter:           middleware.NewRateLimiter(svc.cache, settingsSvc),
 		Hub:                   svc.hub,
 		GiphyService:          svc.giphy,
 		GiphyFavouriteService: svc.giphyFavourites,

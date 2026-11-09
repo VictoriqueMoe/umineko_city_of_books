@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"umineko_city_of_books/internal/authctx"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
@@ -108,6 +109,7 @@ type (
 		hub         *ws.Hub
 		mediaProc   *media.Processor
 		liveStaging sync.Map
+		userQueues  userQueues
 	}
 )
 
@@ -117,7 +119,15 @@ func NewService(settingsSvc settings.Service, storageSvc storage.Service, stored
 		mediaProc = processors[0]
 	}
 
-	return &service{settingsSvc: settingsSvc, storageSvc: storageSvc, storedFiles: storedFiles, pending: pending, hub: hub, mediaProc: mediaProc}
+	return &service{
+		settingsSvc: settingsSvc,
+		storageSvc:  storageSvc,
+		storedFiles: storedFiles,
+		pending:     pending,
+		hub:         hub,
+		mediaProc:   mediaProc,
+		userQueues:  userQueues{entries: map[uuid.UUID]*userQueue{}},
+	}
 }
 
 func (s *service) SaveFile(ctx context.Context, subDir string, filename string, reader io.Reader) (string, error) {
@@ -254,6 +264,14 @@ func (s *service) encodeImage(ctx context.Context, subDir string, staged string)
 }
 
 func (s *service) runJob(ctx context.Context, job media.Job) (string, error) {
+	if userID, ok := authctx.UserID(ctx); ok {
+		leave, err := s.userQueues.enter(ctx, userID, s.settingsSvc.GetInt(ctx, config.SettingMaxQueuedUploadsPerUser))
+		if err != nil {
+			return "", err
+		}
+		defer leave()
+	}
+
 	result := make(chan string, 1)
 	errCh := make(chan error, 1)
 	job.Callback = func(outputPath string) {

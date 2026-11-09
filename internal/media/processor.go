@@ -3,15 +3,19 @@ package media
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
+	"runtime"
 	"runtime/pprof"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/logger"
 )
 
@@ -33,6 +37,7 @@ type (
 		MaxHeight     int
 		Quality       int
 		SquareCrop    bool
+		MaxPixels     int
 		Callback      func(outputPath string)
 		ErrorCallback func(err error)
 	}
@@ -42,12 +47,14 @@ type (
 		quit    chan struct{}
 		wg      sync.WaitGroup
 		closing atomic.Bool
+		threads int
 	}
 )
 
 const (
 	JobImage JobType = iota
 	JobVideo
+	JobThumbnail
 )
 
 func NewProcessor(workers int) *Processor {
@@ -56,8 +63,9 @@ func NewProcessor(workers int) *Processor {
 	}
 
 	p := &Processor{
-		jobs: make(chan Job, defaultQueueCap),
-		quit: make(chan struct{}),
+		jobs:    make(chan Job, defaultQueueCap),
+		quit:    make(chan struct{}),
+		threads: max(1, runtime.GOMAXPROCS(0)/workers),
 	}
 
 	p.wg.Add(workers)
@@ -120,7 +128,9 @@ func (p *Processor) run(id int, job Job) {
 	case JobImage:
 		outputPath, err = encodeImage(job)
 	case JobVideo:
-		outputPath, err = encodeVideo(job.InputPath)
+		outputPath, err = encodeVideo(job, p.threads)
+	case JobThumbnail:
+		outputPath, err = generateThumbnail(job, p.threads)
 	}
 
 	if err != nil {
@@ -192,7 +202,17 @@ func encodeImage(job Job) (string, error) {
 	})
 }
 
-func encodeVideo(inputPath string) (string, error) {
+func decodeLimits(maxPixels, threads int) []string {
+	if maxPixels <= 0 {
+		maxPixels = bounds.FallbackMaxImagePixels
+	}
+
+	return []string{"-threads", strconv.Itoa(threads), "-max_pixels", strconv.Itoa(min(maxPixels, math.MaxInt32))}
+}
+
+func encodeVideo(job Job, threads int) (string, error) {
+	inputPath := job.InputPath
+
 	if strings.HasSuffix(strings.ToLower(inputPath), ".webm") {
 		return inputPath, nil
 	}
@@ -207,8 +227,9 @@ func encodeVideo(inputPath string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), videoJobTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "ffmpeg",
+	args := slices.Concat(decodeLimits(job.MaxPixels, threads), []string{
 		"-i", inputPath,
+		"-threads", strconv.Itoa(threads),
 		"-c:v", "libx264",
 		"-preset", "medium",
 		"-crf", ffmpegCRF,
@@ -217,7 +238,9 @@ func encodeVideo(inputPath string) (string, error) {
 		"-movflags", "+faststart",
 		"-y",
 		tmpOutput,
-	)
+	})
+
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		_ = os.Remove(tmpOutput)
 		return "", fmt.Errorf("ffmpeg: %w: %s", err, string(out))
