@@ -255,7 +255,7 @@ A typical `POST /api/v1/theories` request walks through a fixed global middlewar
  │ host allow  │   (/health, /livez, LiveKit webhook exempt)
  └──────┬──────┘
         ▼
- ┌─────────────┐   helmet: HSTS, nosniff, frame-deny, enforced + report-only CSP
+ ┌─────────────┐   helmet: HSTS, nosniff, frame-deny, enforced CSP with a per-response nonce
  │  sec hdrs   │
  └──────┬──────┘
         ▼

@@ -380,7 +380,8 @@ Site events can drive on-stream alert popups through SAMMI. A streamer downloads
 - **Media processing**: image-to-WebP (cwebp) and video-to-MP4 (ffmpeg, H.264 CRF 28) encoding via a background worker pool, local FFmpeg thumbnail generation
 - **Client-side validation** of file sizes before upload, pulled from live server settings
 - **Auto-expanding composers**: every text box grows as you type, capped at half the viewport before scrolling internally
-- **Security headers** on every response via helmet: HSTS with preload, `X-Frame-Options: DENY`, nosniff, a strict referrer policy, a narrow permissions policy, and an enforced CSP (`base-uri`, `form-action`, `frame-ancestors`, `object-src`) shipped alongside a much fuller `Content-Security-Policy-Report-Only`
+- **Security headers** on every response via helmet: HSTS with preload, `X-Frame-Options: DENY`, nosniff, a strict referrer policy, a narrow permissions policy, and a fully enforced CSP with a per-response script nonce so Cloudflare's injected bot detection still runs
+- **Cross-site write protection**: POST, PUT, PATCH and DELETE requests carrying an `Origin` other than the site or the native app are refused, on top of `SameSite=Lax` cookies
 - **Structured logging** with zerolog, configurable log levels, settings change listener pattern
 - **Logs in Grafana**: with `LOG_FORMAT=json` the app writes structured JSON to stdout and ships nothing itself; Grafana Alloy tails the container from the Docker API into Loki. `trace_id` and `span_id` on a log line link straight to the matching Tempo trace
 - **Native mobile app**: the same React frontend packaged with Capacitor, using bearer-token auth and FCM push (see [Mobile app (Capacitor)](MOBILE.md))
