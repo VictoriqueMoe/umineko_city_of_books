@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -94,7 +95,7 @@ func (c *Client) GetByAudioID(ctx context.Context, series Series, audioID string
 	}
 
 	return c.cache.Load(ctx, cache.QuoteByAudioID.Key(string(series), firstID), func(ctx context.Context) (*Quote, error) {
-		return c.fetchQuote(ctx, fmt.Sprintf("%s/%s/quote/%s", c.baseURL, series, firstID))
+		return c.fetchQuote(ctx, fmt.Sprintf("%s/%s/quote/%s", c.baseURL, series, url.PathEscape(firstID)))
 	})
 }
 

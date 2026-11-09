@@ -47,6 +47,7 @@ func newTestService(t *testing.T, processors ...*media.Processor) (*service, *st
 	dir := t.TempDir()
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingUploadDir).Return(dir).Maybe()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImagePixels).Return(bounds.FallbackMaxImagePixels).Maybe()
+	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxQueuedUploadsPerUser).Return(testQueueLimit).Maybe()
 	storageSvc := storage.NewMockService(t)
 	storedFiles := repository.NewMockStoredFileRepository(t)
 	svc := NewService(settingsSvc, storageSvc, storedFiles, repository.NewMockPendingUploadRepository(t), ws.NewHub(), processors...).(*service)

@@ -1,6 +1,7 @@
 package media
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"umineko_city_of_books/internal/logger"
 
 	"github.com/disintegration/imaging"
-	"github.com/rwcarlsen/goexif/exif"
 )
 
 const (
@@ -229,24 +229,12 @@ func jpegNeedsRotation(path string) (bool, error) {
 	}
 	defer f.Close()
 
-	x, err := exif.Decode(f)
+	orientation, err := readJPEGOrientation(bufio.NewReader(f))
 	if err != nil {
-		if exif.IsCriticalError(err) {
-			return false, fmt.Errorf("decode exif: %w", err)
-		}
+		return false, fmt.Errorf("read orientation: %w", err)
 	}
-	tag, err := x.Get(exif.Orientation)
-	if err != nil {
-		if exif.IsTagNotPresentError(err) {
-			return false, nil
-		}
-		return false, fmt.Errorf("read orientation tag: %w", err)
-	}
-	val, err := tag.Int(0)
-	if err != nil {
-		return false, fmt.Errorf("parse orientation: %w", err)
-	}
-	return val > 1, nil
+
+	return orientation > 1, nil
 }
 
 func replaceExt(path, newExt string) string {

@@ -185,6 +185,16 @@ var (
 	SettingChatbotReplyCooldownSeconds = &SiteSettingDef{"chatbot_reply_cooldown_seconds", "20", TypeInt, false}
 	SettingChatbotMaxRepliesPerUserDay = &SiteSettingDef{"chatbot_max_replies_per_user_per_day", "20", TypeInt, false}
 	SettingChatbotMaxRepliesPerDay     = &SiteSettingDef{"chatbot_max_replies_per_day", "500", TypeInt, false}
+	SettingRateLimitCredentials        = &SiteSettingDef{"rate_limit_credentials", "10", TypeInt, false}
+	SettingRateLimitMail               = &SiteSettingDef{"rate_limit_mail", "5", TypeInt, false}
+	SettingRateLimitChatSend           = &SiteSettingDef{"rate_limit_chat_send", "5", TypeInt, false}
+	SettingRateLimitUploads            = &SiteSettingDef{"rate_limit_uploads", "0", TypeInt, false}
+	SettingRateLimitLinkPreview        = &SiteSettingDef{"rate_limit_link_preview", "120", TypeInt, false}
+	SettingRateLimitStreamToken        = &SiteSettingDef{"rate_limit_stream_token", "30", TypeInt, false}
+	SettingRateLimitStreamThumbnail    = &SiteSettingDef{"rate_limit_stream_thumbnail", "6", TypeInt, false}
+	SettingRateLimitStreamCredentials  = &SiteSettingDef{"rate_limit_stream_credentials", "5", TypeInt, false}
+	SettingMaxQueuedUploadsPerUser     = &SiteSettingDef{"max_queued_uploads_per_user", "4", TypeInt, false}
+	SettingLinkPreviewMaxFetches       = &SiteSettingDef{"link_preview_max_fetches", "908", TypeInt, false}
 
 	AllSiteSettings = []*SiteSettingDef{
 		SettingUploadDir,
@@ -298,6 +308,32 @@ var (
 		SettingChatbotReplyCooldownSeconds,
 		SettingChatbotMaxRepliesPerUserDay,
 		SettingChatbotMaxRepliesPerDay,
+		SettingRateLimitCredentials,
+		SettingRateLimitMail,
+		SettingRateLimitChatSend,
+		SettingRateLimitUploads,
+		SettingRateLimitLinkPreview,
+		SettingRateLimitStreamToken,
+		SettingRateLimitStreamThumbnail,
+		SettingRateLimitStreamCredentials,
+		SettingMaxQueuedUploadsPerUser,
+		SettingLinkPreviewMaxFetches,
+	}
+
+	rateLimitSettings = []*SiteSettingDef{
+		SettingRateLimitCredentials,
+		SettingRateLimitMail,
+		SettingRateLimitChatSend,
+		SettingRateLimitUploads,
+		SettingRateLimitLinkPreview,
+		SettingRateLimitStreamToken,
+		SettingRateLimitStreamThumbnail,
+		SettingRateLimitStreamCredentials,
+	}
+
+	concurrencyLimitSettings = []*SiteSettingDef{
+		SettingMaxQueuedUploadsPerUser,
+		SettingLinkPreviewMaxFetches,
 	}
 
 	settingsByKey = indexSettings()
@@ -395,6 +431,24 @@ func validateChatbotSettings(all map[SiteSettingKey]string) error {
 	return nil
 }
 
+func validateTrafficLimits(all map[SiteSettingKey]string) error {
+	for _, def := range rateLimitSettings {
+		n, err := strconv.Atoi(all[def.Key])
+		if err != nil || n < 0 {
+			return fmt.Errorf("%s must be zero or a positive number", def.Key)
+		}
+	}
+
+	for _, def := range concurrencyLimitSettings {
+		n, err := strconv.Atoi(all[def.Key])
+		if err != nil || n <= 0 {
+			return fmt.Errorf("%s must be a positive number", def.Key)
+		}
+	}
+
+	return nil
+}
+
 func ValidateSettings(all map[SiteSettingKey]string) error {
 	getInt := func(key SiteSettingKey) int {
 		v, _ := strconv.Atoi(all[key])
@@ -480,6 +534,10 @@ func ValidateSettings(all map[SiteSettingKey]string) error {
 	}
 
 	if err := validateChatbotSettings(all); err != nil {
+		return err
+	}
+
+	if err := validateTrafficLimits(all); err != nil {
 		return err
 	}
 

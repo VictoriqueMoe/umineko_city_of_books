@@ -5,9 +5,9 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
-	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -15,13 +15,15 @@ import (
 	"umineko_city_of_books/internal/logger"
 )
 
-func getVideoDuration(ctx context.Context, videoPath string) (float64, error) {
-	cmd := exec.CommandContext(ctx, "ffprobe",
+func getVideoDuration(ctx context.Context, videoPath string, limits []string) (float64, error) {
+	args := slices.Concat(limits, []string{
 		"-v", "error",
 		"-show_entries", "format=duration",
 		"-of", "default=noprint_wrappers=1:nokey=1",
 		videoPath,
-	)
+	})
+
+	cmd := exec.CommandContext(ctx, "ffprobe", args...)
 	out, err := cmd.Output()
 	if err != nil {
 		return 0, err
@@ -29,19 +31,16 @@ func getVideoDuration(ctx context.Context, videoPath string) (float64, error) {
 	return strconv.ParseFloat(strings.TrimSpace(string(out)), 64)
 }
 
-func GenerateThumbnail(videoPath string, outputDir string, filename string) (string, error) {
-	thumbFilename := "thumb_" + replaceExt(filename, ".webp")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return "", fmt.Errorf("create thumbnail dir: %w", err)
-	}
-
-	destPath := filepath.Join(outputDir, thumbFilename)
+func generateThumbnail(job Job, threads int) (string, error) {
+	videoPath := job.InputPath
+	destPath := filepath.Join(filepath.Dir(videoPath), "thumb_"+replaceExt(filepath.Base(videoPath), ".webp"))
+	limits := decodeLimits(job.MaxPixels, threads)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	ts := "1"
-	duration, err := getVideoDuration(ctx, videoPath)
+	duration, err := getVideoDuration(ctx, videoPath, limits)
 	if err == nil && duration > 1 {
 		centiseconds, randErr := rand.Int(rand.Reader, big.NewInt(int64(duration*100)))
 		if randErr != nil {
@@ -51,8 +50,7 @@ func GenerateThumbnail(videoPath string, outputDir string, filename string) (str
 		ts = fmt.Sprintf("%.2f", float64(centiseconds.Int64())/100)
 	}
 
-	cmd := exec.CommandContext(ctx, "ffmpeg",
-		"-ss", ts,
+	args := slices.Concat([]string{"-ss", ts}, limits, []string{
 		"-i", videoPath,
 		"-frames:v", "1",
 		"-vcodec", "libwebp",
@@ -60,12 +58,14 @@ func GenerateThumbnail(videoPath string, outputDir string, filename string) (str
 		"-q:v", "80",
 		"-y",
 		destPath,
-	)
+	})
+
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("ffmpeg thumbnail: %w: %s", err, string(output))
 	}
 
 	logger.Ctx(ctx).Debug().Str("video", videoPath).Str("thumb", destPath).Msg("thumbnail generated")
-	return thumbFilename, nil
+	return destPath, nil
 }

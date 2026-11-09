@@ -3,7 +3,6 @@ package upload
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"umineko_city_of_books/internal/config"
@@ -196,7 +195,9 @@ func (s *service) storeVideo(ctx context.Context, staged string) (spec.Processed
 		return spec.ProcessedUpload{MediaURL: url}, err
 	}
 
-	encoded, err := s.runJob(ctx, media.Job{Type: media.JobVideo, InputPath: staged})
+	maxPixels := s.settingsSvc.GetInt(ctx, config.SettingMaxImagePixels)
+
+	encoded, err := s.runJob(ctx, media.Job{Type: media.JobVideo, InputPath: staged, MaxPixels: maxPixels})
 	if err != nil {
 		return spec.ProcessedUpload{}, fmt.Errorf("encode video: %w", err)
 	}
@@ -206,14 +207,14 @@ func (s *service) storeVideo(ctx context.Context, staged string) (spec.Processed
 		return spec.ProcessedUpload{}, err
 	}
 
-	thumbName, err := media.GenerateThumbnail(encoded, filepath.Dir(encoded), filepath.Base(encoded))
+	thumbPath, err := s.runJob(ctx, media.Job{Type: media.JobThumbnail, InputPath: encoded, MaxPixels: maxPixels})
 	if err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("url", url).Msg("failed to generate video thumbnail, keeping the video without one")
 
 		return spec.ProcessedUpload{MediaURL: url}, nil
 	}
 
-	thumbURL, err := s.Store(ctx, mediaSubDir, filepath.Join(filepath.Dir(encoded), thumbName))
+	thumbURL, err := s.Store(ctx, mediaSubDir, thumbPath)
 	if err != nil {
 		s.Delete(url)
 

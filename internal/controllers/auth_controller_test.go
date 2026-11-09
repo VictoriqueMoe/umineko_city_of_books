@@ -66,7 +66,7 @@ func newAuthHarness(t *testing.T) (*testutil.Harness, authDeps) {
 		SiteInfoService:   siteinfo.NewService(h.SettingsService, deps.mysterySvc, deps.gameRoomSvc, deps.vanityRoleSvc, deps.userSecretSvc, deps.authSvc, nil),
 		AuthSession:       h.SessionManager,
 		AuthzService:      h.AuthzService,
-		RateLimiter:       middleware.NewRateLimiter(cache.NewManager(engines.NewInMemory(0))),
+		RateLimiter:       middleware.NewRateLimiter(cache.NewManager(engines.NewInMemory(0)), h.SettingsService),
 	}
 	for _, setup := range s.getAllAuthRoutes() {
 		setup(h.App)
@@ -515,7 +515,7 @@ func TestAuthRoutes_RateLimitByIP(t *testing.T) {
 		path        string
 		body        any
 		setup       func(authDeps)
-		allowed     int
+		setting     *config.SiteSettingDef
 		wantAllowed int
 	}{
 		{
@@ -525,7 +525,7 @@ func TestAuthRoutes_RateLimitByIP(t *testing.T) {
 			setup: func(deps authDeps) {
 				deps.authSvc.EXPECT().Login(mock.Anything, mock.Anything).Return(nil, "", usersvc.ErrInvalidCredentials)
 			},
-			allowed:     credentialAttemptLimit,
+			setting:     config.SettingRateLimitCredentials,
 			wantAllowed: http.StatusUnauthorized,
 		},
 		{
@@ -535,7 +535,7 @@ func TestAuthRoutes_RateLimitByIP(t *testing.T) {
 			setup: func(deps authDeps) {
 				deps.authSvc.EXPECT().ForgotPassword(mock.Anything, "alice").Return(nil)
 			},
-			allowed:     mailAttemptLimit,
+			setting:     config.SettingRateLimitMail,
 			wantAllowed: http.StatusOK,
 		},
 	}
@@ -547,8 +547,8 @@ func TestAuthRoutes_RateLimitByIP(t *testing.T) {
 			tc.setup(deps)
 
 			// when
-			allowedStatuses := make([]int, 0, tc.allowed)
-			for range tc.allowed {
+			allowedStatuses := make([]int, 0, testutil.HarnessIntSetting)
+			for range testutil.HarnessIntSetting {
 				status, _ := h.NewRequest("POST", tc.path).WithJSONBody(tc.body).Do()
 				allowedStatuses = append(allowedStatuses, status)
 			}
@@ -560,6 +560,7 @@ func TestAuthRoutes_RateLimitByIP(t *testing.T) {
 			}
 			require.Equal(t, http.StatusTooManyRequests, overflowStatus)
 			assert.Contains(t, string(overflowBody), "too many requests")
+			h.SettingsService.AssertCalled(t, "GetInt", mock.Anything, tc.setting)
 		})
 	}
 }

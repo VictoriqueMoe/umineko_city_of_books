@@ -355,6 +355,7 @@ Site events can drive on-stream alert popups through SAMMI. A streamer downloads
 - **Content Filter Pipeline** (`internal/contentfilter`): pluggable rule-based validation that runs on all user-generated text before it lands in the DB
 - **Content rules** per section (welcome page, theories for each of the three series, mysteries, ships, fanfiction, reading journals, the general game board and each of its five corners, the general gallery and each of its three corners, site improvements, and chat rooms), admin-editable and displayed at the top of each page
 - **Per-action rate limits**: max theories, responses, posts, art, journals, and chat rooms per day, plus max members per chat room, all settable from the admin panel
+- **Request rate limits**: login, account emails, chat messages, attachment uploads, link previews and stream actions, plus the media jobs one member can queue and the link previews fetched at once, all settable from the admin panel and applied without a restart
 - **Cloudflare Turnstile** on login and registration, toggle-able from admin settings
 
 ## Platform Features

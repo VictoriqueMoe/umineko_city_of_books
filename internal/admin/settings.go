@@ -10,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -49,6 +50,10 @@ func (s *service) UpdateSettings(ctx context.Context, actorID uuid.UUID, setting
 		typed[key] = v
 	}
 
+	if err := requirePasswordForNewSMTPHost(current, typed); err != nil {
+		return err
+	}
+
 	changedKeys := make([]string, 0, len(typed))
 	for k, v := range typed {
 		if current[k] != v {
@@ -72,6 +77,23 @@ func (s *service) UpdateSettings(ctx context.Context, actorID uuid.UUID, setting
 	s.auditDetails(ctx, actorID, audit.ActionUpdateSettings, audit.TargetSettings, strings.Join(changedKeys, ","), details)
 
 	return nil
+}
+
+func requirePasswordForNewSMTPHost(current, submitted map[config.SiteSettingKey]string) error {
+	host, hostSubmitted := submitted[config.SettingSMTPHost.Key]
+	if !hostSubmitted || host == current[config.SettingSMTPHost.Key] {
+		return nil
+	}
+
+	if _, passwordSubmitted := submitted[config.SettingSMTPPassword.Key]; passwordSubmitted {
+		return nil
+	}
+
+	if current[config.SettingSMTPPassword.Key] == "" {
+		return nil
+	}
+
+	return &settings.RejectedError{Err: ErrSMTPPasswordRequired}
 }
 
 func (s *service) SendTestEmail(ctx context.Context, actorID uuid.UUID) error {

@@ -89,6 +89,7 @@ var (
 	RateLimitSetEmail               = Namespace{Prefix: "ratelimit:set-email:", TTL: hour}
 	RateLimitResendVerification     = Namespace{Prefix: "ratelimit:resend-verification:", TTL: hour}
 	RateLimitChatSend               = Namespace{Prefix: "ratelimit:chat-send:", TTL: 5 * time.Second}
+	RateLimitUploads                = Namespace{Prefix: "ratelimit:uploads:", TTL: minute}
 	RateLimitLinkPreview            = Namespace{Prefix: "ratelimit:link-preview:", TTL: minute}
 	RateLimitStreamViewerToken      = Namespace{Prefix: "ratelimit:stream-viewer-token:", TTL: minute}
 	RateLimitStreamThumbnail        = Namespace{Prefix: "ratelimit:stream-thumbnail:", TTL: minute}

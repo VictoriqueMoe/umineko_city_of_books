@@ -5,8 +5,12 @@ import (
 	"net/http"
 	"testing"
 
+	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/cache/engines"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
@@ -26,6 +30,7 @@ func newUploadHarness(t *testing.T) (*testutil.Harness, *upload.MockService) {
 		AuthSession:     h.SessionManager,
 		AuthService:     h.AuthService,
 		AuthzService:    h.AuthzService,
+		RateLimiter:     middleware.NewRateLimiter(cache.NewManager(engines.NewInMemory(0)), h.SettingsService),
 	}
 	for _, setup := range s.getAllPendingUploadRoutes() {
 		setup(h.App)
@@ -109,6 +114,29 @@ func TestBeginUpload_HandsTheFileToTheMatchingKind(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestBeginUpload_RateLimitsEachUserAcrossBothRoutes(t *testing.T) {
+	// given a user who has spent their whole budget on media uploads
+	h, us := newUploadHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	resp := &dto.PendingUploadResponse{ID: uuid.New(), MediaType: "image", Filename: "pic.png", Status: "processing"}
+	us.EXPECT().BeginMediaUpload(mock.Anything, userID, testutil.FileUploadOf("image/png", "pic.png")).Return(resp, nil).Times(testutil.HarnessIntSetting)
+	form, contentType := testutil.MediaForm(t, "file", nil)
+
+	for range testutil.HarnessIntSetting {
+		status, _ := h.NewRequest("POST", "/uploads/media").WithCookie("valid-cookie").WithRawBody(form, contentType).Do()
+		require.Equal(t, http.StatusAccepted, status)
+	}
+
+	// when they try a document upload
+	status, body := h.NewRequest("POST", "/uploads/files").WithCookie("valid-cookie").WithRawBody(form, contentType).Do()
+
+	// then the strict upload mock is never reached
+	require.Equal(t, http.StatusTooManyRequests, status)
+	assert.Contains(t, string(body), "too many requests")
+	h.SettingsService.AssertCalled(t, "GetInt", mock.Anything, config.SettingRateLimitUploads)
 }
 
 func TestBeginUpload_NewAccountsCannotUpload(t *testing.T) {

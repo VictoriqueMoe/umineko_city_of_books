@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,10 +15,13 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/cache/engines"
+	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/settings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	valkeymock "github.com/valkey-io/valkey-go/mock"
 	"go.uber.org/mock/gomock"
@@ -38,10 +42,22 @@ const (
 var (
 	testBudget  = cache.Namespace{Prefix: "test:budget:", TTL: time.Minute}
 	otherBudget = cache.Namespace{Prefix: "test:other-budget:", TTL: time.Minute}
+	testSetting = &config.SiteSettingDef{Key: "test_limit", Default: "5", Type: config.TypeInt}
 )
 
-func newTestRateLimiter() *RateLimiter {
-	return NewRateLimiter(cache.NewManager(engines.NewInMemory(0)))
+func limitSettings(t *testing.T, limit int) *settings.MockService {
+	t.Helper()
+
+	settingsSvc := settings.NewMockService(t)
+	settingsSvc.EXPECT().GetInt(mock.Anything, testSetting).Return(limit).Maybe()
+
+	return settingsSvc
+}
+
+func newTestRateLimiter(t *testing.T, limit int) *RateLimiter {
+	t.Helper()
+
+	return NewRateLimiter(cache.NewManager(engines.NewInMemory(0)), limitSettings(t, limit))
 }
 
 func postLimited(t *testing.T, app *fiber.App, path string) limitedResponse {
@@ -80,7 +96,7 @@ func TestRateLimit_AllowsTheLimitThenRejects(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			app := limitedApp(newTestRateLimiter().Limit(tc.budget, tc.limit, ByClientIP))
+			app := limitedApp(newTestRateLimiter(t, tc.limit).Limit(tc.budget, testSetting, ByClientIP))
 
 			// when
 			allowedStatuses := make([]int, 0, tc.limit)
@@ -107,6 +123,42 @@ func TestRateLimit_AllowsTheLimitThenRejects(t *testing.T) {
 	}
 }
 
+func TestRateLimit_ZeroTurnsTheLimitOff(t *testing.T) {
+	// given
+	app := limitedApp(newTestRateLimiter(t, 0).Limit(testBudget, testSetting, ByClientIP))
+
+	// when
+	statuses := make([]int, 0, testLimit+1)
+	for range testLimit + 1 {
+		statuses = append(statuses, postLimited(t, app, "/limited").status)
+	}
+
+	// then
+	for _, status := range statuses {
+		assert.Equal(t, http.StatusOK, status)
+	}
+}
+
+func TestRateLimit_AChangedSettingAppliesToTheNextRequest(t *testing.T) {
+	// given a budget of one that has already been spent
+	limit := 1
+	settingsSvc := settings.NewMockService(t)
+	settingsSvc.EXPECT().GetInt(mock.Anything, testSetting).RunAndReturn(func(context.Context, *config.SiteSettingDef) int {
+		return limit
+	})
+	limiter := NewRateLimiter(cache.NewManager(engines.NewInMemory(0)), settingsSvc)
+	app := limitedApp(limiter.Limit(testBudget, testSetting, ByClientIP))
+	require.Equal(t, http.StatusOK, postLimited(t, app, "/limited").status)
+	require.Equal(t, http.StatusTooManyRequests, postLimited(t, app, "/limited").status)
+
+	// when an admin raises it
+	limit = 5
+	got := postLimited(t, app, "/limited")
+
+	// then no restart was needed
+	assert.Equal(t, http.StatusOK, got.status)
+}
+
 func TestRateLimitByClientIP_KeysOnResolvedClientIP(t *testing.T) {
 	cases := []struct {
 		name       string
@@ -115,6 +167,14 @@ func TestRateLimitByClientIP_KeysOnResolvedClientIP(t *testing.T) {
 	}{
 		{"one client burns its own budget", func(int) string { return "203.0.113.7" }, http.StatusTooManyRequests},
 		{"separate clients keep separate budgets", func(call int) string { return fmt.Sprintf("203.0.113.%d", call) }, http.StatusOK},
+		{"rotating addresses inside one ipv6 /64 shares a budget", func(call int) string { return fmt.Sprintf("2001:db8:1:1::%x", call) }, http.StatusTooManyRequests},
+		{"separate ipv6 /64 networks keep separate budgets", func(call int) string { return fmt.Sprintf("2001:db8:1:%x::1", call) }, http.StatusOK},
+		{"an ipv4 mapped address shares its ipv4 budget", func(call int) string {
+			if call%2 == 0 {
+				return "::ffff:203.0.113.7"
+			}
+			return "203.0.113.7"
+		}, http.StatusTooManyRequests},
 	}
 
 	for _, tc := range cases {
@@ -127,7 +187,7 @@ func TestRateLimitByClientIP_KeysOnResolvedClientIP(t *testing.T) {
 				ctx.SetLocal("client_ip", tc.ipForCall(call))
 				return ctx.Next()
 			})
-			app.Post("/limited", newTestRateLimiter().Limit(testBudget, testLimit, ByClientIP), func(ctx fiber.Ctx) error {
+			app.Post("/limited", newTestRateLimiter(t, testLimit).Limit(testBudget, testSetting, ByClientIP), func(ctx fiber.Ctx) error {
 				return ctx.JSON(fiber.Map{"status": "ok"})
 			})
 
@@ -172,7 +232,7 @@ func TestRateLimitByAccount_KeysOnBodyFieldNotIP(t *testing.T) {
 				ctx.SetLocal("client_ip", tc.ipFor(call))
 				return ctx.Next()
 			})
-			app.Post("/limited", newTestRateLimiter().Limit(testBudget, testLimit, ByAccount("username")), func(ctx fiber.Ctx) error {
+			app.Post("/limited", newTestRateLimiter(t, testLimit).Limit(testBudget, testSetting, ByAccount("username")), func(ctx fiber.Ctx) error {
 				return ctx.JSON(fiber.Map{"status": "ok"})
 			})
 
@@ -207,17 +267,17 @@ func TestRateLimit_OneBudgetPerNamespace(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			userID := uuid.New()
-			limiter := newTestRateLimiter()
+			limiter := newTestRateLimiter(t, testLimit)
 
 			app := fiber.New()
 			app.Use(func(ctx fiber.Ctx) error {
 				ctx.SetLocal("userID", userID)
 				return ctx.Next()
 			})
-			app.Post("/first", limiter.Limit(testBudget, testLimit, ByUser), func(ctx fiber.Ctx) error {
+			app.Post("/first", limiter.Limit(testBudget, testSetting, ByUser), func(ctx fiber.Ctx) error {
 				return ctx.JSON(fiber.Map{"status": "ok"})
 			})
-			app.Post("/second", limiter.Limit(tc.secondBudget, testLimit, ByUser), func(ctx fiber.Ctx) error {
+			app.Post("/second", limiter.Limit(tc.secondBudget, testSetting, ByUser), func(ctx fiber.Ctx) error {
 				return ctx.JSON(fiber.Map{"status": "ok"})
 			})
 
@@ -237,7 +297,7 @@ func TestRateLimitByUser_RefusesToRunWithoutAUser(t *testing.T) {
 	// given
 	reached := false
 	app := fiber.New()
-	app.Post("/limited", newTestRateLimiter().Limit(testBudget, testLimit, ByUser), func(ctx fiber.Ctx) error {
+	app.Post("/limited", newTestRateLimiter(t, testLimit).Limit(testBudget, testSetting, ByUser), func(ctx fiber.Ctx) error {
 		reached = true
 		return ctx.JSON(fiber.Map{"status": "ok"})
 	})
@@ -281,7 +341,7 @@ func TestRateLimit_FailsOpenWhenTheStoreFails(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			app := limitedApp(NewRateLimiter(tc.manager(t)).Limit(testBudget, testLimit, ByClientIP))
+			app := limitedApp(NewRateLimiter(tc.manager(t), limitSettings(t, testLimit)).Limit(testBudget, testSetting, ByClientIP))
 
 			// when
 			allowedStatuses := make([]int, 0, testLimit+1)

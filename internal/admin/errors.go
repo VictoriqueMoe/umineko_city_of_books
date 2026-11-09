@@ -19,4 +19,5 @@ var (
 	ErrEmptyDisplayName        = errors.New("display name is required")
 	ErrBannedGiphyInvalidInput = errors.New("could not recognise a Giphy URL or ID in the input")
 	ErrBannedGiphyKindMismatch = errors.New("supplied kind does not match what was extracted from the URL")
+	ErrSMTPPasswordRequired    = errors.New("enter the SMTP password again when changing the SMTP host")
 )

@@ -5,13 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"net/netip"
 	"net/url"
 	"regexp"
 	"strings"
-	"syscall"
 	"time"
 
 	"umineko_city_of_books/internal/httpclient"
@@ -46,16 +43,7 @@ var (
 	urlRegex = regexp.MustCompile(`https?://[^\s<>"]+`)
 	ytRegex  = regexp.MustCompile(`^https?://(?:[a-z0-9-]+\.)*(?:youtube\.com/(?:watch\?v=|embed/|shorts/)|youtu\.be/)([a-zA-Z0-9_-]{11})`)
 
-	previewTransport = &http.Transport{
-		DialContext: (&net.Dialer{
-			Control: blockNonPublicAddress,
-		}).DialContext,
-		ForceAttemptHTTP2: true,
-		MaxIdleConns:      100,
-		IdleConnTimeout:   90 * time.Second,
-	}
-
-	previewClient = httpclient.New(5*time.Second, httpclient.WithTransport(previewTransport), httpclient.WithMaxRedirects(2))
+	previewClient = httpclient.New(5*time.Second, httpclient.WithPublicAddressesOnly(), httpclient.WithMaxRedirects(2))
 )
 
 func ExtractURLs(body string) []string {
@@ -80,39 +68,6 @@ func extractYouTubeID(rawURL string) string {
 		return ""
 	}
 	return matches[1]
-}
-
-func blockNonPublicAddress(_, address string, _ syscall.RawConn) error {
-	addrPort, err := netip.ParseAddrPort(address)
-	if err != nil {
-		return errBlockedAddress
-	}
-
-	if !isPublicAddr(addrPort.Addr()) {
-		return errBlockedAddress
-	}
-
-	return nil
-}
-
-func isPublicAddr(addr netip.Addr) bool {
-	addr = addr.Unmap()
-
-	if !addr.IsValid() {
-		return false
-	}
-
-	switch {
-	case addr.IsLoopback(),
-		addr.IsPrivate(),
-		addr.IsUnspecified(),
-		addr.IsLinkLocalUnicast(),
-		addr.IsLinkLocalMulticast(),
-		addr.IsMulticast():
-		return false
-	}
-
-	return true
 }
 
 func fetchPreview(ctx context.Context, rawURL string) *Embed {

@@ -13,6 +13,7 @@ import { LinkPreviewsSection } from "./sections/LinkPreviewsSection";
 import { LoggingSection } from "./sections/LoggingSection";
 import { MobileAppSection } from "./sections/MobileAppSection";
 import { PrivateModeSection } from "./sections/PrivateModeSection";
+import { RateLimitsSection } from "./sections/RateLimitsSection";
 import { StorageSection } from "./sections/StorageSection";
 import { StreamingSection } from "./sections/StreamingSection";
 import { TurnstileSection } from "./sections/TurnstileSection";
@@ -42,6 +43,7 @@ export function AdminSettings() {
             <CacheSection form={form} />
             <StorageSection form={form} />
             <LimitsSection form={form} />
+            <RateLimitsSection form={form} />
             <FileSizeLimitsSection form={form} />
             <EmailSection form={form} />
             <LoggingSection form={form} />

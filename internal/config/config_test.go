@@ -20,6 +20,43 @@ func validSettings() map[SiteSettingKey]string {
 	return all
 }
 
+func TestValidateSettings_TrafficLimits(t *testing.T) {
+	cases := []struct {
+		name    string
+		setting *SiteSettingDef
+		value   string
+		wantErr bool
+	}{
+		{"a rate limit can be raised", SettingRateLimitCredentials, "50", false},
+		{"zero turns a rate limit off", SettingRateLimitUploads, "0", false},
+		{"a negative rate limit is refused", SettingRateLimitChatSend, "-1", true},
+		{"a rate limit must be a number", SettingRateLimitMail, "lots", true},
+		{"a queue can hold one job", SettingMaxQueuedUploadsPerUser, "1", false},
+		{"a queue of zero would hang every upload", SettingMaxQueuedUploadsPerUser, "0", true},
+		{"no preview fetches at all is refused", SettingLinkPreviewMaxFetches, "0", true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			all := validSettings()
+			all[tc.setting.Key] = tc.value
+
+			// when
+			err := ValidateSettings(all)
+
+			// then
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), string(tc.setting.Key))
+				return
+			}
+
+			require.NoError(t, err)
+		})
+	}
+}
+
 func TestValidateSettings_HyperbeamRegion(t *testing.T) {
 	cases := []struct {
 		name    string

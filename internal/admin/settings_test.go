@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -180,6 +181,49 @@ func TestUpdateSettings_SecretsAndAudit(t *testing.T) {
 
 			// then
 			require.NoError(t, err)
+		})
+	}
+}
+
+func TestUpdateSettings_ANewSMTPHostNeedsThePasswordAgain(t *testing.T) {
+	stored := map[config.SiteSettingKey]string{"smtp_host": "mail.example.com", "smtp_password": "hunter2"}
+
+	tests := []struct {
+		name      string
+		stored    map[config.SiteSettingKey]string
+		submitted map[string]string
+		wantSaved bool
+	}{
+		{name: "a new host with the mask is refused", stored: stored, submitted: map[string]string{"smtp_host": "evil.example.com", "smtp_password": config.SecretMask}},
+		{name: "a new host without any password field is refused", stored: stored, submitted: map[string]string{"smtp_host": "evil.example.com"}},
+		{name: "a new host with the password typed again is saved", stored: stored, submitted: map[string]string{"smtp_host": "new.example.com", "smtp_password": "hunter2"}, wantSaved: true},
+		{name: "the same host with the mask is saved", stored: stored, submitted: map[string]string{"smtp_host": "mail.example.com", "smtp_password": config.SecretMask}, wantSaved: true},
+		{name: "a new host with no stored password is saved", stored: map[config.SiteSettingKey]string{"smtp_host": "mail.example.com"}, submitted: map[string]string{"smtp_host": "new.example.com"}, wantSaved: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			actor := uuid.New()
+			m.settingsSvc.EXPECT().GetAll(mock.Anything).Return(tc.stored)
+			if tc.wantSaved {
+				m.settingsSvc.EXPECT().SetMultiple(mock.Anything, mock.Anything, actor).Return(nil)
+				m.auditRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+			}
+
+			// when
+			err := svc.UpdateSettings(context.Background(), actor, tc.submitted)
+
+			// then
+			if tc.wantSaved {
+				require.NoError(t, err)
+				return
+			}
+
+			rejected, ok := errors.AsType[*settings.RejectedError](err)
+			require.True(t, ok)
+			assert.ErrorIs(t, rejected, ErrSMTPPasswordRequired)
 		})
 	}
 }

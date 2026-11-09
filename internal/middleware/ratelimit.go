@@ -4,12 +4,15 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
 
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/utils"
 
 	"github.com/gofiber/fiber/v3"
@@ -20,23 +23,30 @@ type (
 	RateLimitSubject func(ctx fiber.Ctx) (string, error)
 
 	RateLimiter struct {
-		cache *cache.Manager
+		cache       *cache.Manager
+		settingsSvc settings.Service
 	}
 )
 
 const (
 	maxSubjectLength    = 192
 	hashedSubjectPrefix = "sha256:"
+	ipv6SubnetBits      = 64
 
 	tooManyRequestsMessage = "too many requests, please try again later"
 )
 
-func NewRateLimiter(cacheManager *cache.Manager) *RateLimiter {
-	return &RateLimiter{cache: cacheManager}
+func NewRateLimiter(cacheManager *cache.Manager, settingsSvc settings.Service) *RateLimiter {
+	return &RateLimiter{cache: cacheManager, settingsSvc: settingsSvc}
 }
 
-func (l *RateLimiter) Limit(budget cache.Namespace, limit int, subject RateLimitSubject) fiber.Handler {
+func (l *RateLimiter) Limit(budget cache.Namespace, setting *config.SiteSettingDef, subject RateLimitSubject) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
+		limit := l.settingsSvc.GetInt(ctx.Context(), setting)
+		if limit <= 0 {
+			return ctx.Next()
+		}
+
 		who, err := subject(ctx)
 		if err != nil {
 			return err
@@ -65,14 +75,14 @@ func (l *RateLimiter) Limit(budget cache.Namespace, limit int, subject RateLimit
 }
 
 func ByClientIP(ctx fiber.Ctx) (string, error) {
-	return "ip:" + clientIP(ctx), nil
+	return "ip:" + clientNetwork(ctx), nil
 }
 
 func ByAccount(field string) RateLimitSubject {
 	return func(ctx fiber.Ctx) (string, error) {
 		value, ok := normalisedBodyField(ctx, field)
 		if !ok {
-			return "account:ip:" + clientIP(ctx), nil
+			return "account:ip:" + clientNetwork(ctx), nil
 		}
 
 		return "account:" + field + ":" + value, nil
@@ -122,6 +132,27 @@ func normalisedBodyField(ctx fiber.Ctx, field string) (string, bool) {
 	value = strings.ToLower(strings.TrimSpace(value))
 
 	return value, value != ""
+}
+
+func clientNetwork(ctx fiber.Ctx) string {
+	ip := clientIP(ctx)
+
+	addr, err := netip.ParseAddr(ip)
+	if err != nil {
+		return ip
+	}
+
+	addr = addr.Unmap()
+	if !addr.Is6() {
+		return addr.String()
+	}
+
+	network, err := addr.Prefix(ipv6SubnetBits)
+	if err != nil {
+		return ip
+	}
+
+	return network.String()
 }
 
 func clientIP(ctx fiber.Ctx) string {

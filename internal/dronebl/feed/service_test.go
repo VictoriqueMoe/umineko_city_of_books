@@ -221,6 +221,17 @@ func TestRanges_IsEmptyBeforeTheFirstRefresh(t *testing.T) {
 	assert.Empty(t, svc.Ranges(context.Background()))
 }
 
+func TestFetch_RefusesAFeedOnANonPublicAddress(t *testing.T) {
+	// given
+	svc := New(nil, nil)
+
+	// when
+	_, err := svc.fetch(t.Context(), "https://127.0.0.1:1/ranges.json")
+
+	// then
+	require.ErrorIs(t, err, httpclient.ErrBlockedAddress)
+}
+
 func TestValidator(t *testing.T) {
 	server := serveFeeds(t)
 

@@ -57,7 +57,11 @@ type (
 	}
 )
 
-const testRequestTimeout = 30 * time.Second
+const (
+	testRequestTimeout = 30 * time.Second
+
+	HarnessIntSetting = 30
+)
 
 var errNotFound error = errNotFoundT{}
 
@@ -126,7 +130,7 @@ func NewHarness(t *testing.T) *Harness {
 	authService := authsvc.NewMockService(t)
 	authzService := authzsvc.NewMockService(t)
 
-	settingsService.EXPECT().GetInt(mock.Anything, mock.Anything).Return(30).Maybe()
+	settingsService.EXPECT().GetInt(mock.Anything, mock.Anything).Return(HarnessIntSetting).Maybe()
 	settingsService.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("").Maybe()
 
 	mgr := session.NewManager(sessionRepo, settingsService)
