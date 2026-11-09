@@ -39,6 +39,20 @@ func (s *service) BeginMediaUpload(ctx context.Context, userID uuid.UUID, file F
 		return nil, err
 	}
 
+	leave, err := s.admit(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := s.stageAndBeginMedia(ctx, userID, file, leave)
+	if err != nil {
+		leave()
+	}
+
+	return response, err
+}
+
+func (s *service) stageAndBeginMedia(ctx context.Context, userID uuid.UUID, file FileUpload, leave func()) (*dto.PendingUploadResponse, error) {
 	kind := kindOf(file.ContentType)
 	maxSize := int64(s.settingsSvc.GetInt(ctx, kind.sizeSetting))
 	width, height := mediaDimensions(kind, file)
@@ -59,6 +73,8 @@ func (s *service) BeginMediaUpload(ctx context.Context, userID uuid.UUID, file F
 	pending := spec.NewPendingUpload{ID: id, UserID: userID, MediaType: kind.mediaType, Filename: media.SafeFilename(file.Filename), FileSize: file.Size}
 
 	return s.begin(ctx, pending, staged, func(bg context.Context) (spec.ProcessedUpload, error) {
+		defer leave()
+
 		processed, err := s.processMedia(bg, kind.mediaType, staged)
 		processed.Width = width
 		processed.Height = height

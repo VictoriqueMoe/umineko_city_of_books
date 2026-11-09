@@ -17,6 +17,7 @@ func IsUploadRejection(err error) bool {
 		errors.Is(err, upload.ErrInvalidVideoType) ||
 		errors.Is(err, upload.ErrInvalidAudioType) ||
 		errors.Is(err, upload.ErrInvalidAttachmentType) ||
+		errors.Is(err, upload.ErrTooManyUploads) ||
 		errors.Is(err, bounds.ErrImageBounds) ||
 		errors.Is(err, daoerr.ErrUploadUnavailable)
 }

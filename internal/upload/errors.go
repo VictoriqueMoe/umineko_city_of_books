@@ -8,4 +8,5 @@ var (
 	ErrInvalidVideoType      = errors.New("file must be MP4, WebM, MOV, AVI, or MKV")
 	ErrInvalidAudioType      = errors.New("file must be MP3, M4A, OGG, WAV, or FLAC")
 	ErrInvalidAttachmentType = errors.New("file must be PDF, TXT, or DOCX")
+	ErrTooManyUploads        = errors.New("too many of your uploads are waiting to be processed, try again when some have finished")
 )

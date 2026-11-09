@@ -15,10 +15,32 @@ type (
 	}
 
 	userQueues struct {
-		mu      sync.Mutex
-		entries map[uuid.UUID]*userQueue
+		mu       sync.Mutex
+		entries  map[uuid.UUID]*userQueue
+		admitted map[uuid.UUID]int
 	}
 )
+
+func (q *userQueues) admit(userID uuid.UUID, limit int) (func(), bool) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	if q.admitted[userID] >= limit {
+		return nil, false
+	}
+
+	q.admitted[userID]++
+
+	return func() {
+		q.mu.Lock()
+		defer q.mu.Unlock()
+
+		q.admitted[userID]--
+		if q.admitted[userID] == 0 {
+			delete(q.admitted, userID)
+		}
+	}, true
+}
 
 func (q *userQueues) enter(ctx context.Context, userID uuid.UUID, limit int) (func(), error) {
 	q.mu.Lock()

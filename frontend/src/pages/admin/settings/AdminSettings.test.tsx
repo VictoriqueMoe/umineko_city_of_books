@@ -825,7 +825,12 @@ describe("AdminSettings saving", () => {
 describe("AdminSettings rate limits", () => {
     it("shows the saved limits", () => {
         // given
-        stubSettings({ ...VALID, rate_limit_credentials: "10", max_queued_uploads_per_user: "4" });
+        stubSettings({
+            ...VALID,
+            rate_limit_credentials: "10",
+            max_queued_uploads_per_user: "4",
+            max_waiting_uploads_per_user: "256",
+        });
 
         // when
         renderWithProviders(<AdminSettings />);
@@ -833,6 +838,7 @@ describe("AdminSettings rate limits", () => {
         // then
         expect(numberInput("Login, Register and Password Reset (per minute)")).toHaveValue(10);
         expect(numberInput("Media Jobs Queued Per Member")).toHaveValue(4);
+        expect(numberInput("Media Uploads Waiting Per Member")).toHaveValue(256);
     });
 
     it("saves a changed limit under the key the backend reads", async () => {

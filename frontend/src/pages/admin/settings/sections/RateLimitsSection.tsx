@@ -49,6 +49,11 @@ const LIMITS = [
         hint: "How many of one member's images and videos can be in the processing queue at once. Any more wait their turn. A change applies once that member has nothing queued. Must be at least 1.",
     },
     {
+        key: "max_waiting_uploads_per_user",
+        label: "Media Uploads Waiting Per Member",
+        hint: "How many more of one member's uploads can wait behind that queue. Anything past this is refused straight away. Set to 0 for no waiting.",
+    },
+    {
         key: "link_preview_max_fetches",
         label: "Link Previews Fetched At Once",
         hint: "Across the whole site. When every fetch is busy, a link shows no preview card until it is requested again. Must be at least 1.",

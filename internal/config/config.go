@@ -194,6 +194,7 @@ var (
 	SettingRateLimitStreamThumbnail    = &SiteSettingDef{"rate_limit_stream_thumbnail", "6", TypeInt, false}
 	SettingRateLimitStreamCredentials  = &SiteSettingDef{"rate_limit_stream_credentials", "5", TypeInt, false}
 	SettingMaxQueuedUploadsPerUser     = &SiteSettingDef{"max_queued_uploads_per_user", "4", TypeInt, false}
+	SettingMaxWaitingUploadsPerUser    = &SiteSettingDef{"max_waiting_uploads_per_user", "256", TypeInt, false}
 	SettingLinkPreviewMaxFetches       = &SiteSettingDef{"link_preview_max_fetches", "908", TypeInt, false}
 
 	AllSiteSettings = []*SiteSettingDef{
@@ -317,10 +318,11 @@ var (
 		SettingRateLimitStreamThumbnail,
 		SettingRateLimitStreamCredentials,
 		SettingMaxQueuedUploadsPerUser,
+		SettingMaxWaitingUploadsPerUser,
 		SettingLinkPreviewMaxFetches,
 	}
 
-	rateLimitSettings = []*SiteSettingDef{
+	nonNegativeLimitSettings = []*SiteSettingDef{
 		SettingRateLimitCredentials,
 		SettingRateLimitMail,
 		SettingRateLimitChatSend,
@@ -329,9 +331,10 @@ var (
 		SettingRateLimitStreamToken,
 		SettingRateLimitStreamThumbnail,
 		SettingRateLimitStreamCredentials,
+		SettingMaxWaitingUploadsPerUser,
 	}
 
-	concurrencyLimitSettings = []*SiteSettingDef{
+	positiveLimitSettings = []*SiteSettingDef{
 		SettingMaxQueuedUploadsPerUser,
 		SettingLinkPreviewMaxFetches,
 	}
@@ -432,14 +435,14 @@ func validateChatbotSettings(all map[SiteSettingKey]string) error {
 }
 
 func validateTrafficLimits(all map[SiteSettingKey]string) error {
-	for _, def := range rateLimitSettings {
+	for _, def := range nonNegativeLimitSettings {
 		n, err := strconv.Atoi(all[def.Key])
 		if err != nil || n < 0 {
 			return fmt.Errorf("%s must be zero or a positive number", def.Key)
 		}
 	}
 
-	for _, def := range concurrencyLimitSettings {
+	for _, def := range positiveLimitSettings {
 		n, err := strconv.Atoi(all[def.Key])
 		if err != nil || n <= 0 {
 			return fmt.Errorf("%s must be a positive number", def.Key)

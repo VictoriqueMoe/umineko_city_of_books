@@ -87,6 +87,7 @@ func TestBeginUpload_HandsTheFileToTheMatchingKind(t *testing.T) {
 	}{
 		{name: "accepted", wantCode: http.StatusAccepted, wantBody: `"status":"processing"`},
 		{name: "a refused file", err: upload.ErrInvalidFileType, wantCode: http.StatusBadRequest, wantBody: upload.ErrInvalidFileType.Error()},
+		{name: "a full backlog", err: upload.ErrTooManyUploads, wantCode: http.StatusBadRequest, wantBody: upload.ErrTooManyUploads.Error()},
 		{name: "a server failure is not echoed back", err: errors.New("pq: connection refused"), wantCode: http.StatusInternalServerError, wantBody: "failed to accept the upload"},
 	}
 
