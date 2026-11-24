@@ -135,11 +135,12 @@ df -h /var/lib/docker
    $C stop umineko-city-of-books
    ```
 
-2. **Dump with 19's `pg_dump`**, which the 19 release notes ask for, from the still-running 18 server:
+2. **Dump with 19's `pg_dump`**, which the 19 release notes ask for, from the still-running 18 server. The first command saves the Postgres settings exactly as compose hands them to the app. Compose reads `postgres.env` with its own rules (it expands `$` and handles quotes) while `docker run --env-file` takes every value literally, so a 19 user created straight from `postgres.env` can end up with a different password from the one the app sends, and the app then fails to log in. The saved file holds the database password; the cleanup below deletes it.
 
    ```bash
    mkdir -p pgdump
-   docker run --rm --network "container:$PG" --env-file postgres.env -v "$PWD/pgdump:/dump" postgres:19 \
+   $C run --rm --no-deps -T --entrypoint env postgres | grep '^POSTGRES_' > pgdump/postgres.env
+   docker run --rm --network "container:$PG" --env-file pgdump/postgres.env -v "$PWD/pgdump:/dump" postgres:19 \
      sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f /dump/pre-19.dump'
    ```
 
@@ -150,10 +151,10 @@ df -h /var/lib/docker
    docker run --rm -v "$VOL:/var/lib/postgresql" postgres:19 mv /var/lib/postgresql/18/docker /var/lib/postgresql/18/pre-19
    ```
 
-4. **Start 19 on the same volume and restore.** The first boot creates the user and database from `postgres.env`. `pg_isready` checks over TCP because first-boot setup runs a temporary socket-only server, and the TCP port only opens once setup is finished. `-j "$(nproc)"` follows the `pg_restore` docs, which suggest the number of CPU cores as the starting point.
+4. **Start 19 on the same volume and restore.** The first boot creates the user and database from the settings saved in step 2. `pg_isready` checks over TCP because first-boot setup runs a temporary socket-only server, and the TCP port only opens once setup is finished. `-j "$(nproc)"` follows the `pg_restore` docs, which suggest the number of CPU cores as the starting point.
 
    ```bash
-   docker run -d --name pg19-restore --env-file postgres.env -v "$VOL:/var/lib/postgresql" -v "$PWD/pgdump:/dump:ro" postgres:19
+   docker run -d --name pg19-restore --env-file pgdump/postgres.env -v "$VOL:/var/lib/postgresql" -v "$PWD/pgdump:/dump:ro" postgres:19
    until docker exec pg19-restore pg_isready -h 127.0.0.1 -q; do sleep 1; done
    docker exec pg19-restore sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --exit-on-error -j "$(nproc)" /dump/pre-19.dump'
    docker exec pg19-restore sh -c 'vacuumdb -U "$POSTGRES_USER" -d "$POSTGRES_DB" --analyze-only'
