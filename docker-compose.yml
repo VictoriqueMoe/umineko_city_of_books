@@ -6,7 +6,7 @@ x-logging: &default-logging
 
 services:
   postgres:
-    image: postgres:latest
+    image: postgres:19
     container_name: umineko-postgres
     restart: unless-stopped
     logging: *default-logging

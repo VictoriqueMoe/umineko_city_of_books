@@ -110,3 +110,69 @@ By default a viewer watches a stream over **WebRTC**: sub-second latency, but it
 The egress runs **participant egress** (no headless Chrome compositor), so it is light, but the container still needs `--cap-add=SYS_ADMIN` (already in the compose) because the egress image enables Chrome sandboxing regardless. When the broadcaster's video track appears, the app polls the ingress (up to six times, two seconds apart) for the **actual width / height / framerate** it is measuring from OBS and starts the egress at those, falling back to 60 fps if nothing has been reported yet, so the Smooth rendition mirrors whatever resolution the streamer set rather than a fixed one. The bitrate is not measured: the streamer types it into **Stream bitrate (Kbps)** in the Go Live panel, required whenever Smooth is available and accepted between 500 and 50000, and the egress encodes at that. Output is **H.264 Baseline** video with **320 kbps AAC** audio at 48 kHz, in two-second segments with a matching keyframe interval, for Safari/iOS compatibility. It is a **single rendition** (LiveKit egress encodes once per job, there is no adaptive-bitrate ladder), and the per-stream segment directory is deleted when the stream ends, with the reconcile pass sweeping up anything a crash orphaned, so nothing accumulates on disk.
 
 > Smooth playback transcodes (HLS over `.ts` cannot carry the source codecs untouched), so it is a near-transparent re-encode at the bitrate the streamer entered, not bit-identical; the Low-latency WebRTC path stays the zero-loss option.
+
+## Upgrading Postgres (18 to 19)
+
+A new Postgres major cannot open the previous major's data. The image keeps each major in its own folder on the `/var/lib/postgresql` volume (`18/docker`, `19/docker`), and the 19 image refuses to start while it finds 18 data there and nothing in its own folder. Nothing is lost when that happens, but the database stays down until the data is moved across.
+
+Move it with a dump and restore rather than `pg_upgrade`. A restore rebuilds every table and index on 19, so the stored `search_vector` columns are recomputed with 19's English stemmer (19 changed stems such as "pasted", "internal" and "interval"; `pg_upgrade` keeps the old ones, so searches for those words would miss older posts), long text is recompressed with 19's default `lz4` instead of `pglz`, and tables and indexes start with no bloat. The site is down for the dump plus the restore, so run the same steps against the dev compose first to see how long that takes.
+
+Every merge to main deploys (`deploy.yml` runs `git pull`, `compose pull` and `up -d`). Merge nothing while this runs, and merge the `postgres:19` image line only after step 4: a deploy part-way through starts whichever image the compose file names against a half-moved volume.
+
+Run everything in one shell from the deploy directory (on dev, set `C="docker compose"`). First check the database size and free disk: the volume needs room for a second copy of the database plus the dump file.
+
+```bash
+C="docker compose -f docker-compose.prod.yml"
+PG=$($C ps -q postgres)
+VOL=$(docker inspect "$PG" --format '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql"}}{{.Name}}{{end}}{{end}}')
+docker exec "$PG" sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT pg_size_pretty(pg_database_size(current_database()))"'
+df -h /var/lib/docker
+```
+
+1. **Stop the app** so nothing is written after the dump:
+
+   ```bash
+   $C stop umineko-city-of-books
+   ```
+
+2. **Dump with 19's `pg_dump`**, which the 19 release notes ask for, from the still-running 18 server:
+
+   ```bash
+   mkdir -p pgdump
+   docker run --rm --network "container:$PG" --env-file postgres.env -v "$PWD/pgdump:/dump" postgres:19 \
+     sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f /dump/pre-19.dump'
+   ```
+
+3. **Stop 18 and park its data** under a name the 19 image does not look for:
+
+   ```bash
+   $C stop postgres
+   docker run --rm -v "$VOL:/var/lib/postgresql" postgres:19 mv /var/lib/postgresql/18/docker /var/lib/postgresql/18/pre-19
+   ```
+
+4. **Start 19 on the same volume and restore.** The first boot creates the user and database from `postgres.env`. `pg_isready` checks over TCP because first-boot setup runs a temporary socket-only server, and the TCP port only opens once setup is finished. `-j "$(nproc)"` follows the `pg_restore` docs, which suggest the number of CPU cores as the starting point.
+
+   ```bash
+   docker run -d --name pg19-restore --env-file postgres.env -v "$VOL:/var/lib/postgresql" -v "$PWD/pgdump:/dump:ro" postgres:19
+   until docker exec pg19-restore pg_isready -h 127.0.0.1 -q; do sleep 1; done
+   docker exec pg19-restore sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --exit-on-error -j "$(nproc)" /dump/pre-19.dump'
+   docker exec pg19-restore sh -c 'vacuumdb -U "$POSTGRES_USER" -d "$POSTGRES_DB" --analyze-only'
+   docker rm -f pg19-restore
+   ```
+
+5. **Merge the `postgres:19` image line.** The deploy pulls 19, starts it on the restored data and brings the app back. On dev, run `$C up -d`.
+
+If a step fails before step 5, put 18 back. The box's compose file still names `postgres:18`, so `up -d` brings the site back as it was (on dev, set the image line back to 18 first):
+
+```bash
+docker rm -f pg19-restore
+docker run --rm -v "$VOL:/var/lib/postgresql" postgres:19 sh -c 'rm -rf /var/lib/postgresql/19 && mv /var/lib/postgresql/18/pre-19 /var/lib/postgresql/18/docker'
+$C up -d
+```
+
+Once the site is working on 19, delete the parked 18 data and the dump:
+
+```bash
+docker run --rm -v "$VOL:/var/lib/postgresql" postgres:19 rm -rf /var/lib/postgresql/18
+rm -rf pgdump
+```

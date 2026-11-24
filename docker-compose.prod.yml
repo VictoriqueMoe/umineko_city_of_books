@@ -10,7 +10,7 @@ networks:
 
 services:
   postgres:
-    image: postgres:18
+    image: postgres:19
     container_name: umineko-postgres
     restart: unless-stopped
     logging: *default-logging
